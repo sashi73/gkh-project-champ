@@ -122,4 +122,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 111 | 1.0.111| 2026-11-17 19:58| spi-finished| `8cee112` | Finished projects show their time index and how many days late they finished, in the Projects list (time column), the program's lowest figur |
 | 112 | 1.0.112| 2026-11-17 20:23| spi-finished| `5ce8f03` | Finished projects: time index and days late instead of SPI 1.00 |
 | 113 | 1.0.113| 2026-11-18 09:17| lessons-video| `3682dfd` | Lessons video: 90 seconds in the launch-film style; no Champ button on the sign-in screen |
-| 114 | 1.0.114 | 2026-11-18 09:26 | lessons-video | _this commit_ | _see git log_ |
+| 114 | 1.0.114| 2026-11-18 09:26| lessons-video| `7b3cbce` | Test: the lessons video runs 90 seconds (89.5 to 90.5) |
+| 115 | 1.0.115 | 2026-11-18 09:42 | lessons-video | _this commit_ | _see git log_ |

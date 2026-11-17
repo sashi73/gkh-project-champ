@@ -1733,6 +1733,51 @@
     t.subs = t.subs.filter(function (x) { return x !== sb; }); derive(t); if (!t.subs.length) setStatus(t, t.status); dirty('sub-task deleted: ' + nm); render();
     undoBar('Deleted “' + nm + '”', function () { var x = S.plan.tasks.filter(function (y) { return y.id === keep.id; })[0]; if (x) { x.subs = keep.subs; x.pct = keep.pct; x.status = keep.status; } dirty('sub-task restored: ' + nm); render(); });
   }
+  /* v174: indent and outdent, one level at a time. A task (1) goes under the task above it as its last sub-task (1.1); a
+     sub-task (1.1) goes under the sub-task above it as its last step (1.1.1), or out to a level-1 task just below its task;
+     a step (1.1.1) goes out to a sub-task just below its own sub-task. Dates stay inside the parent (it grows if needed). */
+  function lvlBtns(lv, canIn, canOut, why) {
+    return (lv < 3 ? '<button class="btn btn-sm lvb" type="button" data-lv="in"' + (canIn ? ' title="Indent: ' + (lv === 1 ? 'make it a sub-task (1.1) of the task above' : 'make it a step (1.1.1) of the sub-task above') + '"' : ' disabled title="' + esc(why || 'Cannot indent here') + '"') + ' aria-label="Indent">⇥</button>' : '') +
+      (lv > 1 && canOut ? '<button class="btn btn-sm lvb" type="button" data-lv="out" title="Outdent: ' + (lv === 2 ? 'make it a level-1 task, just below its task' : 'make it a sub-task (1.1), just below its sub-task') + '" aria-label="Outdent">⇤</button>' : '');
+  }
+  function prevL1(p, t) { var i = p.tasks.indexOf(t); for (var k = i - 1; k >= 0; k--) if (p.tasks[k].dur > 0) return p.tasks[k]; return null; }
+  var lvId = function (c) { return c + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
+  function taskIn(t) {   // level 1 → the last sub-task of the task above
+    var p = S.plan, par = prevL1(p, t); if (!par || t.dur === 0) return '';
+    if ((t.subs || []).some(function (x) { return (x.steps || []).length; })) { toast('Move its steps out first: a sub-task has only one level below it', true); return ''; }
+    if (cost(t) > 0 || (+t.actual || 0) > 0) { toast('“' + t.name + '” carries costs, and sub-tasks have none of their own. Move its Qty, Unit $ and Actual $ to the task above (or clear them) first.', true); return ''; }
+    par.subs = par.subs || []; var last = par.subs[par.subs.length - 1], off = last ? last.off + last.dur : 0, D = Math.max(1, t.dur);
+    if (off + D > par.dur) par.dur = off + D;   // the task above grows to hold it
+    var sb = { id: lvId('s'), name: t.name, owner: (t.res || [])[0] || '', off: off, dur: D, status: t.status || 'todo',
+      steps: (t.subs || []).map(function (x) { return { id: lvId('p'), name: x.name, owner: x.owner || '', off: x.off, dur: x.dur, done: x.status === 'done' }; }) };
+    if ((t.stickies || []).length) par.stickies = (par.stickies || []).concat(t.stickies);
+    par.subs.push(sb); fitSubs(par);
+    p.tasks = p.tasks.filter(function (x) { return x !== t; });
+    p.tasks.forEach(function (x) { if (x.pred) x.pred = x.pred.map(function (id) { return id === t.id ? par.id : id; }).filter(function (id, k, a) { return id !== x.id && a.indexOf(id) === k; }); });
+    derive(par); S.closed[par.id] = false; S.stClosed[sb.id] = false;
+    return 'indented: ' + t.name + ' is now a sub-task of ' + par.name;
+  }
+  function subIn(t, sb) {   // 1.1 → the last step of the sub-task above
+    var j = t.subs.indexOf(sb), up = t.subs[j - 1]; if (!up) return '';
+    if ((sb.steps || []).length) { toast('It has steps: move them out first (a step cannot have steps of its own)', true); return ''; }
+    up.steps = up.steps || []; var last = up.steps[up.steps.length - 1], off = last ? last.off + last.dur : 0, D = Math.max(1, sb.dur);
+    if (off + D > up.dur) { up.dur = off + D; if (up.off + up.dur > t.dur) t.dur = up.off + up.dur; }
+    up.steps.push({ id: lvId('p'), name: sb.name, owner: sb.owner || '', off: off, dur: D, done: sb.status === 'done' });
+    t.subs.splice(j, 1); fitSubs(t); derive(t); S.stClosed[up.id] = false;
+    return 'indented: ' + sb.name + ' is now a step of ' + up.name;
+  }
+  function subOut(t, sb) {   // 1.1 → a level-1 task just below its task (it starts alongside it)
+    var p = S.plan, nt = { id: lvId('t'), phase: t.phase || 'ph1', name: sb.name, dur: Math.max(1, sb.dur), res: sb.owner ? [sb.owner] : [], lead: '', resource: '', qty: 0, unit: '', rate: 0, actual: 0, pct: subPct(sb), status: sb.status || 'todo', pred: (t.pred || []).slice(), snet: '', notes: '',
+      subs: (sb.steps || []).map(function (q) { return { id: lvId('s'), name: q.name, owner: q.owner || '', off: q.off, dur: q.dur, status: q.done ? 'done' : 'todo' }; }) };
+    t.subs.splice(t.subs.indexOf(sb), 1); p.tasks.splice(p.tasks.indexOf(t) + 1, 0, nt);
+    fixRes(nt); fitSubs(t); fitSubs(nt); derive(t); derive(nt); if (!t.subs.length) setStatus(t, t.status);
+    return 'outdented: ' + sb.name + ' is now a level-1 task';
+  }
+  function stepOut(t, sb, q) {   // 1.1.1 → a sub-task just below its own sub-task
+    var ns = { id: lvId('s'), name: q.name, owner: q.owner || '', off: sb.off + q.off, dur: q.dur, status: q.done ? 'done' : 'todo' };
+    sb.steps.splice(sb.steps.indexOf(q), 1); t.subs.splice(t.subs.indexOf(sb) + 1, 0, ns); fitSubs(t); derive(t);
+    return 'outdented: ' + q.name + ' is now a sub-task of ' + t.name;
+  }
   function stepAdd(t, sb) {
     sb.steps = sb.steps || []; var D = Math.max(1, sb.dur), last = sb.steps[sb.steps.length - 1], off = last ? Math.min(D - 1, last.off + last.dur) : 0;
     if (last && last.off + last.dur >= D) off = last.off;   // the story is full: start alongside the last one
@@ -1917,7 +1962,7 @@
         '<td><input data-k="actual" inputmode="decimal" value="' + esc(t.actual || '') + '" style="width:80px"></td>' +
         '<td><select data-k="status" class="stsel st-' + t.status + '"' + (subs.length ? ' title="Setting this moves all its sub-tasks too"' : '') + '>' + STATUS.map(function (x) { return '<option value="' + x[0] + '"' + (t.status === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></td>' +
         '<td><input data-k="pct" type="number" min="0" max="100" step="1" value="' + t.pct + '" style="width:54px"' + (subs.length ? ' disabled title="Worked out from the sub-tasks"' : '') + '></td>' +
-        '<td class="acts"><button class="btn btn-sm" data-rem title="Reminder">🔔</button><button class="btn btn-sm" data-del title="Delete">✕</button></td>' +
+        '<td class="acts">' + lvlBtns(1, t.dur > 0 && prevL1(p, t) && !(t.subs || []).some(function (x) { return (x.steps || []).length; }), false, t.dur === 0 ? 'A milestone stays at level 1' : !prevL1(p, t) ? 'The first task has nothing above it to go under' : 'Move its steps out first: a sub-task has only one level below it') + '<button class="btn btn-sm" data-rem title="Reminder">🔔</button><button class="btn btn-sm" data-del title="Delete">✕</button></td>' +
         '</tr>';
       G += '<tr data-gtid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack" style="width:' + W + 'px;' + weekendBg + '">' + todayLine + bar(t, base) + '</div></td></tr>';
       if (open) subs.forEach(function (sb, j) {
@@ -1928,25 +1973,25 @@
           '<td><input type="checkbox" data-sk="done"' + (sb.status === 'done' ? ' checked' : '') + ' style="width:auto" title="Done"></td>' +
           '<td><div class="subname"><span class="subarrow">↳</span><input data-sk="name" value="' + esc(sb.name) + '"><button class="tdel" type="button" data-sdel title="Delete this sub-task' + (stp.length ? ' and its ' + pl(stp.length, 'step') : '') + '" aria-label="Delete sub-task">🗑</button></div>' +
             '<button class="stepadd" type="button" data-addstep title="Break this story into dated steps (they stay inside its dates)">＋ step' + (stp.length ? ' · ' + stp.filter(function (q) { return q.done; }).length + '/' + stp.length + ' done' : '') + '</button></td>' +
-          '<td><input data-sk="owner" list="resList" value="' + esc(sb.owner || '') + '" placeholder="Who" style="min-width:90px;width:110px"></td>' +
+          '<td><input data-sk="owner" list="resList" value="' + esc(sb.owner || '') + '" placeholder="Who" style="min-width:90px;width:110px" title="From the 👥 Stakeholder register"></td>' +
           '<td><input data-sk="dur" type="number" min="1" max="' + maxDur + '" value="' + sb.dur + '" style="width:50px" title="At most ' + maxDur + ' day' + (maxDur === 1 ? '' : 's') + ' (to stay inside the task)"></td>' +
           '<td><input data-sk="start" type="date" value="' + esc(d.es) + '" min="' + esc(t.es) + '" max="' + esc(t.ef) + '" title="Between ' + esc(dmy(t.es)) + ' and ' + esc(dmy(t.ef)) + ' (the task\'s dates)"></td>' +
           '<td class="nowrap">' + esc(dmy(d.ef)) + '</td><td class="muted" style="font-size:11.5px">in #' + r.n + '</td><td></td><td></td><td></td>' +
           '<td class="muted subcost" title="Costs stay on the task">–</td><td></td>' +
           '<td><select data-sk="status" class="stsel st-' + sb.status + '"' + (stp.length ? ' disabled title="Worked out from its steps: tick them"' : '') + '>' + STATUS.map(function (o) { return '<option value="' + o[0] + '"' + (sb.status === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></td>' +
           '<td class="muted"' + (stp.length ? ' title="From its steps (weighted by days)"' : '') + '>' + subPct(sb) + '</td>' +
-          '<td class="acts"><button class="btn btn-sm" data-sdel title="Delete sub-task">✕</button></td>' +
+          '<td class="acts">' + lvlBtns(2, j > 0 && !stp.length, true, j === 0 ? 'The first sub-task has no sub-task above it to go under' : 'It has steps: a step cannot have steps of its own') + '<button class="btn btn-sm" data-srem title="Reminder">🔔</button><button class="btn btn-sm" data-sdel title="Delete sub-task">✕</button></td>' +
           '</tr>';
         G += '<tr data-gsid="' + esc(sb.id) + '" data-gptid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack gtrack-sub" style="width:' + W + 'px;' + weekendBg + '">' + todayLine + (d.es ? '<span class="gsub st-' + sb.status + ' pb-' + pband(subPct(sb)) + (sl ? ' late' : '') + '" style="left:' + left + 'px;width:' + sw + 'px" title="' + esc(sb.name + ' · ' + pretty(d.es) + ' – ' + pretty(d.ef) + ' · ' + stName[sb.status]) + '"><span class="gfill" style="width:' + subPct(sb) + '%"></span></span><span class="glab" style="left:' + (left + sw + 4) + 'px">' + esc(sb.owner || '') + '</span>' : '') + '</div></td></tr>';
         if (sOpen) stp.forEach(function (q, k) {
           var qd = stepDates(t, sb, q), ql = !q.done && qd.ef && qd.ef < t0, qMax = Math.max(1, sb.dur) - q.off, ql2 = qd.es ? x(qd.es) : 0, qw = qd.es ? (daysBetween(qd.es, qd.ef) + 1) * dayW : 0;
           html += '<tr class="tstep' + (q.done ? ' tdone' : '') + (ql ? ' tlate' : '') + '" data-qid="' + esc(q.id) + '" data-qsid="' + esc(sb.id) + '" data-qtid="' + esc(t.id) + '"><td class="muted nowrap stepn">' + r.n + '.' + (j + 1) + '.' + (k + 1) + '</td>' +
             '<td><input type="checkbox" data-qk="done"' + (q.done ? ' checked' : '') + ' style="width:auto" title="Done"></td>' +
-            '<td><div class="stepname"><span class="subarrow">↳</span><input data-qk="name" value="' + esc(q.name) + '"><button class="tdel" type="button" data-qdel title="Delete this step" aria-label="Delete step">🗑</button></div></td><td></td>' +
+            '<td><div class="stepname"><span class="subarrow">↳</span><input data-qk="name" value="' + esc(q.name) + '"><button class="tdel" type="button" data-qdel title="Delete this step" aria-label="Delete step">🗑</button></div></td><td><input data-qk="owner" list="resList" value="' + esc(q.owner || '') + '" placeholder="Who" style="min-width:90px;width:110px" title="From the 👥 Stakeholder register"></td>' +
             '<td><input data-qk="dur" type="number" min="1" max="' + qMax + '" value="' + q.dur + '" style="width:50px" title="At most ' + pl(qMax, 'day') + ' (to stay inside the story)"></td>' +
             '<td><input data-qk="start" type="date" value="' + esc(qd.es) + '" min="' + esc(d.es) + '" max="' + esc(d.ef) + '" title="Between ' + esc(dmy(d.es)) + ' and ' + esc(dmy(d.ef)) + ' (the story\'s dates)"></td>' +
             '<td class="nowrap">' + esc(dmy(qd.ef)) + '</td><td class="muted" style="font-size:11px">in #' + r.n + '.' + (j + 1) + '</td><td></td><td></td><td></td><td class="muted subcost">–</td><td></td>' +
-            '<td class="muted" style="font-size:11.5px">' + (q.done ? '✓ Done' : ql ? 'Late' : 'To do') + '</td><td class="muted">' + (q.done ? 100 : 0) + '</td><td></td></tr>';
+            '<td class="muted" style="font-size:11.5px">' + (q.done ? '✓ Done' : ql ? 'Late' : 'To do') + '</td><td class="muted">' + (q.done ? 100 : 0) + '</td><td class="acts">' + lvlBtns(3, false, true) + '<button class="btn btn-sm" data-qrem title="Reminder">🔔</button><button class="btn btn-sm" data-qdel title="Delete step">✕</button></td></tr>';
           G += '<tr data-gqid="' + esc(q.id) + '"><td class="gcol"><div class="gtrack gtrack-step" style="width:' + W + 'px;' + weekendBg + '">' + todayLine + (qd.es ? '<span class="gstep' + (q.done ? ' done' : '') + (ql ? ' late' : '') + '" style="left:' + ql2 + 'px;width:' + qw + 'px" title="' + esc(q.name + ' · ' + pretty(qd.es) + (qd.ef !== qd.es ? ' – ' + pretty(qd.ef) : '') + (q.done ? ' · done' : '')) + '"></span>' + (q.done ? '<span class="glab gstep-l" style="left:' + (ql2 + qw + 3) + 'px">✓</span>' : '') : '') + '</div></td></tr>';
         });
       });
@@ -1956,8 +2001,8 @@
     html += '</tbody><tfoot><tr><td></td><td></td><td><b>Total (budget at completion)</b></td><td></td><td></td><td>' + esc(pretty(R.start)) + '</td><td>' + esc(pretty(R.finish)) + '</td><td></td><td></td><td></td><td></td><td class="num"><b>' + money(R.BAC) + '</b></td><td class="num"><b>' + money(R.AC) + '</b></td><td></td><td><b>' + R.pct + '%</b></td><td></td></tr></tfoot></table></div>' +
       '<div class="gsplitter" id="gSplitter" title="Drag to make the task list or the Gantt chart wider (double-click to reset)"><span></span></div>' +
       '<div class="gpane gright" id="gRight"><table class="gt gtr"><thead><tr><th class="gcol">' + scale + '</th></tr></thead><tbody>' + G + '</tbody><tfoot><tr><td class="gcol"><div class="gleg" title="Bar colours: how far each task and sub-task has got">' + [0, 25, 50, 75, 100].map(function (n) { return '<span><i class="pb-' + n + '"></i>' + (n === 100 ? '100% done' : n + '%') + '</span>'; }).join('') + '<span><i class="pb-late"></i>Late</span><span><i class="pb-mile"></i>Milestone</span></div></td></tr></tfoot></table></div></div>' +
-      '<div class="res-tip" id="resTip" hidden><b>Tip:</b> you can add more than one person or trade. Press <kbd>Enter</kbd> or type a comma after each name. <b>★</b> = the lead: the first one added is the lead; click another name to make them the lead.</div>' +
-      '<datalist id="resList">' + pplOpts() + stakeOpts(pplNames()) + Array.from(new Set([].concat.apply([], p.tasks.map(function (t) { return t.res || []; })).concat(['Labourer', 'Tiler', 'Plumber', 'Electrician', 'Painter', 'Carpenter', 'Waterproofer', 'Supplier', 'Customer']))).filter(function (r) { var k = r && r.toLowerCase(); return r && !pplNames()[k] && !(p.stakeholders || []).some(function (x) { return (x.name || '').toLowerCase() === k; }); }).map(function (r) { return '<option value="' + esc(r) + '">'; }).join('') + '</datalist></div>';
+      '<div class="res-tip" id="resTip" hidden><b>Tip:</b> people come from the 👥 Stakeholder register only. Add more than one: Press <kbd>Enter</kbd> or type a comma after each name. <b>★</b> = the lead: the first one added is the lead; click another name to make them the lead.</div>' +
+      '<datalist id="resList">' + stakeOpts() + '</datalist></div>';
     $('#planBody').innerHTML = html;
     var B = $('#planBody'); estWire(B);
     dateBoxes(B);   // before the rows are lined up with the Gantt chart
@@ -2019,7 +2064,7 @@
     var addNames = function (t, text) {
       var added = false;
       String(text).split(',').map(function (x) { return x.trim().slice(0, 60); }).filter(Boolean).forEach(function (name) {
-        if (t.res.map(function (x) { return x.toLowerCase(); }).indexOf(name.toLowerCase()) < 0 && t.res.length < 12) { t.res.push(name); added = true; stakeEnsure(name); }
+        name = stakeOnly(name); if (name && t.res.map(function (x) { return x.toLowerCase(); }).indexOf(name.toLowerCase()) < 0 && t.res.length < 12) { t.res.push(name); added = true; }
       });
       if (added) { fixRes(t); crewAuto(t); dirty(); }
       return added;
@@ -2037,7 +2082,8 @@
       });
       inp.addEventListener('input', function () { if (inp.value.indexOf(',') >= 0 && addNames(task(inp), inp.value)) { inp.value = ''; refocus(); } });
     });
-    B.querySelectorAll('[data-sk="owner"]').forEach(function (inp) { inp.addEventListener('change', function () { if (stakeEnsure(inp.value)) dirty('stakeholder added'); }); });
+    B.querySelectorAll('[data-sk="owner"],[data-qk="owner"]').forEach(function (inp) { inp.addEventListener('change', function () { var o = inp.hasAttribute('data-qk') ? stepOf(inp).q : subOf(inp).sb; if (!o) return; var v = inp.value.trim(), ok = v ? stakeOnly(v) : ''; o.owner = ok; inp.value = ok; dirty(ok ? 'owner: ' + ok : 'owner cleared'); }); });
+    B.querySelectorAll('[data-sk="owner"],[data-qk="owner"]').forEach(function (inp) { inp.addEventListener('focus', function () { if (!stakeList().length) stakeNeed(); }); });
     B.querySelectorAll('[data-rlead]').forEach(function (b) { b.onclick = function () { var t = task(b); t.lead = b.getAttribute('data-rlead'); fixRes(t); dirty(); render(); }; });
     B.querySelectorAll('[data-rx]').forEach(function (b) { b.onclick = function () { var t = task(b), n = b.getAttribute('data-rx'); t.res = t.res.filter(function (x) { return x !== n; }); fixRes(t); crewAuto(t); dirty(); render(); }; });
     B.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { taskDelete(task(b)); }; });
@@ -2075,7 +2121,7 @@
     });
     var subOf = function (el) { var tr = el.closest('tr'), t = p.tasks.filter(function (x) { return x.id === tr.getAttribute('data-ptid'); })[0]; return { t: t, sb: t && (t.subs || []).filter(function (x) { return x.id === tr.getAttribute('data-sid'); })[0] }; };
     B.querySelectorAll('tr[data-sid] [data-sk]').forEach(function (el) {
-      var k = el.getAttribute('data-sk'), live = k === 'name' || k === 'owner';
+      var k = el.getAttribute('data-sk'), live = k === 'name'; if (k === 'owner') return;
       el.addEventListener(live ? 'input' : 'change', function () {
         var o = subOf(el), t = o.t, sb = o.sb; if (!sb) return;
         if (k === 'name' || k === 'owner') { sb[k] = el.value; dirty(); return; }
@@ -2098,7 +2144,7 @@
     var stepOf = function (el) { var tr = el.closest('tr'), t = p.tasks.filter(function (x) { return x.id === tr.getAttribute('data-qtid'); })[0], sb = t && (t.subs || []).filter(function (x) { return x.id === tr.getAttribute('data-qsid'); })[0];
       return { t: t, sb: sb, q: sb && (sb.steps || []).filter(function (x) { return x.id === tr.getAttribute('data-qid'); })[0] }; };
     B.querySelectorAll('tr[data-qid] [data-qk]').forEach(function (el) {
-      var k = el.getAttribute('data-qk');
+      var k = el.getAttribute('data-qk'); if (k === 'owner') return;
       el.addEventListener(k === 'name' ? 'input' : 'change', function () {
         var o = stepOf(el), t = o.t, sb = o.sb, q = o.q; if (!q) return;
         if (k === 'name') { q.name = el.value; dirty(); return; }
@@ -2114,6 +2160,15 @@
       });
     });
     B.querySelectorAll('[data-qdel]').forEach(function (b) { b.onclick = function () { var o = stepOf(b); stepDelete(o.t, o.sb, o.q); }; });
+    B.querySelectorAll('[data-srem]').forEach(function (b) { b.onclick = function () { var o = subOf(b); if (o.sb) reminderBox(o.t, o.sb); }; });
+    B.querySelectorAll('[data-qrem]').forEach(function (b) { b.onclick = function () { var o = stepOf(b); if (o.q) reminderBox(o.t, o.sb, o.q); }; });
+    B.querySelectorAll('[data-lv]').forEach(function (b) { b.onclick = function () {
+      var tr = b.closest('tr'), dir = b.getAttribute('data-lv'), r;
+      if (tr.hasAttribute('data-qid')) { var o = stepOf(b); r = o.q && stepOut(o.t, o.sb, o.q); }
+      else if (tr.hasAttribute('data-sid')) { var o2 = subOf(b); r = o2.sb && (dir === 'in' ? subIn(o2.t, o2.sb) : subOut(o2.t, o2.sb)); }
+      else r = taskIn(task(b));
+      if (r) { dirty(r); render(); }
+    }; });
     B.querySelectorAll('[data-spos]').forEach(function (inp) {
       var keep = inp.value; posKeys(inp, keep);
       inp.addEventListener('change', function () {
@@ -2670,12 +2725,13 @@
     });
     bar.addEventListener('dblclick', function () { S.split = 0; try { localStorage.removeItem('mbsPlanSplit'); } catch (er) {} L.style.flex = ''; L.style.maxWidth = ''; sync(); });
   }
-  function reminderBox(t) {
-    M.modal('<h2>Reminder for “' + esc(t.name) + '”</h2><p class="muted">Sent to Telegram (everyone who gets the job alerts).</p><div class="actions" style="margin:12px 0">' +
-      '<button class="btn" data-w="daybefore">Working day before start, 7am</button><button class="btn" data-w="start">Start day, 7am (' + esc(pretty(t.es)) + ')</button><button class="btn" data-w="due">Finish day, 7am (' + esc(pretty(t.ef)) + ')</button></div>' +
+  function reminderBox(t, sb, q) {   // a task (level 1), a sub-task (1.1) or a step (1.1.1)
+    var d = q ? stepDates(t, sb, q) : sb ? subDates(t, sb) : { es: t.es, ef: t.ef }, nm = q ? q.name : sb ? sb.name : t.name;
+    M.modal('<h2>Reminder for “' + esc(nm) + '”</h2><p class="muted">Sent to Telegram (everyone who gets the job alerts).</p><div class="actions" style="margin:12px 0">' +
+      '<button class="btn" data-w="daybefore">Working day before start, 7am</button><button class="btn" data-w="start">Start day, 7am (' + esc(pretty(d.es)) + ')</button><button class="btn" data-w="due">Finish day, 7am (' + esc(pretty(d.ef)) + ')</button></div>' +
       '<div class="inline-form"><input id="remWhen" placeholder="or type: tomorrow 8am, fri 2pm, 12/11 9am"><button class="btn btn-sm btn-dark" id="remGo">Set</button></div>' +
       '<div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>Close</button></div>');
-    var go = function (w) { saveNow().then(function () { return api('planRemind', { core: S.core, taskId: t.id, when: w }); }).then(function (r) { M.closeModal(); S.reminders.push(r.reminder); toast('Reminder set for ' + r.reminder.when); }).catch(fail); };
+    var go = function (w) { saveNow().then(function () { return api('planRemind', { core: S.core, taskId: t.id, subId: sb ? sb.id : '', stepId: q ? q.id : '', when: w }); }).then(function (r) { M.closeModal(); S.reminders.push(r.reminder); toast('Reminder set for ' + r.reminder.when); }).catch(fail); };
     document.querySelectorAll('#modal [data-w]').forEach(function (b) { b.onclick = function () { go(b.getAttribute('data-w')); }; });
     $('#remGo').onclick = function () { go($('#remWhen').value); };
   }
@@ -2696,7 +2752,6 @@
     S.pplLoaded = true; if (pplAll().length) return;
     M.people.load().then(function () {
       if (!S.plan || !pplAll().length) return;
-      var rl = document.getElementById('resList'); if (rl) rl.insertAdjacentHTML('afterbegin', pplOpts());
       var pm = document.getElementById('chPM'); if (pm) pm.innerHTML = pplAll().map(function (x) { return '<option value="' + esc(x.name) + '" label="' + esc(x.role || x.type) + '">'; }).join('');
       if (S.tab === 'stake' && !document.querySelector('#rcDrawer, .kpop')) render();
     }).catch(function () {});
@@ -2781,6 +2836,14 @@
     if (!quiet) toast(n + ' added to the Stakeholder register' + (pe ? ' (from People, with their contact details)' : ': add their role and contact details on the 👥 Stakeholders tab'));
     return true;
   }
+  // v174: people (resources, sub-task and step owners, Kanban owners, @ in sticky notes) come from the Stakeholder register only
+  function stakeList() { var seen = {}; return (S.plan && S.plan.stakeholders || []).map(function (x) { return String(x.name || '').trim(); }).filter(function (n) { var k = n.toLowerCase(); if (!n || seen[k]) return false; seen[k] = 1; return true; }); }
+  function stakeName(n) { var k = String(n || '').trim().toLowerCase(); return stakeList().filter(function (x) { return x.toLowerCase() === k; })[0] || ''; }
+  function stakeNeed() { toast('No stakeholders yet: set up the 👥 Stakeholder register first, then pick people from it', true); }
+  function stakeOnly(n) {   // the register's spelling of n, or '' (and says why)
+    n = String(n || '').trim(); if (!n) return ''; if (!stakeList().length) { stakeNeed(); return ''; }
+    var ok = stakeName(n); if (!ok) toast('“' + n + '” is not in the 👥 Stakeholder register. Add them there first, then pick them here.', true); return ok;
+  }
   function stakeOpts(skip) {   // the people in the Stakeholder register (names only), for the resource and owner lists
     var seen = {}; return (S.plan.stakeholders || []).filter(function (x) { var n = (x.name || '').trim(), k = n.toLowerCase(); if (!n || seen[k] || (skip && skip[k])) return false; seen[k] = 1; return true; })
       .map(function (x) { return '<option value="' + esc(x.name) + '" label="Stakeholder' + (x.role ? ' · ' + esc(x.role) : '') + '">'; }).join('');
@@ -2788,17 +2851,17 @@
   function ownerPick(btn, cur, set0) {
     var sh = (S.plan.stakeholders || []).filter(function (x) { return x.name || x.role; });
     // v67: a new name typed here goes into the Stakeholder register too (RACI R), so the register stays complete
-    var set = function (n) { if (n && !sh.some(function (x) { return (x.name || x.role || '').toLowerCase() === n.toLowerCase(); })) stakeEnsure(n); set0(n); };
-    kPop(btn, '<input class="kpop-q" placeholder="Search, or type a name">' + '<div class="kpop-list"></div>' + (cur ? '<button type="button" class="kpop-clear">✕ No owner</button>' : ''), function (m, done) {
+    var set = function (n) { if (n) { n = stakeOnly(n); if (!n) return; } set0(n); };
+    kPop(btn, '<input class="kpop-q" placeholder="Search the Stakeholder register">' + '<div class="kpop-list"></div>' + (cur ? '<button type="button" class="kpop-clear">✕ No owner</button>' : ''), function (m, done) {
       var q = m.querySelector('.kpop-q'), L = m.querySelector('.kpop-list');
       var draw = function () {
         var v = q.value.trim(), lv = v.toLowerCase(), hits = sh.filter(function (x) { return !lv || ((x.name || '') + ' ' + (x.role || '')).toLowerCase().indexOf(lv) >= 0; });
         var known = {}; sh.forEach(function (x) { known[(x.name || x.role || '').toLowerCase()] = 1; });
-        var pp = pplAll().filter(function (x) { return !known[x.name.toLowerCase()] && (!lv || (x.name + ' ' + (x.role || '')).toLowerCase().indexOf(lv) >= 0); }).slice(0, 8);
+        var pp = [].filter(function (x) { return !known[x.name.toLowerCase()] && (!lv || (x.name + ' ' + (x.role || '')).toLowerCase().indexOf(lv) >= 0); }).slice(0, 8);
         L.innerHTML = hits.map(function (x) { var n = x.name || x.role; return '<button type="button" data-own="' + esc(n) + '"' + (n === cur ? ' class="on"' : '') + '><span class="kav">' + esc(initials(n)) + '</span><span><b>' + esc(n) + '</b><small>' + esc(x.role || '') + '</small></span></button>'; }).join('') +
           (pp.length ? '<div class="kpop-sep">From People</div>' + pp.map(function (x) { return '<button type="button" data-own="' + esc(x.name) + '" data-pid="' + esc(x.id) + '"><span class="kav pp">' + esc(initials(x.name)) + '</span><span><b>' + esc(x.name) + '</b><small>' + esc(x.role || x.type) + ' · adds them as a stakeholder</small></span></button>'; }).join('') : '') +
-          (v && !sh.some(function (x) { return (x.name || x.role || '').toLowerCase() === lv; }) && !pplNames()[lv] ? '<button type="button" data-own="' + esc(v) + '"><span class="kav none">+</span><span><b>Add “' + esc(v) + '”</b><small>also adds them to the Stakeholder register</small></span></button>' : '') +
-          (!hits.length && !v ? '<p class="muted" style="margin:6px;font-size:12px">No stakeholders yet: type a name.</p>' : '');
+          ''+
+          (!hits.length && !v ? '<p class="muted" style="margin:6px;font-size:12px">No stakeholders yet: set up the 👥 Stakeholder register first, then pick people from it.</p>' : '');
         L.querySelectorAll('[data-own]').forEach(function (b) { b.onclick = function () { set(b.getAttribute('data-own')); done(); }; });
       };
       q.oninput = draw; q.onkeydown = function (e) { if (e.key === 'Enter' && q.value.trim()) { set(q.value.trim()); done(); } if (e.key === 'Escape') done(); }; draw(); setTimeout(function () { q.focus(); }, 0);
@@ -2812,7 +2875,7 @@
     });
   }
   function kCtl(key, own, prio, pts) {   // owner button, H/M/L, points button
-    return '<div class="kctl"><button type="button" class="kown' + (own ? '' : ' none') + '" data-k="o:' + key + '" title="Owner: pick from the Stakeholder register or type a name"><span class="kav' + (own ? '' : ' none') + '">' + (own ? esc(initials(own)) : '+') + '</span><span class="kown-n">' + (own ? esc(own) : 'Owner') + '</span></button>' +
+    return '<div class="kctl"><button type="button" class="kown' + (own ? '' : ' none') + '" data-k="o:' + key + '" title="Owner: pick from the Stakeholder register"><span class="kav' + (own ? '' : ' none') + '">' + (own ? esc(initials(own)) : '+') + '</span><span class="kown-n">' + (own ? esc(own) : 'Owner') + '</span></button>' +
       '<span class="kseg" title="Priority">' + PRIO.map(function (x) { return '<button type="button" class="kseg-' + PL[x] + (prio === x ? ' on' : '') + '" data-k="p:' + key + ':' + x + '" title="' + x + ' priority">' + PL[x] + '</button>'; }).join('') + '</span>' +
       '<button type="button" class="kptb' + (pts ? ' on' : '') + '" data-k="n:' + key + '" title="Story points">' + (pts ? pts + ' pts' : 'pts') + '</button></div>';
   }
@@ -2896,12 +2959,35 @@
         es.onclick = doSave; pop.querySelector('[data-setx]').onkeydown = function (e) { if (stkNl(e)) return; if (e.key === 'Enter') { e.preventDefault(); doSave(); } if (e.key === 'Escape') { e.stopPropagation(); S.stkEdit = null; draw(); } }; }
       pop.querySelectorAll('[data-sdel]').forEach(function (b) { b.onclick = function () { var id = b.closest('[data-nid]').getAttribute('data-nid'); t.stickies = (t.stickies || []).filter(function (q) { return q.id !== id; }); save('deleted'); }; });
       var ta = $('#stkTx'); if (ta) { ta.onkeydown = function (e) { if (stkNl(e)) return; if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add.onclick(); } }; if (first && !S.stkEdit) setTimeout(function () { ta.focus(); }, 30); } first = false;
+      pop.querySelectorAll('textarea').forEach(atMention);
     };
     draw();
   }
+  function atMention(ta) {   // v174: @ in a sticky note lists the 👥 Stakeholder register (only that); pick one to put @Name in the note
+    if (!ta || ta._at) return; ta._at = 1; var box = null, hits = [], sel = 0;
+    var close = function () { if (box) { box.remove(); box = null; } };
+    var token = function () { var v = ta.value.slice(0, ta.selectionStart), m = v.match(/(^|\s)@([^\s@]*)$/); return m ? { q: m[2], at: v.length - m[2].length - 1 } : null; };
+    var pick = function (n) { var tk = token(); if (!tk) return close(); var end = ta.selectionStart; ta.value = ta.value.slice(0, tk.at) + '@' + n + ' ' + ta.value.slice(end); var c = tk.at + n.length + 2; ta.setSelectionRange(c, c); close(); ta.focus(); };
+    var draw = function () { var tk = token(); if (!tk) return close();
+      var all = (S.plan && S.plan.stakeholders || []).filter(function (x) { return String(x.name || '').trim(); }), lq = tk.q.toLowerCase();
+      hits = all.filter(function (x) { return !lq || ((x.name || '') + ' ' + (x.role || '')).toLowerCase().indexOf(lq) >= 0; }).slice(0, 8); sel = Math.min(sel, Math.max(0, hits.length - 1));
+      if (!box) { box = document.createElement('div'); box.className = 'stk-at'; box.onmousedown = function (e) { e.preventDefault(); }; document.body.appendChild(box); }
+      var rc = ta.getBoundingClientRect(); box.style.position = 'fixed'; box.style.left = Math.max(8, Math.min(rc.left, innerWidth - 260)) + 'px'; box.style.top = Math.min(rc.bottom + 4, innerHeight - 230) + 'px';
+      box.innerHTML = !all.length ? '<p>No stakeholders yet: set up the 👥 Stakeholder register first, then @ them here.</p>' : hits.length ? hits.map(function (x, i) { return '<button type="button" data-at="' + esc(String(x.name).trim()) + '"' + (i === sel ? ' class="on"' : '') + '>' + esc(x.name) + (x.role ? '<small>' + esc(x.role) + '</small>' : '') + '</button>'; }).join('') : '<p>No stakeholder matches “' + esc(tk.q) + '”.</p>';
+      box.querySelectorAll('[data-at]').forEach(function (b) { b.onclick = function () { pick(b.getAttribute('data-at')); }; });
+    };
+    ta.addEventListener('input', function () { sel = 0; draw(); }); ta.addEventListener('blur', function () { setTimeout(close, 150); });
+    var old = ta.onkeydown;
+    ta.onkeydown = function (e) {
+      if (box && hits.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length; draw(); return; }
+      if (box && hits.length && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); pick(String(hits[sel].name).trim()); return; }
+      if (box && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+      return old ? old.call(ta, e) : undefined;
+    };
+  }
   if (!window.__champStk) { window.__champStk = true;
     document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-stk]'); if (b && S.plan) { e.preventDefault(); e.stopPropagation(); stkPanel(b.getAttribute('data-stk'), b); return; }
-      var pop = document.getElementById('stkPop'); if (pop && !pop.contains(e.target) && !S.stkBig) pop.remove(); }, true);
+      var pop = document.getElementById('stkPop'); if (pop && !pop.contains(e.target) && !(e.target.closest && e.target.closest('.stk-at')) && !S.stkBig) pop.remove(); }, true);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var pop = document.getElementById('stkPop'); if (pop) pop.remove(); } });
     window.addEventListener('hashchange', function () { var pop = document.getElementById('stkPop'); if (pop && !/^#plan\//.test(location.hash)) pop.remove(); });
   }

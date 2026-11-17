@@ -625,3 +625,16 @@ body.ll-open #modal{z-index:2100}
 
 /* the sign-in screen shows no Champ button, panel or tour layer: Champ is only there once you are signed in */
 body:has(#login:not([hidden])) #cgBtn,body:has(#login:not([hidden])) #cgPanel,body:has(#login:not([hidden])) #cgLayer{display:none!important}
+/* v174: "+ sub-task" always shows under a level-1 task's name (like "+ step" under a sub-task) */
+table.gt .subadd{position:static!important;opacity:1!important;pointer-events:auto!important;display:block;background:none;border:0;padding:0 6px 0 4px;margin-top:1px;font-size:10.5px;color:#9A947F;text-align:left}
+table.gt .subadd:hover{color:#5A4400;text-decoration:underline;background:none}
+/* indent ⇥ and outdent ⇤ */
+table.gt td.acts{white-space:nowrap}
+.lvb{padding:2px 6px!important;font-weight:800;min-width:0}
+.lvb[disabled]{opacity:.3;cursor:not-allowed}
+/* @ a stakeholder in a sticky note */
+.stk-at{position:absolute;z-index:30;background:#fff;border:1px solid #E7E1D2;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:220px;overflow:auto;min-width:220px;padding:4px}
+.stk-at button{display:block;width:100%;text-align:left;background:none;border:0;padding:6px 8px;border-radius:7px;font:600 13px/1.3 'Manrope',system-ui,sans-serif;cursor:pointer;color:#1F1D18}
+.stk-at button small{display:block;font-weight:500;color:#8C8775}
+.stk-at button:hover,.stk-at button.on{background:#FFF7DD}
+.stk-at p{margin:6px 8px;font-size:12.5px;color:#8C8775}
