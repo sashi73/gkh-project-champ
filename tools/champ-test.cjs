@@ -737,7 +737,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const vs = await p.textContent('#llVs').catch(() => '');
       await p.click('#llVKeep').catch((e) => console.log('llVKeep: ' + e.message.slice(0, 120))); await sleep(5000); console.log('LLTOAST ' + (await p.evaluate(() => [...document.querySelectorAll('.toast, #toast, [class*=toast]')].map((x) => x.textContent).join(' | '))));
       const L2 = await (await api('intelDmsList', { core: lc })).json(), reps = L2.docs.filter((d) => d.folder === 'reports');
-      ok('Lessons', '⬇ Word, 🎬 the 45-second scribe video in five parts (about, went well, what did not, recommendations, lessons; drawn and recorded in the browser), and 💾 both saved to the project\'s Documents (Reports, in R2)', wsize > 5000 && /video is ready/.test(vs) && vinfo.seconds > 20 && vinfo.seconds <= 45 && JSON.stringify(vinfo.parts) === JSON.stringify(['What this is about', 'What went well', 'What didn\'t go well', 'Our key recommendations', 'The key lessons we learned']) && reps.some((d) => /\.docx$/.test(d.name) && d.r2) && reps.some((d) => /video\.webm$/.test(d.name) && d.r2 && d.size > 1000), JSON.stringify([wsize, vs, vinfo, reps.map((d) => [d.name, d.size])]));
+      ok('Lessons', '⬇ Word, 🎬 the 80-second scribe video in five parts (about, went well, what did not, recommendations, lessons; drawn and recorded in the browser), and 💾 both saved to the project\'s Documents (Reports, in R2)', wsize > 5000 && /video is ready/.test(vs) && vinfo.seconds >= 70 && vinfo.seconds <= 80.5 && JSON.stringify(vinfo.parts) === JSON.stringify(['What this is about', 'What went well', 'What didn\'t go well', 'Our key recommendations', 'The key lessons we learned']) && reps.some((d) => /\.docx$/.test(d.name) && d.r2) && reps.some((d) => /video\.webm$/.test(d.name) && d.r2 && d.size > 1000), JSON.stringify([wsize, vs, vinfo, reps.map((d) => [d.name, d.size])]));
       await p.click('#llVStop').catch(() => {}); await p.click('#llClose').catch(() => {});
       await api('guideAsk', { q: 'What lessons apply here?', core: lc, tours: [] }); const gx = (global.GUIDE_CTX || {}).project || {};
       ok('Lessons', 'Champ knows the project\'s lessons and the ones from past projects that fit', (gx.lessons_logged || []).length >= 3 && (gx.lessons_from_past_projects || []).some((l) => /adapter/.test(l.lesson) && l.from === 'Old payments project'), JSON.stringify([gx.lessons_logged, gx.lessons_from_past_projects]).slice(0, 300));
@@ -904,7 +904,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   ok('Portfolio', 'pipeline board has the 5 PMBOK phases', JSON.stringify(await p.$$eval('.pcol .pcol-h b', (b) => b.map((x) => x.textContent))) === JSON.stringify(['Initiation', 'Planning', 'Execution', 'Monitoring & Evaluation', 'Closing']));
 
   // ---- new project → plan ----
-  await p.click('.top-new');
+  ok('Programs', 'New project is only in the left panel (no button in the top bar, the pipeline board or a program page)', !(await p.$('.top-new')) && !(await p.$('#pgNewProj')) && !!(await p.$('.side [data-nav="projnew"], [data-nav="projnew"]')));
+  await p.click('[data-nav="projnew"]');
   await p.waitForSelector('#champNew');
   ok('Programs', 'New project: the program comes first and is required', (await p.getAttribute('#champNew [name=progPick]', 'required')) !== null);
   await p.click('#champNew button[type=submit]'); await sleep(300);

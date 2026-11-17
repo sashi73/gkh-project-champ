@@ -3,7 +3,7 @@
    - ✨ the AI suggests lessons from the project's own history (plan vs baseline, risks, issues, changes)
    - 📚 lessons from past projects, ranked for this one, reused as lessons, risks or tasks (the library)
    - 📄 an AI-written 4-page illustrated report (charts and drawings from the real numbers), printable as PDF, as Word,
-     saved to the project's Documents, with a 30-second scribe video (drawn on a whiteboard, narrated by Champ) */
+     saved to the project's Documents, with a 80-second scribe video (drawn on a whiteboard, narrated by Champ) */
 (function () {
   var M = window.MBS; if (!M) return;
   var api = M.api, esc = M.esc, toast = M.toast, fail = M.fail, $ = M.$, money = M.money;
@@ -58,7 +58,7 @@
       '<div class="card ll-top"><div class="ll-h"><div><h3 style="margin:0">📘 Lessons learned</h3><p class="muted" style="margin:2px 0 0;font-size:12.5px">Capture lessons as the project runs, not only at the end. Agreed lessons go into the library that every other project in Project Champ learns from.</p></div><span class="sp"></span>' +
         (ed ? '<button class="btn btn-sm" id="llAdd" type="button">＋ Add a lesson</button><button class="btn btn-sm" id="llAi" type="button" title="The AI reads this project\'s history (plan vs baseline, risks, issues, changes) and suggests lessons for you to review">✨ Suggest lessons</button>' : '') +
         '<button class="btn btn-sm" id="llLib" type="button">📚 Lessons library</button>' +
-        (ed ? '<button class="btn btn-sm btn-gold" id="llRep" type="button" title="The AI writes a 4-page illustrated lessons-learned report, with a 30-second scribe video">📄 ' + (L.rep ? 'Rewrite the report' : 'Write the report') + '</button>' : '') + '</div>' +
+        (ed ? '<button class="btn btn-sm btn-gold" id="llRep" type="button" title="The AI writes a 4-page illustrated lessons-learned report, with a 80-second scribe video">📄 ' + (L.rep ? 'Rewrite the report' : 'Write the report') + '</button>' : '') + '</div>' +
         '<div class="ll-stat"><span>📘 <b>' + Ls.length + '</b> lesson' + (Ls.length === 1 ? '' : 's') + '</span><span>👍 ' + pos + ' to repeat</span><span>⚠ ' + (Ls.length - pos) + ' to avoid</span><span>✓ ' + Ls.filter(function (l) { return l.status === 'Agreed'; }).length + ' agreed</span>' +
         (L.rep ? '<button class="ll-link" id="llOpen" type="button">📄 Open the report (' + esc(dmy(new Date(L.rep.at).toISOString().slice(0, 10))) + ') ›</button>' : L.rep === undefined ? '<span class="muted">Loading the report…</span>' : '') + '</div>' +
         (Ls.length ? '<div class="ll-charts"><div><canvas id="llCat" height="150"></canvas></div><div><canvas id="llImp" height="150"></canvas></div></div>' : '') + '</div>' +
@@ -141,7 +141,7 @@
   function writeReport() {
     var core = C.S.core;
     if (C.S.timer || C.S.busy) toast('Saving the plan first…');
-    M.modal('<h2>📄 The lessons-learned report</h2><p class="muted" style="margin:-4px 0 10px">The AI reads the whole project (up to about 80,000 tokens: the numbers, the lessons log, risks, issues, changes and the project\'s documents) and writes a 4-page illustrated report, with a 30-second video script. This takes a minute or two.</p><div id="llW"><p class="cr-wait">✨ Writing the report…</p></div>');
+    M.modal('<h2>📄 The lessons-learned report</h2><p class="muted" style="margin:-4px 0 10px">The AI reads the whole project (up to about 80,000 tokens: the numbers, the lessons log, risks, issues, changes and the project\'s documents) and writes a 4-page illustrated report, with a 80-second video script. This takes a minute or two.</p><div id="llW"><p class="cr-wait">✨ Writing the report…</p></div>');
     (C.saveNow ? C.saveNow() : Promise.resolve()).then(function () { return bg({ mode: 'lessonsReport', core: core }); }).then(function (id) { return poll(id, 160); }).then(function (rep) { L.rep = rep; M.closeModal(); if (C.S.tab === 'lessons') draw(); openReport(rep); })
       .catch(function (e) { if ($('#llW')) $('#llW').innerHTML = '<p class="cr-wait" style="color:#B42318">' + esc(e.message) + '</p><div class="actions"><button class="btn" data-close type="button">Close</button></div>'; });
   }
@@ -154,7 +154,7 @@
     var foot = function (n) { return '<div class="ll-foot"><span>' + esc(D.title) + ' · ' + esc(F.project) + '</span><span>Project Champ · page ' + n + ' of 4</span></div>'; };
     var cards = function (arr, cls) { return arr.map(function (x) { return '<div class="ll-rc ' + cls + '">' + icon(x.icon, 30) + '<div><b>' + esc(x.title) + '</b><p>' + esc(x.detail) + '</p>' + (x.cause ? '<p class="ll-cause"><b>Root cause:</b> ' + esc(x.cause) + '</p>' : '') + '</div></div>'; }).join(''); };
     var html = '<div id="llDoc" class="ll-doc"><div class="ll-bar"><b>📄 ' + esc(D.title) + '</b><span class="sp"></span>' +
-      '<button class="btn btn-sm" id="llVid" type="button">🎬 Play the 45-second video</button><button class="btn btn-sm" id="llPrint" type="button">🖨 Print or save as PDF</button><button class="btn btn-sm" id="llWord" type="button">⬇ Word</button>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llKeep" type="button" title="Save the report (Word) and the video into this project\'s Documents (Reports folder, kept in R2)">💾 Save to Documents</button>' : '') + '<button class="btn btn-sm" id="llClose" type="button">✕ Close</button></div><div class="ll-pages">' +
+      '<button class="btn btn-sm" id="llVid" type="button">🎬 Play the 80-second video</button><button class="btn btn-sm" id="llPrint" type="button">🖨 Print or save as PDF</button><button class="btn btn-sm" id="llWord" type="button">⬇ Word</button>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llKeep" type="button" title="Save the report (Word) and the video into this project\'s Documents (Reports folder, kept in R2)">💾 Save to Documents</button>' : '') + '<button class="btn btn-sm" id="llClose" type="button">✕ Close</button></div><div class="ll-pages">' +
       // page 1: the story at a glance
       '<section class="ll-pg"><div class="ll-cover"><small>LESSONS LEARNED · ' + esc((job.ref || '') + ' · ' + dmy(new Date(rep.at).toISOString().slice(0, 10))) + '</small><h1>' + esc(D.title) + '</h1><p>' + esc(D.subtitle) + '</p></div>' +
         '<p class="ll-head">' + esc(D.headline) + '</p><div class="ll-kpis">' + kpi('Finish', dmy(F.finish), F.baseline_finish ? (slip > 0 ? slip + ' days after the baseline (' + dmy(F.baseline_finish) + ')' : slip < 0 ? (-slip) + ' days early' : 'on the baseline') : 'no baseline set', slip > 21 ? 'bad' : slip > 0 ? 'warn' : 'good') +
@@ -167,7 +167,7 @@
       '<section class="ll-pg"><h2 class="ll-h2 bad">⚠ What didn\'t go well</h2><div class="ll-rcs">' + cards(D.went_wrong, 'bad') + '</div><div class="ll-two"><div class="ll-gr"><h4>Root causes</h4><div id="rgFish"></div></div><div class="ll-gr"><h4>Cost by phase: baseline, forecast, spent</h4><canvas id="rgCost" height="230"></canvas></div></div>' + foot(3) + '</section>' +
       // page 4: recommendations, reuse, the video
       '<section class="ll-pg"><h2 class="ll-h2">➜ Recommendations</h2><table class="ll-rec"><thead><tr><th>#</th><th>Recommendation</th><th>Owner</th><th>When</th><th>Applies to</th></tr></thead><tbody>' + D.recommendations.map(function (r, i) { return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.title) + '</b><br><small>' + esc(r.detail) + '</small></td><td>' + esc(r.owner) + '</td><td>' + esc(r.when) + '</td><td>' + esc(r.applies_to) + '</td></tr>'; }).join('') + '</tbody></table>' +
-        '<div class="ll-two"><div><h4>📚 Reuse checklist for future projects</h4><ul class="ll-chk">' + D.reuse.map(function (x) { return '<li>☐ ' + esc(x) + '</li>'; }).join('') + '</ul></div><div><h4>🎬 The story in 45 seconds</h4><div class="ll-story">' + parts5(D).map(function (s, i) { return '<div class="ll-sc">' + icon(s.icon, 34) + '<small>' + (i + 1) + '. ' + esc(s.head) + '</small></div>'; }).join('') + '</div><p class="muted ll-noprint" style="font-size:12px">▶ Press “Play the 45-second video” above; save it to Documents to keep it with the project.</p></div></div>' +
+        '<div class="ll-two"><div><h4>📚 Reuse checklist for future projects</h4><ul class="ll-chk">' + D.reuse.map(function (x) { return '<li>☐ ' + esc(x) + '</li>'; }).join('') + '</ul></div><div><h4>🎬 The story in 80 seconds</h4><div class="ll-story">' + parts5(D).map(function (s, i) { return '<div class="ll-sc">' + icon(s.icon, 34) + '<small>' + (i + 1) + '. ' + esc(s.head) + '</small></div>'; }).join('') + '</div><p class="muted ll-noprint" style="font-size:12px">▶ Press “Play the 80-second video” above; save it to Documents to keep it with the project.</p></div></div>' +
         '<p class="muted" style="font-size:11px;margin-top:10px">Written by AI from the project\'s records (' + Math.round((rep.context || 0) / 1000) + 'k tokens read' + (rep.docs ? ', ' + rep.docs + ' documents' : '') + '). Check it before you share it.</p>' + foot(4) + '</section></div></div>';
     document.body.insertAdjacentHTML('beforeend', html); document.body.classList.add('ll-open');
     $('#llClose').onclick = function () { $('#llDoc').remove(); document.body.classList.remove('ll-open'); stopVideo(); };
@@ -225,7 +225,7 @@
         .concat([H('What didn\'t go well')]).concat([].concat.apply([], D.went_wrong.map(function (x) { return [P(x.title, { run: { bold: true } }), P(x.detail), P('Root cause: ' + x.cause, { run: { italics: true } })]; })))
         .concat([img('rgCost', 560, 240), H('Recommendations')].filter(Boolean)).concat(D.recommendations.map(function (r, i) { return P((i + 1) + '. ' + r.title + ': ' + r.detail + ' (' + [r.owner, r.when, r.applies_to].filter(Boolean).join(' · ') + ')'); }))
         .concat([H('Reuse checklist for future projects')]).concat(D.reuse.map(function (x) { return P('☐ ' + x); }))
-        .concat(D.quote ? [P('“' + D.quote + '”', { run: { italics: true } })] : []).concat([H('The 45-second story'), P(parts5(D).map(function (s, i) { return (i + 1) + '. ' + s.say; }).join('  '))]);
+        .concat(D.quote ? [P('“' + D.quote + '”', { run: { italics: true } })] : []).concat([H('The 80-second story'), P(parts5(D).map(function (s, i) { return (i + 1) + '. ' + s.say; }).join('  '))]);
       return X.Packer.toBlob(new X.Document({ creator: 'Project Champ', title: D.title, sections: [{ children: kids }] }));
     });
   }
@@ -234,12 +234,12 @@
     var core = C.S.core; btn.disabled = true; btn.textContent = 'Saving…';
     var up = function (blob, name, text, kind) { var f = new File([blob], name, { type: blob.type }); return C.storeFile(f, 'project', core).then(function (ff) { return api('intelUpload', { core: core, name: name, type: blob.type, size: blob.size, pages: 4, text: text, file: ff.file || '', r2Key: ff.r2Key || '', allowEmpty: !text, folder: 'reports', kind: kind, title: kind === 'Video' ? 'Lessons learned video (45 s)' : 'Lessons learned report' }); }); };
     word(rep).then(function (b) { return up(b, fileName(rep, 'docx'), reportText(rep), 'Lessons learned'); })
-      .then(function () { return L.videoBlob ? up(L.videoBlob, fileName(rep, 'webm').replace('.webm', ' - video.webm'), 'Lessons learned video script. ' + parts5(rep.data).map(function (s) { return s.say; }).join(' '), 'Video') : null; })
+      .then(function () { return L.videoBlob ? up(L.videoBlob, fileName(rep, 'webm').replace('.webm', ' - video.webm'), 'Lessons learned video script. ' + (L.videoScript || parts5(rep.data).map(function (s) { return s.say; }).join(' ')), 'Video') : null; })
       .then(function () { btn.textContent = '✓ Saved to Documents'; if (C.S.dms) C.S.dms = null; toast('Saved to Documents › 📊 Reports and status' + (L.videoBlob ? ' (the report and the video)' : ' (play the video first to save it too)')); })
       .catch(function (e) { btn.disabled = false; btn.textContent = '💾 Save to Documents'; fail(e); });
   }
 
-  /* ---------------- 🎬 the 45-second scribe video ----------------
+  /* ---------------- 🎬 the 80-second scribe video ----------------
      Five parts, in this order: what this is about, what went well, what didn't go well, our key recommendations, the key
      lessons we learned. Each part is sketched on a whiteboard (an ink drawing, the heading handwritten, the points written
      one by one), spoken by Champ one part after another (never on top of each other), with no captions or highlights over
@@ -253,18 +253,24 @@
     return FONT;
   }
   // the five parts, from the report: up to 3 short points each, and what Champ says (about 20 words a part)
-  function parts5(D) {
+  function parts5(D, cap) {
+    cap = cap || 36;
     var short = function (x, n) { x = String(x || '').replace(/\s*\([^)]*\)/g, '').replace(/[.!?]+$/, '').trim(); var w = x.split(/\s+/); return w.length > n ? w.slice(0, n).join(' ') + '…' : x; };
-    var list = function (a, k) { return (a || []).slice(0, 3).map(function (x) { return short(typeof x === 'string' ? x : x[k || 'title'], 7); }).filter(Boolean); };
+    var list = function (a, k, n) { return (a || []).filter(function (x) { return x != null; }).slice(0, 3).map(function (x) { return short(typeof x === 'string' ? x : x[k || 'title'], n || 7); }).filter(Boolean); };
     var join = function (a) { return a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || ''; };
-    var said = function (a) { var out = [], n = 0; a.forEach(function (x) { var w = x.replace(/…$/, '').toLowerCase(); if (n + w.split(' ').length <= 14) { out.push(w); n += w.split(' ').length; } }); return join(out.length ? out : [a[0].toLowerCase()]); };
-    var about = [short(D.headline, 12)], ww = list(D.went_well), wr = list(D.went_wrong), rc = list(D.recommendations), ls = list(D.reuse && D.reuse.length ? D.reuse : [D.quote]);
+    // what Champ says for a list: as many points as fit in `cap` words (an empty list says nothing, and the part is left out below)
+    var tidy = function (x) { return String(x).replace(/…$/, '').replace(/(\s+(in|the|of|before|after|and|or|to|for|a|an|with|on|at|by|from|into|so|but))+$/i, ''); };   // never end a spoken phrase on a dangling word
+    var said = function (a) { if (!a || !a.length) return ''; var out = [], n = 0; a.forEach(function (x) { var w = tidy(x).toLowerCase(); if (n + w.split(' ').length <= cap) { out.push(w); n += w.split(' ').length; } }); return join(out.length ? out : [tidy(short(a[0], Math.max(2, cap))).toLowerCase()]); };
+    var LS = D.reuse && D.reuse.length ? D.reuse : [D.quote];
+    var about = [short(D.headline, 12)], ww = list(D.went_well), wr = list(D.went_wrong), rc = list(D.recommendations), ls = list(LS);
+    var sw = list(D.went_well, 0, 14), swr = list(D.went_wrong, 0, 14), src = list(D.recommendations, 0, 14), sls = list(LS, 0, 14);   // what Champ says: fuller points
+    var aboutSay = tidy(short(D.headline, Math.min(cap, 20))) + (cap >= 20 && D.story && D.story[0] ? '. ' + tidy(short(D.story[0], cap - 16)) : '');
     return [
-      { key: 'about', icon: 'target', head: 'What this is about', pts: about.concat(D.story && D.story[0] ? [short(D.story[0], 12)] : []), mark: '•', say: 'What is this about? ' + short(D.headline, 16) + '.' },
-      { key: 'well', icon: 'check', head: 'What went well', pts: ww, mark: '✓', say: 'What went well: ' + said(ww) + '.' },
-      { key: 'wrong', icon: 'warning', head: 'What didn\'t go well', pts: wr, mark: '✗', say: 'What didn\'t go well: ' + said(wr) + '.' },
-      { key: 'recs', icon: 'idea', head: 'Our key recommendations', pts: rc, mark: '➜', say: 'Our key recommendations: ' + said(rc) + '.' },
-      { key: 'lessons', icon: 'flag', head: 'The key lessons we learned', pts: ls, mark: '★', say: 'The key lessons we learned: ' + said(ls) + '.' }
+      { key: 'about', icon: 'target', head: 'What this is about', pts: about.concat(D.story && D.story[0] ? [short(D.story[0], 12)] : []), mark: '•', say: 'What is this about? ' + aboutSay + '.' },
+      { key: 'well', icon: 'check', head: 'What went well', pts: ww, mark: '✓', say: 'What went well: ' + said(sw) + '.' },
+      { key: 'wrong', icon: 'warning', head: 'What didn\'t go well', pts: wr, mark: '✗', say: 'What didn\'t go well: ' + said(swr) + '.' },
+      { key: 'recs', icon: 'idea', head: 'Our key recommendations', pts: rc, mark: '➜', say: 'Our key recommendations: ' + said(src) + '.' },
+      { key: 'lessons', icon: 'flag', head: 'The key lessons we learned', pts: ls, mark: '★', say: 'The key lessons we learned: ' + said(sls) + '.' }
     ].filter(function (s) { return s.pts.length; });
   }
   function video(rep) {
@@ -278,13 +284,24 @@
     var dest = ac && ac.createMediaStreamDestination ? ac.createMediaStreamDestination() : null;
     var say = function (t) { if (!ac || !t) return Promise.resolve(null); return fetch('/.netlify/functions/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: t, lang: lang, clear: true }) }).then(function (r) { if (!r.ok) throw new Error('voice'); return r.arrayBuffer(); }).then(function (b) { return new Promise(function (res) { var pr; try { pr = ac.decodeAudioData(b, res, function () { res(null); }); } catch (e) { res(null); } if (pr && pr.catch) pr.catch(function () { res(null); }); }); }).catch(function () { return null; }); };
     var HAND = "'ChampHand','Segoe Print','Bradley Hand',cursive", SANS = "'Poppins',system-ui,sans-serif", INK = '#1F1D18', SOFT = '#6B665A', COL = { about: INK, well: '#067647', wrong: '#B42318', recs: '#1D4ED8', lessons: '#6941C6' };
-    Promise.all([fonts()].concat(sc.map(function (s) { return say(s.say); }))).then(function (all) { var aud = all.slice(1); return (ac && ac.state === 'suspended' ? ac.resume().catch(function () {}) : Promise.resolve()).then(function () { return aud; }); }).then(function (aud) {
+    // the video runs LEN (80) seconds. Champ's narration has to fit without ever being cut off: if what he says for the five
+    // parts does not fit even 10% faster, it is shortened (fewer words spoken) and made again; the pictures keep every point
+    var LEN = 80, INTRO = 4, OUTRO = 5, ROOM = LEN - INTRO - OUTRO, FAST = 1.1;
+    var needOf = function (parts, aud) { return parts.map(function (s, i) { return Math.max(8, aud[i] ? aud[i].duration + 1.2 : s.say.split(' ').length * 0.42 + 1.5); }); };
+    var voiceFor = function (caps) { var cap = caps[0], parts = parts5(D, cap); return Promise.all(parts.map(function (s) { return say(s.say); })).then(function (aud) {
+      var total = needOf(parts, aud).reduce(function (a, b) { return a + b; }, 0);
+      if (total / FAST <= ROOM || caps.length < 2 || me.stop) { sc = parts; return aud; }
+      return voiceFor(caps.slice(1)); }); };
+    Promise.all([fonts(), voiceFor([36, 24, 14, 8])]).then(function (all) { var aud = all[1]; return (ac && ac.state === 'suspended' ? ac.resume().catch(function () {}) : Promise.resolve()).then(function () { return aud; }); }).then(function (aud) {
       if (me.stop) return; var withSound = !!(dest && ac && ac.state === 'running' && aud.some(Boolean));
-      // timing: each part lasts as long as Champ takes to say it, plus a breath (so voices never overlap), at least 6
-      // seconds so the drawing can be read; the whole at most 45 seconds (the narration a little faster if needed, up to 15%)
-      var intro = 3, outro = 3.5, need = sc.map(function (s, i) { return Math.max(6, aud[i] ? aud[i].duration + 1 : s.say.split(' ').length * 0.4 + 1.2); });
-      var sum = need.reduce(function (a, b) { return a + b; }, 0), room = 45 - intro - outro, rate = Math.min(1.15, Math.max(1, sum / room)), dur = need.map(function (d) { return d / rate; });
-      var fit = dur.reduce(function (a, b) { return a + b; }, 0); if (fit > room) dur = dur.map(function (d) { return d * room / fit; });   // never longer than 45 seconds in all
+      // timing: each part lasts at least as long as Champ takes to say it plus a breath (so he is never cut off and voices
+      // never overlap); spare time is shared out so the drawing can be read and the whole video runs LEN seconds
+      var intro = INTRO, outro = OUTRO, need = needOf(sc, aud);
+      var sum = need.reduce(function (a, b) { return a + b; }, 0), room = ROOM, rate = Math.min(FAST, Math.max(1, sum / room)), dur = need.map(function (d) { return d / rate; });
+      var fit = dur.reduce(function (a, b) { return a + b; }, 0);
+      if (fit < room) dur = dur.map(function (d) { return d + (room - fit) / dur.length; });   // spare time: more time to draw and read each part
+      else if (fit > room) dur = dur.map(function (d) { return d * room / fit; });   // only if even the shortest narration is too long (never in practice)
+      aud = aud.map(function (b, i) { return b && b.duration / rate + 0.2 > dur[i] ? null : b; });   // a part whose voice would not fit is drawn without it: Champ is never cut off
       window.__llVideo = { parts: sc.map(function (s) { return s.head; }), seconds: 0 };
       var starts = [], acc = intro; dur.forEach(function (d) { starts.push(acc); acc += d; }); var tot = acc + outro; window.__llVideo.seconds = Math.round(tot * 10) / 10;
       var stream = cv.captureStream ? cv.captureStream(30) : null, rec = null, chunks = [];
@@ -292,7 +309,13 @@
         var mime = (withSound ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'] : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']).find(function (m) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m); });
         try { rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 3000000 } : undefined); rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); }; rec.start(250); me.rec = rec; } catch (e) { rec = null; } }
       var paths = sc.map(function (s) { return (IC[s.icon] || IC.idea).split(/(?=M)/).map(function (d) { return Object.assign({ d: d }, pathLen(d)); }); });
-      var t0 = performance.now(), started = {};
+      // Champ's voice is scheduled on the audio clock, one part after the other: a part never starts speaking until the
+      // previous one has finished, and the video does not end until he has finished (nothing is ever cut off, even if the
+      // browser is busy and the drawing runs a little late)
+      var acT0 = ac ? ac.currentTime + 0.05 : 0, last = 0, spoken = [];
+      sc.forEach(function (s, i) { if (!ac || !aud[i]) return; var at = Math.max(starts[i] + 0.15, last + 0.3), src = ac.createBufferSource(); src.buffer = aud[i]; src.playbackRate.value = rate; src.connect(ac.destination); if (dest) src.connect(dest); src.start(acT0 + at); me.srcs.push(src); last = at + aud[i].duration / rate; spoken.push(s.say); });
+      if (last + outro > tot) { tot = last + outro; window.__llVideo.seconds = Math.round(tot * 10) / 10; }
+      var t0 = performance.now();
       $('#llVs').textContent = rec ? '● Recording while it plays (' + Math.round(tot) + ' seconds)…' : 'Playing (' + Math.round(tot) + ' seconds)…';
       var ease = function (x) { x = Math.max(0, Math.min(1, x)); return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; };
       var wrapLines = function (text, max, font) { g.font = font; var w = String(text || '').split(' '), out = [], line = ''; w.forEach(function (word) { var tt = line ? line + ' ' + word : word; if (g.measureText(tt).width > max && line) { out.push(line); line = word; } else line = tt; }); if (line) out.push(line); return out; };
@@ -315,7 +338,6 @@
         else if (t < tot - outro) {
           var i = 0; while (i < sc.length - 1 && t >= starts[i + 1]) i++;
           var lt = (t - starts[i]) / dur[i], s = sc[i], col = COL[s.key] || INK, fade = i < sc.length - 1 ? 1 - ease((lt - 0.94) / 0.06) : 1;
-          if (!started[i] && ac) { started[i] = 1; (me.srcs || []).forEach(function (x) { try { x.stop(); } catch (e) {} }); me.srcs = []; if (aud[i]) { var src = ac.createBufferSource(); src.buffer = aud[i]; src.playbackRate.value = rate; src.connect(ac.destination); if (dest) src.connect(dest); src.start(); me.srcs.push(src); } }
           header(i); g.save(); g.globalAlpha = fade;
           var pen = drawIcon(i, lt, col);
           // the heading, handwritten
@@ -328,7 +350,7 @@
             lines.forEach(function (l, j) { var show = Math.max(0, Math.min(l.length, chars - used)); used += l.length + 1; g.fillText(l.slice(0, show), 545, y + j * 50); if (!pen && show > 0 && show < l.length) pen = { x: 545 + g.measureText(l.slice(0, show)).width + 4, y: y + j * 50 - 12 }; });
             y += lines.length * 50 + 26; });
           if (pen) pencil(pen.x, pen.y); g.restore();
-        } else { header(sc.length); var b2 = ease((t - (tot - outro)) / 1); (me.srcs || []).forEach(function (x) { try { x.stop(); } catch (e) {} }); me.srcs = [];
+        } else { header(sc.length); var b2 = ease((t - (tot - outro)) / 1);
           g.globalAlpha = b2; g.textAlign = 'center'; g.fillStyle = INK; var ql = wrapLines('“' + (D.quote || D.headline) + '”', 1040, '700 62px ' + HAND); g.font = '700 62px ' + HAND; ql.forEach(function (l, k) { g.fillText(l, 640, 330 + k * 72 - (ql.length - 1) * 36); });
           g.font = '600 26px ' + SANS; g.fillStyle = SOFT; g.fillText('Project Champ · GKH', 640, 580); g.globalAlpha = 1; }
         if (t < tot) requestAnimationFrame(frame); else finish();
@@ -336,14 +358,14 @@
       function finish() {
         paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); });
         if (!rec) { $('#llVs').textContent = 'Done. (This browser cannot record video: use Chrome or Edge to save it.)'; return; }
-        rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; var u = URL.createObjectURL(b);
+        rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; L.videoScript = spoken.join(' '); var u = URL.createObjectURL(b);
           if (!$('#llVo')) return; $('#llVs').textContent = '✓ The video is ready (' + Math.round(b.size / 1024) + ' KB).';
           $('#llVo').innerHTML = '<video src="' + u + '" controls class="ll-cv"></video><div class="actions" style="justify-content:flex-start"><a class="btn btn-sm" href="' + u + '" download="' + esc(fileName(rep, /mp4/.test(b.type) ? 'mp4' : 'webm')) + '">⬇ Download the video</a>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llVKeep" type="button">💾 Save the report and video to Documents</button>' : '') + '</div>';
           cv.remove(); var vk = $('#llVKeep'); if (vk) vk.onclick = function () { keep(rep, vk); }; };
         try { rec.stop(); } catch (e) {}
       }
       requestAnimationFrame(frame);
-    });
+    }).catch(function (e) { if ($('#llVs')) $('#llVs').textContent = 'The video could not be made. Please try again.'; fail(e); });
   }
 
   M.lessonsTab = tab;

@@ -104,4 +104,9 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 93 | 1.0.93| 2026-11-17 12:03| champ-review| `2a01198` | Tests: steadier on GitHub's slower runners (longer PDF downloads, wait for the video length), Pillow for the colour check |
 | 94 | 1.0.94| 2026-11-17 12:24| champ-review| `f7971b2` | Lessons video in the 5-part format (45s, no overlays), CodeRabbit review and CI tests |
 | 95 | 1.0.95| 2026-11-17 13:31| champ-main| `5fe12b0` | Own repository: tests and CodeRabbit reviews run on pull requests into main (GKH-Project-Champ kept as well) |
-| 96 | 1.0.96 | 2026-11-17 14:01 | champ-main | _this commit_ | _see git log_ |
+| 96 | 1.0.96| 2026-11-17 14:01| champ-main| `1208651` | Share previews (LinkedIn, WhatsApp) and email links use gkhpmo.com; other deploy addresses are still swapped in at build time |
+| 97 | 1.0.97| 2026-11-17 14:11| fix-video-review| `8d1ad8c` | Lessons video: no crash when a report section is empty or has no reuse lessons; Champ's narration is shortened and re-made until it fits 45  |
+| 98 | 1.0.98| 2026-11-17 14:20| fix-video-review| `55f1b6a` | Lessons video runs 80 seconds: Champ says fuller points (headline and story, up to ~100 words), never cut off (narration is shortened and re |
+| 99 | 1.0.99| 2026-11-17 14:34| fix-video-review| `d114fea` | Lessons video, CodeRabbit review: a part whose voice would not fit is drawn without it (never cut off), the saved video script is what was a |
+| 100 | 1.0.100| 2026-11-17 14:39| fix-video-review| `4d4e745` | New project only from the left panel: removed the button from the top bar, the pipeline board, the program page and the empty portfolio |
+| 101 | 1.0.101 | 2026-11-17 14:48 | fix-video-review | _this commit_ | _see git log_ |
