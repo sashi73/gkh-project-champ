@@ -1496,6 +1496,18 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       await p.click('#cgMenuX').catch(() => {}); await p.fill('#cgQ', 'menu'); await p.press('#cgQ', 'Enter'); await sleep(1500);
       const said = await p.evaluate(() => !document.getElementById('cgMenu').hidden);
       ok('Guide', 'a small microphone next to the box, and a ☰ menu (tap it or say “menu”) with everything Champ can show', small && /In a project/.test(mt) && /Generate the project charter/.test(mt) && /Create a new user/.test(mt) && said, mt.slice(0, 160));
+      // 🎙 voice input waits until you have finished: a pause, or the browser ending its session mid-question, does not cut you off
+      await p.goto(`${BASE}/admin/#projects`); await p.reload(); await sleep(1500); await p.evaluate(() => { const pn = document.getElementById('cgPanel'); if (!pn || pn.hidden) document.getElementById('cgBtn').click(); }); await sleep(800);
+      await p.evaluate(() => { window.__srs = []; window.SpeechRecognition = function () { window.__srs.push(this); this.start = function () {}; this.stop = function () { const me = this; setTimeout(() => me.onend && me.onend(), 50); }; }; });
+      await p.click('#cgMic').catch(() => {}); await sleep(300);
+      const fire = (n, txt) => p.evaluate(([n, txt]) => { const r = window.__srs[n]; r.onresult({ resultIndex: 0, results: [Object.assign([{ transcript: txt }], { isFinal: true })] }); }, [n, txt]);
+      await fire(0, 'who is the project manager'); await sleep(1200);
+      const early = await p.evaluate(() => [...document.querySelectorAll('#cgLog .cgp-me')].map((x) => x.textContent).pop() || '');
+      await p.evaluate(() => window.__srs[0].onend());   // the browser ends its session on its own, mid-question
+      await sleep(200); await fire(1, 'and the sponsor of this project'); await sleep(4000);
+      const asked = await p.evaluate(() => [...document.querySelectorAll('#cgLog .cgp-me')].map((x) => x.textContent).pop() || '');
+      ok('Guide', '🎙 voice input waits until you finish: a pause or the browser ending its session mid-question does not cut you off (sent after ~3 s of silence)', !/project manager/.test(early) && /who is the project manager and the sponsor of this project/.test(asked), JSON.stringify({ early, asked, n: (await p.evaluate(() => window.__srs.length)) }));
+      await p.evaluate(() => { delete window.SpeechRecognition; });
       await p.click('#cgMenuX').catch(() => {}); const core = (await (await api('planList')).json()).plans[0].core;
       await p.goto(`${BASE}/admin/#plan/${core}/overview`); await sleep(1500); await p.evaluate(() => { const pn = document.getElementById('cgPanel'); if (!pn || pn.hidden) document.getElementById('cgBtn').click(); }); await sleep(600);
       await p.fill('#cgQ', 'My project is running late, what can I do about it?'); await p.press('#cgQ', 'Enter'); await sleep(2500);

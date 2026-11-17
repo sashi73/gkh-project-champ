@@ -344,7 +344,7 @@
         '<button type="button" class="cgp-v" id="cgVoice"></button><button type="button" class="cgp-x" title="Close">✕</button></div><div class="cgp-log" id="cgLog"></div>' +
         '<div class="cgp-menu" id="cgMenu" hidden></div>' +
         '<p class="cgp-hint" id="cgHint">Tap 🎙 and ask, or say “menu”.</p>' +
-        '<form class="cgp-f" id="cgF"><button type="button" class="cgp-mic" id="cgMic" title="Tap and ask (say “menu” for the list)">🎙</button><input id="cgQ" maxlength="300" placeholder="Ask me anything…"><button class="cgp-send" type="submit" title="Ask">➤</button><button type="button" class="cgp-mbtn" id="cgMenuBtn" title="Menu: everything I can show you">☰</button></form>';
+        '<form class="cgp-f" id="cgF"><button type="button" class="cgp-mic" id="cgMic" title="Tap and ask; I listen until you finish (tap again to send). Say “menu” for the list.">🎙</button><input id="cgQ" maxlength="300" placeholder="Ask me anything…"><button class="cgp-send" type="submit" title="Ask">➤</button><button type="button" class="cgp-mbtn" id="cgMenuBtn" title="Menu: everything I can show you">☰</button></form>';
       document.body.appendChild(p);
       p.querySelector('.cgp-x').onclick = closePanel; voiceBtn();
       $('#cgVoice').onclick = function () { V.on = !V.on; try { localStorage.setItem('cgVoice', V.on ? 'on' : 'off'); } catch (e) {} voiceBtn(); if (!V.on) hush(); else { V.warned = false; speak(lastBot || 'Hello!'); } };
@@ -416,13 +416,23 @@
   var sr = null;
   function mic() {
     var m = $('#cgMic'), SR = window.SpeechRecognition || window.webkitSpeechRecognition; hush();
-    if (sr) { try { sr.stop(); } catch (e) {} return; }
+    if (sr) { if (mic.finish) mic.finish(); else { try { sr.stop(); } catch (e) {} } return; }   // tap again: done talking
     if (SR && !mic.azure) {
-      var got = '', failed = false; sr = new SR(); sr.lang = SRL[lang()] || 'en-AU'; sr.interimResults = true; sr.maxAlternatives = 1; sr.continuous = false;
-      sr.onresult = function (e) { got = Array.prototype.map.call(e.results, function (r) { return r[0].transcript; }).join(' '); $('#cgQ').value = got; };
-      sr.onerror = function (e) { failed = true; if (e.error === 'not-allowed') reply('The microphone is blocked. Allow it in the browser (the 🔒 next to the address), or type your question.'); else if (e.error === 'network' || e.error === 'language-not-supported' || e.error === 'service-not-allowed' || e.error === 'audio-capture') { mic.azure = true; } else if (e.error === 'no-speech' || e.error === 'aborted') failed = false; };
-      sr.onend = function () { sr = null; m.classList.remove('rec'); var q = got.trim(); $('#cgQ').value = ''; if (q) ask(q); else if (mic.azure && failed) mic(); else if (!failed) reply('I did not catch that. Tap the microphone and ask again, or type it.', true); };
-      try { sr.start(); m.classList.add('rec'); return; } catch (e) { sr = null; mic.azure = true; }
+      // listens until you have finished: pauses to breathe or think do not end it. It stops after ~3 seconds of silence once
+      // you have spoken (8 seconds if you have not started), or when you tap the microphone again; if the browser ends the
+      // session on its own mid-question, it is restarted and keeps what you said so far
+      var finals = '', interim = '', failed = false, done = false, timer = null, GAP = 3000, r = null;
+      var text = function () { return (finals + ' ' + interim).replace(/\s+/g, ' ').trim(); };
+      var finish = function () { done = true; clearTimeout(timer); try { if (r) r.stop(); } catch (e) {} };
+      var arm = function (ms) { clearTimeout(timer); timer = setTimeout(finish, ms); };
+      var listen = function () {
+      r = new SR(); r.lang = SRL[lang()] || 'en-AU'; r.interimResults = true; r.maxAlternatives = 1; r.continuous = true;
+      r.onresult = function (e) { interim = ''; for (var k = e.resultIndex; k < e.results.length; k++) { var tx = e.results[k][0].transcript; if (e.results[k].isFinal) finals += ' ' + tx; else interim += ' ' + tx; } $('#cgQ').value = text(); if (text()) arm(GAP); };
+        r.onerror = function (e) { if (e.error === 'no-speech' || e.error === 'aborted') return; failed = true; if (e.error === 'not-allowed') reply('The microphone is blocked. Allow it in the browser (the 🔒 next to the address), or type your question.'); else if (e.error === 'network' || e.error === 'language-not-supported' || e.error === 'service-not-allowed' || e.error === 'audio-capture') { mic.azure = true; } else if (e.error === 'no-speech' || e.error === 'aborted') failed = false; };
+      r.onend = function () { if (interim) { finals += ' ' + interim; interim = ''; } if (!done && !failed) { try { listen(); return; } catch (e) {} } clearTimeout(timer); sr = null; mic.finish = null; m.classList.remove('rec'); var q = text(); $('#cgQ').value = ''; if (q) ask(q); else if (mic.azure && failed) mic(); else if (!failed) reply('I did not catch that. Tap the microphone and ask again, or type it.', true); };
+      sr = r; r.start(); };
+      mic.finish = finish;
+      try { listen(); arm(8000); m.classList.add('rec'); return; } catch (e) { sr = null; mic.finish = null; mic.azure = true; }
     }
     if (rec && rec.state === 'recording') { rec.stop(); return; }
     if (!navigator.mediaDevices || !window.MediaRecorder) return reply('This browser cannot use the microphone here. Type your question instead.');
@@ -441,7 +451,7 @@
       };
       rec.start();
       // stops by itself after you finish talking (about 1.3 s of quiet), or after 12 seconds
-      var stopAt = setTimeout(function () { if (rec.state === 'recording') rec.stop(); }, 12000);
+      var stopAt = setTimeout(function () { if (rec.state === 'recording') rec.stop(); }, 45000);   // a long question is fine (up to 45 seconds)
       try {
         var AC = window.AudioContext || window.webkitAudioContext, ctx = new AC(), an = ctx.createAnalyser(), buf = new Uint8Array(1024), spoke = false, quiet = 0, t0 = Date.now(), floor = 0, nf = 0;
         ctx.createMediaStreamSource(stream).connect(an); an.fftSize = 1024;
@@ -450,7 +460,7 @@
           an.getByteTimeDomainData(buf); var sum = 0; for (var i = 0; i < buf.length; i++) { var x = (buf[i] - 128) / 128; sum += x * x; }
           var rms = Math.sqrt(sum / buf.length), now = Date.now();
           if (now - t0 < 350) { floor += rms; nf++; return setTimeout(tick, 40); }
-          if (rms > Math.max(0.012, floor / Math.max(1, nf) * 2.5)) { spoke = true; quiet = 0; } else if (spoke) { quiet = quiet || now; if (now - quiet > 1300) { rec.stop(); return; } }
+          if (rms > Math.max(0.012, floor / Math.max(1, nf) * 2.5)) { spoke = true; quiet = 0; } else if (spoke) { quiet = quiet || now; if (now - quiet > 2500) { rec.stop(); return; } }
           if (!spoke && now - t0 > 7000) { rec.stop(); return; }
           setTimeout(tick, 40);
         })();
