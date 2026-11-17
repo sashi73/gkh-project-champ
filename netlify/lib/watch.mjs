@@ -61,7 +61,7 @@ export function check(plan, today = sydToday()) {
 function closeOut(plan, R, c, b, today) {
   // the actual finish: when the work was really done (doneAt), else its scheduled finish; days on the project's own calendar
   const A = allDays(plan), fin = plan.tasks.filter((t) => t.dur > 0).reduce((m, t) => { const d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish;
-  const budget = Number(c.budget) || 0, AC = R.AC, start = plan.start || R.start, baseFin = (b && b.finish) || fin;
+  const budget = Number(c.budget) || 0, AC = R.AC, start = plan.start || R.start, baseFin = (b && b.finish) || R.finish;   // no baseline: the scheduled finish is the plan
   const planned = Math.max(1, workBetween(start, baseFin, A)), actual = Math.max(1, workBetween(start, fin, A)), slip = days(baseFin, fin);
   const SPIt = r2(planned / actual), lateBy = Math.max(0, actual - planned), latePct = r2(lateBy / planned * 100);
   const over = budget ? r2((AC - budget) / budget * 100) : (R.CPI ? r2((1 / R.CPI - 1) * 100) : 0);
