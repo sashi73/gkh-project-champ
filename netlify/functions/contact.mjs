@@ -60,7 +60,7 @@ export default async (req, context) => {
   // tell the GKH team (needs RESEND_API_KEY; without it the enquiry is still in the console)
   const rows = [['Name', e.name], ['Email', e.email], ['Phone', e.phone || '–'], ['Best way to reach', pref], ['Organisation', e.org || '–'], ['Role', e.role || '–'],
     ['Country', e.country || '–'], ['Team size', e.size || '–'], ['How we can help', reason], ['Project Champ news', e.news ? 'Yes, please' : 'No']];
-  const site = env('URL', 'https://gkh-project-champ.netlify.app').replace(/\/+$/, '');
+  const site = env('URL', 'https://gkhpmo.com').replace(/\/+$/, '');
   if (e.original) rows.push(['Written in', (e.origLang || 'another language') + ' (translated to English; original kept in the console)']);
   const text = `New Project Champ enquiry ${ref}\n\n${rows.map((r) => r[0] + ': ' + r[1]).join('\n')}\n\nMessage:\n${e.message || '(none)'}\n\nSee all enquiries: ${site}/admin/#enquiries`;
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:620px;color:#14213d"><h2 style="margin:0 0 12px">New Project Champ enquiry <span style="color:#a8841c">${esc(ref)}</span></h2>

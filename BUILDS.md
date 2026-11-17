@@ -103,4 +103,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 92 | 1.0.92| 2026-11-17 11:50| champ-review| `60764c0` | Lessons video: 45 seconds in five parts (what this is about, what went well, what didn't, our key recommendations, the key lessons), clean i |
 | 93 | 1.0.93| 2026-11-17 12:03| champ-review| `2a01198` | Tests: steadier on GitHub's slower runners (longer PDF downloads, wait for the video length), Pillow for the colour check |
 | 94 | 1.0.94| 2026-11-17 12:24| champ-review| `f7971b2` | Lessons video in the 5-part format (45s, no overlays), CodeRabbit review and CI tests |
-| 95 | 1.0.95 | 2026-11-17 13:31 | champ-main | _this commit_ | _see git log_ |
+| 95 | 1.0.95| 2026-11-17 13:31| champ-main| `5fe12b0` | Own repository: tests and CodeRabbit reviews run on pull requests into main (GKH-Project-Champ kept as well) |
+| 96 | 1.0.96 | 2026-11-17 14:01 | champ-main | _this commit_ | _see git log_ |

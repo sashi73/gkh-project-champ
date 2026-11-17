@@ -90,7 +90,7 @@ export async function save(id, fields, meta = {}) {
   return rec;
 }
 
-const SITE = () => env('URL', 'https://gkh-project-champ.netlify.app').replace(/\/+$/, '');
+const SITE = () => env('URL', 'https://gkhpmo.com').replace(/\/+$/, '');
 function welcome(v) {
   const name = v.first || v.name || 'there', site = SITE();
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
