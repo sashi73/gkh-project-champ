@@ -622,3 +622,6 @@ body.ll-open #modal{z-index:2100}
 .wt-fin{margin-top:12px;border-top:1px solid var(--line,#E5E2DA);padding-top:10px}
 .wt-ft{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px}.wt-ft>span{display:inline-flex;gap:6px}.wt-ft small{flex-basis:100%;font-size:11.5px}
 .wt-v{margin-right:4px;white-space:nowrap}
+
+/* the sign-in screen shows no Champ button, panel or tour layer: Champ is only there once you are signed in */
+body:has(#login:not([hidden])) #cgBtn,body:has(#login:not([hidden])) #cgPanel,body:has(#login:not([hidden])) #cgLayer{display:none!important}

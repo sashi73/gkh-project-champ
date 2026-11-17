@@ -482,6 +482,9 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   ok('Google', 'login page is told the Google client ID', (await r.json()).google === CLIENT);
 
   // ---- login page with the built-in owner login ----
+  await p.goto(`${BASE}/admin/`); await p.waitForSelector('#login:not([hidden])', { timeout: 15000 }).catch(() => {}); await sleep(2500);
+  const cgOnLogin = await p.evaluate(() => { const b = document.getElementById('cgBtn'); return { login: !document.getElementById('login').hidden, shown: !!(b && b.offsetParent) }; });
+  ok('Champ', 'the sign-in screen shows no Champ button (Champ appears only once signed in)', cgOnLogin.login && !cgOnLogin.shown, JSON.stringify(cgOnLogin));
   await p.goto(`${BASE}/login.html`);
   await p.fill('[name=username]', 'sashi73'); await p.fill('[name=password]', 'sashi98');
   await Promise.all([p.waitForURL(/\/admin\/#portfolio/, { timeout: 15000 }).catch(() => {}), p.click('#loginForm button[type=submit]')]);
@@ -766,11 +769,11 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const [wd] = await Promise.all([p.waitForEvent('download', { timeout: 20000 }).catch(() => null), p.click('#llWord')]);
       let wsize = 0; if (wd) { await wd.saveAs('/tmp/ll.docx'); wsize = fs.statSync('/tmp/ll.docx').size; }
       await p.click('#llVid'); await p.waitForFunction(() => window.__llVideo && window.__llVideo.seconds > 0, null, { timeout: 60000 }).catch(() => {}); const vinfo = await p.evaluate(() => window.__llVideo || {}); if (process.env.DOC_ONLY) { for (const [k, ms] of [[1, 2000], [2, 6500], [3, 6000], [4, 6000], [5, 6000], [6, 6000]]) { await sleep(ms); const cvs = await p.$('#llCv'); if (cvs) await cvs.screenshot({ path: `/tmp/llvid${k}.png` }).catch(() => {}); } }
- await p.waitForSelector('#llVo video', { timeout: 80000 }).catch(() => {});
+ await p.waitForSelector('#llVo video', { timeout: 95000 }).catch(() => {});
       const vs = await p.textContent('#llVs').catch(() => '');
       await p.click('#llVKeep').catch((e) => console.log('llVKeep: ' + e.message.slice(0, 120))); await sleep(5000); console.log('LLTOAST ' + (await p.evaluate(() => [...document.querySelectorAll('.toast, #toast, [class*=toast]')].map((x) => x.textContent).join(' | '))));
       const L2 = await (await api('intelDmsList', { core: lc })).json(), reps = L2.docs.filter((d) => d.folder === 'reports');
-      ok('Lessons', '⬇ Word, 🎬 the 80-second scribe video in five parts (about, went well, what did not, recommendations, lessons; drawn and recorded in the browser), and 💾 both saved to the project\'s Documents (Reports, in R2)', wsize > 5000 && /video is ready/.test(vs) && vinfo.seconds >= 70 && vinfo.seconds <= 80.5 && JSON.stringify(vinfo.parts) === JSON.stringify(['What this is about', 'What went well', 'What didn\'t go well', 'Our key recommendations', 'The key lessons we learned']) && reps.some((d) => /\.docx$/.test(d.name) && d.r2) && reps.some((d) => /video\.webm$/.test(d.name) && d.r2 && d.size > 1000), JSON.stringify([wsize, vs, vinfo, reps.map((d) => [d.name, d.size])]));
+      ok('Lessons', '⬇ Word, 🎬 the 90-second black-and-gold video in five parts (about, went well, what did not, recommendations, lessons; drawn and recorded in the browser), and 💾 both saved to the project\'s Documents (Reports, in R2)', wsize > 5000 && /video is ready/.test(vs) && vinfo.seconds >= 80 && vinfo.seconds <= 90.5 && JSON.stringify(vinfo.parts) === JSON.stringify(['What this is about', 'What went well', 'What didn\'t go well', 'Our key recommendations', 'The key lessons we learned']) && reps.some((d) => /\.docx$/.test(d.name) && d.r2) && reps.some((d) => /video\.webm$/.test(d.name) && d.r2 && d.size > 1000), JSON.stringify([wsize, vs, vinfo, reps.map((d) => [d.name, d.size])]));
       await p.click('#llVStop').catch(() => {}); await p.click('#llClose').catch(() => {});
       await api('guideAsk', { q: 'What lessons apply here?', core: lc, tours: [] }); const gx = (global.GUIDE_CTX || {}).project || {};
       ok('Lessons', 'Champ knows the project\'s lessons and the ones from past projects that fit', (gx.lessons_logged || []).length >= 3 && (gx.lessons_from_past_projects || []).some((l) => /adapter/.test(l.lesson) && l.from === 'Old payments project'), JSON.stringify([gx.lessons_logged, gx.lessons_from_past_projects]).slice(0, 300));
