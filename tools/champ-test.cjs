@@ -677,6 +677,29 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const gb = await p.$eval('#cgBtn', (x) => x.className + '|' + x.textContent).catch(() => '');
       await p.goto(`${BASE}/admin/#programs`); await sleep(1200); const nb = await p.$eval('#cgBtn', (x) => x.className + '|' + x.textContent).catch(() => '');
       ok('Champ watch', 'a green project turns the button green; outside a project it is the usual Ask Champ', /cg-green/.test(gb) && /on track/i.test(gb) && !/cg-(red|amber|green)/.test(nb) && /Ask Champ/.test(nb), JSON.stringify([gb, nb]));
+      // 🏁 a finished project: the verdict (time against the baseline, cost against the approved budget), the time index and CPI, how Champ would have done it better, and the dashboard's finished list
+      {
+        const fc = (await (await api('planNewProject', { name: 'Watch finished', client: 'Watch Co', program: 'Watch program' })).json()).core;
+        await api('planSave', { core: fc, plan: { name: 'Watch finished', start: d0(-200), phases: [{ id: 'ph1', name: 'Work' }],
+          tasks: [{ id: 't1', phase: 'ph1', name: 'Build', dur: 60, pred: [], res: [], pct: 100, status: 'done', qty: 480, unit: 'h', rate: 100, actual: 70000 }, { id: 't2', phase: 'ph1', name: 'Handover', dur: 40, pred: ['t1'], res: [], pct: 100, status: 'done', qty: 320, unit: 'h', rate: 100, actual: 45000 }],
+          charter: { budget: 88000 }, baseline: { at: Date.now() - 200 * 864e5, finish: d0(-140), BAC: 80000, tasks: {} },
+          lessons: [{ id: 'l1', title: 'Freeze the scope before the build', impact: 'negative', what: 'Scope grew during the build', cause: 'No design freeze', rec: 'Freeze the scope at design sign-off', status: 'Agreed' }] } });
+        const fq = await (await api('planWatchGet', { core: fc, quick: true })).json();
+        await p.goto(`${BASE}/admin/#plan/${fc}/overview`); await p.waitForSelector('#cgBtn.cg-red', { timeout: 10000 }).catch(() => {});
+        const fbtn = await p.$eval('#cgBtn', (x) => x.textContent).catch(() => '');
+        await p.click('#cgBtn'); await p.waitForSelector('.cgp-brief', { timeout: 15000 }).catch(() => {}); await sleep(800);
+        const fcard = await p.$eval('#cgLog .cgp-brief', (x) => x.textContent).catch(() => ''), fll = !!(await p.$('#cgLog .cgp-brief [data-cgbt="lessons"]'));
+        await p.click('.cgp-x').catch(() => {});
+        const fwb = await (await api('watchBoard', { refresh: true })).json(), fd = (fwb.done || []).find((x) => x.core === fc);
+        await p.goto(`${BASE}/admin/#programs`); await p.reload(); await p.waitForSelector('#pgWatch .wt-done', { timeout: 15000 }).catch(() => {});
+        const fpw = await p.textContent('#pgWatch').catch(() => '');
+        ok('Champ watch', '🏁 a finished project gets a verdict (failed: late against the baseline and over the approved budget), the time index (SPI ends at 1.00) and CPI; Champ says how it would have done it better, with Lessons learned; the dashboard lists finished projects with Time and CPI',
+          fq.n && fq.n.finished && fq.n.verdict === 'failed' && fq.word === 'Finished: failed' && fq.n.SPIt < 0.8 && fq.n.over_pct > 25 && /project failed/i.test(fbtn) &&
+          /Finished: failed/.test(fcard) && /Time index/.test(fcard) && /How I would have done this better/.test(fcard) && fll &&
+          !!fd && fd.verdict === 'failed' && !(fwb.items || []).some((x) => x.core === fc) && /Finished projects: how they ended/.test(fpw) && /Failed/.test(fpw),
+          JSON.stringify({ n: fq.n && [fq.n.verdict, fq.n.SPIt, fq.n.over_pct], fbtn, card: fcard.slice(0, 160), fll, fd: fd && fd.verdict }));
+        await api('planProjectDelete', { core: fc });
+      }
       const pgw = (await (await api('planGet', { core: rc })).json()).plan; await api('planSave', { core: rc, rev: pgw.rev, plan: Object.assign(pgw, { charter: { budget: 60000, manager: 'Priya Raman' }, stakeholders: [{ id: 's1', name: 'Priya Raman', role: 'Project manager', raci: 'R' }, { id: 's2', name: 'Helen Carter', role: 'Project sponsor', raci: 'A' }] }) });
       await api('guideAsk', { q: 'Who is the project manager and who are the stakeholders?', core: rc, tours: [] }); const gx = (global.GUIDE_CTX || {}).project || {};
       ok('Champ watch', 'Ask Champ in a project gets the whole project: manager, sponsor, stakeholders, tasks, risks, issues and its health (so it answers instead of pointing at a tab)', gx.project_manager === 'Priya Raman' && (gx.stakeholders || []).some((x) => x.name === 'Helen Carter' && x.role === 'Project sponsor') && (gx.tasks || []).some((t) => t.n === 'Design workshops' && t.pct === 50) && (gx.issues || []).some((x) => /Vendor adapter/.test(x.title)) && gx.health === 'red' , JSON.stringify([gx.project_manager, gx.stakeholders, (gx.tasks || []).slice(0, 2), gx.issues, gx.health]).slice(0, 700));
