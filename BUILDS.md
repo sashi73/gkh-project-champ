@@ -111,4 +111,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 100 | 1.0.100| 2026-11-17 14:39| fix-video-review| `4d4e745` | New project only from the left panel: removed the button from the top bar, the pipeline board, the program page and the empty portfolio |
 | 101 | 1.0.101| 2026-11-17 14:48| fix-video-review| `acc36b9` | Lessons video 80 s, never cut off (CodeRabbit fixes); New project only from the left panel |
 | 102 | 1.0.102| 2026-11-17 15:43| fix-topbar| `e0ade43` | Voice input waits until you finish; language and skin controls back in the console top bar |
-| 103 | 1.0.103 | 2026-11-17 15:51 | ctl-gkhbar | _this commit_ | _see git log_ |
+| 103 | 1.0.103| 2026-11-17 15:51| ctl-gkhbar| `e136eb6` | Console: the language, light/dark and skin controls sit in the black GKH bar at the very top, just left of Powered by Global Knowledge House |
+| 104 | 1.0.104 | 2026-11-17 16:13 | ctl-gkhbar | _this commit_ | _see git log_ |
