@@ -704,9 +704,10 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
         await p.goto(`${BASE}/admin/#projects`); await p.reload(); await sleep(1500);
         const lrow = await p.evaluate((c) => { const a = [...document.querySelectorAll('#view tr')].find((tr) => tr.innerHTML.includes(c)); return a ? a.textContent : ''; }, fc);
         await p.goto(`${BASE}/admin/#plan/${fc}/overview`); await sleep(1500); const ov = await p.textContent('#planBody').catch(() => '');
+        const ovTi = await p.evaluate(() => { const tr = [...document.querySelectorAll('#planBody tr')].find((x) => /Time index/.test(x.cells[0] && x.cells[0].textContent)); return tr && tr.cells[1] ? tr.cells[1].textContent.trim() : ''; });
         ok('Champ watch', '🏁 the Projects list and a finished project\'s overview show its time index and how many days late it finished (SPI always ends at 1.00)',
-          fl.SPI === 1 && fl.fin && fl.fin.SPIt === fq.n.SPIt && fl.fin.slip === fq.n.slip_days && lrow.includes(fq.n.SPIt.toFixed(2)) && lrow.includes(fq.n.slip_days + ' days late') && /Time index/.test(ov) && ov.includes('finished ' + fq.n.slip_days + ' days late'),
-          JSON.stringify({ fin: fl.fin, SPI: fl.SPI, row: lrow.slice(0, 200), ov: (ov.match(/Time index.{0,120}/) || [''])[0] }));
+          fl.SPI === 1 && fl.fin && fl.fin.SPIt === fq.n.SPIt && fl.fin.slip === fq.n.slip_days && lrow.includes(fq.n.SPIt.toFixed(2)) && lrow.includes(fq.n.slip_days + ' days late') && ovTi === fq.n.SPIt.toFixed(2) && ov.includes('finished ' + fq.n.slip_days + ' days late'),
+          JSON.stringify({ fin: fl.fin, SPI: fl.SPI, ovTi, row: lrow.slice(0, 200), ov: (ov.match(/Time index.{0,120}/) || [''])[0] }));
         await api('planProjectDelete', { core: fc });
       }
       const pgw = (await (await api('planGet', { core: rc })).json()).plan; await api('planSave', { core: rc, rev: pgw.rev, plan: Object.assign(pgw, { charter: { budget: 60000, manager: 'Priya Raman' }, stakeholders: [{ id: 's1', name: 'Priya Raman', role: 'Project manager', raci: 'R' }, { id: 's2', name: 'Helen Carter', role: 'Project sponsor', raci: 'A' }] }) });

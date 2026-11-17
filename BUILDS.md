@@ -119,4 +119,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 108 | 1.0.108| 2026-11-17 18:02| finished-verdict| `1ba6ec5` | Finished projects: verdict, time index and CPI, and Champ's post-mortem |
 | 109 | 1.0.109| 2026-11-17 19:19| ctl-back| `116aa82` | Language, light/dark and skin controls back on the right of the console header, which stays on screen when you scroll; the Projects list no  |
 | 110 | 1.0.110| 2026-11-17 19:44| ctl-back| `1d29d7e` | Top controls back in the header (stay on screen); New project only in the left panel |
-| 111 | 1.0.111 | 2026-11-17 19:58 | spi-finished | _this commit_ | _see git log_ |
+| 111 | 1.0.111| 2026-11-17 19:58| spi-finished| `8cee112` | Finished projects show their time index and how many days late they finished, in the Projects list (time column), the program's lowest figur |
+| 112 | 1.0.112 | 2026-11-17 20:23 | spi-finished | _this commit_ | _see git log_ |
