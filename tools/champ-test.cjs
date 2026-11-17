@@ -1717,7 +1717,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   // ---- console: no chat bubble (AI is built in), Ask AI about programs ----
   await p.goto(`${BASE}/admin/#portfolio`); await sleep(800);
   ok('Chat', 'no chat bubble in the dashboard', !(await p.$('#champChatBtn')));
-  ok('Theme', 'language, light/dark and skin controls at the very top of the console (in the GKH bar, left of Powered by GKH)', await p.isVisible('.gkh-bar #champCtl #champQuick') && await p.evaluate(() => { const c = document.getElementById('champCtl'), s = document.querySelector('.gkh-bar small'); return !!(c && s && c.nextElementSibling === s); }));
+  ok('Theme', 'language, light/dark and skin controls at the very top of the console (in the GKH bar, left of Powered by GKH)', await p.isVisible('.gkh-bar #champCtl .ct-lang') && await p.isVisible('.gkh-bar #champCtl #champQuick') && await p.isVisible('.gkh-bar #champCtl #champThemeBtn') && await p.evaluate(() => { const c = document.getElementById('champCtl'), s = document.querySelector('.gkh-bar small'); return !!(c && s && c.nextElementSibling === s); }));
   r = await api('planProgramSet', { core, program: 'Head office move' });
   ok('Program', 'a project can be put in a program', r.ok());
   r = await api('planPipelineList', { today: new Date().toISOString().slice(0, 10) }); const pl2 = await r.json();
