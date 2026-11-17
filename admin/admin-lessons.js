@@ -309,7 +309,13 @@
         var mime = (withSound ? ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm', 'video/mp4'] : ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm', 'video/mp4']).find(function (m) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m); });
         try { rec = new MediaRecorder(stream, mime ? { mimeType: mime, videoBitsPerSecond: 3000000 } : undefined); rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); }; rec.start(250); me.rec = rec; } catch (e) { rec = null; } }
       var paths = sc.map(function (s) { return (IC[s.icon] || IC.idea).split(/(?=M)/).map(function (d) { return Object.assign({ d: d }, pathLen(d)); }); });
-      var t0 = performance.now(), started = {};
+      // Champ's voice is scheduled on the audio clock, one part after the other: a part never starts speaking until the
+      // previous one has finished, and the video does not end until he has finished (nothing is ever cut off, even if the
+      // browser is busy and the drawing runs a little late)
+      var acT0 = ac ? ac.currentTime + 0.05 : 0, last = 0, spoken = [];
+      sc.forEach(function (s, i) { if (!ac || !aud[i]) return; var at = Math.max(starts[i] + 0.15, last + 0.3), src = ac.createBufferSource(); src.buffer = aud[i]; src.playbackRate.value = rate; src.connect(ac.destination); if (dest) src.connect(dest); src.start(acT0 + at); me.srcs.push(src); last = at + aud[i].duration / rate; spoken.push(s.say); });
+      if (last + outro > tot) { tot = last + outro; window.__llVideo.seconds = Math.round(tot * 10) / 10; }
+      var t0 = performance.now();
       $('#llVs').textContent = rec ? '● Recording while it plays (' + Math.round(tot) + ' seconds)…' : 'Playing (' + Math.round(tot) + ' seconds)…';
       var ease = function (x) { x = Math.max(0, Math.min(1, x)); return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; };
       var wrapLines = function (text, max, font) { g.font = font; var w = String(text || '').split(' '), out = [], line = ''; w.forEach(function (word) { var tt = line ? line + ' ' + word : word; if (g.measureText(tt).width > max && line) { out.push(line); line = word; } else line = tt; }); if (line) out.push(line); return out; };
@@ -332,7 +338,6 @@
         else if (t < tot - outro) {
           var i = 0; while (i < sc.length - 1 && t >= starts[i + 1]) i++;
           var lt = (t - starts[i]) / dur[i], s = sc[i], col = COL[s.key] || INK, fade = i < sc.length - 1 ? 1 - ease((lt - 0.94) / 0.06) : 1;
-          if (!started[i] && ac) { started[i] = 1; (me.srcs || []).forEach(function (x) { try { x.stop(); } catch (e) {} }); me.srcs = []; if (aud[i]) { var src = ac.createBufferSource(); src.buffer = aud[i]; src.playbackRate.value = rate; src.connect(ac.destination); if (dest) src.connect(dest); src.start(); me.srcs.push(src); } }
           header(i); g.save(); g.globalAlpha = fade;
           var pen = drawIcon(i, lt, col);
           // the heading, handwritten
@@ -345,7 +350,7 @@
             lines.forEach(function (l, j) { var show = Math.max(0, Math.min(l.length, chars - used)); used += l.length + 1; g.fillText(l.slice(0, show), 545, y + j * 50); if (!pen && show > 0 && show < l.length) pen = { x: 545 + g.measureText(l.slice(0, show)).width + 4, y: y + j * 50 - 12 }; });
             y += lines.length * 50 + 26; });
           if (pen) pencil(pen.x, pen.y); g.restore();
-        } else { header(sc.length); var b2 = ease((t - (tot - outro)) / 1); (me.srcs || []).forEach(function (x) { try { x.stop(); } catch (e) {} }); me.srcs = [];
+        } else { header(sc.length); var b2 = ease((t - (tot - outro)) / 1);
           g.globalAlpha = b2; g.textAlign = 'center'; g.fillStyle = INK; var ql = wrapLines('“' + (D.quote || D.headline) + '”', 1040, '700 62px ' + HAND); g.font = '700 62px ' + HAND; ql.forEach(function (l, k) { g.fillText(l, 640, 330 + k * 72 - (ql.length - 1) * 36); });
           g.font = '600 26px ' + SANS; g.fillStyle = SOFT; g.fillText('Project Champ · GKH', 640, 580); g.globalAlpha = 1; }
         if (t < tot) requestAnimationFrame(frame); else finish();
@@ -353,7 +358,7 @@
       function finish() {
         paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); });
         if (!rec) { $('#llVs').textContent = 'Done. (This browser cannot record video: use Chrome or Edge to save it.)'; return; }
-        rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; L.videoScript = sc.map(function (s) { return s.say; }).join(' '); var u = URL.createObjectURL(b);
+        rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; L.videoScript = spoken.join(' '); var u = URL.createObjectURL(b);
           if (!$('#llVo')) return; $('#llVs').textContent = '✓ The video is ready (' + Math.round(b.size / 1024) + ' KB).';
           $('#llVo').innerHTML = '<video src="' + u + '" controls class="ll-cv"></video><div class="actions" style="justify-content:flex-start"><a class="btn btn-sm" href="' + u + '" download="' + esc(fileName(rep, /mp4/.test(b.type) ? 'mp4' : 'webm')) + '">⬇ Download the video</a>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llVKeep" type="button">💾 Save the report and video to Documents</button>' : '') + '</div>';
           cv.remove(); var vk = $('#llVKeep'); if (vk) vk.onclick = function () { keep(rep, vk); }; };

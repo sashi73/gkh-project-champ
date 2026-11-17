@@ -108,4 +108,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 97 | 1.0.97| 2026-11-17 14:11| fix-video-review| `8d1ad8c` | Lessons video: no crash when a report section is empty or has no reuse lessons; Champ's narration is shortened and re-made until it fits 45  |
 | 98 | 1.0.98| 2026-11-17 14:20| fix-video-review| `55f1b6a` | Lessons video runs 80 seconds: Champ says fuller points (headline and story, up to ~100 words), never cut off (narration is shortened and re |
 | 99 | 1.0.99| 2026-11-17 14:34| fix-video-review| `d114fea` | Lessons video, CodeRabbit review: a part whose voice would not fit is drawn without it (never cut off), the saved video script is what was a |
-| 100 | 1.0.100 | 2026-11-17 14:39 | fix-video-review | _this commit_ | _see git log_ |
+| 100 | 1.0.100| 2026-11-17 14:39| fix-video-review| `4d4e745` | New project only from the left panel: removed the button from the top bar, the pipeline board, the program page and the empty portfolio |
+| 101 | 1.0.101 | 2026-11-17 14:48 | fix-video-review | _this commit_ | _see git log_ |
