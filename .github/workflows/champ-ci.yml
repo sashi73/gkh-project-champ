@@ -1,4 +1,4 @@
-# GKH Project Champ: the automated tests on every pull request into GKH-Project-Champ (and on demand).
+# GKH Project Champ: the automated tests on every pull request into main (and on demand).
 # 1. every server and console file parses (node --check)
 # 2. the end-to-end suite (tools/champ-test.cjs, Playwright + Chromium against the local server, fake AI, fake R2,
 #    fake voice): about 450 checks of the website, the console, AI features, documents, lessons and the watch.
@@ -6,7 +6,7 @@
 name: Champ tests
 on:
   pull_request:
-    branches: [GKH-Project-Champ]
+    branches: [main, GKH-Project-Champ]
   workflow_dispatch:
 permissions:
   contents: read

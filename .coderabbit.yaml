@@ -1,4 +1,4 @@
-# CodeRabbit: AI code review for GKH Project Champ. It reviews every pull request into GKH-Project-Champ (the branch
+# CodeRabbit: AI code review for GKH Project Champ. It reviews every pull request into main (the branch
 # Netlify deploys) before it goes live, alongside the automated tests (.github/workflows/champ-ci.yml).
 # Docs: https://docs.coderabbit.ai/getting-started/configure-coderabbit
 language: en-AU
@@ -16,6 +16,7 @@ reviews:
     enabled: true
     drafts: false
     base_branches:
+      - "main"
       - "GKH-Project-Champ"
   path_filters:
     - "!vendor/**"
