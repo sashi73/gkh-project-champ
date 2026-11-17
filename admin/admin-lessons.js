@@ -253,14 +253,17 @@
     return FONT;
   }
   // the five parts, from the report: up to 3 short points each, and what Champ says (about 20 words a part)
-  function parts5(D) {
+  function parts5(D, cap) {
+    cap = cap || 14;
     var short = function (x, n) { x = String(x || '').replace(/\s*\([^)]*\)/g, '').replace(/[.!?]+$/, '').trim(); var w = x.split(/\s+/); return w.length > n ? w.slice(0, n).join(' ') + '…' : x; };
-    var list = function (a, k) { return (a || []).slice(0, 3).map(function (x) { return short(typeof x === 'string' ? x : x[k || 'title'], 7); }).filter(Boolean); };
+    var list = function (a, k) { return (a || []).filter(function (x) { return x != null; }).slice(0, 3).map(function (x) { return short(typeof x === 'string' ? x : x[k || 'title'], 7); }).filter(Boolean); };
     var join = function (a) { return a.length > 1 ? a.slice(0, -1).join(', ') + ' and ' + a[a.length - 1] : a[0] || ''; };
-    var said = function (a) { var out = [], n = 0; a.forEach(function (x) { var w = x.replace(/…$/, '').toLowerCase(); if (n + w.split(' ').length <= 14) { out.push(w); n += w.split(' ').length; } }); return join(out.length ? out : [a[0].toLowerCase()]); };
+    // what Champ says for a list: as many points as fit in `cap` words (an empty list says nothing, and the part is left out below)
+    var tidy = function (x) { return String(x).replace(/…$/, '').replace(/(\s+(in|the|of|before|after|and|or|to|for|a|an|with|on|at|by|from|into|so|but))+$/i, ''); };   // never end a spoken phrase on a dangling word
+    var said = function (a) { if (!a || !a.length) return ''; var out = [], n = 0; a.forEach(function (x) { var w = tidy(x).toLowerCase(); if (n + w.split(' ').length <= cap) { out.push(w); n += w.split(' ').length; } }); return join(out.length ? out : [tidy(short(a[0], Math.max(2, cap))).toLowerCase()]); };
     var about = [short(D.headline, 12)], ww = list(D.went_well), wr = list(D.went_wrong), rc = list(D.recommendations), ls = list(D.reuse && D.reuse.length ? D.reuse : [D.quote]);
     return [
-      { key: 'about', icon: 'target', head: 'What this is about', pts: about.concat(D.story && D.story[0] ? [short(D.story[0], 12)] : []), mark: '•', say: 'What is this about? ' + short(D.headline, 16) + '.' },
+      { key: 'about', icon: 'target', head: 'What this is about', pts: about.concat(D.story && D.story[0] ? [short(D.story[0], 12)] : []), mark: '•', say: 'What is this about? ' + tidy(short(D.headline, cap + 2)) + '.' },
       { key: 'well', icon: 'check', head: 'What went well', pts: ww, mark: '✓', say: 'What went well: ' + said(ww) + '.' },
       { key: 'wrong', icon: 'warning', head: 'What didn\'t go well', pts: wr, mark: '✗', say: 'What didn\'t go well: ' + said(wr) + '.' },
       { key: 'recs', icon: 'idea', head: 'Our key recommendations', pts: rc, mark: '➜', say: 'Our key recommendations: ' + said(rc) + '.' },
@@ -278,12 +281,20 @@
     var dest = ac && ac.createMediaStreamDestination ? ac.createMediaStreamDestination() : null;
     var say = function (t) { if (!ac || !t) return Promise.resolve(null); return fetch('/.netlify/functions/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: t, lang: lang, clear: true }) }).then(function (r) { if (!r.ok) throw new Error('voice'); return r.arrayBuffer(); }).then(function (b) { return new Promise(function (res) { var pr; try { pr = ac.decodeAudioData(b, res, function () { res(null); }); } catch (e) { res(null); } if (pr && pr.catch) pr.catch(function () { res(null); }); }); }).catch(function () { return null; }); };
     var HAND = "'ChampHand','Segoe Print','Bradley Hand',cursive", SANS = "'Poppins',system-ui,sans-serif", INK = '#1F1D18', SOFT = '#6B665A', COL = { about: INK, well: '#067647', wrong: '#B42318', recs: '#1D4ED8', lessons: '#6941C6' };
-    Promise.all([fonts()].concat(sc.map(function (s) { return say(s.say); }))).then(function (all) { var aud = all.slice(1); return (ac && ac.state === 'suspended' ? ac.resume().catch(function () {}) : Promise.resolve()).then(function () { return aud; }); }).then(function (aud) {
+    // Champ's narration has to fit 45 seconds without being cut off: if what he says for the five parts does not fit even
+    // 15% faster, the narration is shortened (fewer points spoken) and made again; the pictures keep all the points
+    var INTRO = 3, OUTRO = 3.5, ROOM = 45 - INTRO - OUTRO;
+    var needOf = function (parts, aud) { return parts.map(function (s, i) { return Math.max(6, aud[i] ? aud[i].duration + 1 : s.say.split(' ').length * 0.4 + 1.2); }); };
+    var voiceFor = function (caps) { var cap = caps[0], parts = parts5(D, cap); return Promise.all(parts.map(function (s) { return say(s.say); })).then(function (aud) {
+      var total = needOf(parts, aud).reduce(function (a, b) { return a + b; }, 0);
+      if (total / 1.15 <= ROOM || caps.length < 2 || me.stop) { sc = parts; return aud; }
+      return voiceFor(caps.slice(1)); }); };
+    Promise.all([fonts(), voiceFor([14, 8, 4])]).then(function (all) { var aud = all[1]; return (ac && ac.state === 'suspended' ? ac.resume().catch(function () {}) : Promise.resolve()).then(function () { return aud; }); }).then(function (aud) {
       if (me.stop) return; var withSound = !!(dest && ac && ac.state === 'running' && aud.some(Boolean));
       // timing: each part lasts as long as Champ takes to say it, plus a breath (so voices never overlap), at least 6
       // seconds so the drawing can be read; the whole at most 45 seconds (the narration a little faster if needed, up to 15%)
-      var intro = 3, outro = 3.5, need = sc.map(function (s, i) { return Math.max(6, aud[i] ? aud[i].duration + 1 : s.say.split(' ').length * 0.4 + 1.2); });
-      var sum = need.reduce(function (a, b) { return a + b; }, 0), room = 45 - intro - outro, rate = Math.min(1.15, Math.max(1, sum / room)), dur = need.map(function (d) { return d / rate; });
+      var intro = INTRO, outro = OUTRO, need = needOf(sc, aud);
+      var sum = need.reduce(function (a, b) { return a + b; }, 0), room = ROOM, rate = Math.min(1.15, Math.max(1, sum / room)), dur = need.map(function (d) { return d / rate; });
       var fit = dur.reduce(function (a, b) { return a + b; }, 0); if (fit > room) dur = dur.map(function (d) { return d * room / fit; });   // never longer than 45 seconds in all
       window.__llVideo = { parts: sc.map(function (s) { return s.head; }), seconds: 0 };
       var starts = [], acc = intro; dur.forEach(function (d) { starts.push(acc); acc += d; }); var tot = acc + outro; window.__llVideo.seconds = Math.round(tot * 10) / 10;

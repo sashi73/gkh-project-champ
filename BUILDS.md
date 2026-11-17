@@ -104,4 +104,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 93 | 1.0.93| 2026-11-17 12:03| champ-review| `2a01198` | Tests: steadier on GitHub's slower runners (longer PDF downloads, wait for the video length), Pillow for the colour check |
 | 94 | 1.0.94| 2026-11-17 12:24| champ-review| `f7971b2` | Lessons video in the 5-part format (45s, no overlays), CodeRabbit review and CI tests |
 | 95 | 1.0.95| 2026-11-17 13:31| champ-main| `5fe12b0` | Own repository: tests and CodeRabbit reviews run on pull requests into main (GKH-Project-Champ kept as well) |
-| 96 | 1.0.96 | 2026-11-17 14:01 | champ-main | _this commit_ | _see git log_ |
+| 96 | 1.0.96| 2026-11-17 14:01| champ-main| `1208651` | Share previews (LinkedIn, WhatsApp) and email links use gkhpmo.com; other deploy addresses are still swapped in at build time |
+| 97 | 1.0.97 | 2026-11-17 14:11 | fix-video-review | _this commit_ | _see git log_ |
