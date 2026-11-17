@@ -3,7 +3,7 @@
 // explained to a client. Then Champ, as an agent, writes a short brief: what is wrong, why, and what it would do next.
 // The rules cost nothing; the brief is one AI call, kept (watch:<core>) until the project's numbers change, at most once a day.
 import * as kv from './kv.mjs';
-import { rollup, taskCost, workBetween } from './plan.mjs';
+import { rollup, taskCost, workBetween, allDays } from './plan.mjs';
 import { llmJson, usage, checkLimit, llmSetup, sydToday } from './ai.mjs';
 import * as KB from './kb.mjs';
 
@@ -19,7 +19,7 @@ export function check(plan, today = sydToday()) {
   if (!plan || !Array.isArray(plan.tasks) || !plan.tasks.length) return { rag: 'grey', word: RAG_WORD.grey, reasons: [{ lvl: 'grey', k: 'plan', text: 'No plan yet: add tasks with dates and costs so Champ can watch it.' }], n: {} };
   const R = rollup(plan, today), c = plan.charter || {}, b = plan.baseline || null;
   const work = plan.tasks.filter((t) => t.dur > 0);
-  if (work.length && work.every((t) => (t.pct || 0) >= 100)) return closeOut(plan, R, c, b, today);
+  if (work.length && plan.tasks.every((t) => (t.pct || 0) >= 100)) return closeOut(plan, R, c, b, today);   // every task and milestone done
   const budget = Number(c.budget) || 0, EAC = R.EAC != null ? R.EAC : R.BAC;
   const slip = b && b.finish && R.finish ? days(b.finish, R.finish) : 0;
   const late = plan.tasks.filter((t) => (t.pct || 0) < 100 && t.ef && t.ef < today && t.dur > 0).sort((x, y) => (x.ef < y.ef ? -1 : 1));
@@ -59,8 +59,10 @@ export function check(plan, today = sydToday()) {
 //   partly          up to 15% late and up to 10% over budget
 //   failed          later or dearer than that
 function closeOut(plan, R, c, b, today) {
-  const budget = Number(c.budget) || 0, AC = R.AC, start = plan.start || R.start, baseFin = (b && b.finish) || R.finish, fin = R.finish;
-  const planned = Math.max(1, workBetween(start, baseFin)), actual = Math.max(1, workBetween(start, fin)), slip = days(baseFin, fin);
+  // the actual finish: when the work was really done (doneAt), else its scheduled finish; days on the project's own calendar
+  const A = allDays(plan), fin = plan.tasks.filter((t) => t.dur > 0).reduce((m, t) => { const d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish;
+  const budget = Number(c.budget) || 0, AC = R.AC, start = plan.start || R.start, baseFin = (b && b.finish) || fin;
+  const planned = Math.max(1, workBetween(start, baseFin, A)), actual = Math.max(1, workBetween(start, fin, A)), slip = days(baseFin, fin);
   const SPIt = r2(planned / actual), lateBy = Math.max(0, actual - planned), latePct = r2(lateBy / planned * 100);
   const over = budget ? r2((AC - budget) / budget * 100) : (R.CPI ? r2((1 / R.CPI - 1) * 100) : 0);
   const onTime = lateBy <= Math.max(5, planned * 0.05), inBudget = over <= 0;
@@ -81,7 +83,8 @@ function closeOut(plan, R, c, b, today) {
   return { rag: V.rag, word: V.word, reasons, n };
 }
 // the numbers that matter: the brief is written again only when one of them changes (or on a new day)
-const sigOf = (h) => JSON.stringify([h.rag, h.n.today, h.n.pct, h.n.SPI, h.n.CPI, h.n.EAC, h.n.finish, h.n.budget, h.n.late_tasks.length, h.n.top_risks.map((x) => x.score), h.n.open_issues.length]);
+const sigOf = (h) => JSON.stringify([h.rag, h.n.today, h.n.pct, h.n.SPI, h.n.CPI, h.n.EAC, h.n.finish, h.n.budget, h.n.late_tasks.length, h.n.top_risks.map((x) => x.score), h.n.open_issues.length]
+  .concat(h.n.finished ? [h.n.verdict, h.n.SPIt, h.n.slip_days, h.n.over_pct, h.n.closure_note, (h.n.lessons_logged || []).map((l) => [l.title, l.impact, l.rec]), (h.n.issues_log || []).map((x) => [x.title, x.priority, x.resolution])] : []));   // a finished project: its post-mortem inputs too
 
 // what Champ would do, from the rules alone (when the AI is not set up or the daily limit is reached)
 function fallback(h) {
@@ -105,10 +108,10 @@ function postFallback(h) {
   if (k.has('cost') && a.length < 4) a.push({ title: 'Control cost from week one', detail: 'Weekly actuals against earned value, a tight change-control gate, and contingency released only by the sponsor.' });
   if (n.verdict === 'success') a.push({ title: 'Reuse what worked', detail: 'Turn this project\'s plan, risks and lessons into the template for the next one.' });
   a.push({ title: 'Agree and share the lessons learned', detail: 'Open the Lessons learned tab, agree the lessons with the team and write the report so the next project can reuse them.' });
-  const over = n.over_pct, late = n.slip_days;
-  const headline = n.verdict === 'success' ? 'Success: this project finished on time and within budget.'
-    : n.verdict === 'partial' ? `Partly successful: it finished${late > 0 ? ' ' + late + ' days late' : ''}${over > 0 ? (late > 0 ? ' and ' : ' ') + Math.round(over) + '% over budget' : ''}.`
-    : `This project failed: it finished ${late > 0 ? late + ' days late' : 'late'}${over > 0 ? ' and ' + Math.round(over) + '% over budget' : ''}.`;
+  const over = n.over_pct, late = n.slip_days, misses = [];   // say only what actually went wrong (late, over budget, or both)
+  if (late > 0 && k.has('time')) misses.push(late + ' days late'); if (over > 0) misses.push(Math.round(over) + '% over budget');
+  const why = misses.length ? 'it finished ' + misses.join(' and ') : 'it missed its targets';
+  const headline = n.verdict === 'success' ? 'Success: this project finished on time and within budget.' : n.verdict === 'partial' ? `Partly successful: ${why}.` : `This project failed: ${why}.`;
   return { headline, summary: h.reasons.map((x) => x.text).slice(0, 3).join(' '), actions: a.slice(0, 5), watch: [], ai: false, finished: true };
 }
 

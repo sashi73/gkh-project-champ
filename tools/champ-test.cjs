@@ -684,7 +684,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
           tasks: [{ id: 't1', phase: 'ph1', name: 'Build', dur: 60, pred: [], res: [], pct: 100, status: 'done', qty: 480, unit: 'h', rate: 100, actual: 70000 }, { id: 't2', phase: 'ph1', name: 'Handover', dur: 40, pred: ['t1'], res: [], pct: 100, status: 'done', qty: 320, unit: 'h', rate: 100, actual: 45000 }],
           charter: { budget: 88000 }, baseline: { at: Date.now() - 200 * 864e5, finish: d0(-140), BAC: 80000, tasks: {} },
           lessons: [{ id: 'l1', title: 'Freeze the scope before the build', impact: 'negative', what: 'Scope grew during the build', cause: 'No design freeze', rec: 'Freeze the scope at design sign-off', status: 'Agreed' }] } });
-        const fq = await (await api('planWatchGet', { core: fc, quick: true })).json();
+        const fq = await (await api('planWatchGet', { core: fc, quick: true })).json(), fb = await (await api('planWatchGet', { core: fc })).json();
         await p.goto(`${BASE}/admin/#plan/${fc}/overview`); await p.waitForSelector('#cgBtn.cg-red', { timeout: 10000 }).catch(() => {});
         const fbtn = await p.$eval('#cgBtn', (x) => x.textContent).catch(() => '');
         await p.click('#cgBtn'); await p.waitForSelector('.cgp-brief', { timeout: 15000 }).catch(() => {}); await sleep(800);
@@ -692,11 +692,12 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
         await p.click('.cgp-x').catch(() => {});
         const fwb = await (await api('watchBoard', { refresh: true })).json(), fd = (fwb.done || []).find((x) => x.core === fc);
         await p.goto(`${BASE}/admin/#programs`); await p.reload(); await p.waitForSelector('#pgWatch .wt-done', { timeout: 15000 }).catch(() => {});
-        const fpw = await p.textContent('#pgWatch').catch(() => '');
+        const fpw = await p.textContent('#pgWatch').catch(() => ''), frow = await p.textContent('#pgWatch .wt-done[data-wtc="' + fc + '"]').catch(() => '');
         ok('Champ watch', '🏁 a finished project gets a verdict (failed: late against the baseline and over the approved budget), the time index (SPI ends at 1.00) and CPI; Champ says how it would have done it better, with Lessons learned; the dashboard lists finished projects with Time and CPI',
-          fq.n && fq.n.finished && fq.n.verdict === 'failed' && fq.word === 'Finished: failed' && fq.n.SPIt < 0.8 && fq.n.over_pct > 25 && /project failed/i.test(fbtn) &&
+          fq.n && fq.n.finished && fq.n.verdict === 'failed' && fq.word === 'Finished: failed' && fq.n.SPIt < 0.8 && fq.n.over_pct > 25 && Math.abs(fq.n.CPI - 0.7) < 0.01 && /project failed/i.test(fbtn) &&
+          (fb.brief.actions || []).some((a) => /Freeze the scope at design sign-off/.test(a.detail)) && /CPI 0\.70/.test(fcard) &&
           /Finished: failed/.test(fcard) && /Time index/.test(fcard) && /How I would have done this better/.test(fcard) && fll &&
-          !!fd && fd.verdict === 'failed' && !(fwb.items || []).some((x) => x.core === fc) && /Finished projects: how they ended/.test(fpw) && /Failed/.test(fpw),
+          !!fd && fd.verdict === 'failed' && Math.abs(fd.CPI - 0.7) < 0.01 && fd.SPIt === fq.n.SPIt && !(fwb.items || []).some((x) => x.core === fc) && /Finished projects: how they ended/.test(fpw) && /Failed/.test(frow) && /CPI 0\.70/.test(frow) && frow.includes('Time ' + fq.n.SPIt.toFixed(2)),
           JSON.stringify({ n: fq.n && [fq.n.verdict, fq.n.SPIt, fq.n.over_pct], fbtn, card: fcard.slice(0, 160), fll, fd: fd && fd.verdict }));
         await api('planProjectDelete', { core: fc });
       }
