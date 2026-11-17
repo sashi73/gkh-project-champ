@@ -56,11 +56,19 @@ window.CHAMP_REMEMBER = false;
   // the top-right cluster (website header / console top bar) that holds 🌐 language, ☀/☾ and 🎨
   function cluster() {
     var c = document.getElementById('champCtl'); if (c) return c;
-    var host = document.querySelector('header.site .nav-login') || document.querySelector('.top .top-new'), top = document.querySelector('header.top');
+    var host = document.querySelector('header.site .nav-login'), top = document.querySelector('header.top');
     if (!host && !top) return null;
     c = document.createElement('div'); c.id = 'champCtl'; c.className = 'ct-ctl';
-    if (host) host.parentNode.insertBefore(c, host); else top.appendChild(c);   // the console top bar: at its right-hand end
+    if (host) host.parentNode.insertBefore(c, host); else { place(c); window.addEventListener('resize', function () { place(c); }); }
     return c;
+  }
+  // the console: in the black GKH bar at the very top, just left of "Powered by Global Knowledge House" (easy to see);
+  // on a phone that bar folds away, so the controls go to the right-hand end of the header instead
+  function place(c) {
+    var bar = document.querySelector('.gkh-bar'), pw = bar && bar.querySelector('small'), top = document.querySelector('header.top');
+    var barOn = bar && getComputedStyle(bar).display !== 'none';
+    if (barOn) { if (c.parentNode !== bar) { if (pw) bar.insertBefore(c, pw); else bar.appendChild(c); } c.classList.add('ct-onbar'); }
+    else if (top && c.parentNode !== top) { top.appendChild(c); c.classList.remove('ct-onbar'); }
   }
   window.ChampCtl = cluster;
   function build() {
