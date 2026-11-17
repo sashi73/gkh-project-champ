@@ -369,7 +369,7 @@
         if (t < tot) requestAnimationFrame(frame); else finish();
       }
       function finish() {
-        paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); });
+        paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); }); window.__llVideo.recorded = Math.round((performance.now() - t0) / 100) / 10;   // how long the recording really ran
         if (!rec) { $('#llVs').textContent = 'Done. (This browser cannot record video: use Chrome or Edge to save it.)'; return; }
         rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; L.videoScript = spoken.join(' '); var u = URL.createObjectURL(b);
           if (!$('#llVo')) return; $('#llVs').textContent = '✓ The video is ready (' + Math.round(b.size / 1024) + ' KB).';

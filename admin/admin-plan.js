@@ -1742,14 +1742,25 @@
   }
   function prevL1(p, t) { var i = p.tasks.indexOf(t); for (var k = i - 1; k >= 0; k--) if (p.tasks[k].dur > 0) return p.tasks[k]; return null; }
   var lvId = function (c) { return c + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
+  var lvKeep = function (src, dst) { ['desc', 'priority', 'points'].forEach(function (k) { if (src[k]) dst[k] = src[k]; }); if (src.notes && !dst.desc) dst.desc = String(src.notes).slice(0, 300); return dst; };   // a story's description, priority and points go with it
+  var LIM = { tasks: 300, subs: 40, steps: 40 };   // what the server keeps: a move that would go over is refused, nothing is lost
+  function lvCycle(tasks) {   // does any task end up waiting (through its links) for itself?
+    var by = {}, st = {}; tasks.forEach(function (x) { by[x.id] = x; });
+    var visit = function (id) { if (st[id] === 1) return true; if (st[id] === 2 || !by[id]) return false; st[id] = 1; var bad = (by[id].pred || []).some(visit); st[id] = 2; return bad; };
+    return tasks.some(function (x) { return visit(x.id); });
+  }
   function taskIn(t) {   // level 1 → the last sub-task of the task above
     var p = S.plan, par = prevL1(p, t); if (!par || t.dur === 0) return '';
     if ((t.subs || []).some(function (x) { return (x.steps || []).length; })) { toast('Move its steps out first: a sub-task has only one level below it', true); return ''; }
     if (cost(t) > 0 || (+t.actual || 0) > 0) { toast('“' + t.name + '” carries costs, and sub-tasks have none of their own. Move its Qty, Unit $ and Actual $ to the task above (or clear them) first.', true); return ''; }
+    if ((par.subs || []).length >= LIM.subs) { toast('“' + par.name + '” already has ' + LIM.subs + ' sub-tasks, the most a task can hold. Move some out first.', true); return ''; }
+    var np = p.tasks.filter(function (x) { return x !== t; }).map(function (x) { return { id: x.id, pred: (x.pred || []).map(function (id) { return id === t.id ? par.id : id; }).filter(function (id, k, a) { return id !== x.id && a.indexOf(id) === k; }) }; });
+    if (lvCycle(np)) { toast('Not moved: “' + t.name + '” going under “' + par.name + '” would make tasks wait for each other in a loop. Change the After # links first.', true); return ''; }
     par.subs = par.subs || []; var last = par.subs[par.subs.length - 1], off = last ? last.off + last.dur : 0, D = Math.max(1, t.dur);
     if (off + D > par.dur) par.dur = off + D;   // the task above grows to hold it
-    var sb = { id: lvId('s'), name: t.name, owner: (t.res || [])[0] || '', off: off, dur: D, status: t.status || 'todo',
-      steps: (t.subs || []).map(function (x) { return { id: lvId('p'), name: x.name, owner: x.owner || '', off: x.off, dur: x.dur, done: x.status === 'done' }; }) };
+    var sb = lvKeep(t, { id: lvId('s'), name: t.name, owner: t.lead || (t.res || [])[0] || '', off: off, dur: D, status: t.status || 'todo',
+      steps: (t.subs || []).map(function (x) { return lvKeep(x, { id: lvId('p'), name: x.name, owner: x.owner || '', off: x.off, dur: x.dur, done: x.status === 'done' }); }) });
+    if ((t.res || []).length > 1) toast('A sub-task has one owner: ' + sb.owner + '. The others (' + t.res.filter(function (x) { return x !== sb.owner; }).join(', ') + ') are not kept.');
     if ((t.stickies || []).length) par.stickies = (par.stickies || []).concat(t.stickies);
     par.subs.push(sb); fitSubs(par);
     p.tasks = p.tasks.filter(function (x) { return x !== t; });
@@ -1760,21 +1771,25 @@
   function subIn(t, sb) {   // 1.1 → the last step of the sub-task above
     var j = t.subs.indexOf(sb), up = t.subs[j - 1]; if (!up) return '';
     if ((sb.steps || []).length) { toast('It has steps: move them out first (a step cannot have steps of its own)', true); return ''; }
+    if ((up.steps || []).length >= LIM.steps) { toast('“' + up.name + '” already has ' + LIM.steps + ' steps, the most a sub-task can hold.', true); return ''; }
     up.steps = up.steps || []; var last = up.steps[up.steps.length - 1], off = last ? last.off + last.dur : 0, D = Math.max(1, sb.dur);
     if (off + D > up.dur) { up.dur = off + D; if (up.off + up.dur > t.dur) t.dur = up.off + up.dur; }
-    up.steps.push({ id: lvId('p'), name: sb.name, owner: sb.owner || '', off: off, dur: D, done: sb.status === 'done' });
+    up.steps.push(lvKeep(sb, { id: lvId('p'), name: sb.name, owner: sb.owner || '', off: off, dur: D, done: sb.status === 'done' }));
     t.subs.splice(j, 1); fitSubs(t); derive(t); S.stClosed[up.id] = false;
     return 'indented: ' + sb.name + ' is now a step of ' + up.name;
   }
   function subOut(t, sb) {   // 1.1 → a level-1 task just below its task (it starts alongside it)
+    if (S.plan.tasks.length >= LIM.tasks) { toast('The plan already has ' + LIM.tasks + ' tasks, the most it can hold.', true); return ''; }
     var p = S.plan, nt = { id: lvId('t'), phase: t.phase || 'ph1', name: sb.name, dur: Math.max(1, sb.dur), res: sb.owner ? [sb.owner] : [], lead: '', resource: '', qty: 0, unit: '', rate: 0, actual: 0, pct: subPct(sb), status: sb.status || 'todo', pred: (t.pred || []).slice(), snet: '', notes: '',
-      subs: (sb.steps || []).map(function (q) { return { id: lvId('s'), name: q.name, owner: q.owner || '', off: q.off, dur: q.dur, status: q.done ? 'done' : 'todo' }; }) };
+      subs: (sb.steps || []).map(function (q) { return lvKeep(q, { id: lvId('s'), name: q.name, owner: q.owner || '', off: q.off, dur: q.dur, status: q.done ? 'done' : 'todo' }); }) };
+    if (sb.desc) nt.notes = sb.desc; if (sb.priority) nt.priority = sb.priority; if (sb.points) nt.points = sb.points;
     t.subs.splice(t.subs.indexOf(sb), 1); p.tasks.splice(p.tasks.indexOf(t) + 1, 0, nt);
     fixRes(nt); fitSubs(t); fitSubs(nt); derive(t); derive(nt); if (!t.subs.length) setStatus(t, t.status);
     return 'outdented: ' + sb.name + ' is now a level-1 task';
   }
   function stepOut(t, sb, q) {   // 1.1.1 → a sub-task just below its own sub-task
-    var ns = { id: lvId('s'), name: q.name, owner: q.owner || '', off: sb.off + q.off, dur: q.dur, status: q.done ? 'done' : 'todo' };
+    if (t.subs.length >= LIM.subs) { toast('“' + t.name + '” already has ' + LIM.subs + ' sub-tasks, the most a task can hold.', true); return ''; }
+    var ns = lvKeep(q, { id: lvId('s'), name: q.name, owner: q.owner || '', off: sb.off + q.off, dur: q.dur, status: q.done ? 'done' : 'todo' });
     sb.steps.splice(sb.steps.indexOf(q), 1); t.subs.splice(t.subs.indexOf(sb) + 1, 0, ns); fitSubs(t); derive(t);
     return 'outdented: ' + q.name + ' is now a sub-task of ' + t.name;
   }
