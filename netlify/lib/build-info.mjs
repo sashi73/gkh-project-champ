@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 112,
+  "build": 117,
   "commit": "",
-  "branch": "spi-finished",
+  "branch": "lessons-video",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-17 20:23",
+  "builtAt": "2026-11-18 10:12",
   "site": ""
 };

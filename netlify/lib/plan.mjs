@@ -138,10 +138,10 @@ function cleanSubs(list, t, uid) {
     const off = int(x.off, 0, D - 1, 0), dur = int(x.dur, 1, D - off, 1);
     let status = STAT.includes(x.status) ? x.status : 'todo';
     // v85: dated steps inside a story (a third level): off / dur in working days from the story's start, done or not
-    const steps = (Array.isArray(x.steps) ? x.steps : []).slice(0, 40).map((st) => { const so = int(st && st.off, 0, dur - 1, 0); return { id: uid(st && st.id, 'p'), name: str(st && st.name, 160) || 'Step', off: so, dur: int(st && st.dur, 1, dur - so, 1), done: !!(st && st.done) }; });
+    const steps = (Array.isArray(x.steps) ? x.steps : []).slice(0, 40).map((st) => { const so = int(st && st.off, 0, dur - 1, 0); return { id: uid(st && st.id, 'p'), name: str(st && st.name, 160) || 'Step', owner: str(st && st.owner, 120), off: so, dur: int(st && st.dur, 1, dur - so, 1), done: !!(st && st.done), desc: str(st && st.desc, 300), priority: ['High', 'Medium', 'Low'].includes(st && st.priority) ? st.priority : '', points: [1, 2, 3, 5, 8, 13].includes(Number(st && st.points)) ? Number(st.points) : 0 }; });   // v174: a step has an owner (from the Stakeholder register) and keeps a story's details when indented
     let pct = subPctOf(x, status);
     if (steps.length) { const w = steps.reduce((a, q) => a + q.dur, 0) || 1; pct = Math.round(steps.reduce((a, q) => a + (q.done ? q.dur : 0), 0) / w * 100); status = steps.every((q) => q.done) ? 'done' : subStat(pct); }
-    return { id: uid(x.id, 's'), name: str(x.name, 160) || 'Sub-task', owner: str(x.owner, 80), off, dur, status, pct, desc: str(x.desc, 300),
+    return { id: uid(x.id, 's'), name: str(x.name, 160) || 'Sub-task', owner: str(x.owner, 120), off, dur, status, pct, desc: str(x.desc, 300),
       priority: ['High', 'Medium', 'Low'].includes(x.priority) ? x.priority : '', points: [1, 2, 3, 5, 8, 13].includes(Number(x.points)) ? Number(x.points) : 0, steps };   // v65: user stories on the Board
   });
 }
@@ -296,21 +296,33 @@ export async function list() {
   for (const p of await kv.getMany(await kv.keys('plan:'))) if (p) out.push(p);
   return out;
 }
-export async function remind(core, taskId, when, by) {
+export async function remind(core, taskId, when, by, subId = '', stepId = '') {   // a task, a sub-task (level 1.1) or a step (level 1.1.1)
   const p = await get(core);
   if (!p) return { error: 'Plan not found' };
   const t = p.tasks.find((x) => x.id === taskId);
   if (!t) return { error: 'Task not found' };
   schedule(p);
+  const A = allDays(p);
+  let es = t.es, ef = t.ef, name = t.name;
+  if (subId) {
+    const sb = (t.subs || []).find((x) => x.id === subId);
+    if (!sb) return { error: 'Sub-task not found' };
+    es = sb.off ? addWork(t.es, sb.off, A) : t.es; ef = sb.dur > 1 ? addWork(es, sb.dur - 1, A) : es; name = `${sb.name} (${t.name})`;
+    if (stepId) {
+      const q = (sb.steps || []).find((x) => x.id === stepId);
+      if (!q) return { error: 'Step not found' };
+      const qs = q.off ? addWork(es, q.off, A) : es; es = qs; ef = q.dur > 1 ? addWork(qs, q.dur - 1, A) : qs; name = `${q.name} (${sb.name}, ${t.name})`;
+    }
+  }
   let at = null;
   const day = (s, h) => { const [y, m, d] = s.split('-').map(Number); return sydneyTime(y, m, d, h, 0); };
-  if (when === 'daybefore') at = day(prevWork(t.es, allDays(p)), 7);
-  else if (when === 'start') at = day(t.es, 7);
-  else if (when === 'due') at = day(t.ef, 7);
+  if (when === 'daybefore') at = day(prevWork(es, A), 7);
+  else if (when === 'start') at = day(es, 7);
+  else if (when === 'due') at = day(ef, 7);
   else at = parseWhen(when);
   if (!at || at < Date.now() - 60000) return { error: 'That time has already passed. Try e.g. "tomorrow 8am" or "fri 2pm".' };
   const job = await J.find(core);
-  const r = await J.addReminder({ at, text: `${t.name}${job ? ' · ' + J.refFor(job) + ' ' + (job.name || '') : ''} (project plan)`, core, chat: 'alerts', by });
+  const r = await J.addReminder({ at, text: `${name}${job ? ' · ' + J.refFor(job) + ' ' + (job.name || '') : ''} (project plan)`, core, chat: 'alerts', by });
   return { reminder: { ...r, when: whenText(at) } };
 }
 
@@ -1060,7 +1072,7 @@ export async function planPost(action, body, { who, by, audit }) {
     return out(200, { ok: true });
   }
   if (action === 'planRemind') {
-    const r = await remind(core, str(body.taskId, 20), str(body.when, 60), by);
+    const r = await remind(core, str(body.taskId, 20), str(body.when, 60), by, str(body.subId || '', 30), str(body.stepId || '', 30));
     if (r.error) return out(400, { error: r.error });
     if (audit) await audit(who, `Plan ${core}: reminder ${r.reminder.when}`);
     return out(200, r);

@@ -3,7 +3,7 @@
    - ✨ the AI suggests lessons from the project's own history (plan vs baseline, risks, issues, changes)
    - 📚 lessons from past projects, ranked for this one, reused as lessons, risks or tasks (the library)
    - 📄 an AI-written 4-page illustrated report (charts and drawings from the real numbers), printable as PDF, as Word,
-     saved to the project's Documents, with a 80-second scribe video (drawn on a whiteboard, narrated by Champ) */
+     saved to the project's Documents, with a 90-second video (black and gold, narrated by Champ) */
 (function () {
   var M = window.MBS; if (!M) return;
   var api = M.api, esc = M.esc, toast = M.toast, fail = M.fail, $ = M.$, money = M.money;
@@ -58,7 +58,7 @@
       '<div class="card ll-top"><div class="ll-h"><div><h3 style="margin:0">📘 Lessons learned</h3><p class="muted" style="margin:2px 0 0;font-size:12.5px">Capture lessons as the project runs, not only at the end. Agreed lessons go into the library that every other project in Project Champ learns from.</p></div><span class="sp"></span>' +
         (ed ? '<button class="btn btn-sm" id="llAdd" type="button">＋ Add a lesson</button><button class="btn btn-sm" id="llAi" type="button" title="The AI reads this project\'s history (plan vs baseline, risks, issues, changes) and suggests lessons for you to review">✨ Suggest lessons</button>' : '') +
         '<button class="btn btn-sm" id="llLib" type="button">📚 Lessons library</button>' +
-        (ed ? '<button class="btn btn-sm btn-gold" id="llRep" type="button" title="The AI writes a 4-page illustrated lessons-learned report, with a 80-second scribe video">📄 ' + (L.rep ? 'Rewrite the report' : 'Write the report') + '</button>' : '') + '</div>' +
+        (ed ? '<button class="btn btn-sm btn-gold" id="llRep" type="button" title="The AI writes a 4-page illustrated lessons-learned report, with a 90-second scribe video">📄 ' + (L.rep ? 'Rewrite the report' : 'Write the report') + '</button>' : '') + '</div>' +
         '<div class="ll-stat"><span>📘 <b>' + Ls.length + '</b> lesson' + (Ls.length === 1 ? '' : 's') + '</span><span>👍 ' + pos + ' to repeat</span><span>⚠ ' + (Ls.length - pos) + ' to avoid</span><span>✓ ' + Ls.filter(function (l) { return l.status === 'Agreed'; }).length + ' agreed</span>' +
         (L.rep ? '<button class="ll-link" id="llOpen" type="button">📄 Open the report (' + esc(dmy(new Date(L.rep.at).toISOString().slice(0, 10))) + ') ›</button>' : L.rep === undefined ? '<span class="muted">Loading the report…</span>' : '') + '</div>' +
         (Ls.length ? '<div class="ll-charts"><div><canvas id="llCat" height="150"></canvas></div><div><canvas id="llImp" height="150"></canvas></div></div>' : '') + '</div>' +
@@ -141,7 +141,7 @@
   function writeReport() {
     var core = C.S.core;
     if (C.S.timer || C.S.busy) toast('Saving the plan first…');
-    M.modal('<h2>📄 The lessons-learned report</h2><p class="muted" style="margin:-4px 0 10px">The AI reads the whole project (up to about 80,000 tokens: the numbers, the lessons log, risks, issues, changes and the project\'s documents) and writes a 4-page illustrated report, with a 80-second video script. This takes a minute or two.</p><div id="llW"><p class="cr-wait">✨ Writing the report…</p></div>');
+    M.modal('<h2>📄 The lessons-learned report</h2><p class="muted" style="margin:-4px 0 10px">The AI reads the whole project (up to about 80,000 tokens: the numbers, the lessons log, risks, issues, changes and the project\'s documents) and writes a 4-page illustrated report, with a 90-second video script. This takes a minute or two.</p><div id="llW"><p class="cr-wait">✨ Writing the report…</p></div>');
     (C.saveNow ? C.saveNow() : Promise.resolve()).then(function () { return bg({ mode: 'lessonsReport', core: core }); }).then(function (id) { return poll(id, 160); }).then(function (rep) { L.rep = rep; M.closeModal(); if (C.S.tab === 'lessons') draw(); openReport(rep); })
       .catch(function (e) { if ($('#llW')) $('#llW').innerHTML = '<p class="cr-wait" style="color:#B42318">' + esc(e.message) + '</p><div class="actions"><button class="btn" data-close type="button">Close</button></div>'; });
   }
@@ -154,7 +154,7 @@
     var foot = function (n) { return '<div class="ll-foot"><span>' + esc(D.title) + ' · ' + esc(F.project) + '</span><span>Project Champ · page ' + n + ' of 4</span></div>'; };
     var cards = function (arr, cls) { return arr.map(function (x) { return '<div class="ll-rc ' + cls + '">' + icon(x.icon, 30) + '<div><b>' + esc(x.title) + '</b><p>' + esc(x.detail) + '</p>' + (x.cause ? '<p class="ll-cause"><b>Root cause:</b> ' + esc(x.cause) + '</p>' : '') + '</div></div>'; }).join(''); };
     var html = '<div id="llDoc" class="ll-doc"><div class="ll-bar"><b>📄 ' + esc(D.title) + '</b><span class="sp"></span>' +
-      '<button class="btn btn-sm" id="llVid" type="button">🎬 Play the 80-second video</button><button class="btn btn-sm" id="llPrint" type="button">🖨 Print or save as PDF</button><button class="btn btn-sm" id="llWord" type="button">⬇ Word</button>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llKeep" type="button" title="Save the report (Word) and the video into this project\'s Documents (Reports folder, kept in R2)">💾 Save to Documents</button>' : '') + '<button class="btn btn-sm" id="llClose" type="button">✕ Close</button></div><div class="ll-pages">' +
+      '<button class="btn btn-sm" id="llVid" type="button">🎬 Play the 90-second video</button><button class="btn btn-sm" id="llPrint" type="button">🖨 Print or save as PDF</button><button class="btn btn-sm" id="llWord" type="button">⬇ Word</button>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llKeep" type="button" title="Save the report (Word) and the video into this project\'s Documents (Reports folder, kept in R2)">💾 Save to Documents</button>' : '') + '<button class="btn btn-sm" id="llClose" type="button">✕ Close</button></div><div class="ll-pages">' +
       // page 1: the story at a glance
       '<section class="ll-pg"><div class="ll-cover"><small>LESSONS LEARNED · ' + esc((job.ref || '') + ' · ' + dmy(new Date(rep.at).toISOString().slice(0, 10))) + '</small><h1>' + esc(D.title) + '</h1><p>' + esc(D.subtitle) + '</p></div>' +
         '<p class="ll-head">' + esc(D.headline) + '</p><div class="ll-kpis">' + kpi('Finish', dmy(F.finish), F.baseline_finish ? (slip > 0 ? slip + ' days after the baseline (' + dmy(F.baseline_finish) + ')' : slip < 0 ? (-slip) + ' days early' : 'on the baseline') : 'no baseline set', slip > 21 ? 'bad' : slip > 0 ? 'warn' : 'good') +
@@ -167,7 +167,7 @@
       '<section class="ll-pg"><h2 class="ll-h2 bad">⚠ What didn\'t go well</h2><div class="ll-rcs">' + cards(D.went_wrong, 'bad') + '</div><div class="ll-two"><div class="ll-gr"><h4>Root causes</h4><div id="rgFish"></div></div><div class="ll-gr"><h4>Cost by phase: baseline, forecast, spent</h4><canvas id="rgCost" height="230"></canvas></div></div>' + foot(3) + '</section>' +
       // page 4: recommendations, reuse, the video
       '<section class="ll-pg"><h2 class="ll-h2">➜ Recommendations</h2><table class="ll-rec"><thead><tr><th>#</th><th>Recommendation</th><th>Owner</th><th>When</th><th>Applies to</th></tr></thead><tbody>' + D.recommendations.map(function (r, i) { return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.title) + '</b><br><small>' + esc(r.detail) + '</small></td><td>' + esc(r.owner) + '</td><td>' + esc(r.when) + '</td><td>' + esc(r.applies_to) + '</td></tr>'; }).join('') + '</tbody></table>' +
-        '<div class="ll-two"><div><h4>📚 Reuse checklist for future projects</h4><ul class="ll-chk">' + D.reuse.map(function (x) { return '<li>☐ ' + esc(x) + '</li>'; }).join('') + '</ul></div><div><h4>🎬 The story in 80 seconds</h4><div class="ll-story">' + parts5(D).map(function (s, i) { return '<div class="ll-sc">' + icon(s.icon, 34) + '<small>' + (i + 1) + '. ' + esc(s.head) + '</small></div>'; }).join('') + '</div><p class="muted ll-noprint" style="font-size:12px">▶ Press “Play the 80-second video” above; save it to Documents to keep it with the project.</p></div></div>' +
+        '<div class="ll-two"><div><h4>📚 Reuse checklist for future projects</h4><ul class="ll-chk">' + D.reuse.map(function (x) { return '<li>☐ ' + esc(x) + '</li>'; }).join('') + '</ul></div><div><h4>🎬 The story in 90 seconds</h4><div class="ll-story">' + parts5(D).map(function (s, i) { return '<div class="ll-sc">' + icon(s.icon, 34) + '<small>' + (i + 1) + '. ' + esc(s.head) + '</small></div>'; }).join('') + '</div><p class="muted ll-noprint" style="font-size:12px">▶ Press “Play the 90-second video” above; save it to Documents to keep it with the project.</p></div></div>' +
         '<p class="muted" style="font-size:11px;margin-top:10px">Written by AI from the project\'s records (' + Math.round((rep.context || 0) / 1000) + 'k tokens read' + (rep.docs ? ', ' + rep.docs + ' documents' : '') + '). Check it before you share it.</p>' + foot(4) + '</section></div></div>';
     document.body.insertAdjacentHTML('beforeend', html); document.body.classList.add('ll-open');
     $('#llClose').onclick = function () { $('#llDoc').remove(); document.body.classList.remove('ll-open'); stopVideo(); };
@@ -225,31 +225,31 @@
         .concat([H('What didn\'t go well')]).concat([].concat.apply([], D.went_wrong.map(function (x) { return [P(x.title, { run: { bold: true } }), P(x.detail), P('Root cause: ' + x.cause, { run: { italics: true } })]; })))
         .concat([img('rgCost', 560, 240), H('Recommendations')].filter(Boolean)).concat(D.recommendations.map(function (r, i) { return P((i + 1) + '. ' + r.title + ': ' + r.detail + ' (' + [r.owner, r.when, r.applies_to].filter(Boolean).join(' · ') + ')'); }))
         .concat([H('Reuse checklist for future projects')]).concat(D.reuse.map(function (x) { return P('☐ ' + x); }))
-        .concat(D.quote ? [P('“' + D.quote + '”', { run: { italics: true } })] : []).concat([H('The 80-second story'), P(parts5(D).map(function (s, i) { return (i + 1) + '. ' + s.say; }).join('  '))]);
+        .concat(D.quote ? [P('“' + D.quote + '”', { run: { italics: true } })] : []).concat([H('The 90-second story'), P(parts5(D).map(function (s, i) { return (i + 1) + '. ' + s.say; }).join('  '))]);
       return X.Packer.toBlob(new X.Document({ creator: 'Project Champ', title: D.title, sections: [{ children: kids }] }));
     });
   }
   function reportText(rep) { var D = rep.data; return [D.title, D.subtitle, D.headline].concat(D.story).concat(['What went well']).concat(D.went_well.map(function (x) { return x.title + ': ' + x.detail; })).concat(['What did not go well']).concat(D.went_wrong.map(function (x) { return x.title + ': ' + x.detail + ' Root cause: ' + x.cause; })).concat(['Recommendations']).concat(D.recommendations.map(function (r) { return r.title + ': ' + r.detail; })).concat(D.reuse).join('\n\n'); }
   function keep(rep, btn) {
     var core = C.S.core; btn.disabled = true; btn.textContent = 'Saving…';
-    var up = function (blob, name, text, kind) { var f = new File([blob], name, { type: blob.type }); return C.storeFile(f, 'project', core).then(function (ff) { return api('intelUpload', { core: core, name: name, type: blob.type, size: blob.size, pages: 4, text: text, file: ff.file || '', r2Key: ff.r2Key || '', allowEmpty: !text, folder: 'reports', kind: kind, title: kind === 'Video' ? 'Lessons learned video (45 s)' : 'Lessons learned report' }); }); };
+    var up = function (blob, name, text, kind) { var f = new File([blob], name, { type: blob.type }); return C.storeFile(f, 'project', core).then(function (ff) { return api('intelUpload', { core: core, name: name, type: blob.type, size: blob.size, pages: 4, text: text, file: ff.file || '', r2Key: ff.r2Key || '', allowEmpty: !text, folder: 'reports', kind: kind, title: kind === 'Video' ? 'Lessons learned video (90 s)' : 'Lessons learned report' }); }); };
     word(rep).then(function (b) { return up(b, fileName(rep, 'docx'), reportText(rep), 'Lessons learned'); })
       .then(function () { return L.videoBlob ? up(L.videoBlob, fileName(rep, 'webm').replace('.webm', ' - video.webm'), 'Lessons learned video script. ' + (L.videoScript || parts5(rep.data).map(function (s) { return s.say; }).join(' ')), 'Video') : null; })
       .then(function () { btn.textContent = '✓ Saved to Documents'; if (C.S.dms) C.S.dms = null; toast('Saved to Documents › 📊 Reports and status' + (L.videoBlob ? ' (the report and the video)' : ' (play the video first to save it too)')); })
       .catch(function (e) { btn.disabled = false; btn.textContent = '💾 Save to Documents'; fail(e); });
   }
 
-  /* ---------------- 🎬 the 80-second scribe video ----------------
+  /* ---------------- 🎬 the 90-second lessons video ----------------
      Five parts, in this order: what this is about, what went well, what didn't go well, our key recommendations, the key
-     lessons we learned. Each part is sketched on a whiteboard (an ink drawing, the heading handwritten, the points written
-     one by one), spoken by Champ one part after another (never on top of each other), with no captions or highlights over
-     the picture. Recorded in the browser (picture and sound) as a video file. Built from the report itself. */
+     lessons we learned. Drawn in the style of the Champ launch film (black and gold, a drifting gold glow, a numbered gold
+     badge, a bold heading and the points rising in one by one, the part's icon drawn on the right), spoken by Champ one
+     part after another (never on top of each other). Recorded in the browser (picture and sound) as a video file. */
   var V = null, FONT = null;
   function stopVideo() { if (V) { V.stop = true; (V.srcs || []).forEach(function (s) { try { s.stop(); } catch (e) {} }); try { if (V.ac && V.ac.state !== 'closed') { var cp = V.ac.close(); if (cp && cp.catch) cp.catch(function () {}); } } catch (e) {} try { V.rec && V.rec.state !== 'inactive' && V.rec.stop(); } catch (e) {} } }
   function pathLen(d) { var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); s.style.cssText = 'position:absolute;width:0;height:0'; p.setAttribute('d', d); s.appendChild(p); document.body.appendChild(s); return { el: p, len: p.getTotalLength() || 1, s: s }; }
   function fonts() {
     if (FONT) return FONT;
-    FONT = (window.FontFace && document.fonts ? Promise.all([['700', 'caveat-latin-700-normal'], ['400', 'caveat-latin-400-normal']].map(function (f) { var ff = new FontFace('ChampHand', 'url(vendor/fonts/' + f[1] + '.woff2)', { weight: f[0] }); return ff.load().then(function (x) { document.fonts.add(x); }); })) : Promise.resolve()).catch(function () {});
+    FONT = document.fonts && document.fonts.load ? Promise.all(['900 60px Archivo', '800 20px Archivo', '600 30px Manrope', '800 20px Manrope'].map(function (f) { return document.fonts.load(f); })).catch(function () {}) : Promise.resolve();
     return FONT;
   }
   // the five parts, from the report: up to 3 short points each, and what Champ says (about 20 words a part)
@@ -283,16 +283,16 @@
     var AC = window.AudioContext || window.webkitAudioContext, ac = AC ? new AC() : null; V.ac = ac;
     var dest = ac && ac.createMediaStreamDestination ? ac.createMediaStreamDestination() : null;
     var say = function (t) { if (!ac || !t) return Promise.resolve(null); return fetch('/.netlify/functions/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: t, lang: lang, clear: true }) }).then(function (r) { if (!r.ok) throw new Error('voice'); return r.arrayBuffer(); }).then(function (b) { return new Promise(function (res) { var pr; try { pr = ac.decodeAudioData(b, res, function () { res(null); }); } catch (e) { res(null); } if (pr && pr.catch) pr.catch(function () { res(null); }); }); }).catch(function () { return null; }); };
-    var HAND = "'ChampHand','Segoe Print','Bradley Hand',cursive", SANS = "'Poppins',system-ui,sans-serif", INK = '#1F1D18', SOFT = '#6B665A', COL = { about: INK, well: '#067647', wrong: '#B42318', recs: '#1D4ED8', lessons: '#6941C6' };
-    // the video runs LEN (80) seconds. Champ's narration has to fit without ever being cut off: if what he says for the five
+    var HEAD = "'Archivo','Manrope',system-ui,sans-serif", SANS = "'Manrope',system-ui,sans-serif", BG = '#0D0C09', GOLD = '#E8C04A', MUTE = '#8F8873', COL = { about: GOLD, well: '#3FB27F', wrong: '#FF5A5F', recs: GOLD, lessons: '#F2B43A' };
+    // the video runs LEN (90) seconds. Champ's narration has to fit without ever being cut off: if what he says for the five
     // parts does not fit even 10% faster, it is shortened (fewer words spoken) and made again; the pictures keep every point
-    var LEN = 80, INTRO = 4, OUTRO = 5, ROOM = LEN - INTRO - OUTRO, FAST = 1.1;
+    var LEN = 90, INTRO = 4, OUTRO = 5, ROOM = LEN - INTRO - OUTRO, FAST = 1.1;
     var needOf = function (parts, aud) { return parts.map(function (s, i) { return Math.max(8, aud[i] ? aud[i].duration + 1.2 : s.say.split(' ').length * 0.42 + 1.5); }); };
     var voiceFor = function (caps) { var cap = caps[0], parts = parts5(D, cap); return Promise.all(parts.map(function (s) { return say(s.say); })).then(function (aud) {
       var total = needOf(parts, aud).reduce(function (a, b) { return a + b; }, 0);
       if (total / FAST <= ROOM || caps.length < 2 || me.stop) { sc = parts; return aud; }
       return voiceFor(caps.slice(1)); }); };
-    Promise.all([fonts(), voiceFor([36, 24, 14, 8])]).then(function (all) { var aud = all[1]; return (ac && ac.state === 'suspended' ? ac.resume().catch(function () {}) : Promise.resolve()).then(function () { return aud; }); }).then(function (aud) {
+    Promise.all([fonts(), voiceFor([44, 30, 18, 10])]).then(function (all) { var aud = all[1]; return (ac && ac.state === 'suspended' ? ac.resume().catch(function () {}) : Promise.resolve()).then(function () { return aud; }); }).then(function (aud) {
       if (me.stop) return; var withSound = !!(dest && ac && ac.state === 'running' && aud.some(Boolean));
       // timing: each part lasts at least as long as Champ takes to say it plus a breath (so he is never cut off and voices
       // never overlap); spare time is shared out so the drawing can be read and the whole video runs LEN seconds
@@ -318,45 +318,58 @@
       var t0 = performance.now();
       $('#llVs').textContent = rec ? '● Recording while it plays (' + Math.round(tot) + ' seconds)…' : 'Playing (' + Math.round(tot) + ' seconds)…';
       var ease = function (x) { x = Math.max(0, Math.min(1, x)); return x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2; };
+      var eo = function (x) { x = Math.max(0, Math.min(1, x)); return 1 - Math.pow(1 - x, 3); };
       var wrapLines = function (text, max, font) { g.font = font; var w = String(text || '').split(' '), out = [], line = ''; w.forEach(function (word) { var tt = line ? line + ' ' + word : word; if (g.measureText(tt).width > max && line) { out.push(line); line = word; } else line = tt; }); if (line) out.push(line); return out; };
-      var pencil = function (x, y) { g.save(); g.translate(x, y); g.rotate(-0.75); g.fillStyle = '#3A3A3A'; g.beginPath(); g.moveTo(0, 0); g.lineTo(9, -4); g.lineTo(9, 4); g.fill(); g.fillStyle = '#E8D3B5'; g.beginPath(); g.moveTo(9, -4); g.lineTo(24, -9); g.lineTo(24, 9); g.lineTo(9, 4); g.fill(); g.fillStyle = '#4A4537'; g.fillRect(24, -9, 90, 18); g.fillStyle = '#B9BEC6'; g.fillRect(114, -9, 10, 18); g.restore(); };
-      var paper = function () { g.fillStyle = '#FFFFFF'; g.fillRect(0, 0, 1280, 720); };
-      var header = function (i) { g.fillStyle = SOFT; g.font = '600 20px ' + SANS; g.textAlign = 'left'; g.fillText('LESSONS LEARNED · ' + String(F.project || '').toUpperCase().slice(0, 50), 60, 56);
-        g.textAlign = 'right'; if (i != null && i < sc.length) g.fillText((i + 1) + ' / ' + sc.length, 1220, 56); };
-      var drawIcon = function (i, p, col) {   // the picture: sketched stroke by stroke in ink, inside a plain circle
-        var P = paths[i], total = P.reduce(function (x, q) { return x + q.len; }, 0), cx = 270, cy = 380, sz = 11, rem = ease(p / 0.35) * total, pen = null;
-        g.save(); g.strokeStyle = col; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.arc(cx, cy, 150, -1.5, -1.5 + 6.3 * ease(p / 0.25)); g.stroke(); g.restore();
-        g.save(); g.translate(cx - 12 * sz, cy - 12 * sz); g.scale(sz, sz); g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 0.36; g.strokeStyle = col;
-        P.forEach(function (q) { if (rem <= 0) return; var part = Math.min(q.len, rem); rem -= q.len; g.setLineDash([part, q.len + 1]); g.stroke(new Path2D(q.d)); if (!pen && part < q.len) { var pt = q.el.getPointAtLength(part); pen = { x: cx - 12 * sz + pt.x * sz, y: cy - 12 * sz + pt.y * sz }; } });
-        g.restore(); g.setLineDash([]); return pen;
-      };
+      var sp = function (px) { try { g.letterSpacing = px + 'px'; } catch (e) {} };
+      var rr = function (x, y, w, h, r) { g.beginPath(); if (g.roundRect) g.roundRect(x, y, w, h, r); else g.rect(x, y, w, h); };
+      // the stage, as in the launch film: near-black, a slow gold glow and a thin gold ring drifting behind
+      var stage = function (t) { g.fillStyle = BG; g.fillRect(0, 0, 1280, 720);
+        var gx = 420 + Math.sin(t * 0.13) * 300, gy = 200 + Math.cos(t * 0.09) * 160, rg = g.createRadialGradient(gx, gy, 0, gx, gy, 560);
+        rg.addColorStop(0, 'rgba(232,192,74,0.16)'); rg.addColorStop(1, 'rgba(232,192,74,0)'); g.fillStyle = rg; g.fillRect(0, 0, 1280, 720);
+        g.strokeStyle = 'rgba(232,192,74,0.2)'; g.lineWidth = 1.5; g.beginPath(); g.arc(1130 + Math.cos(t * 0.07) * 60, 40 + Math.sin(t * 0.11) * 40, 300 * (1 + 0.05 * Math.sin(t * 0.3)), 0, 6.2832); g.stroke(); };
+      // the project top left, the brand top right, and a thin gold progress line along the bottom
+      var chrome = function (t) { g.textAlign = 'left'; g.fillStyle = MUTE; g.font = '700 15px ' + SANS; sp(3); g.fillText(('LESSONS LEARNED · ' + String(F.project || '').toUpperCase()).slice(0, 60), 60, 52);
+        g.textAlign = 'right'; g.fillStyle = GOLD; g.font = '800 15px ' + HEAD; g.fillText('GKH PROJECT CHAMP', 1220, 52); sp(0);
+        g.fillStyle = '#2A2619'; g.fillRect(60, 682, 1160, 3); g.fillStyle = GOLD; g.fillRect(60, 682, 1160 * Math.min(1, t / tot), 3); };
+      var rise = function (p, fn) { if (p <= 0) return; g.save(); g.globalAlpha *= p; g.translate(0, (1 - p) * 28); fn(); g.restore(); };
+      var drawIcon = function (i, lt, col) {   // the part's picture: a faint ring drawn round, then the icon drawn stroke by stroke
+        var P = paths[i], total = P.reduce(function (x, q) { return x + q.len; }, 0), cx = 1030, cy = 400, sz = 9, rem = eo((lt - 0.05) / 0.35) * total;
+        g.save(); g.strokeStyle = col; g.globalAlpha *= 0.35; g.lineWidth = 2; g.beginPath(); g.arc(cx, cy, 150, -1.5708, -1.5708 + 6.2832 * ease(lt / 0.3)); g.stroke(); g.restore();
+        g.save(); g.translate(cx - 12 * sz, cy - 12 * sz); g.scale(sz, sz); g.lineCap = 'round'; g.lineJoin = 'round'; g.lineWidth = 0.3; g.strokeStyle = col;
+        P.forEach(function (q) { if (rem <= 0) return; var part = Math.min(q.len, rem); rem -= q.len; g.setLineDash([part, q.len + 1]); g.stroke(new Path2D(q.d)); });
+        g.restore(); g.setLineDash([]); };
+      // each part's layout, worked out once: the heading (up to 2 lines) and the points, made smaller until they fit above the progress line
+      var lay = sc.map(function (s) { var hl = wrapLines(s.head, 780, '900 60px ' + HEAD), fs = 31, P2, h;
+        do { P2 = s.pts.map(function (pt) { return wrapLines(pt, 760, '600 ' + fs + 'px ' + SANS); }); h = P2.reduce(function (a, l) { return a + l.length * fs * 1.32 + 20; }, 0); fs -= 1; } while (fs > 20 && 248 + hl.length * 64 + 60 + h > 660);
+        return { hl: hl, pts: P2, fs: fs + 1 }; });
       function frame() {
-        if (me.stop) return; var t = (performance.now() - t0) / 1000; paper();
-        if (t < intro) { header(null); var a = ease(t / 1.4), tl = wrapLines(D.title, 1040, '700 84px ' + HAND);
-          g.save(); g.beginPath(); g.rect(0, 0, 120 + 1040 * a, 720); g.clip(); g.textAlign = 'center'; g.fillStyle = INK; g.font = '700 84px ' + HAND; tl.forEach(function (l, k) { g.fillText(l, 640, 340 + k * 90 - (tl.length - 1) * 45); }); g.restore();
-          g.globalAlpha = ease((t - 1.3) / 0.8); g.textAlign = 'center'; g.font = '500 28px ' + SANS; g.fillStyle = SOFT; g.fillText(String(F.project || '') + ' · told by Champ', 640, 480); g.globalAlpha = 1; }
-        else if (t < tot - outro) {
+        if (me.stop) return; var t = (performance.now() - t0) / 1000; stage(t);
+        if (t < intro) { var tl = wrapLines(D.title, 1000, '900 68px ' + HEAD), y0 = 330 - (tl.length - 1) * 38;
+          rise(eo((t - 0.2) / 0.7), function () { g.textAlign = 'left'; g.fillStyle = GOLD; g.font = '800 20px ' + SANS; sp(5); g.fillText('LESSONS LEARNED', 90, y0 - 90); sp(0); });
+          tl.forEach(function (l, k) { rise(eo((t - 0.5 - k * 0.15) / 0.7), function () { g.textAlign = 'left'; g.fillStyle = '#FFFFFF'; g.font = '900 68px ' + HEAD; g.fillText(l, 90, y0 + k * 76); }); });
+          rise(eo((t - 1.4) / 0.7), function () { g.textAlign = 'left'; g.fillStyle = MUTE; g.font = '600 28px ' + SANS; g.fillText(String(F.project || '') + ' · told by Champ', 90, y0 + tl.length * 76 + 24); });
+        } else if (t < tot - outro) {
           var i = 0; while (i < sc.length - 1 && t >= starts[i + 1]) i++;
-          var lt = (t - starts[i]) / dur[i], s = sc[i], col = COL[s.key] || INK, fade = i < sc.length - 1 ? 1 - ease((lt - 0.94) / 0.06) : 1;
-          header(i); g.save(); g.globalAlpha = fade;
-          var pen = drawIcon(i, lt, col);
-          // the heading, handwritten
-          var hn = Math.floor(ease((lt - 0.05) / 0.2) * s.head.length); g.textAlign = 'left'; g.fillStyle = col; g.font = '700 66px ' + HAND; g.fillText(s.head.slice(0, hn), 500, 210);
-          if (!pen && hn > 0 && hn < s.head.length) pen = { x: 500 + g.measureText(s.head.slice(0, hn)).width + 4, y: 196 };
-          g.strokeStyle = col; g.lineWidth = 3; g.beginPath(); g.moveTo(500, 232); g.lineTo(500 + 640 * ease((lt - 0.2) / 0.1), 232); g.stroke();
-          // the points, written one by one as Champ says them
-          var y = 300; s.pts.forEach(function (pt, k) { var from = 0.3 + k * (0.55 / s.pts.length), sh = ease((lt - from) / (0.5 / s.pts.length)); if (sh <= 0) return; var lines = wrapLines(pt, 640, '400 44px ' + HAND), chars = Math.floor(sh * pt.length), used = 0;
-            g.fillStyle = col; g.font = '700 44px ' + HAND; g.fillText(s.mark, 500, y); g.fillStyle = INK; g.font = '400 44px ' + HAND;
-            lines.forEach(function (l, j) { var show = Math.max(0, Math.min(l.length, chars - used)); used += l.length + 1; g.fillText(l.slice(0, show), 545, y + j * 50); if (!pen && show > 0 && show < l.length) pen = { x: 545 + g.measureText(l.slice(0, show)).width + 4, y: y + j * 50 - 12 }; });
-            y += lines.length * 50 + 26; });
-          if (pen) pencil(pen.x, pen.y); g.restore();
-        } else { header(sc.length); var b2 = ease((t - (tot - outro)) / 1);
-          g.globalAlpha = b2; g.textAlign = 'center'; g.fillStyle = INK; var ql = wrapLines('“' + (D.quote || D.headline) + '”', 1040, '700 62px ' + HAND); g.font = '700 62px ' + HAND; ql.forEach(function (l, k) { g.fillText(l, 640, 330 + k * 72 - (ql.length - 1) * 36); });
-          g.font = '600 26px ' + SANS; g.fillStyle = SOFT; g.fillText('Project Champ · GKH', 640, 580); g.globalAlpha = 1; }
+          var lt = (t - starts[i]) / dur[i], ls = t - starts[i], s = sc[i], Ly = lay[i], col = COL[s.key] || GOLD, fade = i < sc.length - 1 ? 1 - ease((lt - 0.95) / 0.05) : 1;
+          g.save(); g.globalAlpha = Math.min(fade, ease(ls / 0.4));
+          drawIcon(i, lt, col);
+          rise(eo((ls - 0.1) / 0.6), function () { var n = (i + 1 < 10 ? '0' : '') + (i + 1); g.font = '900 28px ' + HEAD; var w = g.measureText(n).width + 30; g.fillStyle = col; rr(90, 120, w, 46, 10); g.fill(); g.fillStyle = BG; g.textAlign = 'left'; g.fillText(n, 105, 153); });
+          Ly.hl.forEach(function (l, k) { rise(eo((ls - 0.35 - k * 0.12) / 0.6), function () { g.textAlign = 'left'; g.fillStyle = '#FFFFFF'; g.font = '900 60px ' + HEAD; g.fillText(l, 90, 248 + k * 64); }); });
+          var y = 248 + (Ly.hl.length - 1) * 64 + 34; g.fillStyle = col; g.fillRect(90, y, 160 * eo((ls - 0.8) / 0.6), 5); y += 64;
+          Ly.pts.forEach(function (lines, k) { var n = Ly.pts.length, p = eo((lt - (0.22 + k * 0.55 / n)) / (0.35 / n)), yy = y, fs = Ly.fs;
+            rise(p, function () { g.fillStyle = col; g.beginPath(); g.arc(102, yy - fs * 0.35, 7, 0, 6.2832); g.fill(); g.fillStyle = '#EDE8DA'; g.font = '600 ' + fs + 'px ' + SANS; g.textAlign = 'left'; lines.forEach(function (l, j) { g.fillText(l, 128, yy + j * fs * 1.32); }); });
+            y += lines.length * fs * 1.32 + 20; });
+          g.restore();
+        } else { var ot = t - (tot - outro), ql = wrapLines('“' + (D.quote || D.headline) + '”', 1040, '800 50px ' + HEAD), q0 = 330 - (ql.length - 1) * 30;
+          g.save(); g.globalAlpha = 1 - ease((ot - (outro - 1.2)) / 1.2);
+          ql.forEach(function (l, k) { rise(eo((ot - 0.2 - k * 0.15) / 0.7), function () { g.textAlign = 'center'; g.fillStyle = '#FFFFFF'; g.font = '800 50px ' + HEAD; g.fillText(l, 640, q0 + k * 60); }); });
+          rise(eo((ot - 1.2) / 0.7), function () { g.textAlign = 'center'; g.fillStyle = GOLD; g.font = '800 22px ' + HEAD; sp(7); g.fillText('GKH PROJECT CHAMP', 640, q0 + ql.length * 60 + 50); sp(0); });
+          g.restore(); }
+        chrome(t);
         if (t < tot) requestAnimationFrame(frame); else finish();
       }
       function finish() {
-        paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); });
+        paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); }); window.__llVideo.recorded = Math.round((performance.now() - t0) / 100) / 10;   // how long the recording really ran
         if (!rec) { $('#llVs').textContent = 'Done. (This browser cannot record video: use Chrome or Edge to save it.)'; return; }
         rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; L.videoScript = spoken.join(' '); var u = URL.createObjectURL(b);
           if (!$('#llVo')) return; $('#llVs').textContent = '✓ The video is ready (' + Math.round(b.size / 1024) + ' KB).';
