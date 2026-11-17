@@ -729,7 +729,7 @@
       return api('planJobs', {}).then(function (j) {
         var avail = j.jobs;
         V().innerHTML = '<div class="card"><div class="card-h"><h2>Project plans (' + d.plans.length + ')</h2>' +
-          '<div class="row">' + (avail.length ? '<select id="newPlanJob" style="width:auto;max-width:min(560px,100%)"><option value="">Plan an existing project…</option>' + avail.map(function (x) { return '<option value="' + esc(x.core) + '">' + esc(jobLabel(x)) + '</option>'; }).join('') + '</select><button class="btn btn-sm" id="newPlanGo">Plan it</button>' : '') + '<a class="btn btn-gold btn-sm" href="#projects/new">＋ New project</a></div></div><div id="jobPeek" hidden></div>' +
+          '<div class="row">' + (avail.length ? '<select id="newPlanJob" style="width:auto;max-width:min(560px,100%)"><option value="">Plan an existing project…</option>' + avail.map(function (x) { return '<option value="' + esc(x.core) + '">' + esc(jobLabel(x)) + '</option>'; }).join('') + '</select><button class="btn btn-sm" id="newPlanGo">Plan it</button>' : '') + '</div></div><div id="jobPeek" hidden></div>' +
           (d.plans.length ? '<div class="table-wrap"><table><thead><tr><th>Project</th><th>Progress</th><th class="hide-sm">Finish</th><th title="Schedule Performance Index: work done ÷ work planned by today">SPI <small class="muted" style="text-transform:none;letter-spacing:0">(time)</small></th><th title="Cost Performance Index: value of work done ÷ actual cost">CPI <small class="muted" style="text-transform:none;letter-spacing:0">(cost)</small></th><th class="hide-sm">Risks</th><th class="hide-sm">Issues</th><th></th></tr></thead><tbody>' +
             byProgram(d.plans).map(function (g) {
               return progRow(g) + g.list.map(function (p) {
@@ -738,7 +738,7 @@
                 '<td class="hide-sm">' + esc(prettyY(p.finish)) + '</td><td class="evcell">' + evChip('SPI', p.SPI) + '</td><td class="evcell">' + evChip('CPI', p.CPI) + '</td>' +
                 '<td class="hide-sm">' + p.openRisks + (p.highRisks ? ' <b style="color:#C2410C">(' + p.highRisks + ' high)</b>' : '') + '</td><td class="hide-sm">' + p.openIssues + '</td><td><button class="btn btn-sm" data-pdel="' + esc(p.core) + '" data-pname="' + esc(p.name) + '" title="Delete this project">🗑</button></td></tr>';
             }).join('');
-            }).join('') + '</tbody></table></div>' + evLegend() : (avail.length ? '<div class="empty champ-empty"><b>' + avail.length + ' project' + (avail.length > 1 ? 's' : '') + ' waiting for a plan.</b><br>Pick one in “Plan an existing project…” above, or <a class="btn btn-gold btn-sm" href="#projects/new">＋ New project</a></div>' : '<div class="empty champ-empty"><b>No projects yet.</b><br>Start your first one: <a class="btn btn-gold btn-sm" href="#projects/new">＋ New project</a></div>')) + '</div>';
+            }).join('') + '</tbody></table></div>' + evLegend() : (avail.length ? '<div class="empty champ-empty"><b>' + avail.length + ' project' + (avail.length > 1 ? 's' : '') + ' waiting for a plan.</b><br>Pick one in “Plan an existing project…” above, or start one with <b>＋ New project</b> in the left panel.</div>' : '<div class="empty champ-empty"><b>No projects yet.</b><br>Start your first one with <b>＋ New project</b> in the left panel.</div>')) + '</div>';
         V().querySelectorAll('[data-plan]').forEach(function (tr) { tr.onclick = function () { location.hash = '#plan/' + tr.getAttribute('data-plan'); }; });
         V().querySelectorAll('[data-pdel]').forEach(function (b) {
           b.onclick = function (e) {
