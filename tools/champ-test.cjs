@@ -925,11 +925,16 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   await p.waitForSelector('.pg-grid, .cs-tiles', { timeout: 8000 }).catch(() => {});
   ok('Programs', 'the console opens on Programs', /Programs/.test(await p.textContent('#view')) && (await p.$$('.cs-tabs .btn.on')).length === 1);
   await p.goto(`${BASE}/admin/#portfolio/board`); await p.waitForSelector('.pcol', { timeout: 8000 }).catch(() => {});
+  const boardBtn = await p.$('#view a[href="#projects/new"], #view [data-nav="projnew"]');
   ok('Portfolio', 'pipeline board has the 5 PMBOK phases', JSON.stringify(await p.$$eval('.pcol .pcol-h b', (b) => b.map((x) => x.textContent))) === JSON.stringify(['Initiation', 'Planning', 'Execution', 'Monitoring & Evaluation', 'Closing']));
 
   // ---- new project → plan ----
   await p.goto(`${BASE}/admin/#projects`); await sleep(1200); const projBtn = await p.$('#view a[href="#projects/new"]');
-  ok('Programs', 'New project is only in the left panel (no button in the top bar, the pipeline board a program page or the Projects list)', !projBtn && !(await p.$('.top-new')) && !(await p.$('#pgNewProj')) && !!(await p.$('.side [data-nav="projnew"], [data-nav="projnew"]')));
+  const pgId = await p.evaluate(async () => { const r = await fetch('/.netlify/functions/admin', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1' }, body: JSON.stringify({ action: 'planProgramList' }) }); const j = await r.json(); return ((j.programs || [])[0] || {}).id || ''; });
+  await p.goto(`${BASE}/admin/#programs/${pgId}`); await p.waitForSelector('#pgMoveIn, .pg-head, #view h2', { timeout: 8000 }).catch(() => {}); await sleep(600);
+  const progBtn = await p.$('#pgNewProj, #view a[href="#projects/new"]'), onProgPage = !!pgId && /#programs\//.test(p.url());
+  await p.goto(`${BASE}/admin/#projects`); await sleep(800);
+  ok('Programs', 'New project is only in the left panel (no button in the top bar, the pipeline board a program page or the Projects list)', !projBtn && !boardBtn && onProgPage && !progBtn && !(await p.$('.top-new')) && !!(await p.$('.side [data-nav="projnew"]')) && (await p.$$('[data-nav="projnew"], a[href="#projects/new"]')).length === 1);
   await p.click('[data-nav="projnew"]');
   await p.waitForSelector('#champNew');
   ok('Programs', 'New project: the program comes first and is required', (await p.getAttribute('#champNew [name=progPick]', 'required')) !== null);
@@ -1742,7 +1747,11 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   // ---- console: no chat bubble (AI is built in), Ask AI about programs ----
   await p.goto(`${BASE}/admin/#portfolio`); await sleep(800);
   ok('Chat', 'no chat bubble in the dashboard', !(await p.$('#champChatBtn')));
-  ok('Theme', 'language, light/dark and skin controls on the right of the console header, still on screen after scrolling down', await p.isVisible('.top #champCtl .ct-lang') && await p.isVisible('.top #champCtl #champQuick') && await p.isVisible('.top #champCtl #champThemeBtn') && await p.evaluate(async () => { window.scrollTo(0, 2000); document.querySelector('.main') && document.querySelector('.main').scrollTo && document.querySelector('.main').scrollTo(0, 2000); await new Promise((r) => setTimeout(r, 300)); const b = document.getElementById('champQuick').getBoundingClientRect(); window.scrollTo(0, 0); return b.top >= 0 && b.bottom <= window.innerHeight; }));
+  ok('Theme', 'language, light/dark and skin controls on the right of the console header, still on screen after scrolling down', await p.isVisible('.top #champCtl .ct-lang') && await p.isVisible('.top #champCtl #champQuick') && await p.isVisible('.top #champCtl #champThemeBtn') && await p.evaluate(async () => {
+    const pad = document.createElement('div'); pad.style.height = '3000px'; document.getElementById('view').appendChild(pad);   // make sure there is something to scroll
+    const sc = document.scrollingElement; sc.scrollTop = 0; sc.scrollTop = 2000; await new Promise((r) => setTimeout(r, 300));
+    const moved = sc.scrollTop > 500, inView = ['.ct-lang', '#champQuick', '#champThemeBtn'].every((q) => { const b = document.querySelector('.top #champCtl ' + q).getBoundingClientRect(); return b.height > 0 && b.top >= 0 && b.bottom <= window.innerHeight; });
+    sc.scrollTop = 0; pad.remove(); return moved && inView; }));
   r = await api('planProgramSet', { core, program: 'Head office move' });
   ok('Program', 'a project can be put in a program', r.ok());
   r = await api('planPipelineList', { today: new Date().toISOString().slice(0, 10) }); const pl2 = await r.json();
