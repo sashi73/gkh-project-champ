@@ -187,6 +187,7 @@ header.site .ct-ctl+.nav-login{margin-left:4px}
 .ct-btn.ct-in{position:static;width:38px;height:38px;font-size:17px;box-shadow:none;background:transparent;border:1px solid var(--line,#E5E2DA);color:inherit}
 .ct-btn.ct-in:hover{transform:none;border-color:#C9A227}
 .top .ct-ctl{margin-left:auto}
+.gkh-bar .ct-ctl{margin-left:auto}.gkh-bar .ct-ctl+small{margin-left:14px}
 .top .ct-ctl+.top-new{margin-left:0}
 .ct-lang{display:inline-flex;align-items:center;gap:5px;height:38px;padding:0 11px;border-radius:999px;border:1px solid var(--line,#E5E2DA);background:transparent;color:inherit;font:800 12.5px/1 'Manrope',system-ui,sans-serif;cursor:pointer;letter-spacing:.04em}
 .ct-lang:hover,.ct-lang[aria-expanded=true]{border-color:#C9A227}
