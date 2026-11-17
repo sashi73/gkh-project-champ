@@ -116,4 +116,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 105 | 1.0.105| 2026-11-17 16:33| ctl-gkhbar| `a0604ff` | Language, light/dark and skin controls at the very top of the console (GKH bar) |
 | 106 | 1.0.106| 2026-11-17 17:04| finished-verdict| `6fa78ec` | Finished projects: Champ gives the verdict (succeeded, partly succeeded or failed: time against the baseline, cost against the approved budg |
 | 107 | 1.0.107| 2026-11-17 17:24| finished-verdict| `6b29b53` | Finished projects (CodeRabbit review): the actual finish comes from when the work was done, days on the project's own calendar, finished onl |
-| 108 | 1.0.108 | 2026-11-17 18:02 | finished-verdict | _this commit_ | _see git log_ |
+| 108 | 1.0.108| 2026-11-17 18:02| finished-verdict| `1ba6ec5` | Finished projects: verdict, time index and CPI, and Champ's post-mortem |
+| 109 | 1.0.109 | 2026-11-17 19:19 | ctl-back | _this commit_ | _see git log_ |

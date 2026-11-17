@@ -928,7 +928,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   ok('Portfolio', 'pipeline board has the 5 PMBOK phases', JSON.stringify(await p.$$eval('.pcol .pcol-h b', (b) => b.map((x) => x.textContent))) === JSON.stringify(['Initiation', 'Planning', 'Execution', 'Monitoring & Evaluation', 'Closing']));
 
   // ---- new project → plan ----
-  ok('Programs', 'New project is only in the left panel (no button in the top bar, the pipeline board or a program page)', !(await p.$('.top-new')) && !(await p.$('#pgNewProj')) && !!(await p.$('.side [data-nav="projnew"], [data-nav="projnew"]')));
+  await p.goto(`${BASE}/admin/#projects`); await sleep(1200); const projBtn = await p.$('#view a[href="#projects/new"]');
+  ok('Programs', 'New project is only in the left panel (no button in the top bar, the pipeline board a program page or the Projects list)', !projBtn && !(await p.$('.top-new')) && !(await p.$('#pgNewProj')) && !!(await p.$('.side [data-nav="projnew"], [data-nav="projnew"]')));
   await p.click('[data-nav="projnew"]');
   await p.waitForSelector('#champNew');
   ok('Programs', 'New project: the program comes first and is required', (await p.getAttribute('#champNew [name=progPick]', 'required')) !== null);
@@ -1741,7 +1742,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   // ---- console: no chat bubble (AI is built in), Ask AI about programs ----
   await p.goto(`${BASE}/admin/#portfolio`); await sleep(800);
   ok('Chat', 'no chat bubble in the dashboard', !(await p.$('#champChatBtn')));
-  ok('Theme', 'language, light/dark and skin controls at the very top of the console (in the GKH bar, left of Powered by GKH)', await p.isVisible('.gkh-bar #champCtl .ct-lang') && await p.isVisible('.gkh-bar #champCtl #champQuick') && await p.isVisible('.gkh-bar #champCtl #champThemeBtn') && await p.evaluate(() => { const c = document.getElementById('champCtl'), s = document.querySelector('.gkh-bar small'); return !!(c && s && c.nextElementSibling === s); }));
+  ok('Theme', 'language, light/dark and skin controls on the right of the console header, still on screen after scrolling down', await p.isVisible('.top #champCtl .ct-lang') && await p.isVisible('.top #champCtl #champQuick') && await p.isVisible('.top #champCtl #champThemeBtn') && await p.evaluate(async () => { window.scrollTo(0, 2000); document.querySelector('.main') && document.querySelector('.main').scrollTo && document.querySelector('.main').scrollTo(0, 2000); await new Promise((r) => setTimeout(r, 300)); const b = document.getElementById('champQuick').getBoundingClientRect(); window.scrollTo(0, 0); return b.top >= 0 && b.bottom <= window.innerHeight; }));
   r = await api('planProgramSet', { core, program: 'Head office move' });
   ok('Program', 'a project can be put in a program', r.ok());
   r = await api('planPipelineList', { today: new Date().toISOString().slice(0, 10) }); const pl2 = await r.json();

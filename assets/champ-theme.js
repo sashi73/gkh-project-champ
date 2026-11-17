@@ -62,13 +62,13 @@ window.CHAMP_REMEMBER = false;
     if (host) host.parentNode.insertBefore(c, host); else { place(c); window.addEventListener('resize', function () { place(c); }); }
     return c;
   }
-  // the console: in the black GKH bar at the very top, just left of "Powered by Global Knowledge House" (easy to see);
-  // on a phone that bar folds away, so the controls go to the right-hand end of the header instead
+  // the console: at the right-hand end of the header, which stays at the top of the screen as you scroll
   function place(c) {
     var bar = document.querySelector('.gkh-bar'), pw = bar && bar.querySelector('small'), top = document.querySelector('header.top');
     var barOn = bar && getComputedStyle(bar).display !== 'none';
-    if (barOn) { if (c.parentNode !== bar) { if (pw) bar.insertBefore(c, pw); else bar.appendChild(c); } c.classList.add('ct-onbar'); }
-    else if (top && c.parentNode !== top) { top.appendChild(c); c.classList.remove('ct-onbar'); }
+    // the console header stays on screen as you scroll (the GKH bar scrolls away), so the controls live there, on the right
+    if (top && c.parentNode !== top) top.appendChild(c);
+    else if (!top && bar && c.parentNode !== bar) { if (pw) bar.insertBefore(c, pw); else bar.appendChild(c); }
   }
   window.ChampCtl = cluster;
   function build() {
