@@ -167,7 +167,7 @@
       '<section class="ll-pg"><h2 class="ll-h2 bad">⚠ What didn\'t go well</h2><div class="ll-rcs">' + cards(D.went_wrong, 'bad') + '</div><div class="ll-two"><div class="ll-gr"><h4>Root causes</h4><div id="rgFish"></div></div><div class="ll-gr"><h4>Cost by phase: baseline, forecast, spent</h4><canvas id="rgCost" height="230"></canvas></div></div>' + foot(3) + '</section>' +
       // page 4: recommendations, reuse, the video
       '<section class="ll-pg"><h2 class="ll-h2">➜ Recommendations</h2><table class="ll-rec"><thead><tr><th>#</th><th>Recommendation</th><th>Owner</th><th>When</th><th>Applies to</th></tr></thead><tbody>' + D.recommendations.map(function (r, i) { return '<tr><td>' + (i + 1) + '</td><td><b>' + esc(r.title) + '</b><br><small>' + esc(r.detail) + '</small></td><td>' + esc(r.owner) + '</td><td>' + esc(r.when) + '</td><td>' + esc(r.applies_to) + '</td></tr>'; }).join('') + '</tbody></table>' +
-        '<div class="ll-two"><div><h4>📚 Reuse checklist for future projects</h4><ul class="ll-chk">' + D.reuse.map(function (x) { return '<li>☐ ' + esc(x) + '</li>'; }).join('') + '</ul></div><div><h4>🎬 The story in 45 seconds</h4><div class="ll-story">' + parts5(D).map(function (s, i) { return '<div class="ll-sc">' + icon(s.icon, 34) + '<small>' + (i + 1) + '. ' + esc(s.head) + '</small></div>'; }).join('') + '</div><p class="muted ll-noprint" style="font-size:12px">▶ Press “Play the 80-second video” above; save it to Documents to keep it with the project.</p></div></div>' +
+        '<div class="ll-two"><div><h4>📚 Reuse checklist for future projects</h4><ul class="ll-chk">' + D.reuse.map(function (x) { return '<li>☐ ' + esc(x) + '</li>'; }).join('') + '</ul></div><div><h4>🎬 The story in 80 seconds</h4><div class="ll-story">' + parts5(D).map(function (s, i) { return '<div class="ll-sc">' + icon(s.icon, 34) + '<small>' + (i + 1) + '. ' + esc(s.head) + '</small></div>'; }).join('') + '</div><p class="muted ll-noprint" style="font-size:12px">▶ Press “Play the 80-second video” above; save it to Documents to keep it with the project.</p></div></div>' +
         '<p class="muted" style="font-size:11px;margin-top:10px">Written by AI from the project\'s records (' + Math.round((rep.context || 0) / 1000) + 'k tokens read' + (rep.docs ? ', ' + rep.docs + ' documents' : '') + '). Check it before you share it.</p>' + foot(4) + '</section></div></div>';
     document.body.insertAdjacentHTML('beforeend', html); document.body.classList.add('ll-open');
     $('#llClose').onclick = function () { $('#llDoc').remove(); document.body.classList.remove('ll-open'); stopVideo(); };
@@ -234,7 +234,7 @@
     var core = C.S.core; btn.disabled = true; btn.textContent = 'Saving…';
     var up = function (blob, name, text, kind) { var f = new File([blob], name, { type: blob.type }); return C.storeFile(f, 'project', core).then(function (ff) { return api('intelUpload', { core: core, name: name, type: blob.type, size: blob.size, pages: 4, text: text, file: ff.file || '', r2Key: ff.r2Key || '', allowEmpty: !text, folder: 'reports', kind: kind, title: kind === 'Video' ? 'Lessons learned video (45 s)' : 'Lessons learned report' }); }); };
     word(rep).then(function (b) { return up(b, fileName(rep, 'docx'), reportText(rep), 'Lessons learned'); })
-      .then(function () { return L.videoBlob ? up(L.videoBlob, fileName(rep, 'webm').replace('.webm', ' - video.webm'), 'Lessons learned video script. ' + parts5(rep.data).map(function (s) { return s.say; }).join(' '), 'Video') : null; })
+      .then(function () { return L.videoBlob ? up(L.videoBlob, fileName(rep, 'webm').replace('.webm', ' - video.webm'), 'Lessons learned video script. ' + (L.videoScript || parts5(rep.data).map(function (s) { return s.say; }).join(' ')), 'Video') : null; })
       .then(function () { btn.textContent = '✓ Saved to Documents'; if (C.S.dms) C.S.dms = null; toast('Saved to Documents › 📊 Reports and status' + (L.videoBlob ? ' (the report and the video)' : ' (play the video first to save it too)')); })
       .catch(function (e) { btn.disabled = false; btn.textContent = '💾 Save to Documents'; fail(e); });
   }
@@ -301,6 +301,7 @@
       var fit = dur.reduce(function (a, b) { return a + b; }, 0);
       if (fit < room) dur = dur.map(function (d) { return d + (room - fit) / dur.length; });   // spare time: more time to draw and read each part
       else if (fit > room) dur = dur.map(function (d) { return d * room / fit; });   // only if even the shortest narration is too long (never in practice)
+      aud = aud.map(function (b, i) { return b && b.duration / rate + 0.2 > dur[i] ? null : b; });   // a part whose voice would not fit is drawn without it: Champ is never cut off
       window.__llVideo = { parts: sc.map(function (s) { return s.head; }), seconds: 0 };
       var starts = [], acc = intro; dur.forEach(function (d) { starts.push(acc); acc += d; }); var tot = acc + outro; window.__llVideo.seconds = Math.round(tot * 10) / 10;
       var stream = cv.captureStream ? cv.captureStream(30) : null, rec = null, chunks = [];
@@ -352,14 +353,14 @@
       function finish() {
         paths.forEach(function (P) { P.forEach(function (q) { q.s.remove(); }); });
         if (!rec) { $('#llVs').textContent = 'Done. (This browser cannot record video: use Chrome or Edge to save it.)'; return; }
-        rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; var u = URL.createObjectURL(b);
+        rec.onstop = function () { var b = new Blob(chunks, { type: (rec.mimeType || 'video/webm').split(';')[0] }); if (!b.size) { if ($('#llVs')) $('#llVs').textContent = 'This browser played the video but could not record it. Try Chrome or Edge on a computer.'; return; } L.videoBlob = b; L.videoScript = sc.map(function (s) { return s.say; }).join(' '); var u = URL.createObjectURL(b);
           if (!$('#llVo')) return; $('#llVs').textContent = '✓ The video is ready (' + Math.round(b.size / 1024) + ' KB).';
           $('#llVo').innerHTML = '<video src="' + u + '" controls class="ll-cv"></video><div class="actions" style="justify-content:flex-start"><a class="btn btn-sm" href="' + u + '" download="' + esc(fileName(rep, /mp4/.test(b.type) ? 'mp4' : 'webm')) + '">⬇ Download the video</a>' + (canEdit() ? '<button class="btn btn-sm btn-gold" id="llVKeep" type="button">💾 Save the report and video to Documents</button>' : '') + '</div>';
           cv.remove(); var vk = $('#llVKeep'); if (vk) vk.onclick = function () { keep(rep, vk); }; };
         try { rec.stop(); } catch (e) {}
       }
       requestAnimationFrame(frame);
-    });
+    }).catch(function (e) { if ($('#llVs')) $('#llVs').textContent = 'The video could not be made. Please try again.'; fail(e); });
   }
 
   M.lessonsTab = tab;
