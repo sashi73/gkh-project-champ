@@ -56,10 +56,11 @@ window.CHAMP_REMEMBER = false;
   // the top-right cluster (website header / console top bar) that holds 🌐 language, ☀/☾ and 🎨
   function cluster() {
     var c = document.getElementById('champCtl'); if (c) return c;
-    var host = document.querySelector('header.site .nav-login') || document.querySelector('.top .top-new');
-    if (!host) return null;
+    var host = document.querySelector('header.site .nav-login') || document.querySelector('.top .top-new'), top = document.querySelector('header.top');
+    if (!host && !top) return null;
     c = document.createElement('div'); c.id = 'champCtl'; c.className = 'ct-ctl';
-    host.parentNode.insertBefore(c, host); return c;
+    if (host) host.parentNode.insertBefore(c, host); else top.appendChild(c);   // the console top bar: at its right-hand end
+    return c;
   }
   window.ChampCtl = cluster;
   function build() {
