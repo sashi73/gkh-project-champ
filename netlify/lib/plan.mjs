@@ -901,10 +901,12 @@ export async function planPost(action, body, { who, by, audit }) {
   const core = str(body.core, 40);
   if (action === 'planList') {
     const today = new Date().toISOString().slice(0, 10);
+    // 🏁 a finished project: SPI always ends at 1.00, so the list shows its time index (planned ÷ actual duration) and days late
+    const WL = await import('./watch.mjs'), finOf = (p) => { try { const h = WL.check(p, today); return h.n && h.n.finished ? { SPIt: h.n.SPIt, slip: h.n.slip_days, verdict: h.n.verdict, over: h.n.over_pct } : null; } catch (e) { return null; } };
     const [jobList, planList] = await Promise.all([J.all(), list()]);
     const jobs = Object.fromEntries(jobList.map((j) => [j.core, j]));
     const only = Array.isArray(body.onlyCores) ? body.onlyCores : null;   // v91: a sub-contractor sees only their project
-    const plans = planList.filter((p) => !only || only.includes(p.core)).map((p) => ({ core: p.core, name: p.name, ref: jobs[p.core] ? jobs[p.core].ref : p.core, customer: jobs[p.core] ? jobs[p.core].name : '', program: (jobs[p.core] && jobs[p.core].program) || '', updated: p.updated, ...rollup(p, body.today || today) }));
+    const plans = planList.filter((p) => !only || only.includes(p.core)).map((p) => ({ core: p.core, name: p.name, ref: jobs[p.core] ? jobs[p.core].ref : p.core, customer: jobs[p.core] ? jobs[p.core].name : '', program: (jobs[p.core] && jobs[p.core].program) || '', updated: p.updated, ...rollup(p, body.today || today), fin: finOf(p) }));
     const programs = await PG.keyed();   // GKH Project Champ: each row carries its program's key, so linked projects show together
     PG.tagCards(plans, programs);
     return out(200, { plans: plans.sort((a, b) => (b.updated || 0) - (a.updated || 0)), programs: programs.map((p) => ({ id: p.id, key: p.key, name: p.name, color: p.color, status: p.status })) });

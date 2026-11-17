@@ -138,11 +138,17 @@
     var c = evRag(v), what = kind === 'SPI' ? { green: 'on or ahead of schedule', amber: 'slightly behind schedule', red: 'behind schedule', grey: 'no work due or done yet' } : { green: 'on or under budget', amber: 'slightly over budget', red: 'over budget', grey: 'no actual costs recorded yet' };
     return '<span class="rag ev rag-' + c + '" title="' + kind + ' ' + (v == null ? '–' : v.toFixed(2)) + ': ' + what[c] + '"><i class="evdot"></i>' + (v == null ? '–' : v.toFixed(2)) + '</span><small class="evword ev-' + c + '">' + EV_WORD[c] + '</small>';
   }
+  // 🏁 a finished project: its time index (planned ÷ actual duration; SPI always ends at 1.00) and how late it finished
+  function finChip(f) {
+    var c = evRag(f.SPIt), late = f.slip > 0 ? f.slip + ' days late' : 'On time';
+    return '<span class="rag ev rag-' + c + '" title="Finished: time index ' + Number(f.SPIt).toFixed(2) + ' (planned ÷ actual duration). SPI always ends at 1.00 once all the work is done, so a finished project is judged on this instead."><i class="evdot"></i>' + Number(f.SPIt).toFixed(2) + '</span><small class="evword ev-' + c + '">🏁 ' + esc(late) + '</small>';
+  }
   function evLegend() {
     return '<div class="evkey"><b>SPI</b> (schedule) = work done ÷ work planned by today. <b>CPI</b> (cost) = value of work done ÷ actual cost.' +
       '<span><i class="evdot g"></i><b>1.00 or more</b>: on or ahead of schedule / on or under budget</span>' +
       '<span><i class="evdot y"></i><b>0.90 – 0.99</b>: slightly behind / slightly over. Watch it</span>' +
       '<span><i class="evdot r"></i><b>below 0.90</b>: behind schedule / over budget. Act now</span>' +
+      '<span>🏁 <b>Finished projects</b>: the time column shows the time index (planned ÷ actual duration) and how late it finished, as SPI always ends at 1.00 once all the work is done</span>' +
       '<span><i class="evdot n"></i><b>–</b>: not enough progress or actual costs recorded yet</span></div>';
   }
   var rag = function (v, g, a) { return v == null ? 'grey' : v >= g ? 'green' : v >= a ? 'amber' : 'red'; };
@@ -718,7 +724,7 @@
     if (!g.name) return '<tr class="pg-row"><td colspan="8"><b>Not in a program</b></td></tr>';
     var L = g.list, BAC = L.reduce(function (s, p) { return s + (p.BAC || 0); }, 0), hr = L.reduce(function (s, p) { return s + (p.highRisks || 0); }, 0);
     var fin = L.map(function (p) { return p.finish; }).filter(Boolean).sort().pop();
-    var spis = L.map(function (p) { return p.SPI; }).filter(function (v) { return v != null; }), low = spis.length ? Math.min.apply(null, spis) : null;
+    var spis = L.map(function (p) { return p.fin ? p.fin.SPIt : p.SPI; }).filter(function (v) { return v != null; }), low = spis.length ? Math.min.apply(null, spis) : null;
     return '<tr class="pg-row" style="--pg:' + esc(g.color) + '"><td colspan="8"><div class="pg-rowin">' + (g.key ? '<span class="pgref">' + esc(g.key) + '</span>' : '') + '<b>' + esc(g.name) + '</b>' +
       '<small class="muted">' + L.length + ' project' + (L.length === 1 ? '' : 's') + (BAC ? ' · ' + money(BAC) + ' budget' : '') + (fin ? ' · last finish ' + esc(prettyY(fin)) : '') + (low != null ? ' · lowest SPI ' + low.toFixed(2) : '') + (hr ? ' · <b style="color:#C2410C">' + hr + ' high risk' + (hr === 1 ? '' : 's') + '</b>' : '') + '</small>' +
       '<span class="sp"></span>' + (g.id ? '<a class="btn btn-sm" href="#programs/' + esc(g.id) + '" title="Open the program: roadmap and dependencies">🔗 Program →</a>' : '') + '</div></td></tr>';
@@ -735,7 +741,7 @@
               return progRow(g) + g.list.map(function (p) {
               return '<tr class="click' + (p.programKey ? ' pg-member' : '') + '" data-plan="' + esc(p.core) + '"' + (p.programKey ? ' style="--pg:' + esc(p.programColor || '#64748B') + '"' : '') + '><td><b>' + esc(p.name) + '</b><br><small class="muted"><span class="ref">' + esc(p.ref) + '</span>' + (p.programKey ? ' · <span class="pgref" style="--pg:' + esc(p.programColor || '#64748B') + '" title="Program: ' + esc(p.program) + '">' + esc(p.programKey) + '</span>' : '') + ' · ' + esc(p.customer) + '</small></td>' +
                 '<td style="min-width:140px"><div class="pbar"><span style="width:' + p.pct + '%"></span></div><small>' + p.pct + '% · ' + p.done + '/' + p.total + ' tasks' + (p.late ? ' · <b style="color:#C2410C">' + p.late + ' late</b>' : '') + '</small></td>' +
-                '<td class="hide-sm">' + esc(prettyY(p.finish)) + '</td><td class="evcell">' + evChip('SPI', p.SPI) + '</td><td class="evcell">' + evChip('CPI', p.CPI) + '</td>' +
+                '<td class="hide-sm">' + esc(prettyY(p.finish)) + '</td><td class="evcell">' + (p.fin ? finChip(p.fin) : evChip('SPI', p.SPI)) + '</td><td class="evcell">' + evChip('CPI', p.CPI) + '</td>' +
                 '<td class="hide-sm">' + p.openRisks + (p.highRisks ? ' <b style="color:#C2410C">(' + p.highRisks + ' high)</b>' : '') + '</td><td class="hide-sm">' + p.openIssues + '</td><td><button class="btn btn-sm" data-pdel="' + esc(p.core) + '" data-pname="' + esc(p.name) + '" title="Delete this project">🗑</button></td></tr>';
             }).join('');
             }).join('') + '</tbody></table></div>' + evLegend() : (avail.length ? '<div class="empty champ-empty"><b>' + avail.length + ' project' + (avail.length > 1 ? 's' : '') + ' waiting for a plan.</b><br>Pick one in “Plan an existing project…” above, or start one with <b>＋ New project</b> in the left panel.</div>' : '<div class="empty champ-empty"><b>No projects yet.</b><br>Start your first one with <b>＋ New project</b> in the left panel.</div>')) + '</div>';
@@ -6391,7 +6397,12 @@
     var coming = ordered().filter(function (r) { return r.t.pct < 100 && r.t.es <= soon && r.t.ef >= t0; });
     var evm = [['Budget at completion (BAC)', money(R.BAC), 'Total planned cost'], ['Planned value (PV)', money(R.PV), 'Work that should be done by today'], ['Earned value (EV)', money(R.EV), 'Work actually done (cost × % complete)'],
       ['Actual cost (AC)', money(R.AC), 'Money spent so far (Actual $ column)'], ['Schedule performance (SPI = EV ÷ PV)', R.SPI == null ? '—' : R.SPI, R.SPI == null ? '' : R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule'],
-      ['Cost performance (CPI = EV ÷ AC)', R.CPI == null ? '—' : R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget'], ['Forecast final cost (EAC = BAC ÷ CPI)', R.EAC == null ? '—' : money(R.EAC), '']];
+      // 🏁 finished: SPI always ends at 1.00, so add the time index (planned ÷ actual duration, as Champ judges it)
+    ].concat((function () { var W2 = p.tasks.filter(function (t) { return t.dur > 0; }); if (!W2.length || !p.tasks.every(function (t) { return (t.pct || 0) >= 100; })) return [];
+      var fin = W2.reduce(function (m, t) { var d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish, bf = (p.baseline && p.baseline.finish) || R.finish;
+      var pl = Math.max(1, workBetween(p.start, bf)), ac = Math.max(1, workBetween(p.start, fin)), ti = Math.round(pl / ac * 100) / 100, late = Math.round((toD(fin) - toD(bf)) / 864e5);
+      return [['🏁 Time index (finished: planned ÷ actual duration)', ti.toFixed(2), late > 0 ? 'finished ' + late + ' days late (' + ac + ' working days against ' + pl + ' planned)' : 'finished on time']]; })()).concat([
+      ['Cost performance (CPI = EV ÷ AC)', R.CPI == null ? '—' : R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget'], ['Forecast final cost (EAC = BAC ÷ CPI)', R.EAC == null ? '—' : money(R.EAC), '']]);
     $('#planBody').innerHTML = setupSteps(p, R) + estBanner(p) + '<div class="grid two"><div class="grid" style="align-content:start">' +
       '<div class="card"><h2>Time & cost (earned value)</h2><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
         (S.expensesEx ? '<p class="muted" style="margin:10px 0 0">Expenses recorded for this job in Accounts: <b>' + money(S.expensesEx) + '</b> ex GST.</p>' : '') +
