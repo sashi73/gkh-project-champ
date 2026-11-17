@@ -223,7 +223,7 @@
     if (b) {
       ['red', 'amber', 'green', 'grey'].forEach(function (c) { b.classList.remove('cg-' + c); });
       var sp = b.querySelector('span');
-      if (on) { b.classList.add('cg-' + W.rag); b.title = 'Champ is watching this project: ' + (RAGTXT[W.rag] || '').replace(/^\S+ /, '') + '. Tap for Champ\'s view.'; if (sp) sp.textContent = W.rag === 'red' ? 'Champ: act now' : W.rag === 'amber' ? 'Champ: watch' : W.rag === 'green' ? 'Champ: on track' : 'Ask Champ'; }
+      if (on) { b.classList.add('cg-' + W.rag); b.title = 'Champ is watching this project: ' + (RAGTXT[W.rag] || '').replace(/^\S+ /, '') + '. Tap for Champ\'s view.'; if (sp) sp.textContent = W.fin ? { failed: 'Champ: project failed', partial: 'Champ: partly met', success: 'Champ: succeeded' }[W.fin] || 'Champ' : W.rag === 'red' ? 'Champ: act now' : W.rag === 'amber' ? 'Champ: watch' : W.rag === 'green' ? 'Champ: on track' : 'Ask Champ'; }
       else { b.title = 'Ask Champ: how do I…?'; if (sp) sp.textContent = 'Ask Champ'; }
     }
     var p = $('#cgPanel'); if (p) { ['red', 'amber', 'green', 'grey'].forEach(function (c) { p.classList.remove('cg-' + c); }); if (on) p.classList.add('cg-' + W.rag); }
@@ -232,7 +232,7 @@
     var core = planHash();
     if (!core) { W.core = ''; W.rag = ''; watchBtn(); return Promise.resolve(null); }
     if (!force && W.core === core && Date.now() - W.at < 90000) { watchBtn(); return Promise.resolve(W); }
-    return api('planWatchGet', { core: core, quick: true }).then(function (r) { if (planHash() !== core) return null; W.core = core; W.rag = r.rag; W.at = Date.now(); watchBtn(); return W; }).catch(function () { return null; });
+    return api('planWatchGet', { core: core, quick: true }).then(function (r) { if (planHash() !== core) return null; W.core = core; W.rag = r.rag; W.fin = r.n && r.n.finished ? r.n.verdict : ''; W.at = Date.now(); watchBtn(); return W; }).catch(function () { return null; });
   }
   window.addEventListener('hashchange', function () { setTimeout(function () { watchCheck(); }, 400); });
   setInterval(function () { if (planHash() && !document.hidden) watchCheck(true); }, 120000);
@@ -252,6 +252,11 @@
         return '<a class="wt-r wt-' + x.rag + '" href="#plan/' + esc(x.core) + '/overview" data-wtc="' + esc(x.core) + '"><i class="wt-d"></i><span class="wt-n"><b>' + esc(x.name) + '</b>' + ch + '<small>' + esc(x.program || '') + (x.since && x.rag !== 'green' ? ' · ' + WORD[x.rag].toLowerCase() + ' since ' + esc(x.since.slice(8) + '/' + x.since.slice(5, 7)) : '') + '</small></span>' +
           '<span class="wt-why">' + esc(x.headline || (x.reasons || [])[0] || (x.rag === 'green' ? 'On schedule and within budget.' : '')) + '</span>' +
           '<span class="wt-k">' + (x.SPI != null ? 'SPI <b>' + x.SPI.toFixed(2) + '</b>' : '') + (x.CPI != null ? ' CPI <b>' + x.CPI.toFixed(2) + '</b>' : '') + (x.slip > 0 ? '<br>' + x.slip + ' days late' : '') + '</span></a>'; };
+      var FV = { failed: ['❌ Failed', 'red'], partial: ['🟠 Partly succeeded', 'amber'], success: ['✅ Succeeded', 'green'] }, f2 = function (x) { return x != null ? Number(x).toFixed(2) : '-'; };
+      var fin = (d.done || []).filter(function (x) { return !only || only(x); });
+      var finRow = function (x) { return '<a class="wt-r wt-' + x.rag + ' wt-done" href="#plan/' + esc(x.core) + '/overview" data-wtc="' + esc(x.core) + '"><i class="wt-d"></i><span class="wt-n"><b>' + esc(x.name) + '</b><small>' + esc(x.program || '') + ' · finished ' + esc(String(x.finish || '').split('-').reverse().join('/')) + '</small></span>' +
+        '<span class="wt-why"><b class="wt-v">' + FV[x.verdict][0] + '</b> ' + esc(x.headline || (x.reasons || [])[0] || 'On time and within budget.') + '</span>' +
+        '<span class="wt-k">Time <b>' + f2(x.SPIt) + '</b> CPI <b>' + f2(x.CPI) + '</b><br>' + (x.slip > 0 ? x.slip + ' days late' : 'on time') + (x.over > 0 ? ' · ' + Math.round(x.over) + '% over' : ' · in budget') + '</span></a>'; };
       var act = items.filter(function (x) { return x.rag === 'red' || x.rag === 'amber'; }), ok = items.filter(function (x) { return x.rag === 'green' || x.rag === 'grey'; });
       host.innerHTML = '<div class="wt card"><div class="wt-h"><b>🩺 Champ\'s watch</b>' +
         '<span class="wt-c"><span class="wt-chip red">🔴 ' + C.red + ' act now</span><span class="wt-chip amber">🟠 ' + C.amber + ' watch</span><span class="wt-chip green">🟢 ' + C.green + ' on track</span></span><span class="sp"></span>' +
@@ -261,7 +266,8 @@
         (d.voice ? '<p class="wt-voice">🔇 <b>Champ\'s voice is down</b>: ' + esc(d.voice.why) + ' Champ uses the browser\'s voice until then.</p>' : '') +
         (worse.length || better.length ? '<div class="wt-al">' + (worse.length ? '<span>⚠ <b>Got worse</b>: ' + worse.map(function (x) { return esc(x.name) + ' ' + DOT[x.was] + '→' + DOT[x.rag]; }).join(' · ') + '</span>' : '') + (better.length ? '<span>✓ Better: ' + better.map(function (x) { return esc(x.name) + ' ' + DOT[x.was] + '→' + DOT[x.rag]; }).join(' · ') + '</span>' : '') + '</div>' : '') +
         (act.length ? '<div class="wt-list">' + act.map(row).join('') + '</div>' : '<p class="muted" style="margin:6px 0">' + (items.length ? 'Every project is on track. Keep progress and costs up to date and Champ keeps watching.' : 'No projects in progress to watch yet.') + '</p>') +
-        (ok.length ? '<details class="wt-ok"><summary>🟢 ' + ok.length + ' on track</summary><div class="wt-list">' + ok.map(row).join('') + '</div></details>' : '') + '</div>';
+        (ok.length ? '<details class="wt-ok"><summary>🟢 ' + ok.length + ' on track</summary><div class="wt-list">' + ok.map(row).join('') + '</div></details>' : '') +
+        (fin.length ? '<div class="wt-fin"><p class="wt-ft">🏁 <b>Finished projects: how they ended</b><span>' + ['failed', 'partial', 'success'].map(function (v) { var k = fin.filter(function (x) { return x.verdict === v; }).length; return k ? '<span class="wt-chip ' + FV[v][1] + '">' + FV[v][0] + ' ' + k + '</span>' : ''; }).join('') + '</span><small class="muted">Time index = planned ÷ actual duration (1.00 = on time) · CPI = value ÷ cost (1.00 = on budget)</small></p><div class="wt-list">' + fin.map(finRow).join('') + '</div></div>' : '') + '</div>';
       var nb = host.querySelector('#wtNow'); if (nb) nb.onclick = function () { nb.disabled = true; nb.textContent = 'Checking…'; api('watchBoard', { refresh: true, voice: true, lang: lang() }).then(function (r) { draw(r); }).catch(function (e) { nb.disabled = false; M.fail(e); }); };
       var ab = host.querySelector('#wtAi'); if (ab) ab.onclick = function () {
         ab.disabled = true; ab.textContent = '✨ Champ is reviewing…'; var id = 'watchall' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), n = 0;
@@ -287,8 +293,10 @@
     var brief1 = function (x, max) { x = String(x || '').replace(/\s*\([^)]*\)/g, '').trim(); var f = (x.match(/^.*?[.!?](\s|$)/) || [x])[0].trim().replace(/[.!?]$/, '');
       if (f.length > max) { var m = f.slice(20).search(/[:;—–]| - |, /); if (m >= 0 && m + 20 <= max) f = f.slice(0, m + 20); else { f = f.slice(0, max); f = f.slice(0, f.lastIndexOf(' ')); } } return end(f); };
     var t = [end(b.headline), b.say ? end(b.say) : brief1(b.summary, 110)], A = (b.actions || []).filter(function (a) { return a && a.title; }).slice(0, 5);
-    if (A.length) t.push((r.rag === 'green' ? 'Keep doing this: ' : 'If this were my project, I would: ') + A.map(function (a, i) { return (i + 1) + ', ' + String(a.title).replace(/[.!?]$/, ''); }).join('. ') + '.');
+    var fin = r.n && r.n.finished;
+    if (A.length) t.push((fin ? (r.n.verdict === 'success' ? 'What I would repeat: ' : 'How I would have done it better: ') : r.rag === 'green' ? 'Keep doing this: ' : 'If this were my project, I would: ') + A.map(function (a, i) { return (i + 1) + ', ' + String(a.title).replace(/[.!?]$/, ''); }).join('. ') + '.');
     var Wt = (b.watch || []).filter(Boolean).slice(0, 3); if (Wt.length) t.push('Keep an eye on: ' + Wt.map(function (x) { return brief1(x, 70).replace(/[.!?]$/, ''); }).join('; ') + '.');
+    if (fin) t.push('Open Lessons learned to capture the full story.');
     var BYE = r.rag === 'green' ? ['Nice work so far. Give me a shout if anything changes.', 'All good for now. I\'m here if you need me.', 'Keep it up. Ask me anything, any time.']
       : ['If you need a hand with any of this, just ask.', 'Want help with any of these? Just ask me.', 'I\'m right here if you want to work through it together.', 'Happy to help you plan the next move. Just ask.', 'Ask me anything about it. I\'m happy to help.'];
     t.push(BYE[Math.floor(Math.random() * BYE.length)]);   // a different sign-off each time, so Champ doesn't sound like a recording
@@ -298,13 +306,16 @@
 
   function briefCard(r, thinking) {
     var L = $('#cgLog'); if (!L) return; var b = r.brief || {}, d = document.createElement('div'); d.className = 'cgp-m cgp-bot cgp-brief cg-' + r.rag;
-    d.innerHTML = '<div class="cgb-h"><b>' + esc(RAGTXT[r.rag] || '') + '</b><small>' + esc(r.name || '') + '</small></div>' +
-      '<p class="cgb-l">' + esc(b.headline || '') + '</p>' + (b.summary ? '<p>' + esc(b.summary) + '</p>' : '') +
+    var N = r.n || {}, fin = !!N.finished, f2 = function (x) { return x != null ? Number(x).toFixed(2) : '-'; };
+    d.innerHTML = '<div class="cgb-h"><b>' + esc(fin ? { failed: '🏁 Finished: failed', partial: '🏁 Finished: partly succeeded', success: '🏁 Finished: succeeded' }[N.verdict] || '🏁 Finished' : RAGTXT[r.rag] || '') + '</b><small>' + esc(r.name || '') + '</small></div>' +
+      '<p class="cgb-l">' + esc(b.headline || '') + '</p>' +
+      (fin ? '<p class="cgb-k"><span>Time index <b>' + f2(N.SPIt) + '</b></span><span>CPI <b>' + f2(N.CPI) + '</b></span><span>' + (N.slip_days > 0 ? '<b>' + N.slip_days + '</b> days late' : 'On time') + '</span><span>' + (N.over_pct > 0 ? '<b>' + Math.round(N.over_pct) + '%</b> over budget' : 'Within budget') + '</span></p>' : '') +
+      (b.summary ? '<p>' + esc(b.summary) + '</p>' : '') +
       (r.reasons && r.rag !== 'green' ? '<ul class="cgb-why">' + r.reasons.filter(function (x) { return x.lvl !== 'green'; }).slice(0, 5).map(function (x) { return '<li class="cgb-' + x.lvl + '">' + esc(x.text) + '</li>'; }).join('') + '</ul>' : '') +
-      ((b.actions || []).length ? '<p class="cgb-t">' + (r.rag === 'green' ? 'Keep doing' : 'If this were my project, I would:') + '</p><ol class="cgb-a">' + b.actions.map(function (a) { return '<li><b>' + esc(a.title) + '</b>' + (a.detail ? '<br><span>' + esc(a.detail) + '</span>' : '') + '</li>'; }).join('') + '</ol>' : '') +
+      ((b.actions || []).length ? '<p class="cgb-t">' + (fin ? (N.verdict === 'success' ? 'What I would repeat next time:' : 'How I would have done this better:') : r.rag === 'green' ? 'Keep doing' : 'If this were my project, I would:') + '</p><ol class="cgb-a">' + b.actions.map(function (a) { return '<li><b>' + esc(a.title) + '</b>' + (a.detail ? '<br><span>' + esc(a.detail) + '</span>' : '') + '</li>'; }).join('') + '</ol>' : '') +
       ((b.watch || []).length ? '<p class="cgb-t">Keep an eye on</p><ul class="cgb-w">' + b.watch.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>' : '') +
       (b.note ? '<p class="cgb-n">📚 ' + esc(b.note) + '</p>' : '') +
-      '<div class="cgb-go"><button type="button" data-cgbt="critical">⚡ Critical path</button><button type="button" data-cgbt="risks">⚠ Risks</button><button type="button" data-cgbt="budget">💰 Costing</button><button type="button" data-cgread title="Champ reads this out">🔊 Read it to me</button><button type="button" data-cgbr title="Champ looks again now">↻ Look again</button></div>' +
+      '<div class="cgb-go">' + (fin ? '<button type="button" data-cgbt="lessons" class="cgb-ll">📘 Lessons learned</button><button type="button" data-cgbt="issues">❗ Issues</button><button type="button" data-cgbt="budget">💰 Costing</button>' : '<button type="button" data-cgbt="critical">⚡ Critical path</button><button type="button" data-cgbt="risks">⚠ Risks</button><button type="button" data-cgbt="budget">💰 Costing</button>') + '<button type="button" data-cgread title="Champ reads this out">🔊 Read it to me</button><button type="button" data-cgbr title="Champ looks again now">↻ Look again</button></div>' +
       (thinking ? '<p class="cgb-think">💭 Champ is working out what it would do…</p>' : '') +
       '<small class="cgb-at">' + (b.ai ? 'Champ\'s view' : 'From the health rules') + ' · ' + esc(new Date(r.at || Date.now()).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + '</small>';
     L.appendChild(d); d.scrollIntoView({ block: 'start' });

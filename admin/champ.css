@@ -616,3 +616,9 @@ body.ll-open{overflow:hidden}.ll-doc{position:fixed;inset:0;z-index:2000;backgro
 @media print{body.ll-open>*:not(#llDoc){display:none!important}body.ll-open{overflow:visible}.ll-doc{position:static;background:#fff;overflow:visible}.ll-bar,.ll-noprint{display:none!important}.ll-pages{padding:0;gap:0}.ll-pg{box-shadow:none;width:auto;min-height:0;height:297mm;page-break-after:always;break-after:page}@page{size:A4;margin:0}}
 @media (max-width:860px){.ll-form{grid-template-columns:1fr 1fr}.ll-charts,.ll-two,.ll-rcs{grid-template-columns:1fr}.ll-pg{width:100%;min-height:0;padding:16px 14px 40px}.ll-kpis{grid-template-columns:1fr 1fr}.ll-story{grid-template-columns:repeat(3,1fr)}}
 body.ll-open #modal{z-index:2100}
+/* 🏁 finished projects: the verdict, the time index and CPI (Champ's brief and the watch) */
+.cgb-k{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 8px}.cgb-k span{background:rgba(0,0,0,.05);border-radius:999px;padding:3px 9px;font-size:12.5px}
+.cgb-go .cgb-ll{background:#C9A227;color:#111;border-color:#C9A227;font-weight:700}
+.wt-fin{margin-top:12px;border-top:1px solid var(--line,#E5E2DA);padding-top:10px}
+.wt-ft{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 6px}.wt-ft>span{display:inline-flex;gap:6px}.wt-ft small{flex-basis:100%;font-size:11.5px}
+.wt-v{margin-right:4px;white-space:nowrap}
