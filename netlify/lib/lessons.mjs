@@ -1,7 +1,7 @@
 // GKH Project Champ: 📘 lessons learned. Each project keeps a living log of lessons (plan.lessons, captured as the work goes);
 // the AI suggests lessons from the project's own history, writes a 4-page illustrated lessons-learned report (up to about
 // 80,000 tokens of context: the facts, the log, risks, issues, changes and the project's documents) with the script of a
-// 30-second scribe video, and every agreed lesson goes into a library that other projects reuse (Champ suggests the ones
+// 80-second scribe video, and every agreed lesson goes into a library that other projects reuse (Champ suggests the ones
 // that fit a new or running project).
 import * as kv from './kv.mjs';
 import * as J from './jobs.mjs';
@@ -73,7 +73,7 @@ async function docsDigest(core, chars) {
     return { name: d.title || d.name, folder: d.folder || '', analysis: ans[i] && ans[i].data ? { summary: ans[i].data.summary, alignment: ans[i].data.alignment, gaps: ans[i].data.gaps } : undefined, text: out };
   });
 }
-// 📄 the 4-page report and the 30-second scribe video script
+// 📄 the 4-page report and the 80-second scribe video script
 export async function report(core, by) {
   const job = await J.find(core), plan = await P.get(core); if (!job || !plan) return { error: 'Project not found' };
   const no = await aiReady(); if (no) return { error: no };
