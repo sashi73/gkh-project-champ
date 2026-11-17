@@ -115,7 +115,7 @@
         tile('Dependencies', r.deps.length, r.probs.length ? r.probs.length + ' need attention' : 'all clear', r.probs.length ? 'cs-amber' : '') + '</div>' +
         '<div class="card"><div class="card-h"><h2>🗺 Roadmap and dependencies</h2><span class="sp"></span>' + (ed ? '<button class="btn btn-sm" data-link>🔗 Link projects</button>' : '') + '<a class="btn btn-sm" href="#deps">Whole portfolio →</a></div><div id="pgBoard"></div></div>' +
         '<div class="card"><div class="card-h"><h2>Projects in this program</h2><span class="sp"></span>' +
-        (ed ? '<button class="btn btn-sm" id="pgMoveIn"' + (others.length ? '' : ' disabled') + '>⇄ Move a project here</button><button class="btn btn-sm btn-gold" id="pgNewProj">＋ New project in this program</button>' : '') + '</div>' +
+        (ed ? '<button class="btn btn-sm" id="pgMoveIn"' + (others.length ? '' : ' disabled') + '>⇄ Move a project here</button>' : '') + '</div>' +
         (r.n ? '<div class="table-wrap"><table><thead><tr><th></th><th>Project</th><th>Phase</th><th>Progress</th><th class="hide-sm">Start</th><th>Forecast finish</th><th>SPI</th><th>CPI</th><th class="hide-sm">Budget</th><th class="hide-sm">Links</th>' + (ed && others.length ? '<th>Move to</th>' : '') + '</tr></thead><tbody>' +
           r.list.slice().sort(function (a, b) { return (a.start || '9') < (b.start || '9') ? -1 : 1; }).map(function (c) {
             var ph = PH[c.phase] || PH.init, links = D.deps.filter(function (d) { return d.from === c.core || d.to === c.core; }), bad = links.filter(function (d) { return d.status === 'conflict' || d.status === 'risk'; }).length;
@@ -131,7 +131,6 @@
       var b;
       if ((b = el.querySelector('#pgEdit'))) b.onclick = function () { editProgram(p); };
       if ((b = el.querySelector('#pgDel'))) b.onclick = function () { deleteProgram(p, r); };
-      if ((b = el.querySelector('#pgNewProj'))) b.onclick = function () { try { sessionStorage.setItem('champNewProg', p.name); } catch (e) {} location.hash = '#projects/new'; };
       if ((b = el.querySelector('#pgMoveIn'))) b.onclick = function () { moveIn(p); };
       if ((b = el.querySelector('[data-link]'))) b.onclick = function () { depForm(null, { program: p.name }); };
       el.querySelectorAll('[data-move]').forEach(function (s) {

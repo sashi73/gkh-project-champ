@@ -904,7 +904,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   ok('Portfolio', 'pipeline board has the 5 PMBOK phases', JSON.stringify(await p.$$eval('.pcol .pcol-h b', (b) => b.map((x) => x.textContent))) === JSON.stringify(['Initiation', 'Planning', 'Execution', 'Monitoring & Evaluation', 'Closing']));
 
   // ---- new project → plan ----
-  await p.click('.top-new');
+  ok('Programs', 'New project is only in the left panel (no button in the top bar, the pipeline board or a program page)', !(await p.$('.top-new')) && !(await p.$('#pgNewProj')) && !!(await p.$('.side [data-nav="projnew"], [data-nav="projnew"]')));
+  await p.click('[data-nav="projnew"]');
   await p.waitForSelector('#champNew');
   ok('Programs', 'New project: the program comes first and is required', (await p.getAttribute('#champNew [name=progPick]', 'required')) !== null);
   await p.click('#champNew button[type=submit]'); await sleep(300);
