@@ -662,3 +662,9 @@ table.gt tr.gsel>td{box-shadow:inset 0 2px 0 #E8C04A,inset 0 -2px 0 #E8C04A}
 table.gt tr.gsel>td:first-child{box-shadow:inset 4px 0 0 #E8C04A,inset 0 2px 0 #E8C04A,inset 0 -2px 0 #E8C04A}
 .gfull-btn{font-weight:800}
 .stk-at p.stk-at-n{margin:4px 8px 6px;font-size:11.5px}
+/* the globe on the Champ button turns faster as things get more urgent: green normal, amber medium, red fast */
+#cgBtn img{animation:gkh-spin 40s linear infinite}
+#cgBtn.cg-green img{animation-duration:20s}
+#cgBtn.cg-amber img{animation-duration:7s}
+#cgBtn.cg-red img{animation-duration:2.2s}
+@media (prefers-reduced-motion:reduce){#cgBtn img{animation:none}}

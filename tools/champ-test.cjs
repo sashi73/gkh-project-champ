@@ -628,6 +628,14 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       await p.press('#stkTx', 'Enter').catch(() => {}); await sleep(200); const atVal = await p.inputValue('#stkTx').catch(() => '');
       await p.keyboard.press('Escape').catch(() => {});
       ok('Gantt', 'sticky notes: typing @ lists the whole Stakeholder register (everyone with a phone or email, no one without) beside the note (on top, not hidden behind it) and Enter puts @Name in the note', /Nadia Karim/.test(atList) && atTop && atAll && atAll.n === 13 && !atAll.quiet && atAll.last && atScroll && atScroll.name === 'Contact K' && atScroll.seen && atScroll.scrolled && atK === 'Hi @Contact K ' && atMail === 'Mail @Nadia Karim ' && atMid === 'Mail @Nadia Karim today' && atBang === 'Ask @Nadia Karim!' && atAcc[0] === 'Ask @José Ramos ' && atNl[0] === 'Hi @Nadia Karim\nNext' && atNl[1] === 15 && /Ask @Nadia Karim /.test(atVal), JSON.stringify([atList, atTop, atAll, atScroll, atK, atMail, atMid, atBang, atAcc, atNl, atVal]));
+    // 🌐 the globe on the Champ button turns faster as the alert rises
+    {
+      const spin = await p.evaluate(async () => { const b = document.getElementById('cgBtn'); if (!b) return null; const keep = b.className, o = {}, im = b.querySelector('img');
+        for (const c of ['cg-green', 'cg-amber', 'cg-red']) { b.className = c; const st = getComputedStyle(im); o[c] = st.animationName === 'gkh-spin' && st.animationPlayState === 'running' ? parseFloat(st.animationDuration) : 0; }
+        b.className = 'cg-red'; const m1 = getComputedStyle(im).transform; await new Promise((r) => setTimeout(r, 400)); const m2 = getComputedStyle(im).transform; o.turns = m1 !== m2 && m2 !== 'none';   // it really rotates
+        b.className = keep; return o; });
+      ok('Champ', 'the globe on the Champ button turns faster as the alert rises (green 20 s, amber 7 s, red 2.2 s a turn)', !!spin && spin['cg-green'] === 20 && spin['cg-amber'] === 7 && spin['cg-red'] === 2.2 && spin.turns, JSON.stringify(spin));
+    }
     // ⛶ the full-screen Gantt editor: the toolbar works on the selected row (add levels, indent / outdent, bold, highlight, expand / collapse, Esc back)
     {
       await p.click('#gFull'); await p.waitForSelector('#gCard.gfull .gtool', { timeout: 5000 }).catch(() => {});
