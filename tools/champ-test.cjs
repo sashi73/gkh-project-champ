@@ -645,6 +645,18 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       ok('Gantt', 'full screen: ⛶ fills the screen with a toolbar; it works on the clicked row (selected shown), bold and highlight stay with the plan, ＋ Sub-task adds level 1.1, ⇥ / Ctrl+[ move the row, keep it selected and keep its formatting (Ctrl+I italic), collapse / expand all, dialogs (🔗 Work out dependencies) open on top of it and Esc there closes only the dialog, Esc goes back', fs0.full && fs0.cover && fs0.tool && /level 1 · Design/.test(fsSel) && fsFmt.w === '800' && /255, 244, 194/.test(fsFmt.bg) && sub1 === sub0 + 1 && tk1 === tk0 - 1 && /level 1\.1 · /.test(sel1) && tk2 === tk0 && /level 1 · Build/.test(sel2) && selRow === 'Build (italic)' && shut === 0 && open2 === sub1 && dlgTop && stillFull && fsOut && JSON.stringify(fp.tasks[0].fmt) === '{"b":true,"bg":"yellow"}', JSON.stringify([fs0, fsSel, fsFmt, sub0, sub1, tk0, tk1, sel1, tk2, sel2, selRow, dlgTop, stillFull, shut, open2, fsOut, fp.tasks[0].fmt]));
     }
     }
+    // ⇥ a plan that starts later opens on its own dates (no empty weeks from today); the switch shows it from today
+    {
+      const lf = (await (await api('planNewProject', { name: 'Later start', client: 'Northside Health', program: 'Digital health' })).json()).core;
+      const sd = new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney' }).format(new Date()) + 'T00:00:00Z'); sd.setUTCDate(sd.getUTCDate() + 40); const st = sd.toISOString().slice(0, 10);   // 40 Sydney calendar days ahead
+      await api('planSave', { core: lf, plan: { name: 'Later start', start: st, phases: [{ id: 'ph1', name: 'Work' }], tasks: [{ id: 't1', phase: 'ph1', name: 'Kick-off', dur: 3, pred: [], res: [], pct: 0, status: 'todo' }] } });
+      await p.goto(`${BASE}/admin/#plan/${lf}/schedule`); await p.reload(); await p.waitForSelector('#gRight .gtrack', { timeout: 10000 }).catch(() => {});
+      const g1 = await p.evaluate(() => { const R = document.getElementById('gRight'), b = R.querySelector('.gbar'), r = R.getBoundingClientRect(), br = b && b.getBoundingClientRect(); return { w: parseFloat(R.querySelector('.gtrack').style.width), today: R.querySelectorAll('.gtoday').length, fit: !!document.querySelector('[data-gfit].on'), barLeft: b ? parseFloat(b.style.left) : -1, seen: !!br && br.left >= r.left && br.left < r.right }; });
+      await p.click('[data-gfit]').catch(() => {}); await sleep(400);
+      const g2 = await p.evaluate(() => ({ w: parseFloat(document.querySelector('#gRight .gtrack').style.width), today: document.querySelectorAll('#gRight .gtoday').length, fit: !!document.querySelector('[data-gfit].on') }));
+      await p.click('[data-gfit]').catch(() => {}); await sleep(300);
+      ok('Gantt', 'a plan starting 40 days from now opens on its own dates (the chart starts 2 days before the plan, the first bar in view, no today line); ⇥ Fit to the plan off shows it from today', g1.fit && g1.today === 0 && [40, 14].includes(g1.barLeft) && g1.seen && !g2.fit && g2.today > 0 && g2.w >= g1.w + 38 * 20, JSON.stringify([g1, g2]));
+    }
     // 👥 Gantt resources: the list has People and the Stakeholder register's names; a new person's name typed there joins the register (trades do not)
     {
       const rc2 = (await (await api('planNewProject', { name: 'Resource list check', client: 'Northside Health', program: 'Digital health' })).json()).core;
