@@ -133,4 +133,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 122 | 1.0.122| 2026-11-18 18:16| gantt-perf| `b363ff3` | Full screen: dialogs on top; faster grid (#9) |
 | 123 | 1.0.123| 2026-11-18 18:41| at-list| `e1a193b` | Sticky notes: @ lists every stakeholder with a phone or email (not just the first 8), scrolling, tall as the screen allows |
 | 124 | 1.0.124| 2026-11-18 18:58| at-list| `fc9f650` | @ list: an email address can be typed after @; the contact shown is trimmed; test scrolls to a name below the fold and picks it |
-| 125 | 1.0.125 | 2026-11-18 19:22 | at-list | _this commit_ | _see git log_ |
+| 125 | 1.0.125| 2026-11-18 19:22| at-list| `7036190` | Website: the 2-minute film on the home page (promo.html, drawn live so it plays in the visitor's language); About: Sashi's photo, bigger nam |
+| 126 | 1.0.126 | 2026-11-18 19:22 | at-list | _this commit_ | _see git log_ |
