@@ -546,6 +546,7 @@
     function startRec(quiet) {
       if (rec && rec.state === 'recording') return;
       if (srOn) return;
+      if (window.ChampMicCheck && !quiet) window.ChampMicCheck(function (msg) { bubble('bot', '<p>' + esc(msg) + '</p>', 'cc-err'); });   // a switched-off microphone: say so instead of hearing nothing
       if (!srNo && (window.SpeechRecognition || window.webkitSpeechRecognition) && !(obActive() && vis.step === 'lang') && !sttAny() && srListen(quiet)) return;
       recQuiet = !!quiet; wake.pause();
       if (!navigator.mediaDevices || !window.MediaRecorder) { bubble('bot', '<p>' + esc(T(UI.micBlocked)) + '</p>', 'cc-err'); return; }

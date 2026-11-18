@@ -443,7 +443,9 @@
       r.onend = function () { if (interim) { finals += ' ' + interim; interim = ''; } if (!done && !failed) { try { listen(); return; } catch (e) {} } clearTimeout(timer); sr = null; mic.finish = null; m.classList.remove('rec'); var q = text(); $('#cgQ').value = ''; if (q) ask(q); else if (mic.azure && failed) mic(); else if (!failed) reply('I did not catch that. Tap the microphone and ask again, or type it.', true); };
       sr = r; r.start(); };
       mic.finish = finish;
-      try { listen(); arm(8000); m.classList.add('rec'); return; } catch (e) { sr = null; mic.finish = null; mic.azure = true; }
+      try { listen(); arm(8000); m.classList.add('rec');
+        if (window.ChampMicCheck) window.ChampMicCheck(function (msg) { if (sr) { failed = true; finish(); } reply(msg); });   // the computer gives the browser a switched-off microphone: say so
+        return; } catch (e) { sr = null; mic.finish = null; mic.azure = true; }
     }
     if (rec && rec.state === 'recording') { rec.stop(); return; }
     if (!navigator.mediaDevices || !window.MediaRecorder) return reply('This browser cannot use the microphone here. Type your question instead.');
@@ -454,6 +456,7 @@
       rec.onstop = function () {
         stream.getTracks().forEach(function (t) { t.stop(); }); m.classList.remove('rec'); m.classList.add('busy');
         var type = (rec.mimeType || mt || 'audio/webm').split(';')[0], blob = new Blob(chunks, { type: type }), l = lang(), langs = l === 'en' ? 'en' : l + ',en';
+        if (rec.silent) { m.classList.remove('busy'); return; }   // already explained: the microphone is switched off
         if (blob.size < 1200) { m.classList.remove('busy'); return reply('I did not hear anything. Tap the microphone and ask again.'); }
         fetch('/.netlify/functions/stt?langs=' + encodeURIComponent(langs) + '&prefer=' + encodeURIComponent(l), { method: 'POST', headers: { 'Content-Type': type }, body: blob })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || 'Voice input is not available right now. Type your question instead.'); return j; }); })
@@ -461,6 +464,7 @@
           .catch(function (e) { m.classList.remove('busy'); reply(e.message); });
       };
       rec.start();
+      if (window.ChampMicCheck) window.ChampMicCheck(function (msg) { if (rec.state === 'recording') { rec.silent = true; rec.stop(); } reply(msg); });
       // stops by itself after you finish talking (about 1.3 s of quiet), or after 12 seconds
       var stopAt = setTimeout(function () { if (rec.state === 'recording') rec.stop(); }, 45000);   // a long question is fine (up to 45 seconds)
       try {
