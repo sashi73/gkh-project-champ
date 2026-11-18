@@ -141,8 +141,8 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 130 | 1.0.130| 2026-11-18 20:55| photo-blue| `6f15856` | About: Sashi on a slowly moving galaxy (stars, nebulae, a turning spiral galaxy, a shooting star now and then, AI / tech / project symbols d |
 | 131 | 1.0.131| 2026-11-18 21:08| photo-blue| `f7284e9` | Galaxy: no 2D context skips it; reduced motion respected while reading; runs only on screen and in a visible tab; dust colours worked out on |
 | 132 | 1.0.132| 2026-11-18 21:23| photo-blue| `31c00db` | Galaxy: travelling through space (stars stream out towards the viewer with trails, the AI / tech / project symbols fly out of the deep), a s |
-| 133 | 1.0.133| 2026-11-18 21:39| photo-blue| `0e0989e` | About: Sashi travelling through a galaxy; Architect of Project Champ (#11) |
-| 134 | 1.0.134| 2026-11-18 22:33| mic-eye| `7892fc9` | Password boxes get an eye to show or hide the password; voice input says plainly when the computer gives the browser a switched-off micropho |
-| 135 | 1.0.135| 2026-11-18 22:41| mic-eye| `bfc4ae3` | Microphone check: only when the computer reports the microphone muted the whole time (a quiet room is never flagged) |
-| 136 | 1.0.136| 2026-11-18 22:58| mic-eye| `b12cd9a` | Microphone check: follows the microphone's own events (no warning if it unmuted at any moment), and a disconnected microphone gets its own m |
+| 133 | 1.0.133| 2026-11-18 21:39| photo-blue| `09da93c` | Fit: baseline dates only from tasks that still have a row; focus stays on the switch; test adds 40 Sydney calendar days |
+| 134 | 1.0.134| 2026-11-18 22:18| gantt-fit2| `1202f5a` | Fit: the chart opens at the plan when fitted, and starts there again whenever its first date changes; test checks the first date and that th |
+| 135 | 1.0.135| 2026-11-18 22:25| gantt-fit2| `4454e80` | Fit: the chart also opens at the plan again when the plan start moves (even with an earlier baseline), and a redraw does not put the old pos |
+| 136 | 1.0.136| 2026-11-18 22:34| gantt-fit2| `a826caf` | Console: the microphone check loads before Champ's guide |
 | 137 | 1.0.137 | 2026-11-18 23:05 | mic-eye | _this commit_ | _see git log_ |

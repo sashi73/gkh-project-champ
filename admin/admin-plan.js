@@ -1392,7 +1392,7 @@
     if (st.tab === S.tab && st.core === S.core) {
       var L1 = $('#gLeft'), R1 = $('#gRight');
       if (L1) { L1.scrollTop = st.lt; L1.scrollLeft = st.ll; }
-      if (R1) { R1.scrollTop = st.lt; if (st.rl != null) R1.scrollLeft = st.rl; }
+      if (R1) { R1.scrollTop = st.lt; if (st.rl != null && !S.gReset) R1.scrollLeft = st.rl; } S.gReset = false;
       window.scrollTo(st.x, st.y);
     }
     if (focus) {
@@ -1999,12 +1999,17 @@
     };
     $('#wbsPng').onclick = function () { save('image/png'); }; $('#wbsJpg').onclick = function () { save('image/jpeg'); };
   }
+  try { S.gfit = localStorage.getItem('champGFit') !== '0'; } catch (e) {}
   function scheduleTab(R) {
     var p = S.plan, rows = ordered(), num = {}, idOf = {};
     rows.forEach(function (r) { num[r.t.id] = r.n; idOf[r.n] = r.t.id; });
     var t0 = today();
     var from = R.start ? toS(new Date(toD(R.start).getTime() - 2 * 864e5)) : t0, to = R.finish ? toS(new Date(toD(R.finish).getTime() + 6 * 864e5)) : t0;
-    if (t0 < from) from = t0; if (t0 > to) to = toS(new Date(toD(t0).getTime() + 3 * 864e5));
+    // v179: a plan that starts more than a week from now opens on its own dates, not on six empty weeks from today (⇥ Fit to the plan switches it)
+    var gGap = R.start && t0 < R.start ? daysBetween(t0, R.start) : 0, gFit = gGap > 7 && S.gfit !== false;   // measured from the plan's own start
+    if (gFit && p.baseline && p.baseline.tasks) p.tasks.forEach(function (tk) { var b0 = p.baseline.tasks[tk.id];   // only tasks that still have a row
+      if (b0 && b0.es && b0.es < from) from = toS(new Date(toD(b0.es).getTime() - 2 * 864e5)); });   // baseline bars stay on the chart
+    if (t0 < from && !gFit) from = t0; if (t0 > to) to = toS(new Date(toD(t0).getTime() + 3 * 864e5));
     var dayW = S.zoom === 'week' ? 7 : 20, days = daysBetween(from, to) + 1, W = days * dayW;
     var x = function (s) { return daysBetween(from, s) * dayW; };
     var firstW = toD(from).getUTCDay(), satOff = ((6 - firstW + 7) % 7) * dayW;
@@ -2017,7 +2022,7 @@
       else if (wd === 1) scale += '<span class="gd" style="left:' + i * dayW + 'px;width:' + 7 * dayW + 'px">' + dd + '</span>';
     }
     scale += '</div>';
-    var todayLine = '<i class="gtoday" style="left:' + (x(t0) + dayW / 2) + 'px"></i>';
+    var todayLine = t0 < from ? '' : '<i class="gtoday" style="left:' + (x(t0) + dayW / 2) + 'px"></i>';
     var bar = function (t, base) {
       if (!t.es) return '';
       var late = t.pct < 100 && t.ef < t0, left = x(t.es), w = (daysBetween(t.es, t.ef) + 1) * dayW;
@@ -2038,7 +2043,7 @@
       '<label style="display:flex;gap:6px;align-items:center;font-weight:700" title="The date the customer needs it finished. If the plan finishes later, ✨ Fit to finish-by asks the AI how to bring it in.">Finish by<input type="date" id="pFinishBy" value="' + esc(p.finishBy || '') + '" min="' + esc(p.workStart && p.workStart > p.start ? p.workStart : nextWork(p.start)) + '" style="width:auto"></label>' +
       '</div><div class="pviews">' +
       '<div class="tabs" style="margin:0" title="Which columns to show"><button class="tab' + (S.cols === 's' ? ' on' : '') + '" data-cols="s">📅 Dates</button><button class="tab' + (S.cols === 'c' ? ' on' : '') + '" data-cols="c">$ Costs</button><button class="tab' + (S.cols === 'a' ? ' on' : '') + '" data-cols="a">All columns</button></div>' +
-      '<div class="tabs" style="margin:0"><button class="tab' + (S.zoom === 'day' ? ' on' : '') + '" data-zoom="day">Days</button><button class="tab' + (S.zoom === 'week' ? ' on' : '') + '" data-zoom="week">Weeks</button><button class="tab' + (S.links ? ' on' : '') + '" data-links title="Show the dependency arrows between the bars">🔗 Links</button></div>' +
+      '<div class="tabs" style="margin:0"><button class="tab' + (S.zoom === 'day' ? ' on' : '') + '" data-zoom="day">Days</button><button class="tab' + (S.zoom === 'week' ? ' on' : '') + '" data-zoom="week">Weeks</button><button class="tab' + (S.links ? ' on' : '') + '" data-links title="Show the dependency arrows between the bars">🔗 Links</button>' + (gGap > 7 ? '<button class="tab' + (gFit ? ' on' : '') + '" data-gfit type="button" title="' + (gFit ? 'The chart starts at the plan (' + esc(dmy(R.start)) + ', ' + gGap + ' days from today). Click to show from today.' : 'Hide the ' + gGap + ' empty days before the plan starts (' + esc(dmy(R.start)) + ')') + '">⇥ Fit to the plan</button>' : '') + '</div>' +
       '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button></div></div></div>' +
       '<div class="gsplit" id="gSplit"><div class="gpane gleft" id="gLeft"' + (S.split ? ' style="flex:0 0 ' + S.split + 'px;max-width:none"' : '') + '><table class="gt v-' + S.cols + '"><thead><tr><th>#</th><th title="Done">✓</th><th style="min-width:160px">Task <button type="button" class="gfz-chip" id="gFreezeBtn" title="Freeze columns (like Excel) and column widths">❄ ' + esc(gfzName()) + '</button></th><th style="min-width:136px">Resources <span class="muted" style="text-transform:none;letter-spacing:0">(★ lead)</span></th><th>Days</th><th>Start</th><th>Finish</th><th>After #</th><th title="Labour: people × hours (or days) each. Materials: quantity">People × Qty</th><th>Unit</th><th>Unit $</th><th>Cost</th><th>Actual $</th><th>Status</th><th>%</th><th></th></tr></thead><tbody>';
     var G = '';   // rows of the Gantt pane (kept the same height as the grid rows)
@@ -2105,10 +2110,15 @@
     $('#planBody').innerHTML = html;
     var B = $('#planBody'); estWire(B);
     dateBoxes(B);   // before the rows are lined up with the Gantt chart
-    splitPanes(x(t0));
+    // where the chart opens: at the plan when it is fitted, otherwise at today; a new range origin (dates moved, fit switched) starts there again
+    var gKey = S.core + '|' + from + '|' + (R.start || '') + '|' + (gFit ? 1 : 0);   // the first date, the plan start or the fit changed: open at the plan again
+    if (S.gOrigin !== gKey) { S.gReset = S.gOrigin != null; S.gOrigin = gKey; S.scrollX = null; }
+    splitPanes(gFit ? x(R.start) - 2 * dayW + 140 : x(t0));
     $('#gFreezeBtn').onclick = function (e) { e.stopPropagation(); gFreezeMenu(this); };
     B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
+    B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { S.gfit = S.gfit === false;   // the range key changes, so the chart opens at the plan (fitted) or at today (not fitted)
+      try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
     B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
     B.querySelectorAll('[data-links]').forEach(function (b) { b.onclick = function () { S.links = !S.links; try { localStorage.setItem('champLinks', S.links ? '1' : ''); } catch (e) {} render(); }; });
     if ($('#depAi')) $('#depAi').onclick = depsDialog;
