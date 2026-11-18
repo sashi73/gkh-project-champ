@@ -9,17 +9,17 @@
   var W = 0, H = 0, DPR = Math.min(2, window.devicePixelRatio || 1), still = false;
   var mq = null; try { mq = window.matchMedia('(prefers-reduced-motion: reduce)'); still = mq.matches; } catch (e) {}
   var rnd = (function (s) { return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })(20261118);
-  var stars = [], dust = [], icons = [], shoot = null, nextShoot = 4;
+  var stars = [], dust = [], icons = [];
   var GOLD = '232,192,74', CYAN = '120,200,255', VIOLET = '170,130,255';
   function size() {
     var r = cv.getBoundingClientRect(); W = Math.max(1, r.width); H = Math.max(1, r.height);
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR); g.setTransform(DPR, 0, 0, DPR, 0, 0);
   }
   function seed() {
-    stars = []; for (var i = 0; i < 170; i++) stars.push({ x: rnd(), y: rnd(), r: rnd() < 0.08 ? 1.3 + rnd() * 0.9 : 0.35 + rnd() * 0.8, tw: rnd() * 6.28, sp: 0.6 + rnd() * 1.8, z: 0.2 + rnd() * 0.8, c: rnd() < 0.15 ? GOLD : rnd() < 0.3 ? CYAN : '255,255,255' });
+    stars = []; for (var i = 0; i < 260; i++) stars.push({ x: (rnd() - 0.5) * 2, y: (rnd() - 0.5) * 2, z0: rnd(), v: 0.035 + rnd() * 0.05, r: 0.5 + rnd() * 1.1, tw: rnd() * 6.28, sp: 0.6 + rnd() * 1.8, c: rnd() < 0.15 ? GOLD : rnd() < 0.3 ? CYAN : '255,255,255' });   // points in space flying towards us
     dust = []; for (var j = 0; j < 1100; j++) { var arm = j % 2, t = Math.pow(rnd(), 0.8); var dc = rnd() < 0.25 ? GOLD : rnd() < 0.55 ? VIOLET : CYAN; dust.push({ arm: arm, t: t, off: (rnd() - 0.5) * (0.25 + t * 0.35), s: 0.5 + rnd() * 1.2, f: 'rgba(' + dc + ',' + (0.75 * (1 - t * 0.65)).toFixed(3) + ')' }); }   // the colour is worked out once
     var kinds = ['ai', 'chip', 'gantt', 'nodes', 'rocket', 'bulb', 'check', 'target', 'atom', 'code'];
-    icons = kinds.map(function (k, i) { return { k: k, x: (i + 0.2 + rnd() * 0.6) / kinds.length, y: rnd(), vx: (rnd() - 0.5) * 0.006, vy: -0.004 - rnd() * 0.006, rot: rnd() * 6.28, vr: (rnd() - 0.5) * 0.12, s: 19 + rnd() * 12, c: i % 3 === 0 ? CYAN : GOLD, a: 0.38 + rnd() * 0.25 }; });
+    icons = kinds.map(function (k, i) { var ang = (i / kinds.length) * 6.28 + rnd() * 0.5, rad = 0.35 + rnd() * 0.5; return { k: k, x: Math.cos(ang) * rad, y: Math.sin(ang) * rad * 0.9, z0: i / kinds.length, v: 0.045 + rnd() * 0.025, rot: rnd() * 6.28, vr: (rnd() - 0.5) * 0.25, s: 10 + rnd() * 5, c: i % 3 === 0 ? CYAN : GOLD, a: 0.55 + rnd() * 0.3 }; });   // the symbols come out of the deep towards us, each on its own line
   }
   function icon(o) {   // simple line art, centred on 0,0, about 24 units wide
     var k = o.k; g.beginPath();
@@ -35,7 +35,7 @@
     else if (k === 'code') { g.moveTo(-5, -7); g.lineTo(-12, 0); g.lineTo(-5, 7); g.moveTo(5, -7); g.lineTo(12, 0); g.lineTo(5, 7); g.moveTo(2, -10); g.lineTo(-2, 10); }
     g.stroke();
   }
-  function draw(t) {
+  function draw(t, moving) {   // moving: draw the shooting stars even in a still frame (for a recording)
     // the black of deep space, with nebula clouds that breathe slowly
     g.globalCompositeOperation = 'source-over'; g.fillStyle = '#020207'; g.fillRect(0, 0, W, H);
     g.globalCompositeOperation = 'lighter';
@@ -49,20 +49,30 @@
     var band = g.createRadialGradient(0, 0, R * 0.05, 0, 0, R); band.addColorStop(0, 'rgba(200,170,255,0.28)'); band.addColorStop(0.45, 'rgba(120,110,230,0.12)'); band.addColorStop(1, 'rgba(90,90,200,0)'); g.fillStyle = band; g.beginPath(); g.arc(0, 0, R, 0, 6.28); g.fill(); g.restore();
     for (var i = 0; i < dust.length; i++) { var d = dust[i], ang = d.t * 4.6 + d.arm * Math.PI + rot, rr = R * (0.06 + d.t * 0.94), x = gx + Math.cos(ang + d.off) * rr, y = gy + Math.sin(ang + d.off) * rr * 0.42;
       g.fillStyle = d.f; g.fillRect(x, y, d.s, d.s); }
-    // stars, twinkling and drifting a little (the nearer ones a little faster)
-    for (var s = 0; s < stars.length; s++) { var st = stars[s], sx = ((st.x + t * 0.002 * st.z) % 1) * W, sy = st.y * H, a = 0.45 + 0.55 * Math.abs(Math.sin(t * st.sp * 0.6 + st.tw));
-      g.fillStyle = 'rgba(' + st.c + ',' + a.toFixed(3) + ')'; g.beginPath(); g.arc(sx, sy, st.r, 0, 6.28); g.fill();
-      if (st.r > 1.3) { g.strokeStyle = 'rgba(' + st.c + ',' + (a * 0.35).toFixed(3) + ')'; g.lineWidth = 0.6; g.beginPath(); g.moveTo(sx - st.r * 4, sy); g.lineTo(sx + st.r * 4, sy); g.moveTo(sx, sy - st.r * 4); g.lineTo(sx, sy + st.r * 4); g.stroke(); } }
-    // the symbols of the work: AI, technology and projects, drifting upwards and turning slowly
+    // travelling through space: stars stream out from a point behind his head, growing and leaving short trails as they pass
+    var vx = W * 0.5, vy = H * 0.32, F = Math.max(W, H) * 0.42;
+    for (var s2 = 0; s2 < stars.length; s2++) { var st = stars[s2], z = 1 - (((st.z0 + t * st.v) % 1) + 1) % 1; z = 0.04 + z * 0.96;
+      var px = vx + st.x / z * F, py = vy + st.y / z * F; if (px < -20 || px > W + 20 || py < -20 || py > H + 20) continue;
+      var near = 1 - z, a = Math.min(1, near * 1.6) * (0.55 + 0.45 * Math.abs(Math.sin(t * st.sp * 0.6 + st.tw))), r = st.r * (0.4 + near * 1.8);
+      var z2 = Math.min(1, z + 0.035), tx2 = vx + st.x / z2 * F, ty2 = vy + st.y / z2 * F;   // where it was a moment ago: the trail
+      g.strokeStyle = 'rgba(' + st.c + ',' + (a * 0.45).toFixed(3) + ')'; g.lineWidth = Math.max(0.5, r * 0.8); g.beginPath(); g.moveTo(tx2, ty2); g.lineTo(px, py); g.stroke();
+      g.fillStyle = 'rgba(' + st.c + ',' + a.toFixed(3) + ')'; g.beginPath(); g.arc(px, py, r, 0, 6.28); g.fill(); }
+    // the symbols of the work (AI, technology, projects) fly out of the deep towards us, turning slowly, and fade as they pass
     g.globalCompositeOperation = 'source-over'; g.lineWidth = 1.3; g.lineCap = 'round'; g.lineJoin = 'round';
-    for (var k = 0; k < icons.length; k++) { var o = icons[k], ox = (((o.x + t * o.vx) % 1) + 1) % 1, oy = (((o.y + t * o.vy) % 1) + 1) % 1, fade = Math.min(1, oy * 6, (1 - oy) * 6);
-      g.save(); g.translate(ox * W, oy * H); g.rotate(o.rot + t * o.vr * 0.2); g.scale(o.s / 24, o.s / 24);
+    for (var k = 0; k < icons.length; k++) { var o = icons[k], zz = 1 - (((o.z0 + t * o.v) % 1) + 1) % 1; zz = 0.08 + zz * 0.92;
+      var ix = vx + o.x / zz * F * 0.55, iy = vy + o.y / zz * F * 0.55, sc = o.s / zz / 24, fade = Math.min(1, (1 - zz) * 2.5) * Math.min(1, (zz - 0.08) * 6);
+      if (ix < -60 || ix > W + 60 || iy < -60 || iy > H + 60 || fade <= 0.01) continue;
+      g.save(); g.translate(ix, iy); g.rotate(o.rot + t * o.vr * 0.3); g.scale(sc, sc); g.lineWidth = 1.3 / Math.max(0.6, sc);
       g.strokeStyle = g.fillStyle = 'rgba(' + o.c + ',' + (o.a * fade).toFixed(3) + ')'; g.shadowColor = 'rgba(' + o.c + ',0.8)'; g.shadowBlur = 6; icon(o); g.restore(); }
-    // now and then a shooting star
-    if (!shoot && t > nextShoot) shoot = { t0: t, x: 0.1 + rnd() * 0.5, y: rnd() * 0.35 };
-    if (shoot) { var p = (t - shoot.t0) / 1.1; if (p >= 1) { shoot = null; nextShoot = t + 5 + rnd() * 7; }
-      else { var x0 = (shoot.x + p * 0.45) * W, y0 = (shoot.y + p * 0.25) * H, lg = g.createLinearGradient(x0, y0, x0 - 60, y0 - 33); lg.addColorStop(0, 'rgba(255,255,255,' + (0.9 * (1 - p)).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,255,255,0)');
-        g.strokeStyle = lg; g.lineWidth = 1.6; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x0 - 60, y0 - 33); g.stroke(); } }
+    // shooting stars, every few seconds (worked out from the clock, so a still frame never shows half of one)
+    if (!still || moving) { var P = 3.2, k0 = Math.floor(t / P);
+      for (var kk = k0 - 1; kk <= k0; kk++) { if (kk < 0) continue; var hsh = function (n) { var v = Math.sin(kk * 127.1 + n * 311.7) * 43758.5453; return v - Math.floor(v); };
+        var ts = kk * P + hsh(1) * P * 0.6, p = (t - ts) / 0.9; if (p < 0 || p >= 1) continue;
+        var sx0 = (0.05 + hsh(2) * 0.6) * W, sy0 = (hsh(3) * 0.35) * H, dx = (0.35 + hsh(4) * 0.25) * W, dy = (0.18 + hsh(5) * 0.18) * H, len = 0.18 * Math.hypot(dx, dy);
+        var hx = sx0 + dx * p, hy = sy0 + dy * p, ux = dx / Math.hypot(dx, dy), uy = dy / Math.hypot(dx, dy), al = Math.sin(Math.PI * p);
+        var lg = g.createLinearGradient(hx, hy, hx - ux * len, hy - uy * len); lg.addColorStop(0, 'rgba(255,255,255,' + (0.95 * al).toFixed(3) + ')'); lg.addColorStop(0.3, 'rgba(255,230,170,' + (0.5 * al).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,255,255,0)');
+        g.strokeStyle = lg; g.lineWidth = 2; g.beginPath(); g.moveTo(hx, hy); g.lineTo(hx - ux * len, hy - uy * len); g.stroke();
+        g.fillStyle = 'rgba(255,255,255,' + al.toFixed(3) + ')'; g.shadowColor = 'rgba(255,240,200,0.9)'; g.shadowBlur = 10; g.beginPath(); g.arc(hx, hy, 1.8, 0, 6.28); g.fill(); g.shadowBlur = 0; } }
     // a soft halo of light behind his head and shoulders, and a vignette to frame him
     var hl = g.createRadialGradient(W * 0.5, H * 0.36, 0, W * 0.5, H * 0.36, W * 0.55); hl.addColorStop(0, 'rgba(160,190,255,0.16)'); hl.addColorStop(1, 'rgba(160,190,255,0)'); g.fillStyle = hl; g.fillRect(0, 0, W, H);
     var vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);

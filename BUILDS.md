@@ -139,4 +139,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 128 | 1.0.128| 2026-11-18 20:01| at-list| `3f3f9c4` | @ list fixes; the 2-minute film on the home page; About profile update (#10) |
 | 129 | 1.0.129| 2026-11-18 20:44| photo-blue| `478a059` | About: Sashi's photo on an elegant dark-blue backdrop (background only replaced) |
 | 130 | 1.0.130| 2026-11-18 20:55| photo-blue| `6f15856` | About: Sashi on a slowly moving galaxy (stars, nebulae, a turning spiral galaxy, a shooting star now and then, AI / tech / project symbols d |
-| 131 | 1.0.131 | 2026-11-18 21:08 | photo-blue | _this commit_ | _see git log_ |
+| 131 | 1.0.131| 2026-11-18 21:08| photo-blue| `f7284e9` | Galaxy: no 2D context skips it; reduced motion respected while reading; runs only on screen and in a visible tab; dust colours worked out on |
+| 132 | 1.0.132 | 2026-11-18 21:23 | photo-blue | _this commit_ | _see git log_ |
