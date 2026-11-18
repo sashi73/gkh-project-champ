@@ -144,4 +144,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 133 | 1.0.133| 2026-11-18 21:39| photo-blue| `0e0989e` | About: Sashi travelling through a galaxy; Architect of Project Champ (#11) |
 | 134 | 1.0.134| 2026-11-18 22:33| mic-eye| `7892fc9` | Password boxes get an eye to show or hide the password; voice input says plainly when the computer gives the browser a switched-off micropho |
 | 135 | 1.0.135| 2026-11-18 22:41| mic-eye| `bfc4ae3` | Microphone check: only when the computer reports the microphone muted the whole time (a quiet room is never flagged) |
-| 136 | 1.0.136 | 2026-11-18 22:58 | mic-eye | _this commit_ | _see git log_ |
+| 136 | 1.0.136| 2026-11-18 22:58| mic-eye| `b12cd9a` | Microphone check: follows the microphone's own events (no warning if it unmuted at any moment), and a disconnected microphone gets its own m |
+| 137 | 1.0.137 | 2026-11-18 23:05 | mic-eye | _this commit_ | _see git log_ |
