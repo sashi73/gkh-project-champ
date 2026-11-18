@@ -147,3 +147,8 @@
 .pfilm-read summary{cursor:pointer;padding:14px 0;font-weight:800;color:var(--text)}
 .pfilm-read ol{margin:0 0 18px;padding-left:22px;display:grid;gap:8px;color:var(--muted);font-size:15px;line-height:1.6}
 .pfilm-read small{display:block;font-size:12px;opacity:.8}
+/* About: Sashi on a slowly moving galaxy (champ-galaxy.js draws the sky; the photo is a cut-out on top) */
+.c-person-galaxy{background:#020207}
+.c-person-galaxy canvas.c-galaxy{position:absolute;inset:0;width:100%;height:100%;display:block}
+.c-person-galaxy img{z-index:1;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))}
+.c-person-galaxy span{display:none}
