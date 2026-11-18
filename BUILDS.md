@@ -154,4 +154,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 143 | 1.0.143| 2026-11-19 01:26| globe-speed| `25cda60` | Merge main |
 | 144 | 1.0.144| 2026-11-19 01:48| globe-speed| `8c54220` | Test: each status's globe animation is checked by name, state and speed |
 | 145 | 1.0.145| 2026-11-19 02:01| globe-speed| `8e6b449` | Ask Champ: the globe spins faster as the alert rises (#17) |
-| 146 | 1.0.146 | 2026-11-19 09:30 | help-centre | _this commit_ | _see git log_ |
+| 146 | 1.0.146| 2026-11-19 09:30| help-centre| `ff478e3` | Help centre: an article for every feature and its parts, on the website, in the console, and in Champ's answers |
+| 147 | 1.0.147 | 2026-11-19 09:49 | help-centre | _this commit_ | _see git log_ |

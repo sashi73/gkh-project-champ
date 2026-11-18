@@ -416,9 +416,11 @@
   }
   function showHelp(id, sub, quiet) {
     openPanel();
-    return hLoad().then(function (m) { var a = m && m.byId(id); if (!a) return reply('That help article is not here any more. Ask me instead.');
-      return helpCard(a, sub).then(function (c) { var L = $('#cgLog'); if (!L) return; L.appendChild(c.el); L.scrollTop = Math.max(0, c.el.offsetTop - 8); lastBot = c.say; if (!quiet) speak(c.say); }); });
+    var n = ++showHelp.n, live = function () { var p = $('#cgPanel'); return n === showHelp.n && p && !p.hidden; };   // closed (or asked again) meanwhile: drop it
+    return hLoad().then(function (m) { if (!live()) return; var a = m && m.byId(id); if (!a) return reply('That help article is not here any more. Ask me instead.');
+      return helpCard(a, sub).then(function (c) { var L = $('#cgLog'); if (!L || !live()) return; L.appendChild(c.el); L.scrollTop = Math.max(0, c.el.offsetTop - 8); lastBot = c.say; if (!quiet) speak(c.say); }); });
   }
+  showHelp.n = 0;
   function helpLink(d, id, sub) {   // "📖 Read: …" under one of Champ's answers
     hLoad().then(function (m) { var a = m && m.byId(id); if (!a || !d) return; var s = sub && (a.subs || []).filter(function (x) { return x.id === sub; })[0];
       tr(['📖 Read: ' + (s ? s.h : a.t)]).then(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'cgp-show cgp-read'; b.textContent = x[0]; b.onclick = function () { showHelp(id, sub); }; d.appendChild(b); }); });

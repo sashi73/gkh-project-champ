@@ -668,11 +668,13 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const cHit = await p.textContent('.hc-sub.hit h3').catch(() => ''), cShow = await p.isVisible('#hcShow');
       await p.evaluate((h) => { location.hash = h; }, back); await sleep(1200);
       const route = await p.evaluate(() => location.hash);
+      if (await p.isVisible('#cgPanel')) { await p.click('#cgPanel .cgp-x').catch(() => {}); await sleep(200); }   // a closed panel is empty: the card must come from this click
+      const before = await p.$$eval('#cgPanel .cgp-help', (x) => x.length).catch(() => 0);
       await p.click('#helpQ').catch(() => {}); await p.waitForSelector('#cgPanel .cgp-help', { timeout: 6000 }).catch(() => {});
       const card = await p.textContent('#cgPanel .cgp-help .cgp-ht').catch(() => '');
       await p.click('#cgPanel .cgp-x').catch(() => {});
       ok('Help', 'console: ❓ Help in the menu shows the 14 areas; an article opens at its section with ▶ Show me; the ? next to the title opens this screen\'s article in Champ\'s panel',
-        menuHelp && cAreas === 14 && cHit === 'Mention someone with @' && cShow && card.length > 5, JSON.stringify({ menuHelp, cAreas, cHit, cShow, route, card }));
+        menuHelp && cAreas === 14 && cHit === 'Mention someone with @' && cShow && before === 0 && /\/schedule$/.test(route) && /Gantt: add tasks, sub-tasks and steps/.test(card), JSON.stringify({ menuHelp, cAreas, cHit, cShow, route, before, card }));
     }
     // ⛶ the full-screen Gantt editor: the toolbar works on the selected row (add levels, indent / outdent, bold, highlight, expand / collapse, Esc back)
     {

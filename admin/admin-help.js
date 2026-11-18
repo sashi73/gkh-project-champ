@@ -8,12 +8,14 @@
   var H = null, load = function () { if (!H) H = import('../assets/help/articles.js?v=1'); return H; };
 
   function view(parts) {
+    var mine = location.hash;   // a later screen owns the view if the user moved on while the articles loaded
     return load().then(function (m) {
+      if (location.hash !== mine) return;
       var V = M.view(), id = parts[0] || '', sub = parts[1] || '';
       var areaOf = function (a) { return m.AREAS.filter(function (x) { return x.id === a; })[0] || { n: '', i: '' }; };
       var top = '<form class="hc-find" id="hcF" role="search"><input id="hcQ" type="search" placeholder="Search the help: bold a task, sticky note, approve the budget…" aria-label="Search the help"><button class="btn btn-gold" type="submit">Search</button><button class="btn" type="button" id="hcChamp">🎙 Ask Champ</button></form>';
       if (/^q=/.test(id)) {
-        var q = decodeURIComponent(id.slice(2)), r = m.search(q, 12);
+        var q = id.slice(2), r = m.search(q, 12);   // the router has decoded it already
         V.innerHTML = top + '<div class="card hc-list"><p class="muted">' + (r.length ? r.length + ' results for “' + esc(q) + '”' : 'Nothing found for “' + esc(q) + '”. Try other words, or ask Champ.') + '</p>' +
           r.map(function (x) { var a = m.byId(x.id); return '<a href="#help/' + esc(x.id) + '/' + esc(x.sub) + '"><b>' + esc(x.h) + '</b><small>' + areaOf(a.a).i + ' ' + esc(a.t) + '</small></a>'; }).join('') + '</div>';
         $('#hcQ').value = q;
@@ -27,7 +29,7 @@
           (a.subs || []).map(function (s) { return '<section class="hc-sub' + (s.id === sub ? ' hit' : '') + '" id="hcs-' + esc(s.id) + '"><h3>' + esc(s.h) + '</h3><ol>' + s.st.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol>' + (s.tip ? '<p class="hc-tip">💡 ' + esc(s.tip) + '</p>' : '') + '</section>'; }).join('') +
           '</div>';
         if ($('#hcShow')) $('#hcShow').onclick = function () { M.guide.start(a.g); };
-        var el = sub && document.getElementById('hcs-' + sub); if (el) setTimeout(function () { el.scrollIntoView({ block: 'start' }); }, 30);
+        var el = sub && document.getElementById('hcs-' + sub); if (el) setTimeout(function () { if (location.hash === mine) el.scrollIntoView({ block: 'start' }); }, 30);
       } else {
         V.innerHTML = top + '<div class="hc-areas">' + m.AREAS.map(function (ar) {
           return '<div class="card hc-area"><h3>' + ar.i + ' ' + esc(ar.n) + '</h3>' + m.ARTICLES.filter(function (a) { return a.a === ar.id; }).map(function (a) { return '<a href="#help/' + esc(a.id) + '">' + esc(a.t) + '</a>'; }).join('') + '</div>';
@@ -46,7 +48,7 @@
     b.title = 'Help for this screen'; b.setAttribute('aria-label', 'Help for this screen');
     b.onclick = function () {
       if (/^#help/.test(location.hash)) { location.hash = '#help'; return; }
-      load().then(function (m) { var id = m.forRoute(location.hash); if (M.guide && M.guide.help) M.guide.help(id); else location.hash = '#help/' + id; });
+      load().then(function (m) { var id = m.forRoute(location.hash); if (M.guide && M.guide.help) return M.guide.help(id); location.hash = '#help/' + id; }).catch(M.fail);
     };
     t.insertAdjacentElement('afterend', b);
   }

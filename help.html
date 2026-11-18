@@ -111,7 +111,8 @@ function home() {
 }
 function askBox(q) { return '<div class="hc-ask"><b>Still stuck?</b> <span class="muted">Ask Champ in your own words, typed or spoken, in any language.</span> <button class="btn btn-gold btn-sm" type="button" data-ask="' + esc(q) + '"><span>🎙 Ask Champ</span></button></div>'; }
 function results(q) {
-  var r = search(q, 12);
+  var r = search(q, 12), L = window.ChampI18n && window.ChampI18n.get && window.ChampI18n.get();
+  if (!r.length && L && L !== 'en' && window.ChampChat) { window.ChampChat.ask(q); }   // the articles are in English: Champ answers in the visitor's language
   body.innerHTML = '<div class="hc-res"><p class="muted">' + (r.length ? r.length + ' results for “' + esc(q) + '”' : 'Nothing found for “' + esc(q) + '”. Try other words, or ask Champ.') + '</p>' +
     r.map(function (x) { var a = byId(x.id); return '<a href="#' + x.id + '/' + x.sub + '"><b>' + esc(x.h) + '</b><small>' + areaOf(a.a).i + ' ' + esc(a.t) + '</small></a>'; }).join('') + '</div>' + askBox(q);
 }
