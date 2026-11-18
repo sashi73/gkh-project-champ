@@ -1392,7 +1392,7 @@
     if (st.tab === S.tab && st.core === S.core) {
       var L1 = $('#gLeft'), R1 = $('#gRight');
       if (L1) { L1.scrollTop = st.lt; L1.scrollLeft = st.ll; }
-      if (R1) { R1.scrollTop = st.lt; if (st.rl != null) R1.scrollLeft = st.rl; }
+      if (R1) { R1.scrollTop = st.lt; if (st.rl != null && !S.gReset) R1.scrollLeft = st.rl; } S.gReset = false;
       window.scrollTo(st.x, st.y);
     }
     if (focus) {
@@ -2111,7 +2111,8 @@
     var B = $('#planBody'); estWire(B);
     dateBoxes(B);   // before the rows are lined up with the Gantt chart
     // where the chart opens: at the plan when it is fitted, otherwise at today; a new range origin (dates moved, fit switched) starts there again
-    if (S.gOrigin !== S.core + '|' + from) { S.gOrigin = S.core + '|' + from; S.scrollX = null; }
+    var gKey = S.core + '|' + from + '|' + (R.start || '') + '|' + (gFit ? 1 : 0);   // the first date, the plan start or the fit changed: open at the plan again
+    if (S.gOrigin !== gKey) { S.gReset = S.gOrigin != null; S.gOrigin = gKey; S.scrollX = null; }
     splitPanes(gFit ? x(R.start) - 2 * dayW + 140 : x(t0));
     $('#gFreezeBtn').onclick = function (e) { e.stopPropagation(); gFreezeMenu(this); };
     B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
