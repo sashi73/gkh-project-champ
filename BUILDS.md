@@ -146,4 +146,6 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 135 | 1.0.135| 2026-11-18 22:25| gantt-fit2| `4454e80` | Fit: the chart also opens at the plan again when the plan start moves (even with an earlier baseline), and a redraw does not put the old pos |
 | 136 | 1.0.136| 2026-11-18 22:34| gantt-fit2| `a826caf` | Console: the microphone check loads before Champ's guide |
 | 137 | 1.0.137| 2026-11-18 23:05| mic-eye| `7d86f2d` | About: Sashi's profile rewritten around Program, Project and AI (pioneer bridging AI into project management), with a Talk to Sashi button |
-| 138 | 1.0.138 | 2026-11-18 23:29 | bio | _this commit_ | _see git log_ |
+| 138 | 1.0.138| 2026-11-18 23:29| bio| `7b8d20d` | About: profile rewritten around Program, Project and AI (#15) |
+| 139 | 1.0.139| 2026-11-19 01:26| globe-speed| `7b8d20d` | About: profile rewritten around Program, Project and AI (#15) |
+| 140 | 1.0.140 | 2026-11-19 01:26 | globe-speed | _this commit_ | _see git log_ |
