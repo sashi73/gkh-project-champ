@@ -1,0 +1,352 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>GKH Project Champ in two minutes</title>
+<link rel="stylesheet" href="assets/champ-scripts.css?v=1">
+<style>
+@font-face{font-family:'Archivo';src:url('assets/fonts/archivo.woff2') format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'Manrope';src:url('assets/fonts/manrope.woff2') format('woff2');font-weight:200 800;font-display:swap}
+html,body{margin:0;background:#0D0C09;overflow:hidden;height:100%}
+#stage{position:absolute;left:0;top:0;transform-origin:0 0;width:1920px;height:1080px;overflow:hidden;background:#0D0C09;font-family:Manrope,ChampScript,system-ui,sans-serif;color:#fff}
+#glow{position:absolute;width:1400px;height:1400px;border-radius:50%;background:radial-gradient(circle,rgba(232,192,74,.16),rgba(232,192,74,0) 62%);left:0;top:0}
+#ring{position:absolute;width:900px;height:900px;border:2px solid rgba(232,192,74,.22);border-radius:50%}
+.sc{position:absolute;inset:0;display:none}
+.H{overflow-wrap:break-word;text-wrap:balance;font-family:Archivo,ChampScript,sans-serif;font-weight:900;letter-spacing:-.015em;line-height:1}
+.gold{color:#E8C04A}.red{color:#FF5A5F}.mut{color:#BDB5A1}
+.eb{font-weight:800;font-size:26px;letter-spacing:.22em;color:#E8C04A}
+.a{will-change:transform,opacity}
+.foot{position:absolute;left:120px;bottom:70px;font-size:22px;color:#8F8873}
+.num{font-family:Archivo,sans-serif;font-weight:900;font-size:40px;color:#0D0C09;background:#E8C04A;border-radius:14px;padding:8px 18px;display:inline-block}
+.card{background:#1A1812;border:1px solid #3A3322;border-radius:22px}
+.chip{display:inline-flex;align-items:center;gap:12px;border:1.5px solid #5A4F33;border-radius:999px;padding:14px 26px;font-size:28px;font-weight:700}
+.dot{width:16px;height:16px;border-radius:50%;display:inline-block}
+.wm{position:absolute;right:70px;top:56px;display:flex;align-items:center;gap:14px;font-family:Archivo,ChampScript,sans-serif;font-weight:800;font-size:22px;letter-spacing:.18em;color:#E8C04A}
+</style></head><body>
+<div hidden id="src">
+<span data-s="b0">Time index 0.82: 19 days behind baseline</span><span data-s="b1">CPI 0.88: heading 12% over budget</span><span data-s="b2">3 critical issues open, oldest 16 days</span>
+<span data-s="b4">If this were my project, I would:</span><span data-s="b5">1. Add a second crew on the cooling install</span><span data-s="b6">2. Escalate switchgear delivery to the supplier</span><span data-s="b7">3. Release contingency only against the recovery plan</span>
+<span data-s="q">What's slipping on the Mekong program?</span></div>
+<div id="stage">
+<div id="glow"></div><div id="ring"></div>
+<div class="wm" id="wm" data-noi18n><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#E8C04A" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>GKH PROJECT CHAMP</div>
+
+<!-- S1 waste -->
+<div class="sc" id="s1">
+ <div style="position:absolute;left:160px;top:190px">
+  <div class="eb a" data-k="a">EVERY YEAR</div>
+  <div class="H a" data-k="b" style="font-size:96px;margin-top:26px">Organisations waste</div>
+  <div class="H gold a" data-k="c" style="font-size:330px;margin-top:6px;letter-spacing:-.03em"><span id="n1" data-noi18n>0.0</span>%</div>
+  <div class="a" data-k="d" style="font-size:52px;font-weight:600;margin-top:10px">of everything they invest in projects.</div>
+ </div>
+ <div class="foot a" data-k="f">PMI Pulse of the Profession 2020</div>
+</div>
+
+<!-- S2 late / over -->
+<div class="sc" id="s2">
+ <div style="position:absolute;left:160px;top:170px;width:1600px">
+  <div class="a" data-k="a" style="display:flex;align-items:baseline;gap:40px"><span class="H red" style="font-size:190px" id="n2a" data-noi18n>0%</span><span style="font-size:54px;font-weight:700">of projects finish late.</span></div>
+  <div style="height:26px;background:#2A2619;border-radius:13px;margin:18px 0 70px"><div id="b2a" style="height:100%;width:0;background:#FF5A5F;border-radius:13px"></div></div>
+  <div class="a" data-k="b" style="display:flex;align-items:baseline;gap:40px"><span class="H red" style="font-size:190px" id="n2b" data-noi18n>0%</span><span style="font-size:54px;font-weight:700">go over budget.</span></div>
+  <div style="height:26px;background:#2A2619;border-radius:13px;margin-top:18px"><div id="b2b" style="height:100%;width:0;background:#FF5A5F;border-radius:13px"></div></div>
+ </div>
+ <div class="foot a" data-k="f">PMI Pulse of the Profession 2018</div>
+</div>
+
+<!-- S3 Australia -->
+<div class="sc" id="s3">
+ <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+  <div class="a" data-k="a" style="font-size:64px;font-weight:700">In Australia,</div>
+  <div class="H gold a" data-k="b" style="font-size:400px;letter-spacing:-.03em"><span id="n3" data-noi18n>0.0</span>¢</div>
+  <div class="a" data-k="c" style="font-size:64px;font-weight:700">of every project dollar</div>
+  <div class="H red a" data-k="d" style="font-size:150px;margin-top:20px">is wasted.</div>
+ </div>
+ <div class="foot a" data-k="f">PMI Pulse of the Profession 2018: the highest of any country surveyed</div>
+</div>
+
+<!-- S4 warning signs -->
+<div class="sc" id="s4">
+ <div class="H a" data-k="a" style="position:absolute;left:160px;top:150px;width:1600px;font-size:110px">Projects don't fail overnight.</div>
+ <div style="position:absolute;left:160px;top:560px;width:1600px;height:6px;background:#2A2619;border-radius:3px"><div id="l4" style="height:100%;width:0;background:linear-gradient(90deg,#3FB27F,#E8C04A 55%,#FF5A5F);border-radius:3px"></div></div>
+ <div id="sig4"></div>
+ <div class="a" data-k="e" style="position:absolute;left:160px;top:800px;font-size:60px;font-weight:700;line-height:1.25">The warning signs were there.<br><span class="gold">Nobody saw them in time.</span></div>
+</div>
+
+<!-- S5 logo -->
+<div class="sc" id="s5">
+ <svg style="position:absolute;left:360px;top:-60px" width="1200" height="1200" viewBox="0 0 1200 1200"><circle id="c5" cx="600" cy="600" r="560" fill="none" stroke="#E8C04A" stroke-opacity=".55" stroke-width="4" stroke-dasharray="3520" stroke-dashoffset="3520" transform="rotate(-90 600 600)"/></svg>
+ <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+  <div class="eb a" data-k="a" style="font-size:34px;letter-spacing:.32em" data-noi18n>GKH PROJECT CHAMP</div>
+  <div class="H a" data-k="b" style="font-size:170px;margin-top:40px">Every project.</div>
+  <div class="H gold a" data-k="c" style="font-size:170px;margin-top:10px">One champion.</div>
+  <div class="a mut" data-k="d" style="font-size:46px;font-weight:600;margin-top:50px">The AI project office that rescues projects before they go bad.</div>
+ </div>
+</div>
+
+<!-- S6 plans -->
+<div class="sc" id="s6">
+ <div style="position:absolute;left:140px;top:250px;width:620px">
+  <div class="num a" data-k="a">01</div>
+  <div class="H a" data-k="b" style="font-size:104px;margin-top:34px">Plans in minutes.</div>
+  <div class="a mut" data-k="c" style="font-size:40px;font-weight:600;line-height:1.35;margin-top:30px">Charter, WBS, Gantt and costs, drafted by AI from a one-page brief.</div>
+ </div>
+ <div class="card a" data-k="g" style="position:absolute;left:840px;top:170px;width:960px;height:740px;padding:40px;box-sizing:border-box" id="g6"></div>
+</div>
+
+<!-- S7 watch -->
+<div class="sc" id="s7">
+ <div style="position:absolute;left:140px;top:110px">
+  <div class="num a" data-k="a">02</div>
+  <div class="H a" data-k="b" style="font-size:92px;margin-top:26px">Watches every project. <span class="gold">Every morning.</span></div>
+ </div>
+ <div id="grid7" data-noi18n style="position:absolute;left:140px;top:400px;width:1640px;display:grid;grid-template-columns:repeat(4,1fr);gap:22px"></div>
+ <div id="scan7" style="position:absolute;top:380px;width:6px;height:520px;background:#E8C04A;box-shadow:0 0 40px 12px rgba(232,192,74,.5);opacity:0"></div>
+ <div class="a" data-k="t" style="position:absolute;left:140px;top:935px;display:flex;gap:22px">
+  <span class="chip"><i class="dot" style="background:#FF5A5F"></i>Act now: 3</span>
+  <span class="chip"><i class="dot" style="background:#F2B43A"></i>Watch: 3</span>
+  <span class="chip"><i class="dot" style="background:#3FB27F"></i>On track: 6</span>
+ </div>
+</div>
+
+<!-- S8 brief -->
+<div class="sc" id="s8">
+ <div style="position:absolute;left:140px;top:250px;width:560px">
+  <div class="num a" data-k="a">03</div>
+  <div class="H a" data-k="b" style="font-size:96px;margin-top:34px">Tells you why.</div>
+  <div class="H gold a" data-k="c" style="font-size:96px;margin-top:14px">And what to do.</div>
+ </div>
+ <div class="card a" data-k="g" style="position:absolute;left:780px;top:150px;width:1000px;height:780px;padding:46px 54px;box-sizing:border-box;border-color:#5A2A2A">
+  <div style="display:flex;align-items:center;gap:16px"><i class="dot" style="background:#FF5A5F;width:24px;height:24px" id="pulse8"></i><span class="H" style="font-size:44px">Penang Data Centre is red</span></div>
+  <div id="ty8" data-noi18n style="margin-top:34px;font-size:31px;line-height:1.5;color:#E7E2D6;white-space:pre-wrap"></div>
+ </div>
+</div>
+
+<!-- S9 voice -->
+<div class="sc" id="s9">
+ <div style="position:absolute;left:140px;top:150px">
+  <div class="num a" data-k="a">04</div>
+  <div class="H a" data-k="b" style="font-size:120px;margin-top:30px">Just ask.</div>
+ </div>
+ <div id="wave9" style="position:absolute;left:140px;top:500px;width:700px;height:200px;display:flex;align-items:center;gap:10px"></div>
+ <div class="card a" data-k="q" style="position:absolute;left:960px;top:260px;width:820px;padding:34px 40px;box-sizing:border-box;font-size:38px;font-weight:700;border-radius:30px 30px 30px 6px"><span id="q9" data-noi18n></span></div>
+ <div class="a" data-k="r" style="position:absolute;left:1060px;top:470px;width:720px;padding:34px 40px;box-sizing:border-box;font-size:34px;font-weight:700;background:#E8C04A;color:#0D0C09;border-radius:30px 30px 6px 30px">Two tasks late, one at risk. Here is the recovery plan.</div>
+ <div class="a" data-k="l" style="position:absolute;left:140px;top:820px;font-size:44px;font-weight:700">Talk or type in 19 languages: <span class="gold" id="lang9" data-noi18n>English</span></div>
+</div>
+
+<!-- S10 ways of working -->
+<div class="sc" id="s10">
+ <div style="position:absolute;left:140px;top:100px">
+  <div class="num a" data-k="a">05</div>
+  <div class="H a" data-k="b" style="font-size:92px;margin-top:26px">Your way of working.</div>
+ </div>
+ <div id="kb10" style="position:absolute;left:140px;top:380px;width:1640px;height:440px"></div>
+ <div id="chips10" style="position:absolute;left:140px;top:870px;display:flex;gap:18px;flex-wrap:wrap;width:1640px"></div>
+</div>
+
+<!-- S11 lessons -->
+<div class="sc" id="s11">
+ <div style="position:absolute;left:140px;top:110px;width:1640px">
+  <div class="num a" data-k="a">06</div>
+  <div class="H a" data-k="b" style="font-size:92px;margin-top:26px">Every finished project <span class="gold">makes the next one better.</span></div>
+ </div>
+ <div class="card a" data-k="c" style="position:absolute;left:140px;top:480px;width:700px;padding:40px;box-sizing:border-box;border-color:#5A2A2A">
+  <div class="eb" style="color:#FF5A5F">FINISHED: FAILED</div>
+  <div class="H" style="font-size:44px;margin-top:16px" data-noi18n>Turkana Water Program</div>
+  <div style="font-size:30px;line-height:1.6;margin-top:18px;color:#E7E2D6">Time index 0.72<br>116 days late<br>24% over budget</div>
+ </div>
+ <svg class="a" data-k="d" style="position:absolute;left:870px;top:610px" width="180" height="80" viewBox="0 0 180 80"><path d="M0 40h160M130 10l34 30-34 30" fill="none" stroke="#E8C04A" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+ <div class="card a" data-k="e" style="position:absolute;left:1080px;top:480px;width:700px;padding:40px;box-sizing:border-box;border-color:#5A4F33">
+  <div class="eb">HOW CHAMP WOULD DO IT BETTER</div>
+  <div style="font-size:30px;line-height:1.55;margin-top:18px;color:#E7E2D6">Lock long-lead items before design freeze.<br>Weekly cost actuals, not monthly.<br>Escalate any issue open past 10 days.</div>
+  <div class="gold" style="font-size:28px;font-weight:800;margin-top:20px">Saved to lessons learned. Reused on the next plan.</div>
+ </div>
+</div>
+
+<!-- S12 ROI -->
+<div class="sc" id="s12">
+ <div style="position:absolute;left:160px;top:130px">
+  <div class="eb a" data-k="a">ON A $10M PROJECT PORTFOLIO</div>
+ </div>
+ <div style="position:absolute;left:160px;top:250px;width:1600px">
+  <div class="a" data-k="b" style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #3A3322;padding-bottom:22px"><span style="font-size:46px;font-weight:700">Waste recovered by earlier warning</span><span class="H" style="font-size:96px" id="n12a" data-noi18n>$0</span></div>
+  <div class="a" data-k="c" style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #3A3322;padding:30px 0 22px"><span style="font-size:46px;font-weight:700">Project manager time given back</span><span class="H" style="font-size:96px" id="n12b" data-noi18n>$0</span></div>
+  <div class="a" data-k="d" style="display:flex;justify-content:space-between;align-items:baseline;padding-top:36px"><span class="H gold" style="font-size:72px">Value every year</span><span class="H gold" style="font-size:170px" id="n12c" data-noi18n>$0</span></div>
+ </div>
+ <div class="foot a" data-k="f" style="width:1680px">Illustrative example. Assumes 11.4% waste (PMI 2020) with one third recovered, and 10 PMs each saving 5 hours a week at $120 an hour.</div>
+</div>
+
+<!-- S13 CTA -->
+<div class="sc" id="s13">
+ <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+  <div class="H a" data-k="a" style="font-size:150px">Stop paying for projects</div>
+  <div class="H gold a" data-k="b" style="font-size:150px;margin-top:10px">that go bad.</div>
+  <div class="a" data-k="c" style="margin-top:80px;display:flex;flex-direction:column;align-items:center;gap:26px">
+   <div class="eb" style="font-size:34px;letter-spacing:.32em" data-noi18n>GKH PROJECT CHAMP</div>
+   <div style="background:#E8C04A;color:#0D0C09;border-radius:999px;padding:24px 50px;font-family:Archivo,ChampScript,sans-serif;font-weight:800;font-size:46px">Book a demo: gkhpmo.com</div>
+  </div>
+ </div>
+</div>
+</div>
+
+<script>
+const cl=x=>Math.max(0,Math.min(1,x));
+const eo=x=>1-Math.pow(1-cl(x),3);
+const eio=x=>{x=cl(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+const $=s=>document.querySelector(s);
+const S=[ // id, start, dur
+ ['s1',0,9],['s2',9,9],['s3',18,8],['s4',26,9],['s5',35,9],['s6',44,10],['s7',54,10],['s8',64,12],['s9',76,8],['s10',84,10],['s11',94,8],['s12',102,10],['s13',112,8]];
+function rise(sc,k,lt,t0,d=.7,dist=50){const el=sc.querySelector(`[data-k="${k}"]`);const p=eo((lt-t0)/d);el.style.opacity=p;el.style.transform=`translateY(${(1-p)*dist}px)`;return p}
+function pop(sc,k,lt,t0,d=.6){const el=sc.querySelector(`[data-k="${k}"]`);const p=eo((lt-t0)/d);el.style.opacity=p;el.style.transform=`scale(${.92+.08*p})`;return p}
+const money=v=>'$'+Math.round(v).toLocaleString('en-US');
+
+// build S6 gantt
+{const rows=['Site survey','Design','Approvals','Procurement','Build','Fit-out','Testing','Handover'];const st=[0,.08,.26,.32,.45,.66,.8,.92],ln=[.1,.2,.1,.2,.25,.16,.12,.08];
+let h='<div style="display:flex;justify-content:space-between;font-size:24px;font-weight:700;color:#8F8873;margin-bottom:26px"><span>Program plan</span><span>Critical path in red</span></div>';
+rows.forEach((r,i)=>{const crit=[1,3,4,6,7].includes(i);h+=`<div style="display:flex;align-items:center;height:72px"><span style="width:230px;font-size:27px;font-weight:700">${r}</span><div style="position:relative;flex:1;height:34px"><div class="gb" data-s="${st[i]}" data-l="${ln[i]}" style="position:absolute;top:0;height:34px;border-radius:8px;left:${st[i]*100}%;width:0;background:${crit?'#FF5A5F':'#E8C04A'}"></div></div></div>`});
+h+='<div id="ms6" style="margin-top:20px;font-size:28px;font-weight:700;opacity:0"><span class="gold">Budget</span> $4.2M &nbsp;·&nbsp; <span class="gold">Finish</span> 14 Aug &nbsp;·&nbsp; <span class="gold">Milestones</span> 6</div>';
+$('#g6').innerHTML=h}
+// build S7 grid
+{const P=[['Thu Duc Depot','G'],['Penang Data Centre','R'],['Parramatta Clinic','A'],['Harbourline Mobile','G'],['Open Banking API','R'],['Cloud Data Platform','G'],['Mekong Clean Water','A'],['Sabah Schools','G'],['Western Sydney Hub','R'],['SAP Rollout','G'],['Pilbara Camp','A'],['Obuasi Training','G']];
+$('#grid7').innerHTML=P.map(([n,c],i)=>`<div class="card" data-c="${c}" style="height:110px;padding:0 28px;display:flex;align-items:center;gap:20px;box-sizing:border-box"><i class="dot" style="width:22px;height:22px;background:#4A4535"></i><span style="font-size:29px;font-weight:700">${n}</span></div>`).join('')}
+// S9 wave
+$('#wave9').innerHTML=Array.from({length:36},()=>'<i style="flex:1;background:#E8C04A;border-radius:6px;height:10px"></i>').join('');
+// S10 kanban
+{let h='';['To do','Doing','Done'].forEach((c,i)=>{h+=`<div style="position:absolute;left:${i*560}px;top:0;width:520px;height:440px;background:#16140F;border:1px solid #3A3322;border-radius:22px"><div style="padding:24px 30px;font-size:30px;font-weight:800" class="${i==2?'gold':''}">${c}</div></div>`});
+const notes=[['Pour level 2 slab','#E8C04A'],['Cooling vendor sign-off','#FF8A8D'],['Sprint 4 demo','#9BD7B8'],['Permit lodgement','#E8C04A'],['UAT test cases','#9BD7B8']];
+notes.forEach((n,i)=>{h+=`<div class="nt" style="position:absolute;width:440px;height:74px;border-radius:10px;background:${n[1]};color:#0D0C09;font-size:27px;font-weight:800;display:flex;align-items:center;padding:0 24px;box-sizing:border-box;box-shadow:0 10px 24px rgba(0,0,0,.4)">${n[0]}</div>`});
+$('#kb10').innerHTML=h;
+$('#chips10').innerHTML=['Waterfall','Scrum','Kanban','Costing','Bill of Materials','Earned value','Risks and issues','Stakeholders'].map(c=>`<span class="chip" style="opacity:0">${c}</span>`).join('')}
+
+const SRC=k=>{const e=document.querySelector('[data-s="'+k+'"]');return e?e.textContent:'';};
+const brief=()=>[[SRC('b0'),0],[SRC('b1'),0],[SRC('b2'),0],['',0],[SRC('b4'),1],[SRC('b5'),2],[SRC('b6'),2],[SRC('b7'),2]];
+const langs=['English','Bahasa Melayu','Bahasa Indonesia','Français','Español','Deutsch','Kiswahili','Português','Italiano'];
+
+function render(t){
+ // background glow drift
+ $('#glow').style.transform=`translate(${520+Math.sin(t*.13)*420}px,${-260+Math.cos(t*.09)*240}px)`;
+ $('#ring').style.transform=`translate(${1250+Math.cos(t*.07)*120}px,${-380+Math.sin(t*.11)*80}px) scale(${1+.05*Math.sin(t*.3)})`;
+ $('#wm').style.opacity=(t>44&&t<112)?.85:0;
+ for(const [id,st,du] of S){
+  const sc=$('#'+id),lt=t-st;
+  if(lt<0||lt>=du){sc.style.display='none';continue}
+  sc.style.display='block';
+  const fi=cl(lt/.35),fo=1-cl((lt-(du-.4))/.4);
+  sc.style.opacity=Math.min(fi,fo);
+  U[id](sc,lt,du);
+ }
+}
+const U={
+ s1(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.7);pop(sc,'c',lt,1.4,.5);$('#n1').textContent=(11.4*eo((lt-1.4)/2.4)).toFixed(1);rise(sc,'d',lt,3.6);rise(sc,'f',lt,4.6)},
+ s2(sc,lt){rise(sc,'a',lt,.2);const p=eo((lt-.5)/1.8);$('#n2a').textContent=Math.round(48*p)+'%';$('#b2a').style.width=48*p+'%';
+  rise(sc,'b',lt,2.6);const q=eo((lt-2.9)/1.8);$('#n2b').textContent=Math.round(43*q)+'%';$('#b2b').style.width=43*q+'%';rise(sc,'f',lt,4)},
+ s3(sc,lt){rise(sc,'a',lt,.2);pop(sc,'b',lt,.8);$('#n3').textContent=(13.9*eo((lt-.8)/2)).toFixed(1);rise(sc,'c',lt,2.2);pop(sc,'d',lt,3.4,.35);rise(sc,'f',lt,4.2)},
+ s4(sc,lt){rise(sc,'a',lt,.2);const p=eio((lt-1)/3.4);$('#l4').style.width=p*100+'%';
+  const sg=[[.22,'Task slips 4 days','#E8C04A'],[.45,'Cost creeps 6%','#E8C04A'],[.68,'Issue open 3 weeks','#F2B43A'],[1,'Found out here','#FF5A5F']];
+  if(!sc._b){sc._b=1;if(!$('#sig4').children.length)$('#sig4').innerHTML=sg.map(([x,l,c],i)=>`<div class="sg" style="position:absolute;left:${160+x*1600}px;top:563px;opacity:0"><div style="position:absolute;left:-${i==3?22:16}px;top:-${i==3?22:16}px;width:${i==3?44:32}px;height:${i==3?44:32}px;border-radius:50%;background:${c};box-shadow:0 0 30px ${c}"></div><div style="position:absolute;${i==3?'right:-10px':'left:-10px'};top:${i%2?54:-110}px;white-space:nowrap;font-size:32px;font-weight:800;color:${c}">${l}</div></div>`).join('')}
+  sc.querySelectorAll('.sg').forEach((el,i)=>{const x=sg[i][0];const q=eo((p-x)*12+ (p>=x?.2:0));el.style.opacity=p>=x-.001?q:0;el.firstChild.style.transform=`scale(${.4+.6*q})`});
+  rise(sc,'e',lt,5.2)},
+ s5(sc,lt){$('#c5').setAttribute('stroke-dashoffset',3520*(1-eio(lt/1.6)));rise(sc,'a',lt,.9);pop(sc,'b',lt,1.7,.5);pop(sc,'c',lt,2.4,.5);rise(sc,'d',lt,3.8)},
+ s6(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);rise(sc,'c',lt,1.1);rise(sc,'g',lt,.4,.8,30);
+  sc.querySelectorAll('.gb').forEach((b,i)=>{const p=eo((lt-1.4-i*.32)/.8);b.style.width=(+b.dataset.l*100*p)+'%'});
+  $('#ms6').style.opacity=eo((lt-4.6)/.6)},
+ s7(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);
+  const cards=sc.querySelectorAll('#grid7 .card');const sx=eio((lt-2.2)/2.6);const scan=$('#scan7');
+  scan.style.opacity=(lt>2.1&&lt<5)?1:0;scan.style.left=(120+sx*1680)+'px';
+  cards.forEach((c,i)=>{const p=eo((lt-.9-i*.06)/.5);c.style.opacity=p;c.style.transform=`translateY(${(1-p)*30}px)`;
+   const cx=(i%4)/4+.12;const on=sx>cx;const col={G:'#3FB27F',A:'#F2B43A',R:'#FF5A5F'}[c.dataset.c];const d=c.querySelector('.dot');
+   d.style.background=on?col:'#4A4535';d.style.boxShadow=on&&c.dataset.c=='R'?`0 0 ${14+10*Math.sin(lt*6)}px #FF5A5F`:'none';c.style.borderColor=on&&c.dataset.c=='R'?'#7A3434':'#3A3322'});
+  rise(sc,'t',lt,5.2)},
+ s8(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);rise(sc,'c',lt,1.2);rise(sc,'g',lt,.3,.8,30);
+  $('#pulse8').style.boxShadow=`0 0 ${16+12*Math.sin(lt*5)}px #FF5A5F`;
+  let chars=Math.max(0,(lt-1.6)*38),out='';
+  for(const [s,k] of brief()){if(chars<=0)break;const part=s.slice(0,Math.floor(chars));chars-=s.length+4;
+   out+= k==1?`<span style="color:#E8C04A;font-weight:800">${part}</span>\n`:k==2?`<span style="color:#fff;font-weight:700">${part}</span>\n`:part+'\n'}
+  $('#ty8').innerHTML=out},
+ s9(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);
+  const talk=lt>.9&&lt<3.6;sc.querySelectorAll('#wave9 i').forEach((b,i)=>{const a=talk?(.25+.75*Math.abs(Math.sin(lt*9+i*.7)*Math.sin(lt*3.1+i*.23))):.06;b.style.height=(10+190*a)+'px'});
+  rise(sc,'q',lt,1,.5,20);const q=SRC('q');$('#q9').textContent=q.slice(0,Math.floor(Math.max(0,lt-1.1)*20));
+  rise(sc,'r',lt,3.9,.6,20);rise(sc,'l',lt,4.6);$('#lang9').textContent=langs[Math.floor(Math.max(0,lt-4.6)/.42)%langs.length]},
+ s10(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);const kb=$('#kb10');kb.style.opacity=eo((lt-.7)/.6);
+  const pos=[[0,0],[0,1],[1,0],[0,2],[1,1]];const moves=[[1.9,1,0],[2.9,0,1],[3.8,2,1],[4.6,1,2],[5.4,0,2]];
+  sc.querySelectorAll('.nt').forEach((n,i)=>{let [c,r]=pos[i];let x=c*560+40,y=90+r*100;
+   for(const [tm,ni,toCol] of moves){if(ni!==i)continue;const p=eio((lt-tm)/.8);const nx=toCol*560+40;x=x+(nx-x)*p;y=y-40*Math.sin(Math.PI*p);if(p>=1)c=toCol}
+   n.style.left=x+'px';n.style.top=y+'px'});
+  sc.querySelectorAll('#chips10 .chip').forEach((c,i)=>{const p=eo((lt-6.2-i*.15)/.5);c.style.opacity=p;c.style.transform=`translateY(${(1-p)*24}px)`})},
+ s11(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);rise(sc,'c',lt,1.4);const el=sc.querySelector('[data-k="d"]');const p=eo((lt-2.6)/.6);el.style.opacity=p;el.style.transform=`translateX(${(p-1)*60}px)`;rise(sc,'e',lt,3.1)},
+ s12(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.7);$('#n12a').textContent=money(380000*eo((lt-1)/1.8));
+  rise(sc,'c',lt,2.5);$('#n12b').textContent=money(276000*eo((lt-2.8)/1.8));
+  rise(sc,'d',lt,4.6);$('#n12c').textContent=money(656000*eo((lt-4.8)/2));rise(sc,'f',lt,5.8)},
+ s13(sc,lt,du){pop(sc,'a',lt,.3,.5);pop(sc,'b',lt,1.1,.5);rise(sc,'c',lt,2.6,.9);
+  sc.style.opacity=Math.min(cl(lt/.35),1-cl((lt-6.6)/1.4))}
+};
+
+</script>
+<style>
+.ov{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(circle at 50% 50%,rgba(13,12,9,.25),rgba(13,12,9,.72));z-index:5;font-family:Manrope,ChampScript,system-ui,sans-serif;color:#fff;cursor:pointer}
+.ov[hidden]{display:none}
+.ov-start{flex-direction:row;align-items:flex-end;justify-content:flex-start;padding:0 0 5.5% 5.5%;box-sizing:border-box;background:linear-gradient(0deg,rgba(13,12,9,.75),rgba(13,12,9,0) 45%)}
+.ov-start .big{width:clamp(54px,8vw,84px);height:clamp(54px,8vw,84px)}
+.ov-start .ovt{font-size:clamp(14px,2.2vw,24px)}
+.big{width:clamp(64px,11vw,108px);height:clamp(64px,11vw,108px);border-radius:50%;border:0;background:#E8C04A;display:grid;place-items:center;cursor:pointer;box-shadow:0 0 0 10px rgba(232,192,74,.22),0 14px 40px rgba(0,0,0,.45);transition:transform .2s}
+.big:hover{transform:scale(1.06)}
+.big svg{width:42%;height:42%;margin-left:8%}
+.ovt{font-weight:800;font-size:clamp(13px,1.9vw,19px);letter-spacing:.04em;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+.ctl{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(transparent,rgba(0,0,0,.7));opacity:0;transition:opacity .3s;font:700 13px/1 Manrope,system-ui,sans-serif;color:#fff}
+.ctl.on,body:hover .ctl.live{opacity:1}
+.ctl button{background:none;border:0;color:#fff;cursor:pointer;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;padding:0}
+.ctl button:hover{background:rgba(255,255,255,.14)}
+.ctl svg{width:20px;height:20px}
+.bar{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.28);cursor:pointer;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:#E8C04A;border-radius:3px;width:0}
+.bar:hover{height:8px}
+.again{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.again button,.again a{font:800 clamp(13px,1.8vw,17px)/1 Manrope,ChampScript,system-ui,sans-serif;border-radius:999px;padding:14px 24px;cursor:pointer;text-decoration:none}
+.again button{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.4)}
+.again a{background:#E8C04A;color:#0D0C09;border:0}
+</style>
+<div class="ov ov-start" id="ov"><button class="big" id="big" type="button" aria-label="Play the film"><svg viewBox="0 0 24 24" fill="#0D0C09"><path d="M6 4l15 8-15 8z"/></svg></button><div class="ovt">Champ in two minutes</div></div>
+<div class="ov" id="endov" hidden><div class="again"><button type="button" id="again">Watch again</button><a href="contact.html" target="_top">Book a demo</a></div></div>
+<div class="ctl" id="ctl">
+  <button type="button" id="pp" aria-label="Pause"><svg viewBox="0 0 24 24" fill="#fff" id="ppi"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+  <div class="bar" id="bar" role="slider" aria-label="Position in the film" aria-valuemin="0" aria-valuemax="120" tabindex="0"><i id="fill"></i></div>
+  <span id="tm" data-noi18n>0:00 / 2:00</span>
+  <button type="button" id="mu" aria-label="Sound on or off"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="mui"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="#fff"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
+  <button type="button" id="fs" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+</div>
+<script>
+// the film plays on the music's clock; every word on screen is page text, so the site's translator shows it in the visitor's language
+(function(){
+  const D=120, POSTER=39.9, A=new Audio('assets/promo/champ-promo.m4a'); A.preload='auto';
+  const st=document.getElementById('stage'), ov=document.getElementById('ov'), endov=document.getElementById('endov'), ctl=document.getElementById('ctl');
+  let playing=false, t0=0, at=POSTER, silent=false, hideT=0;
+  const fit=()=>{const s=Math.min(innerWidth/1920,innerHeight/1080);st.style.transform='translate('+((innerWidth-1920*s)/2)+'px,'+((innerHeight-1080*s)/2)+'px) scale('+s+')';};
+  addEventListener('resize',fit); fit();
+  render(30); render(POSTER);   // builds every scene once, then shows the title frame
+  const fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');
+  const ui=()=>{document.getElementById('fill').style.width=(at/D*100)+'%';document.getElementById('tm').textContent=fmt(at)+' / 2:00';document.getElementById('bar').setAttribute('aria-valuenow',Math.round(at));
+    document.getElementById('ppi').innerHTML=playing?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M6 4l15 8-15 8z"/>';document.getElementById('pp').setAttribute('aria-label',playing?'Pause':'Play');};
+  const now=()=>silent?(performance.now()-t0)/1000:(Math.abs(A.currentTime-(performance.now()-t0)/1000)>0.25?(t0=performance.now()-A.currentTime*1000,A.currentTime):(performance.now()-t0)/1000);
+  const loop=()=>{if(!playing)return;at=Math.min(D,now());render(Math.min(at,D-0.01));ui();if(at>=D-0.02){stop(true);return;}requestAnimationFrame(loop);};
+  const play=()=>{ if(at>=D-0.05) at=0; ov.hidden=true; endov.hidden=true; ctl.classList.add('live'); playing=true; silent=false; A.currentTime=at; t0=performance.now()-at*1000;
+    const pr=A.play(); if(pr&&pr.catch) pr.catch(()=>{silent=true;t0=performance.now()-at*1000;}); poke(); requestAnimationFrame(loop); };
+  const stop=(end)=>{ playing=false; A.pause(); ui(); if(end){ at=D; endov.hidden=false; ctl.classList.remove('live'); } };
+  const seek=x=>{ at=Math.max(0,Math.min(D-0.05,x)); A.currentTime=at; t0=performance.now()-at*1000; render(at); ui(); endov.hidden=true;
+    const want=at; setTimeout(()=>{ if(playing&&!silent&&Math.abs(A.currentTime-want)>1.5&&Math.abs(A.currentTime-at)>1.5){ silent=true; A.pause(); } },600); };   // the audio could not jump there: keep the pictures on time without it
+  const poke=()=>{ctl.classList.add('on');clearTimeout(hideT);hideT=setTimeout(()=>{if(playing)ctl.classList.remove('on');},2500);};
+  document.getElementById('big').onclick=e=>{e.stopPropagation();play();}; ov.onclick=play;
+  document.getElementById('again').onclick=e=>{e.stopPropagation();at=0;play();};
+  document.getElementById('pp').onclick=()=>playing?stop():play();
+  st.addEventListener('click',()=>{ if(!ov.hidden||!endov.hidden) return; playing?stop():play(); });
+  document.getElementById('mu').onclick=()=>{A.muted=!A.muted;document.getElementById('mui').style.opacity=A.muted?.4:1;};
+  document.getElementById('fs').onclick=()=>{const d=document; if(d.fullscreenElement) d.exitFullscreen(); else if(d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(()=>{});};
+  const bar=document.getElementById('bar'); let drag=false;
+  const bx=e=>{const r=bar.getBoundingClientRect();seek((e.clientX-r.left)/r.width*D);};
+  bar.onpointerdown=e=>{drag=true;bar.setPointerCapture(e.pointerId);bx(e);}; bar.onpointermove=e=>{if(drag)bx(e);}; bar.onpointerup=()=>{drag=false;};
+  addEventListener('mousemove',poke);
+  addEventListener('keydown',e=>{ if(e.key===' '||e.key==='k'){e.preventDefault();playing?stop():play();} else if(e.key==='ArrowRight'){seek(at+5);} else if(e.key==='ArrowLeft'){seek(at-5);} else if(e.key==='m'){document.getElementById('mu').click();} });
+  addEventListener('storage',e=>{ if(e.key==='champLang') location.reload(); });   // the visitor changed the site's language
+  ui();
+})();
+</script>
+<script src="assets/champ-i18n.js?v=5" defer></script>
+</body></html>

@@ -169,7 +169,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
     GOOGLE_CLIENT_ID: CLIENT, GOOGLE_TOKENINFO_URL: `http://127.0.0.1:${g.address().port}/tokeninfo`, LLM_API_KEY: 'test-key', CHAMP_I18N_LIMIT: '400', LIMIT_ADMIN: '5000/10', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', TELEGRAM_BOT_TOKEN: '', AZURE_SPEECH_KEY: 'az-test', AZURE_SPEECH_BASE: `http://127.0.0.1:${az.address().port}`, AZURE_STT_ENDPOINT: `http://127.0.0.1:${az.address().port}`, RESEND_API_KEY: '', SITE_ENV: '', R2_ACCOUNT_ID: 'acct-test', R2_BUCKET: 'gkh-test', R2_ACCESS_KEY_ID: 'r2-test-id', R2_SECRET_ACCESS_KEY: 'r2-test-secret', R2_ENDPOINT: `http://127.0.0.1:${r2srv.address().port}` };
   const srv = spawn('node', ['local-server.mjs'], { cwd: SITE, env, stdio: ['ignore', 'pipe', 'pipe'] }); global.SRV = srv;
-  let log = ''; srv.stdout.on('data', (d) => (log += d)); srv.stderr.on('data', (d) => (log += d));
+  let log = ''; global.SRVLOG = () => log; srv.on('exit', (c, sg) => { global.SRVEXIT = c + ' ' + sg; }); srv.stdout.on('data', (d) => (log += d)); srv.stderr.on('data', (d) => (log += d));
   for (let i = 0; i < 60 && !/running/i.test(log); i++) await sleep(150);
 
   const b = await chromium.launch({ executablePath: fs.existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined, args: ['--use-fake-device-for-media-stream'] });
@@ -185,6 +185,20 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   const toKanban = async (core) => { const pl = (await (await api('planGet', { core })).json()).plan; if (!pl) return; pl.agile = { method: 'kanban', wip: { todo: 90, doing: 90, review: 90 }, cycle: 14, sprints: [] }; pl.tasks.forEach((t) => { if (t.dur > 0) t.ag = 'board'; }); const sr = await api('planSave', { core, plan: pl, rev: pl.rev }); if (!sr.ok) console.log('toKanban save', sr.status, (await sr.text()).slice(0, 200)); };
 
   // ---- public site ----
+  // ▶ the 2-minute film on the home page, and the About page profile
+  {
+    await p.goto(`${BASE}/index.html`); const fr = await p.$('#film iframe'); const fsrc = fr ? await fr.getAttribute('src') : '';
+    const pf = await ctx.newPage(); await pf.setViewportSize({ width: 960, height: 540 }); await pf.goto(`${BASE}/promo.html`); await sleep(1000);
+    const poster = await pf.evaluate(() => ({ title: getComputedStyle(document.getElementById('s5')).display, ov: !document.getElementById('ov').hidden }));
+    await pf.click('#big'); await sleep(2500);
+    const run = await pf.evaluate(() => ({ tm: document.getElementById('tm').textContent, s1: getComputedStyle(document.getElementById('s1')).display, ov: document.getElementById('ov').hidden }));
+    await pf.keyboard.press('k'); await sleep(300); const paused = await pf.evaluate(() => document.getElementById('pp').getAttribute('aria-label'));
+    await pf.close();
+    ok('Site', 'the home page shows the 2-minute film (promo.html): the title frame with a play button, ▶ plays it from the start, k pauses', fsrc === 'promo.html' && poster.title === 'block' && poster.ov && run.s1 === 'block' && /^0:0[1-4] \/ 2:00$/.test(run.tm) && run.ov && paused === 'Play', JSON.stringify([fsrc, poster, run, paused]));
+    await p.goto(`${BASE}/about.html`); await p.evaluate(() => document.getElementById('team').scrollIntoView()); await sleep(1200);
+    const ab = await p.evaluate(() => { const im = document.querySelector('.c-person-photo img'), nm = document.querySelector('.c-person-name'); return { photo: !!im && im.complete && im.naturalWidth > 0, name: nm ? parseFloat(getComputedStyle(nm).fontSize) : 0, n: document.querySelectorAll('.c-person-countries li').length, years: /more than 25 years/.test(document.body.textContent), gone: !/Education|Languages|Community/.test(document.querySelector('.c-person-facts').textContent) }; });
+    ok('Site', 'about: Sashi’s photo shows next to his profile, his name is large, 16 countries are listed, 25 years, and no Education / Community / Languages', ab.photo && ab.name >= 38 && ab.n === 16 && ab.years && ab.gone, JSON.stringify(ab));
+  }
   const pages = [['index.html', 'Every project'], ['features.html', 'Everything a project'], ['agile.html', 'One plan'], ['industries.html', 'Built for teams'], ['contact.html', 'on your project'], ['privacy.html', 'Privacy'], ['login.html', 'Project Champ']];
   for (const [f, text] of pages) {
     const r = await p.goto(`${BASE}/${f}`);
@@ -592,12 +606,13 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const atScroll = await p.evaluate(() => { const b = document.querySelector('.stk-at'), on = b && b.querySelector('.on'); if (!on) return null; const r = on.getBoundingClientRect(), q = b.getBoundingClientRect(); return { name: on.getAttribute('data-at'), seen: r.top >= q.top - 1 && r.bottom <= q.bottom + 1, scrolled: b.scrollTop > 0 }; });
       await p.press('#stkTx', 'Enter').catch(() => {}); await sleep(200); const atK = await p.inputValue('#stkTx').catch(() => ''); await p.setViewportSize({ width: 1366, height: 900 });
       await p.fill('#stkTx', 'Mail @nadia@example').catch(() => {}); await p.press('#stkTx', 'End').catch(() => {}); await p.type('#stkTx', '.com').catch(() => {}); await sleep(300); await p.press('#stkTx', 'Enter').catch(() => {}); await sleep(200); const atMail = await p.inputValue('#stkTx').catch(() => '');
+      await p.fill('#stkTx', 'Mail @nadia@example.com today').catch(() => {}); await p.evaluate(() => { const t = document.getElementById('stkTx'); t.focus(); t.setSelectionRange(14, 14); t.dispatchEvent(new Event('input')); }); await sleep(300); await p.press('#stkTx', 'Enter').catch(() => {}); await sleep(200); const atMid = await p.inputValue('#stkTx').catch(() => '');
       await p.fill('#stkTx', 'Ask @na').catch(() => {}); await p.press('#stkTx', 'End').catch(() => {}); await p.type('#stkTx', 'd').catch(() => {}); await sleep(300);
       const atList = await p.textContent('.stk-at').catch(() => '');
       const atTop = await p.evaluate(() => { const b = document.querySelector('.stk-at'), pp = document.querySelector('.stkpop'); if (!b || !pp) return false; const r = b.getBoundingClientRect(), q = pp.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + 12); return !!h && b.contains(h) && (r.left >= q.right || r.right <= q.left); });
       await p.press('#stkTx', 'Enter').catch(() => {}); await sleep(200); const atVal = await p.inputValue('#stkTx').catch(() => '');
       await p.keyboard.press('Escape').catch(() => {});
-      ok('Gantt', 'sticky notes: typing @ lists the whole Stakeholder register (everyone with a phone or email, no one without) beside the note (on top, not hidden behind it) and Enter puts @Name in the note', /Nadia Karim/.test(atList) && atTop && atAll && atAll.n === 12 && !atAll.quiet && atAll.last && atScroll && atScroll.name === 'Contact K' && atScroll.seen && atScroll.scrolled && atK === 'Hi @Contact K ' && atMail === 'Mail @Nadia Karim ' && /Ask @Nadia Karim /.test(atVal), JSON.stringify([atList, atTop, atAll, atScroll, atK, atMail, atVal]));
+      ok('Gantt', 'sticky notes: typing @ lists the whole Stakeholder register (everyone with a phone or email, no one without) beside the note (on top, not hidden behind it) and Enter puts @Name in the note', /Nadia Karim/.test(atList) && atTop && atAll && atAll.n === 12 && !atAll.quiet && atAll.last && atScroll && atScroll.name === 'Contact K' && atScroll.seen && atScroll.scrolled && atK === 'Hi @Contact K ' && atMail === 'Mail @Nadia Karim ' && atMid === 'Mail @Nadia Karim  today' && /Ask @Nadia Karim /.test(atVal), JSON.stringify([atList, atTop, atAll, atScroll, atK, atMail, atMid, atVal]));
     // ⛶ the full-screen Gantt editor: the toolbar works on the selected row (add levels, indent / outdent, bold, highlight, expand / collapse, Esc back)
     {
       await p.click('#gFull'); await p.waitForSelector('#gCard.gfull .gtool', { timeout: 5000 }).catch(() => {});
@@ -1932,4 +1947,4 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   for (const x of results) console.log(`${x.pass ? 'PASS' : 'FAIL'}  [${x.area}] ${x.name}${x.pass ? '' : '  → ' + x.detail}`);
   console.log(`\n${results.length - bad.length}/${results.length} passed`);
   if (bad.length) { console.log('\nserver log tail:\n' + log.slice(-1500)); process.exit(1); }
-})().catch((e) => { for (const x of results) console.log(`${x.pass ? 'PASS' : 'FAIL'}  [${x.area}] ${x.name}${x.pass ? '' : '  → ' + x.detail}`); console.error('CRASH: ' + e.message.split('\n')[0]); if (global.SRV) global.SRV.kill(); process.exit(1); });
+})().catch((e) => { for (const x of results) console.log(`${x.pass ? 'PASS' : 'FAIL'}  [${x.area}] ${x.name}${x.pass ? '' : '  → ' + x.detail}`); console.error('SERVER: ' + (global.SRVEXIT || 'running') + ' ' + (global.SRVLOG ? global.SRVLOG().slice(-1500) : '')); console.error('CRASH: ' + e.message.split('\n')[0]); if (global.SRV) global.SRV.kill(); process.exit(1); });

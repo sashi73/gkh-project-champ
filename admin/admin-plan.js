@@ -3071,7 +3071,8 @@
     if (!ta || ta._at) return; ta._at = 1; var box = null, hits = [], sel = 0;
     var close = function () { if (box) { box.remove(); box = null; } };
     var token = function () { var v = ta.value.slice(0, ta.selectionStart), m = v.match(/(^|\s)@([^\s]*)$/); return m ? { q: m[2], at: v.length - m[2].length - 1 } : null; };
-    var pick = function (n) { var tk = token(); if (!tk) return close(); var end = ta.selectionStart; ta.value = ta.value.slice(0, tk.at) + '@' + n + ' ' + ta.value.slice(end); var c = tk.at + n.length + 2; ta.setSelectionRange(c, c); close(); ta.focus(); };
+    var pick = function (n) { var tk = token(); if (!tk) return close(); var end = ta.selectionStart; while (end < ta.value.length && !/\s/.test(ta.value[end])) end++;   // the rest of the word (or email) after the caret goes too
+      ta.value = ta.value.slice(0, tk.at) + '@' + n + ' ' + ta.value.slice(end); var c = tk.at + n.length + 2; ta.setSelectionRange(c, c); close(); ta.focus(); };
     var draw = function () { var tk = token(); if (!tk) return close();
       // v178: every stakeholder who can be reached (a phone or an email), not just the first 8
       var reg = (S.plan && S.plan.stakeholders || []).filter(function (x) { return String(x.name || '').trim(); }), lq = tk.q.toLowerCase();
