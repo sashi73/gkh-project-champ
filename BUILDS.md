@@ -129,4 +129,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 118 | 1.0.118| 2026-11-18 17:01| gantt-full| `fdb894b` | Full-screen Gantt editor with a toolbar (levels, indent/outdent, bold/italic/underline, colours, expand/collapse, find); @ list shows beside |
 | 119 | 1.0.119| 2026-11-18 17:15| gantt-full| `c01cf31` | Full screen: Step opens a collapsed task first; formatting moves with indent/outdent; leaving for WBS or another tab ends full screen; test  |
 | 120 | 1.0.120| 2026-11-18 17:25| gantt-full| `12c24da` | Full-screen Gantt editor; @ list on top of the note (#8) |
-| 121 | 1.0.121 | 2026-11-18 18:06 | gantt-perf | _this commit_ | _see git log_ |
+| 121 | 1.0.121| 2026-11-18 18:06| gantt-perf| `526f9dc` | Full screen: dialogs, messages and pop-ups show over it (layer 39); grid row heights in one layout pass (350 ms to 18 ms on a 100-row plan); |
+| 122 | 1.0.122 | 2026-11-18 18:16 | gantt-perf | _this commit_ | _see git log_ |
