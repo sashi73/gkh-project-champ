@@ -144,4 +144,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 133 | 1.0.133| 2026-11-18 21:39| photo-blue| `09da93c` | Fit: baseline dates only from tasks that still have a row; focus stays on the switch; test adds 40 Sydney calendar days |
 | 134 | 1.0.134| 2026-11-18 22:18| gantt-fit2| `1202f5a` | Fit: the chart opens at the plan when fitted, and starts there again whenever its first date changes; test checks the first date and that th |
 | 135 | 1.0.135| 2026-11-18 22:25| gantt-fit2| `4454e80` | Fit: the chart also opens at the plan again when the plan start moves (even with an earlier baseline), and a redraw does not put the old pos |
-| 136 | 1.0.136 | 2026-11-18 22:34 | gantt-fit2 | _this commit_ | _see git log_ |
+| 136 | 1.0.136| 2026-11-18 22:34| gantt-fit2| `0735e16` | Gantt: fit the chart to a plan that starts later (#13) |
+| 137 | 1.0.137 | 2026-11-18 23:17 | bio | _this commit_ | _see git log_ |

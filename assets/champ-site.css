@@ -153,3 +153,5 @@
 .c-person-galaxy img{z-index:1;filter:drop-shadow(0 10px 24px rgba(0,0,0,.55))}
 .c-person-galaxy span{display:none}
 .c-person-galaxy.none span{display:block;position:relative;z-index:1}   /* no photo at all: the initials over the galaxy */
+.c-person-body > p.c-person-lead{color:var(--text);font-size:clamp(17px,1.6vw,20px);line-height:1.6;font-weight:600}
+.c-person-talk{margin:4px 0 0}
