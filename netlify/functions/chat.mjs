@@ -46,7 +46,18 @@ export default async (req, context) => {
     .filter((m) => m.content);
   if (!messages.length || messages[messages.length - 1].role !== 'user') return json(400, { error: 'Send a question.' });
   // keep the newest turns that fit the budget (the question itself always goes, shortened if it must)
-  const sys = SYSTEM(lang, where) + who(body?.name);
+  // ❓ the help centre's matching sections (assets/help/articles.js), so "how do I …" gets the same steps as the help pages
+  let helpCtx = '';
+  try {
+    const lastQ = messages[messages.length - 1].content;   // only "how do I / where is" questions: the token budget stays the same for the rest
+    if (/\b(how|where|can i|steps?|set ?up|add|create|make|change|delete|remove|turn (on|off)|switch|find|use|export|download|print)\b/i.test(lastQ)) {
+      const HC = await import('../../assets/help/articles.js'), h = HC.search(lastQ, 1)[0], a = h && HC.byId(h.id), sec = a && a.subs.filter((x) => x.id === h.sub)[0];
+      // only what fits: the budget stays BUDGET with the shortest answer (300) and the question itself
+      const free = BUDGET - 300 - tokensOf(SYSTEM(lang, where) + who(body?.name)) - tokensOf(lastQ) - 12;
+      if (sec && free > 40) helpCtx = ('\nHELP (gkhpmo.com/help, ' + a.t + ' > ' + sec.h + '): ' + sec.st.join(' ')).slice(0, free * 3);
+    }
+  } catch (e) { console.error('Champ help context: ' + e.message); }
+  const sys = SYSTEM(lang, where) + who(body?.name) + helpCtx;
   let room = BUDGET - ANSWER - tokensOf(sys);
   const keep = [];
   for (let i = messages.length - 1; i >= 0; i--) {

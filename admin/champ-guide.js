@@ -397,6 +397,33 @@
   var lastBot = '';
   function reply(text, quiet) { var p = $('#cgPanel'); if (!p || p.hidden) { if (p) p.hidden = false; else openPanel(); } tr([text]).then(function (x) { say('bot', x[0]); lastBot = x[0]; if (!quiet) speak(x[0]); }); }
 
+  // ❓ the help centre's articles (assets/help/articles.js): shown in the panel, and offered with Champ's answers
+  var H = null, hLoad = function () { if (!H) H = import('../assets/help/articles.js?v=1').catch(function () { H = null; return null; }); return H; };
+  function helpCard(a, sub) {   // an article (or one of its sections) in the panel, in the console's language
+    var subs = (a.subs || []).filter(function (x) { return !sub || x.id === sub; }); if (!subs.length) subs = a.subs || [];
+    var list = [a.t, a.s, '▶ Show me', 'Open in the help centre'];
+    subs.forEach(function (x) { list.push(x.h); x.st.forEach(function (y) { list.push(y); }); if (x.tip) list.push(x.tip); });
+    return tr(list).then(function (L) {
+      var i = 4, d = document.createElement('div'); d.className = 'cgp-m cgp-bot cgp-help';
+      var h = '<b class="cgp-ht">📖 ' + esc(L[0]) + '</b><p>' + esc(L[1]) + '</p>';
+      subs.forEach(function (x) { h += '<div class="cgp-hs"><b>' + esc(L[i++]) + '</b><ol>' + x.st.map(function () { return '<li>' + esc(L[i++]) + '</li>'; }).join('') + '</ol>' + (x.tip ? '<small>💡 ' + esc(L[i++]) + '</small>' : '') + '</div>'; });
+      var t = a.g && T.filter(function (x) { return x.id === a.g; })[0];
+      h += '<div class="cgp-hb">' + (t ? '<button type="button" class="cgp-show" data-hshow>' + esc(L[2]) + '</button>' : '') + '<a href="#help/' + esc(a.id) + (sub ? '/' + esc(sub) : '') + '" class="cgp-hl">' + esc(L[3]) + ' ↗</a></div>';
+      d.innerHTML = h;
+      var b = d.querySelector('[data-hshow]'); if (b) b.onclick = function () { start(t); };
+      return { el: d, say: L[1] };
+    });
+  }
+  function showHelp(id, sub, quiet) {
+    openPanel();
+    return hLoad().then(function (m) { var a = m && m.byId(id); if (!a) return reply('That help article is not here any more. Ask me instead.');
+      return helpCard(a, sub).then(function (c) { var L = $('#cgLog'); if (!L) return; L.appendChild(c.el); L.scrollTop = Math.max(0, c.el.offsetTop - 8); lastBot = c.say; if (!quiet) speak(c.say); }); });
+  }
+  function helpLink(d, id, sub) {   // "📖 Read: …" under one of Champ's answers
+    hLoad().then(function (m) { var a = m && m.byId(id); if (!a || !d) return; var s = sub && (a.subs || []).filter(function (x) { return x.id === sub; })[0];
+      tr(['📖 Read: ' + (s ? s.h : a.t)]).then(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'cgp-show cgp-read'; b.textContent = x[0]; b.onclick = function () { showHelp(id, sub); }; d.appendChild(b); }); });
+  }
+
   // what did they ask for? words first (fast, works offline), then the AI (any language, any wording)
   function local(q) {
     var s = q.toLowerCase(), best = null, top = 0;
@@ -414,10 +441,12 @@
       var t = T.filter(function (x) { return x.id === r.tour; })[0];
       if (r.answer) { var d = say('bot', r.answer); lastBot = r.answer; if (!(t && r.how)) speak(r.answer);
         if (r.notes && r.notes.length) { var nt = document.createElement('small'); nt.className = 'cgp-kb'; nt.textContent = '📚 ' + r.notes.join(' · '); d.appendChild(nt); }
+        if (r.help && r.help.id) helpLink(d, r.help.id, r.help.sub);
         if (t && !r.how) tr(['▶ Show me: ' + t.t]).then(function (x) { var b = document.createElement('button'); b.type = 'button'; b.className = 'cgp-show'; b.textContent = x[0]; b.onclick = function () { start(t); }; d.appendChild(b); }); }
       if (t && (r.how || !r.answer)) setTimeout(function () { start(t); }, r.answer ? 900 : 0);
+      else if (!r.answer && r.help && r.help.id) showHelp(r.help.id, r.help.sub);
       else if (!r.answer) reply('I can show you how to: ' + T.slice(0, 8).map(function (x) { return x.t.toLowerCase(); }).join(', ') + '. Which one?');
-    }).catch(function () { if (wait) wait.remove(); reply('I can show you how to: ' + T.slice(0, 8).map(function (x) { return x.t.toLowerCase(); }).join(', ') + '. Which one?'); });
+    }).catch(function () { if (wait) wait.remove(); hLoad().then(function (m) { var r0 = m && m.search(q, 1)[0]; if (r0) return showHelp(r0.id, r0.sub); reply('I can show you how to: ' + T.slice(0, 8).map(function (x) { return x.t.toLowerCase(); }).join(', ') + '. Which one?'); }); });
   }
 
   // 🎙 tap to talk: records until you stop talking, then Champ's ears (Azure) write it down in the console's language
@@ -485,7 +514,7 @@
 
   // the console changed language (from anywhere): Champ follows, nothing of the old language is left in the panel
   window.addEventListener('champ:lang', function () { var p = $('#cgPanel'); if (!p) return; var sl = $('#cgLang'); if (sl) sl.value = lang(); hush(); chipsFill(p); var L = $('#cgLog'); if (L) L.innerHTML = ''; if (!p.hidden) greet(true); });
-  M.guide = { start: function (id) { var t = T.filter(function (x) { return x.id === id; })[0]; if (t) start(t); }, ask: ask, tours: T };
+  M.guide = { start: function (id) { var t = T.filter(function (x) { return x.id === id; })[0]; if (t) start(t); }, ask: ask, tours: T, help: showHelp };
   new MutationObserver(function () { if (!document.getElementById('app').hidden) btn(); }).observe(document.getElementById('app'), { attributes: true, attributeFilter: ['hidden'] });
   setTimeout(function () { if (!document.getElementById('app').hidden) btn(); }, 800);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && G.tour) end(); });

@@ -103,6 +103,9 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       let u = {}; try { u = JSON.parse((j.messages.filter((m) => m.role === 'user').pop() || {}).content || '{}'); } catch (e) {} global.GUIDE_CTX = u;
       if (u.course_notes && /scope creep/i.test(u.question || '')) { const o5 = { tour: '', how: false, answer: 'As Sashi teaches in his classes: ' + (u.course_notes.map((x) => x.text).join('\n').split('\n').find((l) => /change control/.test(l)) || '') };
         s2.setHeader('Content-Type', 'application/json'); return s2.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(o5) } }] })); }
+      if (/\bbold\b/i.test(u.question || '') && (u.help_articles || []).length) { const h0 = u.help_articles[0];   // ❓ answers from the help centre
+        const o6 = { tour: '', how: false, answer: 'From the help: ' + h0.text.split('\n').slice(1).join(' '), help: h0.id };
+        s2.setHeader('Content-Type', 'application/json'); return s2.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(o6) } }] })); }
       if (/dependenc/i.test(u.question || '')) { const D = ((u.portfolio || {}).dependencies || []).filter((x) => !u.open_project_core || x.from_core === u.open_project_core || x.to_core === u.open_project_core);
         const o3 = { tour: 'deps', how: false, answer: D.length ? D.map((x) => x.from + ' → ' + x.to + ' (' + x.type + ', ' + x.status + ')').join('; ') : 'No dependencies recorded.' };
         s2.setHeader('Content-Type', 'application/json'); return s2.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify(o3) } }] })); }
@@ -215,7 +218,21 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   ok('Site', 'login page hides the project-code box', !(await p.isVisible('#loginProj')));
   await p.goto(`${BASE}/index.html`);
   const nav = await p.$$eval('header .menu a', (as) => as.map((a) => a.getAttribute('href')));
-  ok('Site', 'menu has the 6 pages', JSON.stringify(nav) === JSON.stringify(['index.html', 'about.html', 'features.html', 'agile.html', 'industries.html', 'contact.html']), nav.join(','));
+  ok('Site', 'menu has the 7 pages (with Help)', JSON.stringify(nav) === JSON.stringify(['index.html', 'about.html', 'features.html', 'agile.html', 'industries.html', 'contact.html', 'help.html']), nav.join(','));
+  // ❓ the public help centre: areas, search to a sub-feature, the article opened at that section
+  {
+    const ph = await ctx.newPage(); await ph.goto(`${BASE}/help.html`); await ph.waitForSelector('.hc-area', { timeout: 8000 }).catch(() => {});
+    const areas = await ph.$$eval('.hc-area', (x) => x.length), arts = await ph.$$eval('.hc-area a', (x) => x.length);
+    await ph.fill('#hcQ', 'bold'); await ph.press('#hcQ', 'Enter'); await ph.waitForSelector('.hc-res a', { timeout: 5000 }).catch(() => {});
+    const first = await ph.getAttribute('.hc-res a', 'href').catch(() => '');
+    await ph.click('.hc-res a').catch(() => {}); await ph.waitForSelector('.hc-sub.hit', { timeout: 5000 }).catch(() => {});
+    const hit = await ph.textContent('.hc-sub.hit h2').catch(() => ''), steps = await ph.$$eval('.hc-sub.hit li', (x) => x.length).catch(() => 0), ttl = await ph.title();
+    await ph.goto(`${BASE}/help.html#dod`); await sleep(300); const dod = await ph.textContent('.hc-art h1').catch(() => '');
+    const footer = await ph.getAttribute('footer a[href="help.html"]', 'href').catch(() => '');
+    ok('Help', 'help centre: 14 areas, 80+ articles; searching "bold" finds Gantt > Bold, italic, underline and opens the article at that section with its steps; DoD has its own article; Help is in the menu and footer',
+      areas === 14 && arts >= 80 && first === '#gantt-format/bold' && hit === 'Bold, italic, underline' && steps >= 2 && /Bold, italics/.test(ttl) && /Definition of Done/.test(dod) && footer === 'help.html', JSON.stringify({ areas, arts, first, hit, steps, ttl, dod, footer }));
+    await ph.close();
+  }
   ok('Site', 'header has a Login link to login.html', (await p.getAttribute('header .nav-login', 'href')) === 'login.html');
   ok('Site', 'no MBS wording on the home page', !/Modern Building|0420 494 990|Mr\.? Fixit|Wonder Bird/i.test(await p.content()));
   await p.waitForSelector('[data-visits]:not([hidden])', { timeout: 5000 }).catch(() => {});
@@ -425,6 +442,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   const est = (t) => { let a = 0, o = 0; for (const ch of String(t)) { if (ch.charCodeAt(0) < 0x250) a++; else o++; } return Math.ceil(a / 4 + o * 0.9) + 4; };
   const used = est(global.CHAT_SYS) + (global.CHAT_MSGS || []).filter((m) => m.role !== 'system').reduce((n, m) => n + est(m.content), 0) + (global.CHAT_MAX || 0);
   ok('Chat', 'each question stays within 2000 tokens (instructions + recent conversation + answer)', r0.ok() && used <= 2000 && global.CHAT_MAX >= 300 && global.CHAT_MAX <= 450 && /critical path/.test(JSON.stringify(global.CHAT_MSGS.slice(-1))) && global.CHAT_MSGS.filter((m) => m.role !== 'system').length < longHist.length && global.CHAT_MSGS.filter((m) => m.role !== 'system')[0].role === 'user', 'used ~' + used + ' tokens, ' + (global.CHAT_MSGS || []).length + ' messages');
+  r0 = await p.request.post(`${BASE}/.netlify/functions/chat`, { data: { messages: [{ role: 'user', content: 'How do I leave a sticky note on a task?' }], lang: 'en', where: 'site' } });
+  ok('Help', 'website chat: a "how do I" question carries the matching help-centre steps (sticky notes), within the token budget', r0.ok() && /HELP \(gkhpmo\.com\/help, Sticky notes/.test(global.CHAT_SYS || '') && /🗒/.test(global.CHAT_SYS || '') && est(global.CHAT_SYS) + (global.CHAT_MAX || 0) <= 2000, String(global.CHAT_SYS || '').split('HELP (')[1] + ' ~' + (est(global.CHAT_SYS) + (global.CHAT_MAX || 0)));
   global.STT_422 = true; global.STT_DEFS = [];
   r0 = await p.request.post(`${BASE}/.netlify/functions/stt?langs=en,ta,ms,fa&prefer=ta`, { data: Buffer.alloc(6000), headers: { 'Content-Type': 'audio/webm' } });
   const j422 = await r0.json().catch(() => ({}));
@@ -635,6 +654,25 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
         b.className = 'cg-red'; const m1 = getComputedStyle(im).transform; await new Promise((r) => setTimeout(r, 400)); const m2 = getComputedStyle(im).transform; o.turns = m1 !== m2 && m2 !== 'none';   // it really rotates
         b.className = keep; return o; });
       ok('Champ', 'the globe on the Champ button turns faster as the alert rises (green 20 s, amber 7 s, red 2.2 s a turn)', !!spin && spin['cg-green'] === 20 && spin['cg-amber'] === 7 && spin['cg-red'] === 2.2 && spin.turns, JSON.stringify(spin));
+    }
+    // ❓ help in the console: Champ answers from the help articles; ❓ Help in the menu; the ? opens this screen's article in Champ's panel
+    {
+      const gb = await (await api('guideAsk', { q: 'How do I make a task bold?', tours: [] })).json(), hc = (global.GUIDE_CTX || {}).help_articles || [], hi = (global.GUIDE_CTX || {}).help_index || '';
+      ok('Help', 'Ask Champ gets the matching help sections and the index of every article, answers with the article\'s steps and names it (gantt-format#bold)',
+        hc[0] && hc[0].id === 'gantt-format#bold' && /Ctrl\+B/.test(hc[0].text) && /dod: Definition of Done/.test(hi) && gb.help && gb.help.id === 'gantt-format' && gb.help.sub === 'bold' && /Ctrl\+B/.test(gb.answer), JSON.stringify({ help: gb.help, a: (gb.answer || '').slice(0, 120), first: hc[0] && hc[0].id }));
+      const back = await p.evaluate(() => location.hash);
+      const menuHelp = await p.isVisible('.side-nav a[href="#help"]');
+      await p.evaluate(() => { location.hash = '#help'; }); await p.waitForSelector('.hc-area', { timeout: 8000 }).catch(() => {});
+      const cAreas = await p.$$eval('.hc-area', (x) => x.length).catch(() => 0);
+      await p.evaluate(() => { location.hash = '#help/gantt-notes/mention'; }); await p.waitForSelector('.hc-sub.hit', { timeout: 5000 }).catch(() => {});
+      const cHit = await p.textContent('.hc-sub.hit h3').catch(() => ''), cShow = await p.isVisible('#hcShow');
+      await p.evaluate((h) => { location.hash = h; }, back); await sleep(1200);
+      const route = await p.evaluate(() => location.hash);
+      await p.click('#helpQ').catch(() => {}); await p.waitForSelector('#cgPanel .cgp-help', { timeout: 6000 }).catch(() => {});
+      const card = await p.textContent('#cgPanel .cgp-help .cgp-ht').catch(() => '');
+      await p.click('#cgPanel .cgp-x').catch(() => {});
+      ok('Help', 'console: ❓ Help in the menu shows the 14 areas; an article opens at its section with ▶ Show me; the ? next to the title opens this screen\'s article in Champ\'s panel',
+        menuHelp && cAreas === 14 && cHit === 'Mention someone with @' && cShow && card.length > 5, JSON.stringify({ menuHelp, cAreas, cHit, cShow, route, card }));
     }
     // ⛶ the full-screen Gantt editor: the toolbar works on the selected row (add levels, indent / outdent, bold, highlight, expand / collapse, Esc back)
     {
