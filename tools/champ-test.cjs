@@ -648,7 +648,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
     // ⇥ a plan that starts later opens on its own dates (no empty weeks from today); the switch shows it from today
     {
       const lf = (await (await api('planNewProject', { name: 'Later start', client: 'Northside Health', program: 'Digital health' })).json()).core;
-      const st = new Date(Date.now() + 40 * 864e5).toISOString().slice(0, 10);
+      const st = new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney' }).format(new Date(Date.now() + 40 * 864e5));   // the chart works in Sydney dates
       await api('planSave', { core: lf, plan: { name: 'Later start', start: st, phases: [{ id: 'ph1', name: 'Work' }], tasks: [{ id: 't1', phase: 'ph1', name: 'Kick-off', dur: 3, pred: [], res: [], pct: 0, status: 'todo' }] } });
       await p.goto(`${BASE}/admin/#plan/${lf}/schedule`); await p.reload(); await p.waitForSelector('#gRight .gtrack', { timeout: 10000 }).catch(() => {});
       const g1 = await p.evaluate(() => ({ w: parseFloat(document.querySelector('#gRight .gtrack').style.width), today: document.querySelectorAll('#gRight .gtoday').length, fit: !!document.querySelector('[data-gfit].on') }));
