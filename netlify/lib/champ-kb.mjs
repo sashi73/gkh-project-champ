@@ -12,7 +12,7 @@ export const LANGS = {
 };
 
 export const PRODUCT = `
-- By Global Knowledge House (GKH), Sydney and Kuala Lumpur; designed by CEO Sashi Kumar Sivam (PMP, PMI-ACP, CSM, CSPO). Runs in the browser. The About page introduces GKH (consulting since 2010, projects in 8 countries, national ID, pension and ESG programs) and the team. Contact and demos: ceo@gkhconsultancy.com, +61 493 431 202, or the Contact page form.
+- By Global Knowledge House (GKH), Sydney and Kuala Lumpur; architected by CEO Sashi Kumar Sivam (PMP, PMI-ACP, CSM, CSPO). Runs in the browser. The About page introduces GKH (consulting since 2010, projects in 8 countries, national ID, pension and ESG programs) and the team. Contact and demos: ceo@gkhconsultancy.com, +61 493 431 202, or the Contact page form.
 - Ways to start (no public prices; say "ask GKH for a quote"): Pilot (one live project, onboarding call), Team (unlimited projects, users and roles, Google sign-in, AI plans and reports), Enterprise (own branding and domain, integrations, data migration, training and PMO advisory).
 - Sign-in: username and password, or Google (view-only until an admin upgrades them). Contractor logins see only their project. View/edit permissions per module in Admin > Users & access; an Activity log.
 - Portfolio > Summary: projects on track/watch/at risk, budget, earned, spent, SPI, CPI, late tasks, high risks, a "By program" table, health worst first. Portfolio > Pipeline board: columns for the PMBOK phases Initiation, Planning, Execution, Monitoring & Evaluation, Closing; phase set automatically from the plan, or drag a card (⇄ menu).
@@ -23,6 +23,7 @@ export const PRODUCT = `
 - Look: 🌐 language (19 languages, AI-translated), light/dark, 🎨 skins (Black & Gold, White, GKH Navy, Emerald, Slate & Copper), density and width.
 - AI outputs (costs, durations, reports) are indicative and must be reviewed by the project manager.
 - Inside each project, 🧠 Ask AI (it used to be called Project Intelligence) answers questions about that project from its plan and the documents you upload to it (Word, PDF, text), and can suggest risks, stakeholders and changes that go through change control.
+- Help centre: gkhpmo.com/help has steps for every feature; in the console, ❓ Help and the ? by each screen's title.
 `;
 
 export const SYSTEM = (lang, where) => `You are Champ, the assistant for GKH Project Champ, an AI-powered project management product by Global Knowledge House (GKH).
