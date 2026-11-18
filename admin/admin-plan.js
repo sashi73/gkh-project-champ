@@ -2110,7 +2110,9 @@
     $('#planBody').innerHTML = html;
     var B = $('#planBody'); estWire(B);
     dateBoxes(B);   // before the rows are lined up with the Gantt chart
-    splitPanes(x(t0));
+    // where the chart opens: at the plan when it is fitted, otherwise at today; a new range origin (dates moved, fit switched) starts there again
+    if (S.gOrigin !== S.core + '|' + from) { S.gOrigin = S.core + '|' + from; S.scrollX = null; }
+    splitPanes(gFit ? x(R.start) - 2 * dayW + 140 : x(t0));
     $('#gFreezeBtn').onclick = function (e) { e.stopPropagation(); gFreezeMenu(this); };
     B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });

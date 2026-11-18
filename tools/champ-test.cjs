@@ -651,11 +651,11 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const sd = new Date(new Intl.DateTimeFormat('en-CA', { timeZone: 'Australia/Sydney' }).format(new Date()) + 'T00:00:00Z'); sd.setUTCDate(sd.getUTCDate() + 40); const st = sd.toISOString().slice(0, 10);   // 40 Sydney calendar days ahead
       await api('planSave', { core: lf, plan: { name: 'Later start', start: st, phases: [{ id: 'ph1', name: 'Work' }], tasks: [{ id: 't1', phase: 'ph1', name: 'Kick-off', dur: 3, pred: [], res: [], pct: 0, status: 'todo' }] } });
       await p.goto(`${BASE}/admin/#plan/${lf}/schedule`); await p.reload(); await p.waitForSelector('#gRight .gtrack', { timeout: 10000 }).catch(() => {});
-      const g1 = await p.evaluate(() => ({ w: parseFloat(document.querySelector('#gRight .gtrack').style.width), today: document.querySelectorAll('#gRight .gtoday').length, fit: !!document.querySelector('[data-gfit].on') }));
+      const g1 = await p.evaluate(() => { const R = document.getElementById('gRight'), b = R.querySelector('.gbar'), r = R.getBoundingClientRect(), br = b && b.getBoundingClientRect(); return { w: parseFloat(R.querySelector('.gtrack').style.width), today: R.querySelectorAll('.gtoday').length, fit: !!document.querySelector('[data-gfit].on'), barLeft: b ? parseFloat(b.style.left) : -1, seen: !!br && br.left >= r.left && br.left < r.right }; });
       await p.click('[data-gfit]').catch(() => {}); await sleep(400);
       const g2 = await p.evaluate(() => ({ w: parseFloat(document.querySelector('#gRight .gtrack').style.width), today: document.querySelectorAll('#gRight .gtoday').length, fit: !!document.querySelector('[data-gfit].on') }));
       await p.click('[data-gfit]').catch(() => {}); await sleep(300);
-      ok('Gantt', 'a plan starting 40 days from now opens on its own dates (no empty weeks, no today line); ⇥ Fit to the plan off shows it from today', g1.fit && g1.today === 0 && !g2.fit && g2.today > 0 && g2.w >= g1.w + 38 * 20, JSON.stringify([g1, g2]));
+      ok('Gantt', 'a plan starting 40 days from now opens on its own dates (the chart starts 2 days before the plan, the first bar in view, no today line); ⇥ Fit to the plan off shows it from today', g1.fit && g1.today === 0 && [40, 14].includes(g1.barLeft) && g1.seen && !g2.fit && g2.today > 0 && g2.w >= g1.w + 38 * 20, JSON.stringify([g1, g2]));
     }
     // 👥 Gantt resources: the list has People and the Stakeholder register's names; a new person's name typed there joins the register (trades do not)
     {
