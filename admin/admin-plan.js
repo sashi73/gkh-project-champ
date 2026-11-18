@@ -1877,6 +1877,7 @@
     return 'outdented: ' + q.name + ' is now a sub-task of ' + t.name;
   }
   function stepAdd(t, sb) {
+    if ((sb.steps || []).length >= LIM.steps) { toast('“' + sb.name + '” already has ' + LIM.steps + ' steps, the most a sub-task can hold.', true); return; }
     sb.steps = sb.steps || []; var D = Math.max(1, sb.dur), last = sb.steps[sb.steps.length - 1], off = last ? Math.min(D - 1, last.off + last.dur) : 0;
     if (last && last.off + last.dur >= D) off = last.off;   // the story is full: start alongside the last one
     var q = { id: 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), name: 'New step', off: off, dur: 1, done: false };
@@ -2211,6 +2212,7 @@
     B.querySelectorAll('[data-addsub]').forEach(function (b) {
       b.onclick = function () {
         var t = task(b), D = Math.max(1, t.dur); t.subs = t.subs || [];
+        if (t.subs.length >= LIM.subs) { toast('“' + t.name + '” already has ' + LIM.subs + ' sub-tasks, the most a task can hold.', true); return; }
         var last = t.subs[t.subs.length - 1], off = last ? Math.min(D - 1, last.off + last.dur) : 0;
         if (last && last.off + last.dur >= D) off = last.off;   // the task is full: start alongside the last one
         var sb = { id: 's' + Date.now().toString(36), name: 'New sub-task', owner: '', off: off, dur: 1, status: 'todo' };
@@ -2284,7 +2286,8 @@
         matsEditor(t);
       };
     });
-    var add = function (mile, after) {   // a level-1 task (with its costing), at the end or straight after another level-1 task
+    var add = function (mile, after) {
+      if (p.tasks.length >= LIM.tasks) { toast('The plan already has ' + LIM.tasks + ' tasks, the most it can hold.', true); return; }   // a level-1 task (with its costing), at the end or straight after another level-1 task
       var last = after || p.tasks[p.tasks.length - 1];
       var t = { id: 't' + Date.now().toString(36), phase: (last && last.phase) || 'ph1', name: mile ? 'New milestone' : 'New task', dur: mile ? 0 : 1, res: [], lead: '', resource: '', qty: 0, unit: '', rate: 0, actual: 0, pct: 0, status: 'todo', pred: last ? [last.id] : [], snet: '', notes: '' };
       if (after) { var at = p.tasks.indexOf(after), nx = p.tasks[at + 1]; if (nx && (nx.pred || []).indexOf(after.id) >= 0) nx.pred = nx.pred.map(function (id) { return id === after.id ? t.id : id; }); p.tasks.splice(at + 1, 0, t); }

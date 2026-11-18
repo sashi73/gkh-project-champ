@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 119,
+  "build": 120,
   "commit": "",
   "branch": "gantt-full",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-18 17:15",
+  "builtAt": "2026-11-18 17:25",
   "site": ""
 };

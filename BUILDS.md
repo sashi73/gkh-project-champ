@@ -127,4 +127,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 116 | 1.0.116| 2026-11-18 10:02| lessons-video| `16556de` | Gantt levels: refuse moves past the saved limits or into a dependency loop; keep owner, description, priority and points across levels; serv |
 | 117 | 1.0.117| 2026-11-18 10:12| lessons-video| `8991047` | Lessons video 90 s; no Champ on sign-in; Gantt levels and stakeholder-only people (#7) |
 | 118 | 1.0.118| 2026-11-18 17:01| gantt-full| `fdb894b` | Full-screen Gantt editor with a toolbar (levels, indent/outdent, bold/italic/underline, colours, expand/collapse, find); @ list shows beside |
-| 119 | 1.0.119 | 2026-11-18 17:15 | gantt-full | _this commit_ | _see git log_ |
+| 119 | 1.0.119| 2026-11-18 17:15| gantt-full| `c01cf31` | Full screen: Step opens a collapsed task first; formatting moves with indent/outdent; leaving for WBS or another tab ends full screen; test  |
+| 120 | 1.0.120 | 2026-11-18 17:25 | gantt-full | _this commit_ | _see git log_ |
