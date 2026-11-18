@@ -1376,6 +1376,7 @@
     dirty('undid the AI finish-by changes'); render(); toast('The plan is back the way it was before the AI changes');
   }
   function render() {
+    if (S.gfull && (S.tab !== 'schedule' || S.wbs)) { S.gfull = false; document.body.classList.remove('gantt-full'); }   // full screen is for the schedule grid only
     pplLoad();   // v86: People for the pickers (once)
     var L0 = $('#gLeft'), R0 = $('#gRight');
     var st = { y: window.scrollY, x: window.scrollX, lt: L0 ? L0.scrollTop : 0, ll: L0 ? L0.scrollLeft : 0, rl: R0 ? R0.scrollLeft : null, tab: S.tab, core: S.core };
@@ -1781,7 +1782,7 @@
     if (a === 'exit') { gFull(false); return; }
     if (a === 'addT') { if (ttr) press(ttr, '[data-ins]'); else { var at = $('#addTask'); if (at) at.click(); } return; }
     if (a === 'addS') { if (t && t.dur === 0) { toast('A milestone has no sub-tasks: select a task', true); return; } S.closed[s.t] = false; press(ttr, '[data-addsub]', 'Select a task first'); return; }
-    if (a === 'addQ') { var ss = s && s.s ? s : t && (t.subs || []).length ? { t: t.id, s: t.subs[t.subs.length - 1].id } : null; if (!ss) { toast('Select a sub-task (level 1.1) first: steps go under a sub-task', true); return; } S.stClosed[ss.s] = false; press(gRowOf({ t: ss.t, s: ss.s }), '[data-addstep]'); return; }
+    if (a === 'addQ') { var ss = s && s.s ? s : t && (t.subs || []).length ? { t: t.id, s: t.subs[t.subs.length - 1].id } : null; if (!ss) { toast('Select a sub-task (level 1.1) first: steps go under a sub-task', true); return; } S.stClosed[ss.s] = false; if (S.closed[ss.t]) { S.closed[ss.t] = false; render(); } press(gRowOf({ t: ss.t, s: ss.s }), '[data-addstep]', 'Open the task first (▾) to add a step'); return; }
     if (a === 'in') { press(tr, '[data-lv="in"]', s && s.q ? 'A step (1.1.1) is already the deepest level' : 'Select a row first'); return; }
     if (a === 'out') { press(tr, '[data-lv="out"]', s && !s.s ? 'Level 1 is already the top level' : 'Select a row first'); return; }
     if (a === 'rem') { press(tr, '[data-rem],[data-srem],[data-qrem]'); return; }
@@ -1821,7 +1822,7 @@
   }
   function prevL1(p, t) { var i = p.tasks.indexOf(t); for (var k = i - 1; k >= 0; k--) if (p.tasks[k].dur > 0) return p.tasks[k]; return null; }
   var lvId = function (c) { return c + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); };
-  var lvKeep = function (src, dst) { ['desc', 'priority', 'points'].forEach(function (k) { if (src[k]) dst[k] = src[k]; }); if (src.notes && !dst.desc) dst.desc = String(src.notes).slice(0, 300); return dst; };   // a story's description, priority and points go with it
+  var lvKeep = function (src, dst) { ['desc', 'priority', 'points'].forEach(function (k) { if (src[k]) dst[k] = src[k]; }); if (src.fmt) dst.fmt = JSON.parse(JSON.stringify(src.fmt)); if (src.notes && !dst.desc) dst.desc = String(src.notes).slice(0, 300); return dst; };   // a story's description, priority and points go with it
   var LIM = { tasks: 300, subs: 40, steps: 40 };   // what the server keeps: a move that would go over is refused, nothing is lost
   function lvCycle(tasks) {   // does any task end up waiting (through its links) for itself?
     var by = {}, st = {}; tasks.forEach(function (x) { by[x.id] = x; });
@@ -1862,7 +1863,7 @@
     if (S.plan.tasks.length >= LIM.tasks) { toast('The plan already has ' + LIM.tasks + ' tasks, the most it can hold.', true); return ''; }
     var p = S.plan, nt = { id: lvId('t'), phase: t.phase || 'ph1', name: sb.name, dur: Math.max(1, sb.dur), res: sb.owner ? [sb.owner] : [], lead: '', resource: '', qty: 0, unit: '', rate: 0, actual: 0, pct: subPct(sb), status: sb.status || 'todo', pred: (t.pred || []).slice(), snet: '', notes: '',
       subs: (sb.steps || []).map(function (q) { return lvKeep(q, { id: lvId('s'), name: q.name, owner: q.owner || '', off: q.off, dur: q.dur, status: q.done ? 'done' : 'todo' }); }) };
-    if (sb.desc) nt.notes = sb.desc; if (sb.priority) nt.priority = sb.priority; if (sb.points) nt.points = sb.points;
+    if (sb.desc) nt.notes = sb.desc; if (sb.priority) nt.priority = sb.priority; if (sb.points) nt.points = sb.points; if (sb.fmt) nt.fmt = JSON.parse(JSON.stringify(sb.fmt));
     t.subs.splice(t.subs.indexOf(sb), 1); p.tasks.splice(p.tasks.indexOf(t) + 1, 0, nt);
     fixRes(nt); fitSubs(t); fitSubs(nt); derive(t); derive(nt); if (!t.subs.length) setStatus(t, t.status);
     S.gsel = { t: nt.id };
@@ -2107,7 +2108,7 @@
     $('#gFreezeBtn').onclick = function (e) { e.stopPropagation(); gFreezeMenu(this); };
     B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
-    B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; render(); }; });
+    B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
     B.querySelectorAll('[data-links]').forEach(function (b) { b.onclick = function () { S.links = !S.links; try { localStorage.setItem('champLinks', S.links ? '1' : ''); } catch (e) {} render(); }; });
     if ($('#depAi')) $('#depAi').onclick = depsDialog;
     if ($('#depUndo')) $('#depUndo').onclick = function () { var u = S.depUndo; if (!u || u.core !== S.core) return; S.plan.tasks.forEach(function (t) { if (u.pred[t.id]) t.pred = u.pred[t.id].slice(); }); S.depUndo = null; dirty('dependencies put back'); render(); toast('↶ The links are back as they were'); };
