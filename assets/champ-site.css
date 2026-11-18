@@ -129,3 +129,21 @@
   #champCtl .ct-lang,#champCtl button{white-space:nowrap}
   .brand,.brand *{white-space:nowrap}
 }
+/* ▶ the 2-minute film on the home page (promo.html: the same film, drawn live so it plays in the visitor's language) */
+.pfilm-head{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;margin:0 auto 34px;max-width:760px}
+.pfilm-head .lead{margin:0}
+.pfilm-frame{position:relative;aspect-ratio:16/9;max-width:1120px;margin:0 auto;border-radius:24px;overflow:hidden;background:#0D0C09;border:1px solid rgba(232,192,74,.35);box-shadow:0 30px 80px rgba(0,0,0,.35),0 0 0 8px rgba(232,192,74,.06)}
+.pfilm-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+/* About: the photo framed in gold, a bigger name, and the countries as chips */
+.c-person-photo{box-shadow:0 24px 60px rgba(0,0,0,.35),0 0 0 1px rgba(232,192,74,.45),0 0 0 7px rgba(232,192,74,.08)}
+.c-person-photo img{object-position:50% 32%}
+.c-person-body h3.c-person-name{font:900 clamp(38px,5vw,64px)/.95 'Archivo',sans-serif;font-stretch:80%;text-transform:uppercase;letter-spacing:.005em;background:linear-gradient(180deg,#E3B93F,#A47E16);-webkit-background-clip:text;background-clip:text;color:transparent}
+.c-person-world p{margin:0 0 10px;color:var(--text);font-weight:700;font-size:16px}
+.c-person-countries{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:7px}
+.c-person-countries li{border:1px solid rgba(232,192,74,.45);background:rgba(232,192,74,.08);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700;color:var(--text)}
+@media (min-width:761px){.c-person-photo{position:sticky;top:110px}}
+#film{scroll-margin-top:90px}
+.pfilm-read{max-width:1120px;margin:16px auto 0;border:1px solid var(--line);border-radius:16px;padding:0 20px;background:var(--surface)}
+.pfilm-read summary{cursor:pointer;padding:14px 0;font-weight:800;color:var(--text)}
+.pfilm-read ol{margin:0 0 18px;padding-left:22px;display:grid;gap:8px;color:var(--muted);font-size:15px;line-height:1.6}
+.pfilm-read small{display:block;font-size:12px;opacity:.8}

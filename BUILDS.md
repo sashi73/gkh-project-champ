@@ -130,4 +130,10 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 119 | 1.0.119| 2026-11-18 17:15| gantt-full| `c01cf31` | Full screen: Step opens a collapsed task first; formatting moves with indent/outdent; leaving for WBS or another tab ends full screen; test  |
 | 120 | 1.0.120| 2026-11-18 17:25| gantt-full| `12c24da` | Full-screen Gantt editor; @ list on top of the note (#8) |
 | 121 | 1.0.121| 2026-11-18 18:06| gantt-perf| `526f9dc` | Full screen: dialogs, messages and pop-ups show over it (layer 39); grid row heights in one layout pass (350 ms to 18 ms on a 100-row plan); |
-| 122 | 1.0.122 | 2026-11-18 18:16 | gantt-perf | _this commit_ | _see git log_ |
+| 122 | 1.0.122| 2026-11-18 18:16| gantt-perf| `b363ff3` | Full screen: dialogs on top; faster grid (#9) |
+| 123 | 1.0.123| 2026-11-18 18:41| at-list| `e1a193b` | Sticky notes: @ lists every stakeholder with a phone or email (not just the first 8), scrolling, tall as the screen allows |
+| 124 | 1.0.124| 2026-11-18 18:58| at-list| `fc9f650` | @ list: an email address can be typed after @; the contact shown is trimmed; test scrolls to a name below the fold and picks it |
+| 125 | 1.0.125| 2026-11-18 19:22| at-list| `7036190` | Website: the 2-minute film on the home page (promo.html, drawn live so it plays in the visitor's language); About: Sashi's photo, bigger nam |
+| 126 | 1.0.126| 2026-11-18 19:22| at-list| `5ee593d` | All pages load the new site stylesheet (v7) |
+| 127 | 1.0.127| 2026-11-18 19:47| at-list| `17ac100` | Film player: starts at 0:00; carries on silently if the audio fails, stalls or cannot seek; one animation loop; controls keyboard-reachable  |
+| 128 | 1.0.128 | 2026-11-18 20:01 | at-list | _this commit_ | _see git log_ |
