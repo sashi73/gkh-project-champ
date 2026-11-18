@@ -152,4 +152,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 141 | 1.0.141| 2026-11-19 00:58| bio2| `f653c74` | Film and its transcript end with: Architected by Sashi Kumar Sivam, a pioneer in bringing AI into program and project management |
 | 142 | 1.0.142| 2026-11-19 01:06| bio2| `930bda2` | The globe on the Ask Champ button spins faster as the alert rises: green slow, amber medium, red fast (still for reduced motion) |
 | 143 | 1.0.143| 2026-11-19 01:26| globe-speed| `25cda60` | Merge main |
-| 144 | 1.0.144 | 2026-11-19 01:48 | globe-speed | _this commit_ | _see git log_ |
+| 144 | 1.0.144| 2026-11-19 01:48| globe-speed| `8c54220` | Test: each status's globe animation is checked by name, state and speed |
+| 145 | 1.0.145 | 2026-11-19 02:01 | globe-speed | _this commit_ | _see git log_ |
