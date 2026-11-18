@@ -3070,7 +3070,7 @@
   function atMention(ta) {   // v174: @ in a sticky note lists the 👥 Stakeholder register (only that); pick one to put @Name in the note
     if (!ta || ta._at) return; ta._at = 1; var box = null, hits = [], sel = 0;
     var close = function () { if (box) { box.remove(); box = null; } };
-    var token = function () { var v = ta.value.slice(0, ta.selectionStart), m = v.match(/(^|\s)@([^\s@]*)$/); return m ? { q: m[2], at: v.length - m[2].length - 1 } : null; };
+    var token = function () { var v = ta.value.slice(0, ta.selectionStart), m = v.match(/(^|\s)@([^\s]*)$/); return m ? { q: m[2], at: v.length - m[2].length - 1 } : null; };
     var pick = function (n) { var tk = token(); if (!tk) return close(); var end = ta.selectionStart; ta.value = ta.value.slice(0, tk.at) + '@' + n + ' ' + ta.value.slice(end); var c = tk.at + n.length + 2; ta.setSelectionRange(c, c); close(); ta.focus(); };
     var draw = function () { var tk = token(); if (!tk) return close();
       // v178: every stakeholder who can be reached (a phone or an email), not just the first 8
@@ -3082,7 +3082,7 @@
       var rc = ta.getBoundingClientRect(), pp = ta.closest('.stkpop') || ta, pr = pp.getBoundingClientRect(), bw = Math.max(box.offsetWidth || 240, 240), x;
       if (pr.right + 8 + bw <= innerWidth - 8) x = pr.right + 8; else if (pr.left - 8 - bw >= 8) x = pr.left - 8 - bw; else x = Math.max(8, Math.min(rc.left, innerWidth - bw - 8));
       var top = Math.max(8, Math.min(rc.top, innerHeight - 320)); box.style.position = 'fixed'; box.style.left = x + 'px'; box.style.top = top + 'px'; box.style.maxHeight = (innerHeight - top - 12) + 'px';
-      box.innerHTML = !reg.length ? '<p>No stakeholders yet: set up the 👥 Stakeholder register first, then @ them here.</p>' : !all.length ? '<p>No stakeholder has a phone or an email yet: add them in the 👥 Stakeholder register, then @ them here.</p>' : hits.length ? '<p class="stk-at-n">' + hits.length + ' of ' + all.length + ' stakeholders with a phone or email</p>' + hits.map(function (x, i) { return '<button type="button" data-at="' + esc(String(x.name).trim()) + '"' + (i === sel ? ' class="on"' : '') + '>' + esc(x.name) + '<small>' + esc([x.role, x.email || x.phone].filter(Boolean).join(' · ')) + '</small></button>'; }).join('') : '<p>No stakeholder matches “' + esc(tk.q) + '”.</p>';
+      box.innerHTML = !reg.length ? '<p>No stakeholders yet: set up the 👥 Stakeholder register first, then @ them here.</p>' : !all.length ? '<p>No stakeholder has a phone or an email yet: add them in the 👥 Stakeholder register, then @ them here.</p>' : hits.length ? '<p class="stk-at-n">' + hits.length + ' of ' + all.length + ' stakeholders with a phone or email</p>' + hits.map(function (x, i) { return '<button type="button" data-at="' + esc(String(x.name).trim()) + '"' + (i === sel ? ' class="on"' : '') + '>' + esc(x.name) + '<small>' + esc([x.role, String(x.email || '').trim() || String(x.phone || '').trim()].filter(Boolean).join(' · ')) + '</small></button>'; }).join('') : '<p>No stakeholder matches “' + esc(tk.q) + '”.</p>';
       box.querySelectorAll('[data-at]').forEach(function (b) { b.onclick = function () { pick(b.getAttribute('data-at')); }; });
       var on = box.querySelector('.on'); if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });   // arrow keys keep the choice in view
     };
