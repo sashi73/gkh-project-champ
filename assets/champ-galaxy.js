@@ -5,8 +5,9 @@
 (function () {
   'use strict';
   var cv = document.querySelector('canvas.c-galaxy'); if (!cv || !cv.getContext) return;
-  var g = cv.getContext('2d'), W = 0, H = 0, DPR = Math.min(2, window.devicePixelRatio || 1), still = false;
-  try { still = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+  var g = cv.getContext('2d'); if (!g) return;
+  var W = 0, H = 0, DPR = Math.min(2, window.devicePixelRatio || 1), still = false;
+  var mq = null; try { mq = window.matchMedia('(prefers-reduced-motion: reduce)'); still = mq.matches; } catch (e) {}
   var rnd = (function (s) { return function () { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; }; })(20261118);
   var stars = [], dust = [], icons = [], shoot = null, nextShoot = 4;
   var GOLD = '232,192,74', CYAN = '120,200,255', VIOLET = '170,130,255';
@@ -16,7 +17,7 @@
   }
   function seed() {
     stars = []; for (var i = 0; i < 170; i++) stars.push({ x: rnd(), y: rnd(), r: rnd() < 0.08 ? 1.3 + rnd() * 0.9 : 0.35 + rnd() * 0.8, tw: rnd() * 6.28, sp: 0.6 + rnd() * 1.8, z: 0.2 + rnd() * 0.8, c: rnd() < 0.15 ? GOLD : rnd() < 0.3 ? CYAN : '255,255,255' });
-    dust = []; for (var j = 0; j < 1100; j++) { var arm = j % 2, t = Math.pow(rnd(), 0.8); dust.push({ arm: arm, t: t, off: (rnd() - 0.5) * (0.25 + t * 0.35), s: 0.5 + rnd() * 1.2, c: rnd() < 0.25 ? GOLD : rnd() < 0.55 ? VIOLET : CYAN }); }
+    dust = []; for (var j = 0; j < 1100; j++) { var arm = j % 2, t = Math.pow(rnd(), 0.8); var dc = rnd() < 0.25 ? GOLD : rnd() < 0.55 ? VIOLET : CYAN; dust.push({ arm: arm, t: t, off: (rnd() - 0.5) * (0.25 + t * 0.35), s: 0.5 + rnd() * 1.2, f: 'rgba(' + dc + ',' + (0.75 * (1 - t * 0.65)).toFixed(3) + ')' }); }   // the colour is worked out once
     var kinds = ['ai', 'chip', 'gantt', 'nodes', 'rocket', 'bulb', 'check', 'target', 'atom', 'code'];
     icons = kinds.map(function (k, i) { return { k: k, x: (i + 0.2 + rnd() * 0.6) / kinds.length, y: rnd(), vx: (rnd() - 0.5) * 0.006, vy: -0.004 - rnd() * 0.006, rot: rnd() * 6.28, vr: (rnd() - 0.5) * 0.12, s: 19 + rnd() * 12, c: i % 3 === 0 ? CYAN : GOLD, a: 0.38 + rnd() * 0.25 }; });
   }
@@ -47,7 +48,7 @@
     g.save(); g.translate(gx, gy); g.scale(1, 0.42); g.rotate(rot * 0.3);   // the glowing band of the galaxy's disc
     var band = g.createRadialGradient(0, 0, R * 0.05, 0, 0, R); band.addColorStop(0, 'rgba(200,170,255,0.28)'); band.addColorStop(0.45, 'rgba(120,110,230,0.12)'); band.addColorStop(1, 'rgba(90,90,200,0)'); g.fillStyle = band; g.beginPath(); g.arc(0, 0, R, 0, 6.28); g.fill(); g.restore();
     for (var i = 0; i < dust.length; i++) { var d = dust[i], ang = d.t * 4.6 + d.arm * Math.PI + rot, rr = R * (0.06 + d.t * 0.94), x = gx + Math.cos(ang + d.off) * rr, y = gy + Math.sin(ang + d.off) * rr * 0.42;
-      g.fillStyle = 'rgba(' + d.c + ',' + (0.75 * (1 - d.t * 0.65)).toFixed(3) + ')'; g.fillRect(x, y, d.s, d.s); }
+      g.fillStyle = d.f; g.fillRect(x, y, d.s, d.s); }
     // stars, twinkling and drifting a little (the nearer ones a little faster)
     for (var s = 0; s < stars.length; s++) { var st = stars[s], sx = ((st.x + t * 0.002 * st.z) % 1) * W, sy = st.y * H, a = 0.45 + 0.55 * Math.abs(Math.sin(t * st.sp * 0.6 + st.tw));
       g.fillStyle = 'rgba(' + st.c + ',' + a.toFixed(3) + ')'; g.beginPath(); g.arc(sx, sy, st.r, 0, 6.28); g.fill();
@@ -67,11 +68,13 @@
     var vg = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.max(W, H) * 0.75); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)'); g.fillStyle = vg; g.fillRect(0, 0, W, H);
   }
   size(); seed();
-  var t0 = performance.now(), on = true, raf = 0, last = 0;
-  var loop = function (now) { raf = 0; if (!on) return; if (now - last > 33) { last = now; draw((now - t0) / 1000); } raf = requestAnimationFrame(loop); };   // about 30 frames a second is plenty for slow motion
-  if (still) draw(8); else raf = requestAnimationFrame(loop);
+  var t0 = performance.now(), seen = true, shown = !document.hidden, raf = 0, last = 0;   // it runs only while the canvas is on screen AND the tab is visible
+  var go = function () { if (!still && seen && shown && !raf) raf = requestAnimationFrame(loop); };
+  var loop = function (now) { raf = 0; if (still || !seen || !shown) return; if (now - last > 33) { last = now; draw((now - t0) / 1000); } raf = requestAnimationFrame(loop); };   // about 30 frames a second is plenty for slow motion
+  if (still) draw(8); else go();
   window.addEventListener('resize', function () { size(); if (still) draw(8); });
-  if (!still && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { on = es[0].isIntersecting; if (on && !raf) raf = requestAnimationFrame(loop); }).observe(cv);
-  document.addEventListener('visibilitychange', function () { on = !document.hidden; if (on && !raf && !still) raf = requestAnimationFrame(loop); });
+  if ('IntersectionObserver' in window) new IntersectionObserver(function (es) { seen = es[0].isIntersecting; go(); }).observe(cv);
+  document.addEventListener('visibilitychange', function () { shown = !document.hidden; go(); });
+  if (mq) { var ch = function () { still = mq.matches; if (still) { if (raf) { cancelAnimationFrame(raf); raf = 0; } draw(8); } else go(); }; if (mq.addEventListener) mq.addEventListener('change', ch); else if (mq.addListener) mq.addListener(ch); }   // reduced motion switched on or off while reading
   window.__champGalaxy = { draw: draw };   // for the still picture and the tests
 })();

@@ -138,4 +138,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 127 | 1.0.127| 2026-11-18 19:47| at-list| `17ac100` | Film player: starts at 0:00; carries on silently if the audio fails, stalls or cannot seek; one animation loop; controls keyboard-reachable  |
 | 128 | 1.0.128| 2026-11-18 20:01| at-list| `3f3f9c4` | @ list fixes; the 2-minute film on the home page; About profile update (#10) |
 | 129 | 1.0.129| 2026-11-18 20:44| photo-blue| `478a059` | About: Sashi's photo on an elegant dark-blue backdrop (background only replaced) |
-| 130 | 1.0.130 | 2026-11-18 20:55 | photo-blue | _this commit_ | _see git log_ |
+| 130 | 1.0.130| 2026-11-18 20:55| photo-blue| `6f15856` | About: Sashi on a slowly moving galaxy (stars, nebulae, a turning spiral galaxy, a shooting star now and then, AI / tech / project symbols d |
+| 131 | 1.0.131 | 2026-11-18 21:08 | photo-blue | _this commit_ | _see git log_ |
