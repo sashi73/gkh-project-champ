@@ -9,6 +9,9 @@ import { env, isTestSite } from './shared.mjs';
 import { llmJson, usage, checkLimit, llmSetup, sydToday } from './ai.mjs';
 import * as INV from './inventory.mjs';
 import * as ACC from './accounts.mjs';
+// v176: row formatting from the full-screen Gantt editor (bold, italic, underline, a text colour and a row highlight from fixed palettes)
+const FMT_C = ['red', 'amber', 'green', 'blue', 'purple'], FMT_BG = ['yellow', 'green', 'blue', 'pink', 'grey'];
+const fmtOf = (f) => { if (!f || typeof f !== 'object') return undefined; const o = {}; if (f.b) o.b = true; if (f.i) o.i = true; if (f.u) o.u = true; if (FMT_C.includes(f.c)) o.c = f.c; if (FMT_BG.includes(f.bg)) o.bg = f.bg; return Object.keys(o).length ? o : undefined; };
 import { cleanBom } from './bom.mjs';
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
@@ -138,10 +141,11 @@ function cleanSubs(list, t, uid) {
     const off = int(x.off, 0, D - 1, 0), dur = int(x.dur, 1, D - off, 1);
     let status = STAT.includes(x.status) ? x.status : 'todo';
     // v85: dated steps inside a story (a third level): off / dur in working days from the story's start, done or not
-    const steps = (Array.isArray(x.steps) ? x.steps : []).slice(0, 40).map((st) => { const so = int(st && st.off, 0, dur - 1, 0); return { id: uid(st && st.id, 'p'), name: str(st && st.name, 160) || 'Step', owner: str(st && st.owner, 120), off: so, dur: int(st && st.dur, 1, dur - so, 1), done: !!(st && st.done), desc: str(st && st.desc, 300), priority: ['High', 'Medium', 'Low'].includes(st && st.priority) ? st.priority : '', points: [1, 2, 3, 5, 8, 13].includes(Number(st && st.points)) ? Number(st.points) : 0 }; });   // v174: a step has an owner (from the Stakeholder register) and keeps a story's details when indented
+    const steps = (Array.isArray(x.steps) ? x.steps : []).slice(0, 40).map((st) => { const so = int(st && st.off, 0, dur - 1, 0); return { id: uid(st && st.id, 'p'), name: str(st && st.name, 160) || 'Step', owner: str(st && st.owner, 120), off: so, dur: int(st && st.dur, 1, dur - so, 1), done: !!(st && st.done), desc: str(st && st.desc, 300), priority: ['High', 'Medium', 'Low'].includes(st && st.priority) ? st.priority : '', fmt: fmtOf(st && st.fmt), points: [1, 2, 3, 5, 8, 13].includes(Number(st && st.points)) ? Number(st.points) : 0 }; });   // v174: a step has an owner (from the Stakeholder register) and keeps a story's details when indented
     let pct = subPctOf(x, status);
     if (steps.length) { const w = steps.reduce((a, q) => a + q.dur, 0) || 1; pct = Math.round(steps.reduce((a, q) => a + (q.done ? q.dur : 0), 0) / w * 100); status = steps.every((q) => q.done) ? 'done' : subStat(pct); }
     return { id: uid(x.id, 's'), name: str(x.name, 160) || 'Sub-task', owner: str(x.owner, 120), off, dur, status, pct, desc: str(x.desc, 300),
+      fmt: fmtOf(x.fmt),
       priority: ['High', 'Medium', 'Low'].includes(x.priority) ? x.priority : '', points: [1, 2, 3, 5, 8, 13].includes(Number(x.points)) ? Number(x.points) : 0, steps };   // v65: user stories on the Board
   });
 }
@@ -162,7 +166,7 @@ function clean(p, core) {
     ag: /^(board|S\d{1,3})$/.test(String(t.ag || '')) ? t.ag : undefined, agIn: ymdOk(t.agIn) || undefined, doneAt: ymdOk(t.doneAt) || undefined,
     stickies: (Array.isArray(t.stickies) ? t.stickies : []).slice(-40).map((n) => (n && typeof n === 'object' && str(n.text, 1500) ? { id: str(n.id, 20).replace(/[^\w-]/g, '') || 'n' + Math.random().toString(36).slice(2, 8), c: ['R', 'A', 'G'].includes(n.c) ? n.c : 'G', text: str(n.text, 1500), by: str(n.by, 80), at: Number(n.at) || Date.now(), done: !!n.done, doneBy: str(n.doneBy, 80), editedAt: Number(n.editedAt) || 0, editedBy: str(n.editedBy, 80) } : null)).filter(Boolean),
     // v78: an indicative (AI benchmark) cost not yet reviewed by the consultant, and how it was worked out
-    est: !!t.est, basis: str(t.basis, 200), priority: ['High', 'Medium', 'Low'].includes(t.priority) ? t.priority : '', points: int(t.points, 0, 100, 0)
+    est: !!t.est, basis: str(t.basis, 200), fmt: fmtOf(t.fmt), priority: ['High', 'Medium', 'Low'].includes(t.priority) ? t.priority : '', points: int(t.points, 0, 100, 0)
     };
     // v56: materials from stock: any number of items, each with its own quantity (and the price at the time).
     // Older plans had one item on the task (the task's own qty and rate were that item): moved into the list, same cost.
