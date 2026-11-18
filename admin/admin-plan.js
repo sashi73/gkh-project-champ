@@ -1760,10 +1760,10 @@
   function gObjOf(p, s) { if (!s) return null; var t = p.tasks.filter(function (x) { return x.id === s.t; })[0]; if (!t || !s.s) return t || null; var sb = (t.subs || []).filter(function (x) { return x.id === s.s; })[0]; if (!sb || !s.q) return sb || null; return (sb.steps || []).filter(function (x) { return x.id === s.q; })[0] || null; }
   function gRowOf(s) { if (!s) return null; var e = window.CSS && CSS.escape ? CSS.escape : function (v) { return v; }; return document.querySelector(s.q ? '#gLeft tr[data-qid="' + e(s.q) + '"]' : s.s ? '#gLeft tr[data-sid="' + e(s.s) + '"]' : '#gLeft tr[data-tid="' + e(s.t) + '"]'); }
   function gPaint(p) {   // each row's own formatting, on every render
-    document.querySelectorAll('#gLeft tbody tr').forEach(function (tr) { var o = gObjOf(p, gSelOf(tr)), f = o && o.fmt; if (!f) return;
+    document.querySelectorAll('#gLeft tbody tr').forEach(function (tr) { var o = gObjOf(p, gSelOf(tr)), f = o && o.fmt; if (!f && !tr._fmt) return; tr._fmt = !!f; f = f || {};
       var nm = tr.querySelector('[data-k="name"],[data-sk="name"],[data-qk="name"]');
       if (nm) { nm.style.fontWeight = f.b ? '800' : ''; nm.style.fontStyle = f.i ? 'italic' : ''; nm.style.textDecoration = f.u ? 'underline' : ''; nm.style.color = f.c ? FMTC[f.c] : ''; }
-      if (f.bg) tr.querySelectorAll('td').forEach(function (td) { td.style.background = FMTBG[f.bg]; }); });
+      tr.querySelectorAll('td').forEach(function (td) { td.style.background = f.bg ? FMTBG[f.bg] : ''; }); });
   }
   function gMark(p) {   // the selected row, and what the toolbar can do with it
     document.querySelectorAll('#gLeft tr.gsel').forEach(function (x) { x.classList.remove('gsel'); });
@@ -1778,7 +1778,7 @@
   function gAct(p, a) {
     var s = S.gsel, tr = gRowOf(s), o = gObjOf(p, s), t = s && gObjOf(p, { t: s.t }), ttr = s && gRowOf({ t: s.t });
     var press = function (row, q, why) { var b = row && row.querySelector(q); if (!b) { if (why) toast(why, true); return; } if (b.disabled) { toast(b.title || 'Not possible here', true); return; } b.click(); };
-    var fmt = function (fn) { if (!o) return; var f = o.fmt || {}; fn(f); Object.keys(f).forEach(function (k) { if (!f[k]) delete f[k]; }); if (Object.keys(f).length) o.fmt = f; else delete o.fmt; dirty('format'); render(); };
+    var fmt = function (fn) { if (!o) return; var f = o.fmt || {}; fn(f); Object.keys(f).forEach(function (k) { if (!f[k]) delete f[k]; }); if (Object.keys(f).length) o.fmt = f; else delete o.fmt; dirty('format'); gPaint(p); gMark(p); };   // v177: no redraw for formatting
     if (a === 'exit') { gFull(false); return; }
     if (a === 'addT') { if (ttr) press(ttr, '[data-ins]'); else { var at = $('#addTask'); if (at) at.click(); } return; }
     if (a === 'addS') { if (t && t.dur === 0) { toast('A milestone has no sub-tasks: select a task', true); return; } S.closed[s.t] = false; press(ttr, '[data-addsub]', 'Select a task first'); return; }
@@ -1800,7 +1800,7 @@
     var fs = $('#gFull'); if (fs) fs.onclick = function () { gFull(!S.gfull); };
     if (!S.gfull) return;
     document.querySelectorAll('.gtool [data-gt]').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () { gAct(p, b.getAttribute('data-gt')); }; });
-    document.querySelectorAll('.gtool [data-gts]').forEach(function (x) { x.onchange = function () { var o = gObjOf(p, S.gsel), k = x.getAttribute('data-gts'); if (!o) return; var f = o.fmt || {}; if (x.value && x.value !== 'none') f[k] = x.value; else delete f[k]; if (Object.keys(f).length) o.fmt = f; else delete o.fmt; dirty('format'); render(); }; });
+    document.querySelectorAll('.gtool [data-gts]').forEach(function (x) { x.onchange = function () { var o = gObjOf(p, S.gsel), k = x.getAttribute('data-gts'); if (!o) return; var f = o.fmt || {}; if (x.value && x.value !== 'none') f[k] = x.value; else delete f[k]; if (Object.keys(f).length) o.fmt = f; else delete o.fmt; dirty('format'); gPaint(p); gMark(p); }; });
     var fi = $('#gtFind'); if (fi) { if (S.gFind) fi.value = S.gFind; fi.onkeydown = function (e) { if (e.key !== 'Enter') return; e.preventDefault(); var q = fi.value.trim().toLowerCase(); S.gFind = fi.value; if (!q) return;
       var all = [].slice.call(document.querySelectorAll('#gLeft [data-k="name"],#gLeft [data-sk="name"],#gLeft [data-qk="name"]')), cur = gRowOf(S.gsel), from = cur ? all.findIndex(function (x) { return x.closest('tr') === cur; }) : -1;
       var hit = all.slice(from + 1).concat(all.slice(0, from + 1)).filter(function (x) { return x.value.toLowerCase().indexOf(q) >= 0; })[0];
@@ -2806,9 +2806,11 @@
       var pairs = [[L.querySelector('thead tr'), Rt.querySelector('thead tr')], [L.querySelector('tfoot tr'), Rt.querySelector('tfoot tr')]];
       var lr = L.querySelectorAll('tbody tr'), rr = Rt.querySelectorAll('tbody tr');
       for (var i = 0; i < lr.length; i++) pairs.push([lr[i], rr[i]]);
-      pairs.forEach(function (pr) { if (!pr[0] || !pr[1]) return; pr[0].style.height = pr[1].style.height = ''; });
-      pairs.forEach(function (pr) { if (!pr[0] || !pr[1]) return; var tk = pr[1].querySelector('.gtrack'); if (tk) tk.style.height = ''; });
-      pairs.forEach(function (pr) { if (!pr[0] || !pr[1]) return; var h = Math.max(pr[0].getBoundingClientRect().height, pr[1].getBoundingClientRect().height); pr[0].style.height = pr[1].style.height = h + 'px'; var tk = pr[1].querySelector('.gtrack'); if (tk) tk.style.height = (h - 1) + 'px'; });
+      // v177: clear every height, read every height (one layout), then write them all: no layout per row
+      var live = pairs.filter(function (pr) { return pr[0] && pr[1]; });
+      live.forEach(function (pr) { pr[0].style.height = pr[1].style.height = ''; pr[2] = pr[1].querySelector('.gtrack'); if (pr[2]) pr[2].style.height = ''; });
+      var hs = live.map(function (pr) { return Math.max(pr[0].getBoundingClientRect().height, pr[1].getBoundingClientRect().height); });
+      live.forEach(function (pr, i) { pr[0].style.height = pr[1].style.height = hs[i] + 'px'; if (pr[2]) pr[2].style.height = (hs[i] - 1) + 'px'; });
     };
     gColCss(); gColHandles(L, sync);
     sync(); gFreeze();
