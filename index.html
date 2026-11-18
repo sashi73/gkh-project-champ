@@ -81,13 +81,17 @@
     <li>Plans in minutes: the charter, WBS, Gantt chart and costs, drafted by AI from a one-page brief.</li>
     <li>It watches every project, every morning, and sorts them into act now, watch and on track.</li>
     <li>It tells you why, and what to do: “Penang Data Centre is red. Time index 0.82, 19 days behind. CPI 0.88, heading 12% over budget. Three critical issues open. If this were my project, I would add a second crew on the cooling install, escalate the switchgear delivery, and release contingency only against the recovery plan.”</li>
-    <li>Just ask, by voice or text, in 19 languages.</li>
+    <li>Just ask, by voice or text, in 19 languages. “What’s slipping on the Mekong program?” “Two tasks late, one at risk. Here is the recovery plan.”</li>
     <li>Your way of working: waterfall, Scrum or Kanban, with costing, bill of materials, earned value, risks and issues, and stakeholders.</li>
-    <li>Every finished project makes the next one better: Champ says how it would have done it better, and saves it to lessons learned for the next plan.</li>
+    <li>Every finished project makes the next one better. Turkana Water Program finished as failed: time index 0.72, 116 days late, 24% over budget. How Champ would do it better: lock long-lead items before design freeze, take cost actuals weekly, not monthly, and escalate any issue open past 10 days. It is saved to lessons learned and reused on the next plan.</li>
     <li>On a $10M project portfolio: $380,000 of waste recovered by earlier warning, plus $276,000 of project manager time given back, about $656,000 of value a year. <small>Illustrative: 11.4% waste with one third recovered, and 10 PMs each saving 5 hours a week, 46 weeks a year, at $120 an hour.</small></li>
     <li>Stop paying for projects that go bad. Book a demo at gkhpmo.com.</li>
   </ol></details>
-  <script>addEventListener('champ:lang', function (e) { var f = document.querySelector('#film iframe'); try { if (f && f.contentWindow) f.contentWindow.postMessage({ champLang: e.detail }, location.origin); } catch (x) {} });</script>
+  <script>(function () {   // the film follows the page's language: sent when the player says it is ready, and on every change
+    var f = document.querySelector('#film iframe'), send = function (l) { try { if (f && f.contentWindow && l) f.contentWindow.postMessage({ champLang: l }, location.origin); } catch (x) {} };
+    addEventListener('champ:lang', function (e) { send(e.detail); });
+    addEventListener('message', function (e) { if (e.origin === location.origin && f && e.source === f.contentWindow && e.data && e.data.champReady) send(window.ChampI18n && window.ChampI18n.get()); });
+  })();</script>
 </div></section>
 <section class="askfx" aria-labelledby="askfx-title"><div class="wrap askfx-in rv">
   <div class="askfx-copy">

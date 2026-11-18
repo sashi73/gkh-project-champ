@@ -198,7 +198,7 @@ const S=[ // id, start, dur
 function rise(sc,k,lt,t0,d=.7,dist=50){const el=sc.querySelector(`[data-k="${k}"]`);const p=eo((lt-t0)/d);el.style.opacity=p;el.style.transform=`translateY(${(1-p)*dist}px)`;return p}
 function pop(sc,k,lt,t0,d=.6){const el=sc.querySelector(`[data-k="${k}"]`);const p=eo((lt-t0)/d);el.style.opacity=p;el.style.transform=`scale(${.92+.08*p})`;return p}
 const money=v=>'$'+Math.round(v).toLocaleString('en-US');
-const tx=(el,v)=>{v=String(v);if(el.firstChild&&el.firstChild.nodeType===3){if(el.firstChild.data!==v)el.firstChild.data=v;}else el.textContent=v;};
+const tx=(el,v)=>{v=String(v);const n=el.firstChild;if(n&&n.nodeType===3){if(n.data!==v)n.data=v;}else{el.textContent='';el.appendChild(document.createTextNode(v));}};   // change the text, keep the node
 
 // build S6 gantt
 {const rows=['Site survey','Design','Approvals','Procurement','Build','Fit-out','Testing','Handover'];const st=[0,.08,.26,.32,.45,.66,.8,.92],ln=[.1,.2,.1,.2,.25,.16,.12,.08];
@@ -259,10 +259,8 @@ const U={
   rise(sc,'t',lt,5.2)},
  s8(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);rise(sc,'c',lt,1.2);rise(sc,'g',lt,.3,.8,30);
   $('#pulse8').style.boxShadow=`0 0 ${16+12*Math.sin(lt*5)}px #FF5A5F`;
-  let chars=Math.max(0,(lt-1.6)*38),out='';
-  for(const [s,k] of brief()){if(chars<=0)break;const part=s.slice(0,Math.floor(chars));chars-=s.length+4;
-   out+= k==1?`<span style="color:#E8C04A;font-weight:800">${part}</span>\n`:k==2?`<span style="color:#fff;font-weight:700">${part}</span>\n`:part+'\n'}
-  const ty=$('#ty8');if(ty._o!==out){ty._o=out;ty.innerHTML=out}},
+  const ty=$('#ty8'),B=brief();if(!ty._l){ty.textContent='';ty._l=B.map(([s,k])=>{const d=document.createElement('div');d.style.minHeight='1.5em';if(k==1){d.style.color='#E8C04A';d.style.fontWeight='800'}else if(k==2){d.style.color='#fff';d.style.fontWeight='700'}d.appendChild(document.createTextNode(''));ty.appendChild(d);return d;});}   // the lines are made once; each frame only changes their text
+  let chars=Math.max(0,(lt-1.6)*38);B.forEach(([s],i)=>{tx(ty._l[i],chars>0?s.slice(0,Math.floor(chars)):'');chars-=s.length+4;});},
  s9(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);
   const talk=lt>.9&&lt<3.6;sc.querySelectorAll('#wave9 i').forEach((b,i)=>{const a=talk?(.25+.75*Math.abs(Math.sin(lt*9+i*.7)*Math.sin(lt*3.1+i*.23))):.06;b.style.height=(10+190*a)+'px'});
   rise(sc,'q',lt,1,.5,20);const q=SRC('q');tx($('#q9'),q.slice(0,Math.floor(Math.max(0,lt-1.1)*20)));
@@ -308,7 +306,7 @@ const U={
 <div class="ov ov-start" id="ov"><button class="big" id="big" type="button" aria-label="Play the film"><svg viewBox="0 0 24 24" fill="#0D0C09"><path d="M6 4l15 8-15 8z"/></svg></button><div class="ovt">Champ in two minutes</div></div>
 <div class="ov" id="endov" hidden><div class="again"><button type="button" id="again">Watch again</button><a href="contact.html" target="_top">Book a demo</a></div></div>
 <div class="ctl" id="ctl">
-  <button type="button" id="pp" aria-label="Pause"><svg viewBox="0 0 24 24" fill="#fff" id="ppi"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
+  <button type="button" id="pp" aria-label="Pause" data-noi18n><svg viewBox="0 0 24 24" fill="#fff" id="ppi"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg></button>
   <div class="bar" id="bar" role="slider" aria-label="Position in the film" aria-valuemin="0" aria-valuemax="120" tabindex="0"><i id="fill"></i></div>
   <span id="tm" data-noi18n>0:00 / 2:00</span>
   <button type="button" id="mu" aria-label="Sound on or off"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="mui"><path d="M11 5L6 9H2v6h4l5 4V5z" fill="#fff"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></button>
@@ -365,6 +363,8 @@ const U={
   addEventListener('storage',e=>{ if(e.key==='champLang') relang(e.newValue); });
   addEventListener('message',e=>{ if(e.origin===location.origin&&e.data&&e.data.champLang) relang(e.data.champLang); });
   window.addEventListener('champ:lang',()=>setTimeout(state,1500));
+  new MutationObserver(()=>state()).observe($i('src'),{subtree:true,childList:true,characterData:true});   // the Play / Pause name follows its translation as soon as it arrives
+  try{ if(parent!==window) parent.postMessage({champReady:true},location.origin); }catch(e){}
   ui(); state();
 })();
 </script>

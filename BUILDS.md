@@ -135,4 +135,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 124 | 1.0.124| 2026-11-18 18:58| at-list| `fc9f650` | @ list: an email address can be typed after @; the contact shown is trimmed; test scrolls to a name below the fold and picks it |
 | 125 | 1.0.125| 2026-11-18 19:22| at-list| `7036190` | Website: the 2-minute film on the home page (promo.html, drawn live so it plays in the visitor's language); About: Sashi's photo, bigger nam |
 | 126 | 1.0.126| 2026-11-18 19:22| at-list| `5ee593d` | All pages load the new site stylesheet (v7) |
-| 127 | 1.0.127 | 2026-11-18 19:47 | at-list | _this commit_ | _see git log_ |
+| 127 | 1.0.127| 2026-11-18 19:47| at-list| `17ac100` | Film player: starts at 0:00; carries on silently if the audio fails, stalls or cannot seek; one animation loop; controls keyboard-reachable  |
+| 128 | 1.0.128 | 2026-11-18 20:01 | at-list | _this commit_ | _see git log_ |

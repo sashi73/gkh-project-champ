@@ -3072,9 +3072,9 @@
     var close = function () { if (box) { box.remove(); box = null; } };
     var token = function () { var v = ta.value.slice(0, ta.selectionStart), m = v.match(/(^|\s)@([^\s]*)$/); return m ? { q: m[2], at: v.length - m[2].length - 1 } : null; };
     var pick = function (n) {   // the rest of the name or email after the caret goes too; punctuation after it stays; one space after the mention
-      var tk = token(); if (!tk) return close(); var end = ta.selectionStart, rest = (ta.value.slice(end).match(/^[\w@.+-]*/) || [''])[0].replace(/\.+$/, ''); end += rest.length;
-      var after = ta.value.slice(end), ins = '@' + n + (after === '' || /^\w/.test(after) ? ' ' : '');
-      ta.value = ta.value.slice(0, tk.at) + ins + after; var c = tk.at + ins.length + (/^\s/.test(after) ? 1 : 0); ta.setSelectionRange(c, c); close(); ta.focus(); };
+      var tk = token(); if (!tk) return close(); var end = ta.selectionStart, rest = (ta.value.slice(end).match(/^[\p{L}\p{M}\p{N}_@.+-]*/u) || [''])[0].replace(/\.+$/, ''); end += rest.length;
+      var after = ta.value.slice(end), ins = '@' + n + (after === '' || /^[\p{L}\p{N}]/u.test(after) ? ' ' : '');
+      ta.value = ta.value.slice(0, tk.at) + ins + after; var c = tk.at + ins.length + (/^[ \t]/.test(after) ? 1 : 0); ta.setSelectionRange(c, c); close(); ta.focus(); };
     var draw = function () { var tk = token(); if (!tk) return close();
       // v178: every stakeholder who can be reached (a phone or an email), not just the first 8
       var reg = (S.plan && S.plan.stakeholders || []).filter(function (x) { return String(x.name || '').trim(); }), lq = tk.q.toLowerCase();
