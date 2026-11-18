@@ -2117,7 +2117,7 @@
     $('#gFreezeBtn').onclick = function (e) { e.stopPropagation(); gFreezeMenu(this); };
     B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
-    B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { var gr = $('#gRight'); if (gr) gr.scrollLeft = 0; S.scrollX = 0; S.gfit = S.gfit === false;   // the date range changes: start from its left edge
+    B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { S.gfit = S.gfit === false;   // the range key changes, so the chart opens at the plan (fitted) or at today (not fitted)
       try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
     B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
     B.querySelectorAll('[data-links]').forEach(function (b) { b.onclick = function () { S.links = !S.links; try { localStorage.setItem('champLinks', S.links ? '1' : ''); } catch (e) {} render(); }; });

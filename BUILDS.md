@@ -143,4 +143,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 132 | 1.0.132| 2026-11-18 21:23| photo-blue| `31c00db` | Galaxy: travelling through space (stars stream out towards the viewer with trails, the AI / tech / project symbols fly out of the deep), a s |
 | 133 | 1.0.133| 2026-11-18 21:39| photo-blue| `09da93c` | Fit: baseline dates only from tasks that still have a row; focus stays on the switch; test adds 40 Sydney calendar days |
 | 134 | 1.0.134| 2026-11-18 22:18| gantt-fit2| `1202f5a` | Fit: the chart opens at the plan when fitted, and starts there again whenever its first date changes; test checks the first date and that th |
-| 135 | 1.0.135 | 2026-11-18 22:25 | gantt-fit2 | _this commit_ | _see git log_ |
+| 135 | 1.0.135| 2026-11-18 22:25| gantt-fit2| `4454e80` | Fit: the chart also opens at the plan again when the plan start moves (even with an earlier baseline), and a redraw does not put the old pos |
+| 136 | 1.0.136 | 2026-11-18 22:34 | gantt-fit2 | _this commit_ | _see git log_ |
