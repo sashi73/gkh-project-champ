@@ -155,3 +155,8 @@
 .c-person-galaxy.none span{display:block;position:relative;z-index:1}   /* no photo at all: the initials over the galaxy */
 .c-person-body > p.c-person-lead{color:var(--text);font-size:clamp(17px,1.6vw,20px);line-height:1.6;font-weight:600}
 .c-person-talk{margin:4px 0 0}
+.c-person-pillars{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.c-person-pillars div{border:1px solid rgba(232,192,74,.4);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;background:rgba(232,192,74,.05)}
+.c-person-pillars b{color:var(--gold);font-size:14px;line-height:1.3}
+.c-person-pillars span{color:var(--muted);font-size:13.5px;line-height:1.5}
+@media (max-width:900px){.c-person-pillars{grid-template-columns:1fr}}

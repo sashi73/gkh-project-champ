@@ -147,5 +147,8 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 136 | 1.0.136| 2026-11-18 22:34| gantt-fit2| `a826caf` | Console: the microphone check loads before Champ's guide |
 | 137 | 1.0.137| 2026-11-18 23:05| mic-eye| `7d86f2d` | About: Sashi's profile rewritten around Program, Project and AI (pioneer bridging AI into project management), with a Talk to Sashi button |
 | 138 | 1.0.138| 2026-11-18 23:29| bio| `7b8d20d` | About: profile rewritten around Program, Project and AI (#15) |
-| 139 | 1.0.139| 2026-11-19 01:26| globe-speed| `7b8d20d` | About: profile rewritten around Program, Project and AI (#15) |
-| 140 | 1.0.140 | 2026-11-19 01:26 | globe-speed | _this commit_ | _see git log_ |
+| 139 | 1.0.139| 2026-11-19 00:35| bio2| `c0bb589` | About: AI pioneer opening line kept, original profile paragraphs back, five continents in passing, the three areas, key projects |
+| 140 | 1.0.140| 2026-11-19 00:49| bio2| `33f8045` | Test: the About page's three areas and key projects are checked by name |
+| 141 | 1.0.141| 2026-11-19 00:58| bio2| `f653c74` | Film and its transcript end with: Architected by Sashi Kumar Sivam, a pioneer in bringing AI into program and project management |
+| 142 | 1.0.142| 2026-11-19 01:06| bio2| `930bda2` | The globe on the Ask Champ button spins faster as the alert rises: green slow, amber medium, red fast (still for reduced motion) |
+| 143 | 1.0.143 | 2026-11-19 01:26 | globe-speed | _this commit_ | _see git log_ |
