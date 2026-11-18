@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 136,
+  "build": 137,
   "commit": "",
-  "branch": "gantt-fit2",
+  "branch": "mic-eye",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-18 22:34",
+  "builtAt": "2026-11-18 23:05",
   "site": ""
 };
