@@ -2007,7 +2007,8 @@
     var from = R.start ? toS(new Date(toD(R.start).getTime() - 2 * 864e5)) : t0, to = R.finish ? toS(new Date(toD(R.finish).getTime() + 6 * 864e5)) : t0;
     // v179: a plan that starts more than a week from now opens on its own dates, not on six empty weeks from today (⇥ Fit to the plan switches it)
     var gGap = R.start && t0 < R.start ? daysBetween(t0, R.start) : 0, gFit = gGap > 7 && S.gfit !== false;   // measured from the plan's own start
-    if (gFit && p.baseline && p.baseline.tasks) Object.keys(p.baseline.tasks).forEach(function (id) { var b0 = p.baseline.tasks[id]; if (b0 && b0.es && b0.es < from) from = toS(new Date(toD(b0.es).getTime() - 2 * 864e5)); });   // baseline bars stay on the chart
+    if (gFit && p.baseline && p.baseline.tasks) p.tasks.forEach(function (tk) { var b0 = p.baseline.tasks[tk.id];   // only tasks that still have a row
+      if (b0 && b0.es && b0.es < from) from = toS(new Date(toD(b0.es).getTime() - 2 * 864e5)); });   // baseline bars stay on the chart
     if (t0 < from && !gFit) from = t0; if (t0 > to) to = toS(new Date(toD(t0).getTime() + 3 * 864e5));
     var dayW = S.zoom === 'week' ? 7 : 20, days = daysBetween(from, to) + 1, W = days * dayW;
     var x = function (s) { return daysBetween(from, s) * dayW; };
@@ -2114,7 +2115,7 @@
     B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
     B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { var gr = $('#gRight'); if (gr) gr.scrollLeft = 0; S.scrollX = 0; S.gfit = S.gfit === false;   // the date range changes: start from its left edge
-      try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); }; });
+      try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
     B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
     B.querySelectorAll('[data-links]').forEach(function (b) { b.onclick = function () { S.links = !S.links; try { localStorage.setItem('champLinks', S.links ? '1' : ''); } catch (e) {} render(); }; });
     if ($('#depAi')) $('#depAi').onclick = depsDialog;
