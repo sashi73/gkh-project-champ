@@ -1080,7 +1080,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
     await p.goto(`${BASE}/admin/#programs`); await p.reload(); await p.waitForSelector('#app:not([hidden])', { timeout: 10000 }).catch(() => {}); await sleep(800);
   }
   const menu = await p.$$eval('.side-nav a:not([hidden])', (as) => as.map((a) => a.textContent.trim()));
-  ok('Console', 'menu shows only the project element (+ admin)', JSON.stringify(menu) === JSON.stringify(['🗂Programs', '🔗Dependency board', '📊Summary', '▦Pipeline board', '📅All projects', '＋New project', '👥People', '📅Team calendar', '📊Workload', '🙋My profile', '📨Enquiries', '👋Visitors & leads', '✨Ask AI', '📈Reports & data', '🔐Users & access', '📚Knowledge base', '🕘Activity log', '🏷Builds']), menu.join(' | '));
+  ok('Console', 'menu shows only the project element (+ admin)', JSON.stringify(menu) === JSON.stringify(['🗂Programs', '🔗Dependency board', '📊Summary', '▦Pipeline board', '📅All projects', '＋New project', '👥People', '📅Team calendar', '📊Workload', '🙋My profile', '📨Enquiries', '👋Visitors & leads', '✨Ask AI', '📈Reports & data', '🔐Users & access', '📚Knowledge base', '🕘Activity log', '🏷Builds', '❓Help']), menu.join(' | '));
   ok('Console', 'branded GKH Project Champ', (await p.textContent('.gkh-bar')).includes('GKH Project Champ') && (await p.title()).includes('Project Champ'));
   await p.waitForSelector('.pg-grid, .cs-tiles', { timeout: 8000 }).catch(() => {});
   ok('Programs', 'the console opens on Programs', /Programs/.test(await p.textContent('#view')) && (await p.$$('.cs-tabs .btn.on')).length === 1);
