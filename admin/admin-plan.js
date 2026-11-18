@@ -1736,6 +1736,85 @@
   /* v174: indent and outdent, one level at a time. A task (1) goes under the task above it as its last sub-task (1.1); a
      sub-task (1.1) goes under the sub-task above it as its last step (1.1.1), or out to a level-1 task just below its task;
      a step (1.1.1) goes out to a sub-task just below its own sub-task. Dates stay inside the parent (it grows if needed). */
+  /* v176: the full-screen Gantt editor. ⛶ blows the schedule up to the whole screen with a toolbar (like Smartsheet's) that
+     works on the row you click: add a task (1), sub-task (1.1) or step (1.1.1), indent / outdent, bold, italic, underline,
+     a text colour and a row highlight, expand / collapse all, reminder, delete, and find. Esc (or ⤡) goes back. */
+  var FMTC = { red: '#C62828', amber: '#B26A00', green: '#2E7D32', blue: '#1565C0', purple: '#6A1B9A' }, FMTBG = { yellow: '#FFF4C2', green: '#E3F4E8', blue: '#E3EEFB', pink: '#FBE4EC', grey: '#EEECE6' };
+  var FMTN = { red: 'Red', amber: 'Amber', green: 'Green', blue: 'Blue', purple: 'Purple', yellow: 'Yellow', pink: 'Pink', grey: 'Grey' };
+  function gTool() {
+    if (!S.gfull) return '';
+    var b = function (a, label, tip, cls) { return '<button type="button" class="gtb' + (cls ? ' ' + cls : '') + '" data-gt="' + a + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' + label + '</button>'; };
+    var sel = function (k, first, pal) { return '<select class="gts" data-gts="' + k + '" title="' + esc(first) + ' of the selected row"><option value="">' + first + '</option>' + Object.keys(pal).map(function (c) { return '<option value="' + c + '">' + FMTN[c] + '</option>'; }).join('') + '<option value="none">' + (k === 'c' ? 'Normal colour' : 'No highlight') + '</option></select>'; };
+    return '<div class="gtool" role="toolbar" aria-label="Gantt editor">' +
+      b('exit', '⤡ Exit full screen', 'Back to the normal view (Esc)', 'gtb-exit') + '<i class="gsep"></i>' +
+      b('addT', '＋ Task', 'Add a level-1 task below the selected task') + b('addS', '＋ Sub-task', 'Add a level 1.1 sub-task to the selected task') + b('addQ', '＋ Step', 'Add a level 1.1.1 step to the selected sub-task') + '<i class="gsep"></i>' +
+      b('in', '⇥ Indent', 'Move the selected row one level in (Ctrl+])') + b('out', '⇤ Outdent', 'Move the selected row one level out (Ctrl+[)') + '<i class="gsep"></i>' +
+      b('b', '<b>B</b>', 'Bold (Ctrl+B)') + b('i', '<i>I</i>', 'Italic (Ctrl+I)') + b('u', '<u>U</u>', 'Underline (Ctrl+U)') + sel('c', 'A Text colour', FMTC) + sel('bg', '▤ Highlight', FMTBG) + b('clr', '⌫', 'Clear the formatting of the selected row') + '<i class="gsep"></i>' +
+      b('open', '▾ Expand all', 'Show every sub-task and step') + b('close', '▸ Collapse all', 'Show the level-1 tasks only') + '<i class="gsep"></i>' +
+      b('rem', '🔔', 'Reminder for the selected row') + b('del', '✕', 'Delete the selected row', 'gtb-del') +
+      '<input class="gtfind" id="gtFind" placeholder="🔍 Find a task" title="Type, then press Enter to jump to the next match">' +
+      '<span class="gtsel" id="gtSel"></span></div>';
+  }
+  function gSelOf(tr) { if (!tr) return null; if (tr.hasAttribute('data-qid')) return { t: tr.getAttribute('data-qtid'), s: tr.getAttribute('data-qsid'), q: tr.getAttribute('data-qid') }; if (tr.hasAttribute('data-sid')) return { t: tr.getAttribute('data-ptid'), s: tr.getAttribute('data-sid') }; if (tr.hasAttribute('data-tid')) return { t: tr.getAttribute('data-tid') }; return null; }
+  function gObjOf(p, s) { if (!s) return null; var t = p.tasks.filter(function (x) { return x.id === s.t; })[0]; if (!t || !s.s) return t || null; var sb = (t.subs || []).filter(function (x) { return x.id === s.s; })[0]; if (!sb || !s.q) return sb || null; return (sb.steps || []).filter(function (x) { return x.id === s.q; })[0] || null; }
+  function gRowOf(s) { if (!s) return null; var e = window.CSS && CSS.escape ? CSS.escape : function (v) { return v; }; return document.querySelector(s.q ? '#gLeft tr[data-qid="' + e(s.q) + '"]' : s.s ? '#gLeft tr[data-sid="' + e(s.s) + '"]' : '#gLeft tr[data-tid="' + e(s.t) + '"]'); }
+  function gPaint(p) {   // each row's own formatting, on every render
+    document.querySelectorAll('#gLeft tbody tr').forEach(function (tr) { var o = gObjOf(p, gSelOf(tr)), f = o && o.fmt; if (!f) return;
+      var nm = tr.querySelector('[data-k="name"],[data-sk="name"],[data-qk="name"]');
+      if (nm) { nm.style.fontWeight = f.b ? '800' : ''; nm.style.fontStyle = f.i ? 'italic' : ''; nm.style.textDecoration = f.u ? 'underline' : ''; nm.style.color = f.c ? FMTC[f.c] : ''; }
+      if (f.bg) tr.querySelectorAll('td').forEach(function (td) { td.style.background = FMTBG[f.bg]; }); });
+  }
+  function gMark(p) {   // the selected row, and what the toolbar can do with it
+    document.querySelectorAll('#gLeft tr.gsel').forEach(function (x) { x.classList.remove('gsel'); });
+    var tr = gRowOf(S.gsel), o = tr && gObjOf(p, S.gsel); if (!o) S.gsel = null; else tr.classList.add('gsel');
+    var lab = $('#gtSel'); if (!lab) return; var s = S.gsel, lv = !s ? 0 : s.q ? 3 : s.s ? 2 : 1;
+    lab.textContent = s ? 'Selected: level ' + ['', '1', '1.1', '1.1.1'][lv] + ' · ' + o.name : 'Click a row to select it';
+    var dis = function (a, off) { var b = document.querySelector('.gtool [data-gt="' + a + '"]'); if (b) b.disabled = !!off; };
+    ['addS', 'in', 'out', 'b', 'i', 'u', 'clr', 'rem', 'del'].forEach(function (a) { dis(a, !s); }); dis('addQ', lv < 2 && !(lv === 1 && (o.subs || []).length)); dis('out', lv < 2); dis('in', lv === 3);
+    var f = (o && o.fmt) || {}; ['b', 'i', 'u'].forEach(function (k) { var b = document.querySelector('.gtool [data-gt="' + k + '"]'); if (b) b.classList.toggle('on', !!f[k]); });
+    document.querySelectorAll('.gtool [data-gts]').forEach(function (x) { x.disabled = !s; x.value = f[x.getAttribute('data-gts')] || ''; });
+  }
+  function gAct(p, a) {
+    var s = S.gsel, tr = gRowOf(s), o = gObjOf(p, s), t = s && gObjOf(p, { t: s.t }), ttr = s && gRowOf({ t: s.t });
+    var press = function (row, q, why) { var b = row && row.querySelector(q); if (!b) { if (why) toast(why, true); return; } if (b.disabled) { toast(b.title || 'Not possible here', true); return; } b.click(); };
+    var fmt = function (fn) { if (!o) return; var f = o.fmt || {}; fn(f); Object.keys(f).forEach(function (k) { if (!f[k]) delete f[k]; }); if (Object.keys(f).length) o.fmt = f; else delete o.fmt; dirty('format'); render(); };
+    if (a === 'exit') { gFull(false); return; }
+    if (a === 'addT') { if (ttr) press(ttr, '[data-ins]'); else { var at = $('#addTask'); if (at) at.click(); } return; }
+    if (a === 'addS') { if (t && t.dur === 0) { toast('A milestone has no sub-tasks: select a task', true); return; } S.closed[s.t] = false; press(ttr, '[data-addsub]', 'Select a task first'); return; }
+    if (a === 'addQ') { var ss = s && s.s ? s : t && (t.subs || []).length ? { t: t.id, s: t.subs[t.subs.length - 1].id } : null; if (!ss) { toast('Select a sub-task (level 1.1) first: steps go under a sub-task', true); return; } S.stClosed[ss.s] = false; press(gRowOf({ t: ss.t, s: ss.s }), '[data-addstep]'); return; }
+    if (a === 'in') { press(tr, '[data-lv="in"]', s && s.q ? 'A step (1.1.1) is already the deepest level' : 'Select a row first'); return; }
+    if (a === 'out') { press(tr, '[data-lv="out"]', s && !s.s ? 'Level 1 is already the top level' : 'Select a row first'); return; }
+    if (a === 'rem') { press(tr, '[data-rem],[data-srem],[data-qrem]'); return; }
+    if (a === 'del') { press(tr, s && s.q ? '.acts [data-qdel]' : '[data-del],[data-sdel]'); return; }
+    if (a === 'b' || a === 'i' || a === 'u') { fmt(function (f) { f[a] = !f[a]; }); return; }
+    if (a === 'clr') { fmt(function (f) { Object.keys(f).forEach(function (k) { delete f[k]; }); }); return; }
+    if (a === 'open' || a === 'close') { p.tasks.forEach(function (x) { if ((x.subs || []).length) S.closed[x.id] = a === 'close'; (x.subs || []).forEach(function (y) { if ((y.steps || []).length) S.stClosed[y.id] = a === 'close'; }); }); render(); }
+  }
+  function gFull(on) { S.gfull = !!on; document.body.classList.toggle('gantt-full', S.gfull); render(); }
+  function gWire(p) {
+    var L = $('#gLeft'); if (!L) return;
+    var pick = function (e) { var tr = e.target.closest && e.target.closest('tbody tr'); var s = gSelOf(tr); if (!s) return; S.gsel = s; gMark(p); };
+    L.addEventListener('mousedown', pick); L.addEventListener('focusin', pick);
+    gPaint(p); gMark(p);
+    var fs = $('#gFull'); if (fs) fs.onclick = function () { gFull(!S.gfull); };
+    if (!S.gfull) return;
+    document.querySelectorAll('.gtool [data-gt]').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () { gAct(p, b.getAttribute('data-gt')); }; });
+    document.querySelectorAll('.gtool [data-gts]').forEach(function (x) { x.onchange = function () { var o = gObjOf(p, S.gsel), k = x.getAttribute('data-gts'); if (!o) return; var f = o.fmt || {}; if (x.value && x.value !== 'none') f[k] = x.value; else delete f[k]; if (Object.keys(f).length) o.fmt = f; else delete o.fmt; dirty('format'); render(); }; });
+    var fi = $('#gtFind'); if (fi) { if (S.gFind) fi.value = S.gFind; fi.onkeydown = function (e) { if (e.key !== 'Enter') return; e.preventDefault(); var q = fi.value.trim().toLowerCase(); S.gFind = fi.value; if (!q) return;
+      var all = [].slice.call(document.querySelectorAll('#gLeft [data-k="name"],#gLeft [data-sk="name"],#gLeft [data-qk="name"]')), cur = gRowOf(S.gsel), from = cur ? all.findIndex(function (x) { return x.closest('tr') === cur; }) : -1;
+      var hit = all.slice(from + 1).concat(all.slice(0, from + 1)).filter(function (x) { return x.value.toLowerCase().indexOf(q) >= 0; })[0];
+      if (!hit) { toast('No task matches “' + fi.value.trim() + '” (closed rows: ▾ Expand all first)', true); return; }
+      S.gsel = gSelOf(hit.closest('tr')); gMark(p); hit.closest('tr').scrollIntoView({ block: 'center' }); }; }
+  }
+  if (!window.__gFullKeys) { window.__gFullKeys = true;
+    document.addEventListener('keydown', function (e) {
+      if (!S.gfull || !document.getElementById('gCard')) return;
+      if (e.key === 'Escape') { if (!document.querySelector('#modal:not([hidden]), #stkPop, .stkpop, .stk-at, .kpop, .mod-pop')) { e.preventDefault(); gFull(false); } return; }
+      if (!document.getElementById('gCard').contains(document.activeElement) && document.activeElement !== document.body) return;   // not while typing a sticky note or in a dialog
+      var k = (e.ctrlKey || e.metaKey) && !e.altKey ? e.key.toLowerCase() : '', a = { b: 'b', i: 'i', u: 'u', ']': 'in', '[': 'out' }[k];
+      if (a && S.gsel && S.plan) { e.preventDefault(); gAct(S.plan, a); }
+    }, true);
+  }
   function lvlBtns(lv, canIn, canOut, why) {
     return (lv < 3 ? '<button class="btn btn-sm lvb" type="button" data-lv="in"' + (canIn ? ' title="Indent: ' + (lv === 1 ? 'make it a sub-task (1.1) of the task above' : 'make it a step (1.1.1) of the sub-task above') + '"' : ' disabled title="' + esc(why || 'Cannot indent here') + '"') + ' aria-label="Indent">⇥</button>' : '') +
       (lv > 1 && canOut ? '<button class="btn btn-sm lvb" type="button" data-lv="out" title="Outdent: ' + (lv === 2 ? 'make it a level-1 task, just below its task' : 'make it a sub-task (1.1), just below its sub-task') + '" aria-label="Outdent">⇤</button>' : '');
@@ -1766,6 +1845,7 @@
     p.tasks = p.tasks.filter(function (x) { return x !== t; });
     p.tasks.forEach(function (x) { if (x.pred) x.pred = x.pred.map(function (id) { return id === t.id ? par.id : id; }).filter(function (id, k, a) { return id !== x.id && a.indexOf(id) === k; }); });
     derive(par); S.closed[par.id] = false; S.stClosed[sb.id] = false;
+    S.gsel = { t: par.id, s: sb.id };
     return 'indented: ' + t.name + ' is now a sub-task of ' + par.name;
   }
   function subIn(t, sb) {   // 1.1 → the last step of the sub-task above
@@ -1774,7 +1854,7 @@
     if ((up.steps || []).length >= LIM.steps) { toast('“' + up.name + '” already has ' + LIM.steps + ' steps, the most a sub-task can hold.', true); return ''; }
     up.steps = up.steps || []; var last = up.steps[up.steps.length - 1], off = last ? last.off + last.dur : 0, D = Math.max(1, sb.dur);
     if (off + D > up.dur) { up.dur = off + D; if (up.off + up.dur > t.dur) t.dur = up.off + up.dur; }
-    up.steps.push(lvKeep(sb, { id: lvId('p'), name: sb.name, owner: sb.owner || '', off: off, dur: D, done: sb.status === 'done' }));
+    var nq = lvKeep(sb, { id: lvId('p'), name: sb.name, owner: sb.owner || '', off: off, dur: D, done: sb.status === 'done' }); up.steps.push(nq); S.gsel = { t: t.id, s: up.id, q: nq.id };
     t.subs.splice(j, 1); fitSubs(t); derive(t); S.stClosed[up.id] = false;
     return 'indented: ' + sb.name + ' is now a step of ' + up.name;
   }
@@ -1785,12 +1865,14 @@
     if (sb.desc) nt.notes = sb.desc; if (sb.priority) nt.priority = sb.priority; if (sb.points) nt.points = sb.points;
     t.subs.splice(t.subs.indexOf(sb), 1); p.tasks.splice(p.tasks.indexOf(t) + 1, 0, nt);
     fixRes(nt); fitSubs(t); fitSubs(nt); derive(t); derive(nt); if (!t.subs.length) setStatus(t, t.status);
+    S.gsel = { t: nt.id };
     return 'outdented: ' + sb.name + ' is now a level-1 task';
   }
   function stepOut(t, sb, q) {   // 1.1.1 → a sub-task just below its own sub-task
     if (t.subs.length >= LIM.subs) { toast('“' + t.name + '” already has ' + LIM.subs + ' sub-tasks, the most a task can hold.', true); return ''; }
     var ns = lvKeep(q, { id: lvId('s'), name: q.name, owner: q.owner || '', off: sb.off + q.off, dur: q.dur, status: q.done ? 'done' : 'todo' });
     sb.steps.splice(sb.steps.indexOf(q), 1); t.subs.splice(t.subs.indexOf(sb) + 1, 0, ns); fitSubs(t); derive(t);
+    S.gsel = { t: t.id, s: ns.id };
     return 'outdented: ' + q.name + ' is now a sub-task of ' + t.name;
   }
   function stepAdd(t, sb) {
@@ -1942,7 +2024,7 @@
       if (t.dur === 0) return b + '<span class="gmile' + (t.pct >= 100 ? ' done' : '') + '" style="left:' + (left + dayW / 2 - 7) + 'px" title="' + esc(t.name + ' · ' + pretty(t.es) + ' · ' + stName[t.status]) + '"></span>' + lab;
       return b + '<span class="gbar st-' + t.status + ' pb-' + pband(t.pct) + (late ? ' late' : '') + '" style="left:' + left + 'px;width:' + w + 'px" title="' + esc(t.name + ' · ' + pretty(t.es) + ' – ' + pretty(t.ef) + ' · ' + stName[t.status] + ' ' + t.pct + '%') + '"><span class="gfill" style="width:' + t.pct + '%"></span></span>' + lab;
     };
-    var html = '<div class="card" style="padding:12px"><div class="row" style="margin-bottom:10px">' + (phone() ? '<button class="btn btn-sm" id="mpsList" type="button">📋 List</button>' : '') + '<button class="btn btn-sm btn-gold" id="addTask">＋ Task</button><button class="btn btn-sm" id="addMile">◆ Milestone</button><button class="btn btn-sm est-ai" id="estAi" type="button" title="AI fills in indicative costs from Australian and international benchmarks: a reference only, to review and change">✨ Indicative costs</button><button class="btn btn-sm" id="depAi" type="button" title="The AI works out which tasks must finish before each one starts (After #), with parallel work where it can. You review the links before anything changes.">🔗 Work out dependencies</button>' + (S.depUndo && S.depUndo.core === S.core ? '<button class="btn btn-sm" id="depUndo" type="button" title="Put the links back as they were before">↶ Undo links</button>' : '') +
+    var html = '<div class="card gcard' + (S.gfull ? ' gfull' : '') + '" id="gCard" style="padding:12px">' + gTool() + '<div class="row" style="margin-bottom:10px">' + (phone() ? '' : '<button class="btn btn-sm gfull-btn" id="gFull" type="button" title="' + (S.gfull ? 'Back to the normal view (Esc)' : 'Edit the plan full screen, with a toolbar: add levels 1, 1.1 and 1.1.1, indent, outdent, bold, colours and more') + '">' + (S.gfull ? '⤡ Exit full screen' : '⛶ Full screen') + '</button>') + (phone() ? '<button class="btn btn-sm" id="mpsList" type="button">📋 List</button>' : '') + '<button class="btn btn-sm btn-gold" id="addTask">＋ Task</button><button class="btn btn-sm" id="addMile">◆ Milestone</button><button class="btn btn-sm est-ai" id="estAi" type="button" title="AI fills in indicative costs from Australian and international benchmarks: a reference only, to review and change">✨ Indicative costs</button><button class="btn btn-sm" id="depAi" type="button" title="The AI works out which tasks must finish before each one starts (After #), with parallel work where it can. You review the links before anything changes.">🔗 Work out dependencies</button>' + (S.depUndo && S.depUndo.core === S.core ? '<button class="btn btn-sm" id="depUndo" type="button" title="Put the links back as they were before">↶ Undo links</button>' : '') +
       '<div class="qgate' + (p.emergency ? ' emerg' : p.gate && p.gate.accepted ? ' ok' : '') + '"><div class="qrow"><input type="checkbox" id="pEmerg" hidden>' +
         '<label class="qchk" title="' + (p.emergency ? 'Emergency jobs already work Saturday and Sunday' : 'Tick if the crew can work Saturday and Sunday on this job: the schedule then counts every day and finishes sooner') + '"><input type="checkbox" id="pWeek"' + (p.emergency || p.weekends ? ' checked' : '') + (p.emergency ? ' disabled' : '') + '> 📅 Weekends (Sat, Sun) allowed</label>' +
         '<select id="pCool" hidden><option value="0" selected>0</option></select></div><div>' + gateText(p) + '</div></div>' +
@@ -2039,6 +2121,7 @@
     var fu = $('#fitUndo'); if (fu) fu.onclick = fitUndo;
     $('#pEmerg').onchange = function () { var f0e = rollup(p, today()).finish; setTimeout(function () { afterDates(f0e, 'Emergency changed'); }, 0); p.emergency = this.checked; dirty(p.emergency ? 'emergency: work can start straight away' : 'not an emergency: cooling-off applies'); render(); var R = rollup(p, today()); toast(p.emergency ? 'Emergency: the work starts the same day as the site inspection (finish ' + dmy(R.finish) + ')' : 'Cooling-off applies again (finish ' + dmy(R.finish) + ')'); };
     $('#pCool').onchange = function () { var f0 = rollup(p, today()).finish; p.coolOff = +this.value; dirty('cooling-off ' + p.coolOff + ' business days'); render(); afterDates(f0, 'the cooling-off changed'); };
+    gWire(p);
     var task = function (el) { var id = el.closest('tr').getAttribute('data-tid'); return p.tasks.filter(function (t) { return t.id === id; })[0]; };
     B.querySelectorAll('tr[data-tid] [data-k]').forEach(function (el) {
       var k = el.getAttribute('data-k');
@@ -2987,7 +3070,10 @@
       var all = (S.plan && S.plan.stakeholders || []).filter(function (x) { return String(x.name || '').trim(); }), lq = tk.q.toLowerCase();
       hits = all.filter(function (x) { return !lq || ((x.name || '') + ' ' + (x.role || '')).toLowerCase().indexOf(lq) >= 0; }).slice(0, 8); sel = Math.min(sel, Math.max(0, hits.length - 1));
       if (!box) { box = document.createElement('div'); box.className = 'stk-at'; box.onmousedown = function (e) { e.preventDefault(); }; document.body.appendChild(box); }
-      var rc = ta.getBoundingClientRect(); box.style.position = 'fixed'; box.style.left = Math.max(8, Math.min(rc.left, innerWidth - 260)) + 'px'; box.style.top = Math.min(rc.bottom + 4, innerHeight - 230) + 'px';
+      // beside the notes popup (right of it, or left if there is no room), never under it: the popup sits on the very top layer
+      var rc = ta.getBoundingClientRect(), pp = ta.closest('.stkpop') || ta, pr = pp.getBoundingClientRect(), bw = Math.max(box.offsetWidth || 240, 240), x;
+      if (pr.right + 8 + bw <= innerWidth - 8) x = pr.right + 8; else if (pr.left - 8 - bw >= 8) x = pr.left - 8 - bw; else x = Math.max(8, Math.min(rc.left, innerWidth - bw - 8));
+      box.style.position = 'fixed'; box.style.left = x + 'px'; box.style.top = Math.max(8, Math.min(rc.top, innerHeight - 230)) + 'px';
       box.innerHTML = !all.length ? '<p>No stakeholders yet: set up the 👥 Stakeholder register first, then @ them here.</p>' : hits.length ? hits.map(function (x, i) { return '<button type="button" data-at="' + esc(String(x.name).trim()) + '"' + (i === sel ? ' class="on"' : '') + '>' + esc(x.name) + (x.role ? '<small>' + esc(x.role) + '</small>' : '') + '</button>'; }).join('') : '<p>No stakeholder matches “' + esc(tk.q) + '”.</p>';
       box.querySelectorAll('[data-at]').forEach(function (b) { b.onclick = function () { pick(b.getAttribute('data-at')); }; });
     };
@@ -6561,6 +6647,6 @@
   M.dateBoxes = dateBoxes; M.dmy = dmy;
   M.addView('projects', 'Projects', projects);
   M.addView('plan', 'Project plan', planView, 'projects');
-  window.addEventListener('hashchange', function () { if (!/^#plan\//.test(location.hash)) { S.away = true; document.body.classList.remove('plan-wide'); if (S.timer) saveNow(); } });
+  window.addEventListener('hashchange', function () { if (!/^#plan\//.test(location.hash)) { S.away = true; document.body.classList.remove('plan-wide'); S.gfull = false; document.body.classList.remove('gantt-full'); if (S.timer) saveNow(); } });
   window.MBS.planState = S;   // for tests
 })();

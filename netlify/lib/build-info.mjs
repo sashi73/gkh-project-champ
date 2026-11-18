@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 117,
+  "build": 118,
   "commit": "",
-  "branch": "lessons-video",
+  "branch": "gantt-full",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-18 10:12",
+  "builtAt": "2026-11-18 17:01",
   "site": ""
 };

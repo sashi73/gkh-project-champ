@@ -587,9 +587,29 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       await p.click('#planBody tr[data-tid="t1"] [data-stk]').catch(() => {}); await p.waitForSelector('#stkTx', { timeout: 5000 }).catch(() => {});
       await p.fill('#stkTx', 'Ask @na').catch(() => {}); await p.press('#stkTx', 'End').catch(() => {}); await p.type('#stkTx', 'd').catch(() => {}); await sleep(300);
       const atList = await p.textContent('.stk-at').catch(() => '');
+      const atTop = await p.evaluate(() => { const b = document.querySelector('.stk-at'), pp = document.querySelector('.stkpop'); if (!b || !pp) return false; const r = b.getBoundingClientRect(), q = pp.getBoundingClientRect(), h = document.elementFromPoint(r.left + r.width / 2, r.top + 12); return !!h && b.contains(h) && (r.left >= q.right || r.right <= q.left); });
       await p.press('#stkTx', 'Enter').catch(() => {}); await sleep(200); const atVal = await p.inputValue('#stkTx').catch(() => '');
       await p.keyboard.press('Escape').catch(() => {});
-      ok('Gantt', 'sticky notes: typing @ lists the Stakeholder register and Enter puts @Name in the note', /Nadia Karim/.test(atList) && /Ask @Nadia Karim /.test(atVal), JSON.stringify([atList, atVal]));
+      ok('Gantt', 'sticky notes: typing @ lists the Stakeholder register beside the note (on top, not hidden behind it) and Enter puts @Name in the note', /Nadia Karim/.test(atList) && atTop && /Ask @Nadia Karim /.test(atVal), JSON.stringify([atList, atTop, atVal]));
+    // ⛶ the full-screen Gantt editor: the toolbar works on the selected row (add levels, indent / outdent, bold, highlight, expand / collapse, Esc back)
+    {
+      await p.click('#gFull'); await p.waitForSelector('#gCard.gfull .gtool', { timeout: 5000 }).catch(() => {});
+      const fs0 = await p.evaluate(() => { const c = document.getElementById('gCard'), r = c && c.getBoundingClientRect(); return { full: !!(c && c.classList.contains('gfull')), cover: !!r && r.width >= innerWidth - 2 && r.height >= innerHeight - 2, tool: !!document.querySelector('.gtool [data-gt="addQ"]'), off: [...document.querySelectorAll('.gtool [data-gt="in"],.gtool [data-gt="b"]')].every((b) => b.disabled) }; });
+      await p.click('#gLeft tr[data-tid="t1"] [data-k="name"]'); await sleep(150);
+      const fsSel = await p.textContent('#gtSel').catch(() => '');
+      await p.click('.gtool [data-gt="b"]'); await sleep(300); await p.click('#gLeft tr[data-tid="t1"] [data-k="name"]'); await p.selectOption('.gtool [data-gts="bg"]', 'yellow'); await sleep(300);
+      const fsFmt = await p.evaluate(() => { const tr = document.querySelector('#gLeft tr[data-tid="t1"]'); return { w: tr.querySelector('[data-k="name"]').style.fontWeight, bg: tr.querySelector('td').style.background }; });
+      const nSub = async () => p.evaluate(() => document.querySelectorAll('#gLeft tr[data-ptid="t1"]').length);
+      const sub0 = await nSub(); await p.click('#gLeft tr[data-tid="t1"] [data-k="name"]'); await p.click('.gtool [data-gt="addS"]'); await sleep(400); const sub1 = await nSub();
+      const nTask = async () => p.evaluate(() => document.querySelectorAll('#gLeft tr[data-tid]').length);
+      const tk0 = await nTask(); const bid = await p.evaluate(() => { const r = [...document.querySelectorAll('#gLeft tr[data-tid]')]; return r[r.length - 1].getAttribute('data-tid'); });
+      await p.click(`#gLeft tr[data-tid="${bid}"] [data-k="name"]`); await p.click('.gtool [data-gt="in"]'); await sleep(400); const tk1 = await nTask(); const sel1 = await p.textContent('#gtSel').catch(() => '');
+      await p.keyboard.press('Control+BracketLeft'); await sleep(400); const tk2 = await nTask();
+      await p.click('.gtool [data-gt="close"]'); await sleep(300); const shut = await nSub(); await p.click('.gtool [data-gt="open"]'); await sleep(300); const open2 = await nSub();
+      await p.keyboard.press('Escape'); await sleep(300); const fsOut = await p.evaluate(() => !document.querySelector('#gCard.gfull') && !document.body.classList.contains('gantt-full'));
+      await sleep(2500); const fp = (await (await api('planGet', { core: lc2 })).json()).plan;
+      ok('Gantt', 'full screen: ⛶ fills the screen with a toolbar; it works on the clicked row (selected shown), bold and highlight stay with the plan, ＋ Sub-task adds level 1.1, ⇥ / Ctrl+[ move the row and keep it selected, collapse / expand all, Esc goes back', fs0.full && fs0.cover && fs0.tool && /level 1 · Design/.test(fsSel) && fsFmt.w === '800' && /255, 244, 194/.test(fsFmt.bg) && sub1 === sub0 + 1 && tk1 === tk0 - 1 && /level 1\.1 · /.test(sel1) && tk2 === tk0 && shut === 0 && open2 === sub1 && fsOut && JSON.stringify(fp.tasks[0].fmt) === '{"b":true,"bg":"yellow"}', JSON.stringify([fs0, fsSel, fsFmt, sub0, sub1, tk0, tk1, sel1, tk2, shut, open2, fsOut, fp.tasks[0].fmt]));
+    }
     }
     // 👥 Gantt resources: the list has People and the Stakeholder register's names; a new person's name typed there joins the register (trades do not)
     {

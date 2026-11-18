@@ -633,8 +633,29 @@ table.gt td.acts{white-space:nowrap}
 .lvb{padding:2px 6px!important;font-weight:800;min-width:0}
 .lvb[disabled]{opacity:.3;cursor:not-allowed}
 /* @ a stakeholder in a sticky note */
-.stk-at{position:absolute;z-index:30;background:#fff;border:1px solid #E7E1D2;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:220px;overflow:auto;min-width:220px;padding:4px}
+.stk-at{position:fixed;z-index:2147483600;background:#fff;border:1px solid #E7E1D2;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);max-height:220px;overflow:auto;min-width:220px;padding:4px}
 .stk-at button{display:block;width:100%;text-align:left;background:none;border:0;padding:6px 8px;border-radius:7px;font:600 13px/1.3 'Manrope',system-ui,sans-serif;cursor:pointer;color:#1F1D18}
 .stk-at button small{display:block;font-weight:500;color:#8C8775}
 .stk-at button:hover,.stk-at button.on{background:#FFF7DD}
 .stk-at p{margin:6px 8px;font-size:12.5px;color:#8C8775}
+/* v176: the full-screen Gantt editor */
+.gcard.gfull{position:fixed;inset:0;z-index:950;margin:0;border-radius:0;overflow:hidden;display:flex;flex-direction:column;padding:10px 14px!important}
+body.gantt-full{overflow:hidden}
+body.gantt-full #cgBtn,body.gantt-full #cgPanel{display:none!important}
+.gfull .qgate,.gfull .phint{display:none!important}
+.gfull .gsplit{flex:1 1 auto;min-height:0;max-height:none!important}
+.gfull .gpane{max-height:none!important;height:100%}
+.gtool{display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:7px 10px;margin:0 0 10px;background:inherit;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);flex:0 0 auto}
+.gtb{border:1px solid transparent;background:none;border-radius:8px;padding:6px 10px;font:600 13px/1.1 inherit;cursor:pointer;color:inherit;min-width:32px}
+.gtb:hover:not([disabled]){background:rgba(232,192,74,.16);border-color:var(--line)}
+.gtb.on{background:rgba(232,192,74,.28);border-color:#C9A227}
+.gtb[disabled],.gts[disabled]{opacity:.35;cursor:not-allowed}
+.gtb-exit{background:#1F1D18;color:#fff}.gtb-exit:hover:not([disabled]){background:#000;color:#fff}
+.gtb-del:hover:not([disabled]){background:#FDE7E7;border-color:#E99}
+.gsep{display:inline-block;width:1px;height:22px;background:var(--line);margin:0 5px}
+.gts{width:auto;padding:5px 8px;font-size:13px;border-radius:8px;min-width:0}
+.gtfind{width:180px;padding:6px 10px;margin-left:auto}
+.gtsel{flex-basis:100%;font-size:12px;color:var(--muted,#8C8775);padding:4px 2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+table.gt tr.gsel>td{box-shadow:inset 0 2px 0 #E8C04A,inset 0 -2px 0 #E8C04A}
+table.gt tr.gsel>td:first-child{box-shadow:inset 4px 0 0 #E8C04A,inset 0 2px 0 #E8C04A,inset 0 -2px 0 #E8C04A}
+.gfull-btn{font-weight:800}
