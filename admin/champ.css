@@ -639,9 +639,11 @@ table.gt td.acts{white-space:nowrap}
 .stk-at button:hover,.stk-at button.on{background:#FFF7DD}
 .stk-at p{margin:6px 8px;font-size:12.5px;color:#8C8775}
 /* v176: the full-screen Gantt editor */
-.gcard.gfull{position:fixed;inset:0;z-index:950;margin:0;border-radius:0;overflow:hidden;display:flex;flex-direction:column;padding:10px 14px!important}
+.gcard.gfull{position:fixed;inset:0;z-index:39;margin:0;border-radius:0;overflow:hidden;display:flex;flex-direction:column;padding:10px 14px!important}
 body.gantt-full{overflow:hidden}
-body.gantt-full #cgBtn,body.gantt-full #cgPanel{display:none!important}
+body.gantt-full #cgBtn,body.gantt-full #cgPanel,body.gantt-full #sideFold,body.gantt-full #champTheme{display:none!important}
+/* full screen sits on layer 39: under dialogs (40), messages (50), pop-ups (70) and the undo bar (95), so they all show over it */
+body.gantt-full #resTip{z-index:45}
 .gfull .qgate,.gfull .phint{display:none!important}
 .gfull .gsplit{flex:1 1 auto;min-height:0;max-height:none!important}
 .gfull .gpane{max-height:none!important;height:100%}
