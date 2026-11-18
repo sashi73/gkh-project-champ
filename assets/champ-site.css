@@ -143,3 +143,7 @@
 .c-person-countries li{border:1px solid rgba(232,192,74,.45);background:rgba(232,192,74,.08);border-radius:999px;padding:5px 12px;font-size:13px;font-weight:700;color:var(--text)}
 @media (min-width:761px){.c-person-photo{position:sticky;top:110px}}
 #film{scroll-margin-top:90px}
+.pfilm-read{max-width:1120px;margin:16px auto 0;border:1px solid var(--line);border-radius:16px;padding:0 20px;background:var(--surface)}
+.pfilm-read summary{cursor:pointer;padding:14px 0;font-weight:800;color:var(--gold)}
+.pfilm-read ol{margin:0 0 18px;padding-left:22px;display:grid;gap:8px;color:var(--muted);font-size:15px;line-height:1.6}
+.pfilm-read small{display:block;font-size:12px;opacity:.8}

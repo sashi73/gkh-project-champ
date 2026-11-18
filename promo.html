@@ -1,5 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8">
+<html lang="en-AU"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>GKH Project Champ in two minutes</title>
@@ -26,7 +26,7 @@ html,body{margin:0;background:#0D0C09;overflow:hidden;height:100%}
 <div hidden id="src">
 <span data-s="b0">Time index 0.82: 19 days behind baseline</span><span data-s="b1">CPI 0.88: heading 12% over budget</span><span data-s="b2">3 critical issues open, oldest 16 days</span>
 <span data-s="b4">If this were my project, I would:</span><span data-s="b5">1. Add a second crew on the cooling install</span><span data-s="b6">2. Escalate switchgear delivery to the supplier</span><span data-s="b7">3. Release contingency only against the recovery plan</span>
-<span data-s="q">What's slipping on the Mekong program?</span></div>
+<span data-s="play">Play</span><span data-s="pause">Pause</span><span data-s="q">What's slipping on the Mekong program?</span></div>
 <div id="stage">
 <div id="glow"></div><div id="ring"></div>
 <div class="wm" id="wm" data-noi18n><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#E8C04A" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>GKH PROJECT CHAMP</div>
@@ -172,7 +172,7 @@ html,body{margin:0;background:#0D0C09;overflow:hidden;height:100%}
   <div class="a" data-k="c" style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #3A3322;padding:30px 0 22px"><span style="font-size:46px;font-weight:700">Project manager time given back</span><span class="H" style="font-size:96px" id="n12b" data-noi18n>$0</span></div>
   <div class="a" data-k="d" style="display:flex;justify-content:space-between;align-items:baseline;padding-top:36px"><span class="H gold" style="font-size:72px">Value every year</span><span class="H gold" style="font-size:170px" id="n12c" data-noi18n>$0</span></div>
  </div>
- <div class="foot a" data-k="f" style="width:1680px">Illustrative example. Assumes 11.4% waste (PMI 2020) with one third recovered, and 10 PMs each saving 5 hours a week at $120 an hour.</div>
+ <div class="foot a" data-k="f" style="width:1680px">Illustrative example. Assumes 11.4% waste (PMI 2020) with one third recovered, and 10 PMs each saving 5 hours a week, 46 weeks a year, at $120 an hour.</div>
 </div>
 
 <!-- S13 CTA -->
@@ -198,6 +198,7 @@ const S=[ // id, start, dur
 function rise(sc,k,lt,t0,d=.7,dist=50){const el=sc.querySelector(`[data-k="${k}"]`);const p=eo((lt-t0)/d);el.style.opacity=p;el.style.transform=`translateY(${(1-p)*dist}px)`;return p}
 function pop(sc,k,lt,t0,d=.6){const el=sc.querySelector(`[data-k="${k}"]`);const p=eo((lt-t0)/d);el.style.opacity=p;el.style.transform=`scale(${.92+.08*p})`;return p}
 const money=v=>'$'+Math.round(v).toLocaleString('en-US');
+const tx=(el,v)=>{v=String(v);if(el.firstChild&&el.firstChild.nodeType===3){if(el.firstChild.data!==v)el.firstChild.data=v;}else el.textContent=v;};
 
 // build S6 gantt
 {const rows=['Site survey','Design','Approvals','Procurement','Build','Fit-out','Testing','Handover'];const st=[0,.08,.26,.32,.45,.66,.8,.92],ln=[.1,.2,.1,.2,.25,.16,.12,.08];
@@ -236,10 +237,10 @@ function render(t){
  }
 }
 const U={
- s1(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.7);pop(sc,'c',lt,1.4,.5);$('#n1').textContent=(11.4*eo((lt-1.4)/2.4)).toFixed(1);rise(sc,'d',lt,3.6);rise(sc,'f',lt,4.6)},
- s2(sc,lt){rise(sc,'a',lt,.2);const p=eo((lt-.5)/1.8);$('#n2a').textContent=Math.round(48*p)+'%';$('#b2a').style.width=48*p+'%';
-  rise(sc,'b',lt,2.6);const q=eo((lt-2.9)/1.8);$('#n2b').textContent=Math.round(43*q)+'%';$('#b2b').style.width=43*q+'%';rise(sc,'f',lt,4)},
- s3(sc,lt){rise(sc,'a',lt,.2);pop(sc,'b',lt,.8);$('#n3').textContent=(13.9*eo((lt-.8)/2)).toFixed(1);rise(sc,'c',lt,2.2);pop(sc,'d',lt,3.4,.35);rise(sc,'f',lt,4.2)},
+ s1(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.7);pop(sc,'c',lt,1.4,.5);tx($('#n1'),(11.4*eo((lt-1.4)/2.4)).toFixed(1));rise(sc,'d',lt,3.6);rise(sc,'f',lt,4.6)},
+ s2(sc,lt){rise(sc,'a',lt,.2);const p=eo((lt-.5)/1.8);tx($('#n2a'),Math.round(48*p)+'%');$('#b2a').style.width=48*p+'%';
+  rise(sc,'b',lt,2.6);const q=eo((lt-2.9)/1.8);tx($('#n2b'),Math.round(43*q)+'%');$('#b2b').style.width=43*q+'%';rise(sc,'f',lt,4)},
+ s3(sc,lt){rise(sc,'a',lt,.2);pop(sc,'b',lt,.8);tx($('#n3'),(13.9*eo((lt-.8)/2)).toFixed(1));rise(sc,'c',lt,2.2);pop(sc,'d',lt,3.4,.35);rise(sc,'f',lt,4.2)},
  s4(sc,lt){rise(sc,'a',lt,.2);const p=eio((lt-1)/3.4);$('#l4').style.width=p*100+'%';
   const sg=[[.22,'Task slips 4 days','#E8C04A'],[.45,'Cost creeps 6%','#E8C04A'],[.68,'Issue open 3 weeks','#F2B43A'],[1,'Found out here','#FF5A5F']];
   if(!sc._b){sc._b=1;if(!$('#sig4').children.length)$('#sig4').innerHTML=sg.map(([x,l,c],i)=>`<div class="sg" style="position:absolute;left:${160+x*1600}px;top:563px;opacity:0"><div style="position:absolute;left:-${i==3?22:16}px;top:-${i==3?22:16}px;width:${i==3?44:32}px;height:${i==3?44:32}px;border-radius:50%;background:${c};box-shadow:0 0 30px ${c}"></div><div style="position:absolute;${i==3?'right:-10px':'left:-10px'};top:${i%2?54:-110}px;white-space:nowrap;font-size:32px;font-weight:800;color:${c}">${l}</div></div>`).join('')}
@@ -261,21 +262,21 @@ const U={
   let chars=Math.max(0,(lt-1.6)*38),out='';
   for(const [s,k] of brief()){if(chars<=0)break;const part=s.slice(0,Math.floor(chars));chars-=s.length+4;
    out+= k==1?`<span style="color:#E8C04A;font-weight:800">${part}</span>\n`:k==2?`<span style="color:#fff;font-weight:700">${part}</span>\n`:part+'\n'}
-  $('#ty8').innerHTML=out},
+  const ty=$('#ty8');if(ty._o!==out){ty._o=out;ty.innerHTML=out}},
  s9(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);
   const talk=lt>.9&&lt<3.6;sc.querySelectorAll('#wave9 i').forEach((b,i)=>{const a=talk?(.25+.75*Math.abs(Math.sin(lt*9+i*.7)*Math.sin(lt*3.1+i*.23))):.06;b.style.height=(10+190*a)+'px'});
-  rise(sc,'q',lt,1,.5,20);const q=SRC('q');$('#q9').textContent=q.slice(0,Math.floor(Math.max(0,lt-1.1)*20));
-  rise(sc,'r',lt,3.9,.6,20);rise(sc,'l',lt,4.6);$('#lang9').textContent=langs[Math.floor(Math.max(0,lt-4.6)/.42)%langs.length]},
+  rise(sc,'q',lt,1,.5,20);const q=SRC('q');tx($('#q9'),q.slice(0,Math.floor(Math.max(0,lt-1.1)*20)));
+  rise(sc,'r',lt,3.9,.6,20);rise(sc,'l',lt,4.6);tx($('#lang9'),langs[Math.floor(Math.max(0,lt-4.6)/.42)%langs.length])},
  s10(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);const kb=$('#kb10');kb.style.opacity=eo((lt-.7)/.6);
-  const pos=[[0,0],[0,1],[1,0],[0,2],[1,1]];const moves=[[1.9,1,0],[2.9,0,1],[3.8,2,1],[4.6,1,2],[5.4,0,2]];
+  const pos=[[0,0],[0,1],[1,0],[0,2],[1,1]];const moves=[[1.9,2,2,0],[2.9,1,1,0],[3.8,4,2,1],[4.6,0,1,1],[5.4,1,2,2]];   // [time, note, to column, to row]: each slot is free when a note lands in it
   sc.querySelectorAll('.nt').forEach((n,i)=>{let [c,r]=pos[i];let x=c*560+40,y=90+r*100;
-   for(const [tm,ni,toCol] of moves){if(ni!==i)continue;const p=eio((lt-tm)/.8);const nx=toCol*560+40;x=x+(nx-x)*p;y=y-40*Math.sin(Math.PI*p);if(p>=1)c=toCol}
+   for(const [tm,ni,tc,tr] of moves){if(ni!==i)continue;const p=eio((lt-tm)/.8);if(p<=0)break;const nx=tc*560+40,ny=90+tr*100;x=x+(nx-x)*p;y=y+(ny-y)*p-40*Math.sin(Math.PI*p);if(p<1)break;c=tc;r=tr;x=nx;y=ny}
    n.style.left=x+'px';n.style.top=y+'px'});
   sc.querySelectorAll('#chips10 .chip').forEach((c,i)=>{const p=eo((lt-6.2-i*.15)/.5);c.style.opacity=p;c.style.transform=`translateY(${(1-p)*24}px)`})},
  s11(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.5);rise(sc,'c',lt,1.4);const el=sc.querySelector('[data-k="d"]');const p=eo((lt-2.6)/.6);el.style.opacity=p;el.style.transform=`translateX(${(p-1)*60}px)`;rise(sc,'e',lt,3.1)},
- s12(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.7);$('#n12a').textContent=money(380000*eo((lt-1)/1.8));
-  rise(sc,'c',lt,2.5);$('#n12b').textContent=money(276000*eo((lt-2.8)/1.8));
-  rise(sc,'d',lt,4.6);$('#n12c').textContent=money(656000*eo((lt-4.8)/2));rise(sc,'f',lt,5.8)},
+ s12(sc,lt){rise(sc,'a',lt,.2);rise(sc,'b',lt,.7);tx($('#n12a'),money(380000*eo((lt-1)/1.8)));
+  rise(sc,'c',lt,2.5);tx($('#n12b'),money(276000*eo((lt-2.8)/1.8)));
+  rise(sc,'d',lt,4.6);tx($('#n12c'),money(656000*eo((lt-4.8)/2)));rise(sc,'f',lt,5.8)},
  s13(sc,lt,du){pop(sc,'a',lt,.3,.5);pop(sc,'b',lt,1.1,.5);rise(sc,'c',lt,2.6,.9);
   sc.style.opacity=Math.min(cl(lt/.35),1-cl((lt-6.6)/1.4))}
 };
@@ -292,7 +293,7 @@ const U={
 .big svg{width:42%;height:42%;margin-left:8%}
 .ovt{font-weight:800;font-size:clamp(13px,1.9vw,19px);letter-spacing:.04em;text-shadow:0 2px 10px rgba(0,0,0,.6)}
 .ctl{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;align-items:center;gap:12px;padding:10px 14px;background:linear-gradient(transparent,rgba(0,0,0,.7));opacity:0;transition:opacity .3s;font:700 13px/1 Manrope,system-ui,sans-serif;color:#fff}
-.ctl.on,body:hover .ctl.live{opacity:1}
+.ctl.on,body:hover .ctl.live,.ctl:focus-within{opacity:1}
 .ctl button{background:none;border:0;color:#fff;cursor:pointer;width:34px;height:34px;display:grid;place-items:center;border-radius:8px;padding:0}
 .ctl button:hover{background:rgba(255,255,255,.14)}
 .ctl svg{width:20px;height:20px}
@@ -317,35 +318,54 @@ const U={
 // the film plays on the music's clock; every word on screen is page text, so the site's translator shows it in the visitor's language
 (function(){
   const D=120, POSTER=39.9, A=new Audio('assets/promo/champ-promo.m4a'); A.preload='auto';
-  const st=document.getElementById('stage'), ov=document.getElementById('ov'), endov=document.getElementById('endov'), ctl=document.getElementById('ctl');
-  let playing=false, t0=0, at=POSTER, silent=false, hideT=0;
+  const $i=id=>document.getElementById(id), st=$i('stage'), ov=$i('ov'), endov=$i('endov'), ctl=$i('ctl'), bar=$i('bar'), pp=$i('pp');
+  const SAY=k=>{const e=document.querySelector('[data-s="'+k+'"]');return e?e.textContent:k;};
+  let playing=false, at=0, t0=0, silent=false, hideT=0, raf=0, attempt=0, pend=null, aLast=-1, aMoved=0;
   const fit=()=>{const s=Math.min(innerWidth/1920,innerHeight/1080);st.style.transform='translate('+((innerWidth-1920*s)/2)+'px,'+((innerHeight-1080*s)/2)+'px) scale('+s+')';};
   addEventListener('resize',fit); fit();
-  render(30); render(POSTER);   // builds every scene once, then shows the title frame
-  const fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');
-  const ui=()=>{document.getElementById('fill').style.width=(at/D*100)+'%';document.getElementById('tm').textContent=fmt(at)+' / 2:00';document.getElementById('bar').setAttribute('aria-valuenow',Math.round(at));
-    document.getElementById('ppi').innerHTML=playing?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M6 4l15 8-15 8z"/>';document.getElementById('pp').setAttribute('aria-label',playing?'Pause':'Play');};
-  const now=()=>silent?(performance.now()-t0)/1000:(Math.abs(A.currentTime-(performance.now()-t0)/1000)>0.25?(t0=performance.now()-A.currentTime*1000,A.currentTime):(performance.now()-t0)/1000);
-  const loop=()=>{if(!playing)return;at=Math.min(D,now());render(Math.min(at,D-0.01));ui();if(at>=D-0.02){stop(true);return;}requestAnimationFrame(loop);};
-  const play=()=>{ if(at>=D-0.05) at=0; ov.hidden=true; endov.hidden=true; ctl.classList.add('live'); playing=true; silent=false; A.currentTime=at; t0=performance.now()-at*1000;
-    const pr=A.play(); if(pr&&pr.catch) pr.catch(()=>{silent=true;t0=performance.now()-at*1000;}); poke(); requestAnimationFrame(loop); };
-  const stop=(end)=>{ playing=false; A.pause(); ui(); if(end){ at=D; endov.hidden=false; ctl.classList.remove('live'); } };
-  const seek=x=>{ at=Math.max(0,Math.min(D-0.05,x)); A.currentTime=at; t0=performance.now()-at*1000; render(at); ui(); endov.hidden=true;
-    const want=at; setTimeout(()=>{ if(playing&&!silent&&Math.abs(A.currentTime-want)>1.5&&Math.abs(A.currentTime-at)>1.5){ silent=true; A.pause(); } },600); };   // the audio could not jump there: keep the pictures on time without it
-  const poke=()=>{ctl.classList.add('on');clearTimeout(hideT);hideT=setTimeout(()=>{if(playing)ctl.classList.remove('on');},2500);};
-  document.getElementById('big').onclick=e=>{e.stopPropagation();play();}; ov.onclick=play;
-  document.getElementById('again').onclick=e=>{e.stopPropagation();at=0;play();};
-  document.getElementById('pp').onclick=()=>playing?stop():play();
+  render(30); render(POSTER);   // builds every scene once, then shows the title frame (playback itself starts at 0:00)
+  ctl.inert=true;   // the controls join the tab order once the film is playing
+  const tmNode=$i('tm').firstChild, fmt=x=>Math.floor(x/60)+':'+String(Math.floor(x%60)).padStart(2,'0');
+  let lastTm='';
+  const ui=()=>{ $i('fill').style.width=(at/D*100)+'%'; const s=fmt(at)+' / 2:00'; if(s!==lastTm){ tmNode.data=s; lastTm=s; bar.setAttribute('aria-valuenow',Math.round(at)); } };
+  const state=()=>{ $i('ppi').innerHTML=playing?'<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>':'<path d="M6 4l15 8-15 8z"/>'; pp.setAttribute('aria-label',SAY(playing?'pause':'play')); };
+  const silentAt=x=>{ silent=true; A.pause(); t0=performance.now()-x*1000; };
+  const clock=()=>{
+    const pt=(performance.now()-t0)/1000; if(silent) return pt;
+    if(pend){ if(Math.abs(A.currentTime-pend.x)<1){ pend=null; } else if(performance.now()-pend.when>900){ const x=pend.x+(performance.now()-pend.when)/1000; pend=null; silentAt(x); return x; } else return pt; }
+    const a=A.currentTime; if(a!==aLast){ aLast=a; aMoved=performance.now(); } else if(performance.now()-aMoved>1500){ silentAt(pt); return pt; }   // the soundtrack stalled: carry on without it
+    if(Math.abs(a-pt)>0.25){ t0=performance.now()-a*1000; return a; } return pt; };
+  const loop=()=>{ raf=0; if(!playing) return; at=Math.min(D,clock()); render(Math.min(at,D-0.01)); ui(); if(at>=D-0.02){ stop(true); return; } raf=requestAnimationFrame(loop); };
+  const play=()=>{ if(at>=D-0.05) at=0; ov.hidden=true; endov.hidden=true; ctl.inert=false; ctl.classList.add('live'); playing=true; silent=false; pend=null;
+    A.currentTime=at; t0=performance.now()-at*1000; aLast=-1; aMoved=performance.now(); const my=++attempt;
+    const pr=A.play(); if(pr&&pr.catch) pr.catch(()=>{ if(my===attempt&&playing&&!silent) silentAt(at); });
+    state(); poke(); if(raf) cancelAnimationFrame(raf); raf=requestAnimationFrame(loop); };
+  const stop=(end)=>{ playing=false; if(raf){ cancelAnimationFrame(raf); raf=0; } A.pause(); state(); ui(); if(end){ at=D; endov.hidden=false; ctl.classList.remove('live'); } };
+  A.addEventListener('error',()=>{ if(playing&&!silent) silentAt(at); });
+  A.addEventListener('ended',()=>{ if(playing&&!silent&&at<D-0.5) silentAt(at); });
+  const seek=x=>{ at=Math.max(0,Math.min(D-0.05,x)); t0=performance.now()-at*1000; if(!silent){ A.currentTime=at; pend={x:at,when:performance.now()}; } render(at); ui(); endov.hidden=true; };
+  const poke=()=>{ ctl.classList.add('on'); clearTimeout(hideT); hideT=setTimeout(()=>{ if(playing&&!ctl.contains(document.activeElement)) ctl.classList.remove('on'); },2500); };
+  $i('big').onclick=e=>{ e.stopPropagation(); play(); }; ov.onclick=play;
+  $i('again').onclick=e=>{ e.stopPropagation(); at=0; play(); };
+  pp.onclick=()=>playing?stop():play();
   st.addEventListener('click',()=>{ if(!ov.hidden||!endov.hidden) return; playing?stop():play(); });
-  document.getElementById('mu').onclick=()=>{A.muted=!A.muted;document.getElementById('mui').style.opacity=A.muted?.4:1;};
-  document.getElementById('fs').onclick=()=>{const d=document; if(d.fullscreenElement) d.exitFullscreen(); else if(d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(()=>{});};
-  const bar=document.getElementById('bar'); let drag=false;
-  const bx=e=>{const r=bar.getBoundingClientRect();seek((e.clientX-r.left)/r.width*D);};
-  bar.onpointerdown=e=>{drag=true;bar.setPointerCapture(e.pointerId);bx(e);}; bar.onpointermove=e=>{if(drag)bx(e);}; bar.onpointerup=()=>{drag=false;};
-  addEventListener('mousemove',poke);
-  addEventListener('keydown',e=>{ if(e.key===' '||e.key==='k'){e.preventDefault();playing?stop():play();} else if(e.key==='ArrowRight'){seek(at+5);} else if(e.key==='ArrowLeft'){seek(at-5);} else if(e.key==='m'){document.getElementById('mu').click();} });
-  addEventListener('storage',e=>{ if(e.key==='champLang') location.reload(); });   // the visitor changed the site's language
-  ui();
+  $i('mu').onclick=()=>{ A.muted=!A.muted; $i('mui').style.opacity=A.muted?.4:1; };
+  $i('fs').onclick=()=>{ const d=document; if(d.fullscreenElement) d.exitFullscreen(); else if(d.documentElement.requestFullscreen) d.documentElement.requestFullscreen().catch(()=>{}); };
+  let pid=null; const bx=e=>{ const r=bar.getBoundingClientRect(); seek((e.clientX-r.left)/r.width*D); };
+  bar.onpointerdown=e=>{ pid=e.pointerId; bar.setPointerCapture(pid); bx(e); };
+  bar.onpointermove=e=>{ if(pid===e.pointerId) bx(e); };
+  const end=e=>{ if(pid===e.pointerId) pid=null; }; bar.onpointerup=end; bar.onpointercancel=end; bar.addEventListener('lostpointercapture',end);
+  bar.onkeydown=e=>{ if(e.key==='ArrowRight'){ e.preventDefault(); seek(at+5); } else if(e.key==='ArrowLeft'){ e.preventDefault(); seek(at-5); } };
+  addEventListener('mousemove',poke); ctl.addEventListener('focusin',poke);
+  addEventListener('keydown',e=>{ const own=e.target.closest&&e.target.closest('button,a,[role=slider]');   // a focused control handles its own keys
+    if((e.key===' '||e.key==='k')&&!own){ e.preventDefault(); playing?stop():play(); }
+    else if(!own&&e.key==='ArrowRight') seek(at+5); else if(!own&&e.key==='ArrowLeft') seek(at-5); else if(e.key==='m') $i('mu').click(); });
+  // the visitor changed the site's language: switch in place, keeping the position and play state
+  const relang=l=>{ if(window.ChampI18n&&l&&window.ChampI18n.get()!==l){ window.ChampI18n.set(l); setTimeout(state,1500); } };
+  addEventListener('storage',e=>{ if(e.key==='champLang') relang(e.newValue); });
+  addEventListener('message',e=>{ if(e.origin===location.origin&&e.data&&e.data.champLang) relang(e.data.champLang); });
+  window.addEventListener('champ:lang',()=>setTimeout(state,1500));
+  ui(); state();
 })();
 </script>
 <script src="assets/champ-i18n.js?v=5" defer></script>
