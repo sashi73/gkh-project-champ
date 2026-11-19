@@ -178,7 +178,7 @@ export const ARTICLES = [
   { id: 'gantt-notes', a: 'gantt', t: 'Sticky notes on tasks', w: '#plan/<project>/schedule', g: 'note', k: 'sticky note notes comment red amber green colour team message',
     s: 'Leave a note on a task, sub-task or step for the team, in red, amber or green.',
     subs: [
-      { id: 'add', h: 'Add a note', st: ['Press 🗒 on the row (Gantt or Kanban board).', 'Write the note, pick red, amber or green, add a Due by date if it has one, and press Enter to save (or Add note).', 'Type # to tag it (#blocker, #waiting …): see "#Tags in sticky notes".'] },
+      { id: 'add', h: 'Add a note', st: ['Press 🗒 on the row (Gantt or Kanban board).', 'Write the note, pick red, amber or green, add a Due by date if it has one, and press 💾 Save note (or Enter).', 'Type # to tag it (#blocker, #waiting …): see "#Tags in sticky notes".'] },
       { id: 'read', h: 'Read and edit notes', st: ['A number on 🗒 shows how many notes are open. Press it to read them.', 'Edit or delete a note there; drag the note to move it on the screen.'] },
       { id: 'mention', h: 'Mention someone with @', st: ['Type @ in the note: see "@ mentions" below.'] }
     ] },
