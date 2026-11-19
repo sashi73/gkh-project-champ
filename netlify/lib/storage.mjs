@@ -5,7 +5,8 @@
 //                          made for; only a small row per file is kept in Postgres (table champ_files) so listing and
 //                          deleting never have to ask Blobs. Off Netlify the file bytes go into champ_files too, so Champ can
 //                          run on any Postgres (a Malaysian cloud, a laptop) with no Netlify at all.
-// Which database: CHAMP_DATABASE_URL if set (any Postgres: Neon, Supabase ...), otherwise the site's own Netlify Database.
+// Which database: CHAMP_DATABASE_URL (any Postgres: Neon, Supabase, a server of your own). Netlify's own database is not
+// used: its package makes every Netlify build try to create one, which needs a credit-based Netlify plan.
 // Going back: remove CHAMP_DB (or set it to "blobs") and redeploy. Blobs is never changed by the move (see tools/pg-move.mjs).
 //
 // getStore({ name }) gives an object with the same methods the code already calls on a Blobs store
@@ -40,18 +41,12 @@ function db() {
 }
 async function connect() {
   const url = ownDatabase();
-  if (url) {
-    const { default: pg } = await import('pg');
-    // TLS comes from the connection string (Neon and Supabase add sslmode=require; the driver then checks the certificate in full)
-    const pool = new pg.Pool({ connectionString: url, max: Number(env('CHAMP_DB_POOL')) || 5, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 });
-    pool.on('error', (e) => console.error('Postgres connection dropped:', e.message));
-    return { run: async (text, params) => (await pool.query(text, params)).rows, end: () => pool.end() };
-  }
-  // Netlify Database: inside Netlify Functions every single query goes over HTTP (no connection to open), elsewhere a normal pool
-  const { getDatabase } = await import('@netlify/database');
-  const d = getDatabase();
-  if (d.httpClient) return { run: (text, params) => d.httpClient.query(text, params), end: async () => {} };
-  return { run: async (text, params) => (await d.pool.query(text, params)).rows, end: () => d.pool.end() };
+  if (!url) throw new Error('CHAMP_DB is postgres but CHAMP_DATABASE_URL is not set (see README-POSTGRES.txt).');
+  const { default: pg } = await import('pg');
+  // TLS comes from the connection string (Neon and Supabase add sslmode=require; the driver then checks the certificate in full)
+  const pool = new pg.Pool({ connectionString: url, max: Number(env('CHAMP_DB_POOL')) || 5, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 });
+  pool.on('error', (e) => console.error('Postgres connection dropped:', e.message));
+  return { run: async (text, params) => (await pool.query(text, params)).rows, end: () => pool.end() };
 }
 
 // The tables are made the first time they are missing (no extra query on every cold start).

@@ -174,4 +174,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 163 | 1.0.163| 2026-11-20 00:59| today-open| `fdb7b1a` | Review: a slow plan load never replaces a newer page (load sequence) |
 | 164 | 1.0.164| 2026-11-20 01:06| today-open| `c0ab6cc` | Review: same-plan tab changes keep the load; leaving the plan drops it; a late quote update never redraws a page you left |
 | 165 | 1.0.165| 2026-11-20 01:13| today-open| `c49aaea` | Today → Open: fix 'Cannot set properties of null (setting innerHTML)' (#27) |
-| 166 | 1.0.166 | 2026-11-20 02:02 | postgres | _this commit_ | _see git log_ |
+| 166 | 1.0.166| 2026-11-20 02:02| postgres| `e016d87` | Data: Postgres behind one switch (CHAMP_DB), faster loading, and an owner-only move between Blobs and Postgres |
+| 167 | 1.0.167 | 2026-11-20 02:14 | postgres | _this commit_ | _see git log_ |

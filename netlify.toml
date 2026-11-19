@@ -13,8 +13,8 @@
 [functions]
   node_bundler = "esbuild"
   # big libraries shipped beside the function and loaded on demand: pdf-lib only when a PDF is made,
-  # the Postgres drivers only when CHAMP_DB = postgres (so Blobs mode starts as fast as before)
-  external_node_modules = ["pdf-lib", "pg", "@netlify/database", "@neondatabase/serverless", "ws"]
+  # the Postgres driver only when CHAMP_DB = postgres (so Blobs mode starts as fast as before)
+  external_node_modules = ["pdf-lib", "pg"]
 
 # Keep server-only files out of the public site
 [[redirects]]
