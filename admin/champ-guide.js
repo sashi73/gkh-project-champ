@@ -109,8 +109,9 @@
       if ((cur + ' ' + sn).trim().length > 380) { if (cur) out.push(cur); cur = sn; } else cur = (cur + ' ' + sn).trim(); });
     if (cur) out.push(cur); return out.slice(0, 30);
   }
+  var NOVOICE = { rw: 1 };   // Kinyarwanda: no speech service speaks or hears it yet, so Champ writes only
   function speak(text, clear) {
-    hush(); if (!V.on || !text) return; var n = V.n, el = $('#cgVoice'), list = parts(text), got = [];
+    hush(); if (!V.on || !text || NOVOICE[lang()]) return; var n = V.n, el = $('#cgVoice'), list = parts(text), got = [];
     var get = function (i) { if (got[i]) return got[i]; return (got[i] = fetch('/.netlify/functions/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: list[i], lang: lang(), clear: !!clear }) })
       .then(function (r) { if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || 'Champ’s voice is not available right now.'); }); return r.blob(); })); };
     var done = function () { if (el) el.classList.remove('talk'); };
@@ -459,6 +460,7 @@
   function mic() {
     var m = $('#cgMic'), SR = window.SpeechRecognition || window.webkitSpeechRecognition; hush();
     if (sr) { if (mic.finish) mic.finish(); else { try { sr.stop(); } catch (e) {} } return; }   // tap again: done talking
+    if (NOVOICE[lang()]) return reply('Voice isn’t available in Kinyarwanda yet. Please type your question and I’ll answer in writing.', true);
     if (SR && !mic.azure) {
       // listens until you have finished: pauses to breathe or think do not end it. It stops after ~3 seconds of silence once
       // you have spoken (8 seconds if you have not started), or when you tap the microphone again; if the browser ends the
@@ -471,7 +473,7 @@
       r = new SR(); r.lang = SRL[lang()] || 'en-AU'; r.interimResults = true; r.maxAlternatives = 1; r.continuous = true;
       r.onresult = function (e) { interim = ''; for (var k = e.resultIndex; k < e.results.length; k++) { var tx = e.results[k][0].transcript; if (e.results[k].isFinal) finals += ' ' + tx; else interim += ' ' + tx; } $('#cgQ').value = text(); if (text()) arm(GAP); };
         r.onerror = function (e) { if (e.error === 'no-speech' || e.error === 'aborted') return; failed = true; if (e.error === 'not-allowed') reply('The microphone is blocked. Allow it in the browser (the 🔒 next to the address), or type your question.'); else if (e.error === 'network' || e.error === 'language-not-supported' || e.error === 'service-not-allowed' || e.error === 'audio-capture') { mic.azure = true; } else if (e.error === 'no-speech' || e.error === 'aborted') failed = false; };
-      r.onend = function () { if (interim) { finals += ' ' + interim; interim = ''; } if (!done && !failed) { try { listen(); return; } catch (e) {} } clearTimeout(timer); sr = null; mic.finish = null; m.classList.remove('rec'); var q = text(); $('#cgQ').value = ''; if (q) ask(q); else if (mic.azure && failed) mic(); else if (!failed) reply('I did not catch that. Tap the microphone and ask again, or type it.', true); };
+      r.onend = function () { if (interim) { finals += ' ' + interim; interim = ''; } if (!done && !failed) { try { listen(); return; } catch (e) {} } clearTimeout(timer); sr = null; mic.finish = null; m.classList.remove('rec'); var q = text(); $('#cgQ').value = ''; if (NOVOICE[lang()]) return;   /* switched to Kinyarwanda meanwhile: text only, drop it */ if (q) ask(q); else if (mic.azure && failed) mic(); else if (!failed) reply('I did not catch that. Tap the microphone and ask again, or type it.', true); };
       sr = r; r.start(); };
       mic.finish = finish;
       try { listen(); arm(8000); m.classList.add('rec');
@@ -487,7 +489,7 @@
       rec.onstop = function () {
         stream.getTracks().forEach(function (t) { t.stop(); }); m.classList.remove('rec'); m.classList.add('busy');
         var type = (rec.mimeType || mt || 'audio/webm').split(';')[0], blob = new Blob(chunks, { type: type }), l = lang(), langs = l === 'en' ? 'en' : l + ',en';
-        if (rec.silent) { m.classList.remove('busy'); return; }   // already explained: the microphone is switched off
+        if (rec.silent || NOVOICE[lang()]) { m.classList.remove('busy'); return; }   // already explained, or switched to Kinyarwanda (text only): the microphone is switched off
         if (blob.size < 1200) { m.classList.remove('busy'); return reply('I did not hear anything. Tap the microphone and ask again.'); }
         fetch('/.netlify/functions/stt?langs=' + encodeURIComponent(langs) + '&prefer=' + encodeURIComponent(l), { method: 'POST', headers: { 'Content-Type': type }, body: blob })
           .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (!r.ok) throw new Error(j.error || 'Voice input is not available right now. Type your question instead.'); return j; }); })
@@ -515,6 +517,7 @@
   }
 
   // the console changed language (from anywhere): Champ follows, nothing of the old language is left in the panel
+  window.addEventListener('champ:lang', function () { if (NOVOICE[lang()]) { if (rec && rec.state === 'recording') { rec.silent = true; try { rec.stop(); } catch (e) {} } if (sr) { try { sr.abort ? sr.abort() : sr.stop(); } catch (e) {} } } });   // switched to Kinyarwanda mid-recording: stop it, drop the audio
   window.addEventListener('champ:lang', function () { var p = $('#cgPanel'); if (!p) return; var sl = $('#cgLang'); if (sl) sl.value = lang(); hush(); chipsFill(p); var L = $('#cgLog'); if (L) L.innerHTML = ''; if (!p.hidden) greet(true); });
   M.guide = { start: function (id) { var t = T.filter(function (x) { return x.id === id; })[0]; if (t) start(t); }, ask: ask, tours: T, help: showHelp };
   new MutationObserver(function () { if (!document.getElementById('app').hidden) btn(); }).observe(document.getElementById('app'), { attributes: true, attributeFilter: ['hidden'] });

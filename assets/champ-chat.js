@@ -135,7 +135,7 @@
   // ---- words on the chat itself (translated with the page translator's cache) ----
   var UI = { listen: '🔊 Listen', stop: '■ Stop', menu: '☰ Main menu', menuTitle: 'Main menu: what would you like to do?', newchat: 'New chat', ph: 'Ask Champ anything about projects…',
     note: 'AI answers can be wrong; check important details.', voice: '🔊 Voice', sub: 'AI assistant', switching: 'Switching language…',
-    listening: 'Listening… tap 🎤 again to send', hearing: 'Working out what you said…', notHeard: 'Sorry, I didn’t catch that. Tap 🎤 and try again.', micBlocked: 'Please allow the microphone to talk to Champ.', voiceLangs: 'Languages Champ listens for', save: 'Save' };
+    listening: 'Listening… tap 🎤 again to send', hearing: 'Working out what you said…', notHeard: 'Sorry, I didn’t catch that. Tap 🎤 and try again.', noVoice: 'Voice isn’t available in Kinyarwanda yet. Please type your question and I’ll answer in writing.', micBlocked: 'Please allow the microphone to talk to Champ.', voiceLangs: 'Languages Champ listens for', save: 'Save' };
   var MENU = where === 'console'
     ? [['🧭', 'How do I start a new project?'], ['▦', 'How does the Pipeline board work?'], ['📈', 'Explain SPI and CPI'], ['📌', 'How do I set a baseline?'], ['🌐', 'Change language']]
     : [['🧭', 'What is Project Champ?'], ['✨', 'Show me the main features'], ['📐', 'Help with project management'], ['🗂', 'Programs and portfolios explained'],
@@ -271,6 +271,7 @@
       if (L === lang && !fromPage) { if (after) after(); return; }
       var wasIdx = speakingIdx; stopVoice();
       lang = L; sel.value = L; ls('champChatLang', L);
+      if (NOVOICE[L]) { if (srOn) { try { srOn.abort ? srOn.abort() : srOn.stop(); } catch (e) {} } if (rec && rec.state === 'recording') { try { rec.stop(); } catch (e) {} } }   // Kinyarwanda: stop listening now (the results are dropped)
       if (!fromPage) window.dispatchEvent(new CustomEvent('champ:chatlang', { detail: L }));
       var my = ++switching;
       if (L === 'auto') { if (!box.hidden) { draw(); if (msgs.length && !obActive()) showMenu(); } if (after) after(); return; }
@@ -324,7 +325,7 @@
     }
     // hands-free: once the microphone is on, Champ listens after its questions (not while you type the form)
     function handsFree() { return ls('champHandsFree') === '1'; }
-    function listenNext() { if (handsFree() && vis.step !== 'form' && !box.hidden && !busy && !(rec && rec.state === 'recording')) setTimeout(function () { if (!box.hidden && !busy && vis.step !== 'form' && !(rec && rec.state === 'recording')) startRec(true); }, 250); }
+    function listenNext() { if (!NOVOICE[curL()] && handsFree() && vis.step !== 'form' && !box.hidden && !busy && !(rec && rec.state === 'recording')) setTimeout(function () { if (!box.hidden && !busy && vis.step !== 'form' && !(rec && rec.state === 'recording')) startRec(true); }, 250); }
     function micOn() {
       if (!navigator.mediaDevices) { bubble('bot', '<p>' + esc(T(UI.micBlocked)) + '</p>', 'cc-err'); return; }
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) {
@@ -537,6 +538,7 @@
       r.onresult = function (e) { got = Array.prototype.map.call(e.results, function (x) { return x[0].transcript; }).join(' '); ta.value = got; };
       r.onerror = function (e) { err = e.error || 'error'; };
       r.onend = function () { srOn = null; micState(''); ta.value = ''; wake.resume(); var q = got.trim();
+        if (NOVOICE[curL()]) return;   // switched to Kinyarwanda meanwhile: text only, drop the speech
         if (q) { emptyRuns = 0; handle(q, true, curL()); return; }
         if (err === 'network' || err === 'language-not-supported' || err === 'service-not-allowed' || err === 'audio-capture') { srNo = true; return startRec(quiet); }   // the browser cannot: Azure listens
         if (err === 'not-allowed') { bubble('bot', '<p>' + esc(T(UI.micBlocked)) + '</p>', 'cc-err'); return; }
@@ -544,6 +546,7 @@
       try { r.start(); micState('rec'); return true; } catch (e) { srOn = null; srNo = true; return false; }
     }
     function startRec(quiet) {
+      if (NOVOICE[curL()]) { micState(''); if (!quiet) bubble('bot', '<p>' + esc(T(UI.noVoice)) + '</p>', 'cc-err'); return; }   // Kinyarwanda: no speech service hears it yet, so no mic (it would mishear it as English)
       if (rec && rec.state === 'recording') return;
       if (srOn) return;
       if (window.ChampMicCheck && !quiet) window.ChampMicCheck(function (msg) { bubble('bot', '<p>' + esc(msg) + '</p>', 'cc-err'); });   // a switched-off microphone: say so instead of hearing nothing
@@ -552,11 +555,12 @@
       if (!navigator.mediaDevices || !window.MediaRecorder) { bubble('bot', '<p>' + esc(T(UI.micBlocked)) + '</p>', 'cc-err'); return; }
       stopVoice();
       navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+        if (NOVOICE[curL()]) { stream.getTracks().forEach(function (t) { t.stop(); }); micState(''); return; }
         recStream = stream; recChunks = [];
         var types = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'], mt = types.filter(function (t) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t); })[0] || '';
         rec = new MediaRecorder(stream, mt ? { mimeType: mt } : undefined);
         rec.ondataavailable = function (e) { if (e.data && e.data.size) recChunks.push(e.data); };
-        rec.onstop = function () { var type = (rec.mimeType || mt || 'audio/webm').split(';')[0]; cleanRec(); send(new Blob(recChunks, { type: type }), type); };
+        rec.onstop = function () { var type = (rec.mimeType || mt || 'audio/webm').split(';')[0]; cleanRec(); if (NOVOICE[curL()]) { micState(''); return; } send(new Blob(recChunks, { type: type }), type); };
         rec.start(); micState('rec');
         recTimer = setTimeout(stopRec, 15000);   // a question, not a speech (long recordings are slow to hear)
         // stop by itself after a pause: about 1.4 s of quiet once you have started talking
@@ -658,6 +662,7 @@
       if (srOn) { try { srOn.stop(); } catch (e) {} return; }
       if (rec && rec.state === 'recording') return stopRec();
       if (mic.classList.contains('busy')) return;
+      if (NOVOICE[curL()]) return startRec();   // says why there is no mic in this language
       if (where === 'site' && !handsFree()) { ls('champHandsFree', '1'); wake.start(); var o = log.querySelector('[data-ob="mic"]'); if (o) o.remove(); }   // you talk to Champ: it keeps listening after each answer
       startRec();
     };
