@@ -11,12 +11,17 @@ const LV = { High: 3, Medium: 2, Low: 1 };
 const NOTE = { R: 'Urgent', A: 'Semi-urgent', G: 'Fine' };
 
 function namesFor(ctx, plan) {
-  const n = new Set([norm(ctx.name)].filter(Boolean)), em = String(ctx.who || '').toLowerCase();
-  (plan.stakeholders || []).forEach((s) => { if (em && String(s.email || '').toLowerCase() === em && norm(s.name)) n.add(norm(s.name)); });
+  const n = new Set([norm(ctx.name)].filter(Boolean)), ems = [ctx.who, ctx.email].map((x) => String(x || '').trim().toLowerCase()).filter((x) => x.includes('@'));   // the login's email, and the super user's OWNER_EMAIL
+  (plan.stakeholders || []).forEach((s) => { if (ems.includes(String(s.email || '').trim().toLowerCase()) && norm(s.name)) n.add(norm(s.name)); });
   return n;
 }
-const isMe = (names, who) => { const w = norm(who); return !!w && names.has(w); };   // the whole name: Alex is not Alex Chen
-const mentions = (names, text) => { const t = ' ' + String(text || '').toLowerCase() + ' '; return [...names].some((n) => t.includes('@' + n)); };
+// the same person: the whole name, or the same first and last name with middle names left out ("Sashi Kumar Sivam" is "Sashi Sivam"). Alex is not Alex Chen.
+const ends = (n) => { const w = n.split(' '); return w.length > 1 ? w[0] + ' ' + w[w.length - 1] : ''; };
+const isMe = (names, who) => { const w = norm(who); if (!w) return false; if (names.has(w)) return true; const e = ends(w); return !!e && [...names].some((n) => ends(n) === e); };
+// @Name in a note: the words after each @ (up to four), as a whole name or first and last name
+const mentions = (names, text) => { const t = String(text || ''); let i = t.indexOf('@');
+  while (i >= 0) { const w = t.slice(i + 1).split(/[\s,.;:!?]+/).filter(Boolean).slice(0, 4); for (let k = w.length; k >= 1; k--) if (isMe(names, w.slice(0, k).join(' '))) return true; i = t.indexOf('@', i + 1); }
+  return false; };
 
 // urgency: the priority set on the item, otherwise from how soon it is due
 function urgency(priority, due, today, soon) {
@@ -53,7 +58,7 @@ export async function myDay(ctx, opts) {
         });
       });
       (t.stickies || []).forEach((n) => {
-        if (n.done || isMe(names, n.by)) return;
+        if (n.done || (isMe(names, n.by) && !mentions(names, n.text))) return;   // my own notes only when they @mention me
         if (!(mentions(names, n.text) || mine)) return;
         const due = n.due || t.ef || '';
         att.push({ core, project: proj, link, t: t.id, nid: n.id, task: tname, text: n.text, by: n.by || '', at: n.at || 0, due, c: n.c, urgency: NOTE[n.c] || 'Fine', mention: mentions(names, n.text),

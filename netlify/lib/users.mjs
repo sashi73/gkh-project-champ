@@ -151,7 +151,7 @@ async function put(u) { await kv.set('user:' + u.id, u); await kv.update('user-i
 // the signed-in user's access (or null when the login no longer works: disabled, password reset, removed from People)
 export async function context(session, ownerName, personOk) {
   if (!session) return null;
-  if (!session.uid) return { owner: true, who: session.u, uid: '', role: 'Super user', mods: OWNER_MODS, name: process.env.OWNER_NAME || 'Sashi Sivam' };
+  if (!session.uid) return { owner: true, who: session.u, uid: '', role: 'Super user', mods: OWNER_MODS, name: process.env.OWNER_NAME || 'Sashi Sivam', email: String(process.env.OWNER_EMAIL || '').trim().toLowerCase() };   // OWNER_EMAIL (Netlify): the super user's email, so the plans know them by it
   const u = await get(session.uid);
   if (!u || !u.active || (u.ver || 0) !== (session.v || 0)) return null;
   if (personOk && !(await personOk(u.personId, u))) return null;
