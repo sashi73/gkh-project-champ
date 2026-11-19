@@ -23,6 +23,9 @@ const mentions = (names, text) => { const t = String(text || ''); let i = t.inde
   while (i >= 0) { const w = t.slice(i + 1).split(/[\s,.;:!?]+/).filter(Boolean).slice(0, 4); for (let k = w.length; k >= 1; k--) if (isMe(names, w.slice(0, k).join(' '))) return true; i = t.indexOf('@', i + 1); }
   return false; };
 
+// the board's owner of a task: a stakeholder id or a name
+const ownerName = (plan, t) => { const sh = (plan.stakeholders || []).find((x) => x.id === t.owner); return sh ? sh.name || '' : t.owner || ''; };
+
 // urgency: the priority set on the item, otherwise from how soon it is due
 function urgency(priority, due, today, soon) {
   if (due && due < today) return { u: 'Overdue', lv: 4 };
@@ -45,7 +48,7 @@ export async function myDay(ctx, opts) {
     const soon = P.addWork(today, 1, all), ahead = P.addWork(today, 7, all), link = '#plan/' + encodeURIComponent(core) + '/schedule';
     const add = (row) => { if (row.due && row.due > ahead) { later++; return; }const g = urgency(row.priority, row.due, today, soon); todo.push({ ...row, core, project: proj, link, urgency: g.u, lv: g.lv, rag: rag(row.due, today, soon) }); };   // due in the next week, or overdue
     for (const t of plan.tasks) {
-      const tname = String(t.name || '').replace(/^[✓◆\s]+/, ''), onTask = (t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead);
+      const tname = String(t.name || '').replace(/^[✓◆\s]+/, ''), onTask = (t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead) || isMe(names, ownerName(plan, t));
       let mine = onTask;
       if (onTask && (t.pct || 0) < 100) add({ kind: t.dur === 0 ? 'Milestone' : 'Task', name: tname, start: t.es, due: t.ef, pct: t.pct || 0, priority: t.priority, t: t.id });
       (t.subs || []).forEach((sb) => {
@@ -99,7 +102,7 @@ export async function myDayDone(ctx, body, by) {
     if (!ctx.owner && !isMe(names, sb.owner)) return { error: 'Only the owner of this sub-task (or the project manager) can tick it done.', code: 403 };
     sb.status = 'done'; sb.pct = 100; (sb.steps || []).forEach((q) => { q.done = true; });
   } else {
-    if (!ctx.owner && !((t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead))) return { error: 'Only someone on this task (or the project manager) can tick it done.', code: 403 };
+    if (!ctx.owner && !((t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead) || isMe(names, ownerName(plan, t)))) return { error: 'Only someone on this task (or the project manager) can tick it done.', code: 403 };
     t.pct = 100; t.status = 'done';   // a task with sub-tasks takes its % from them: they are done too
     (t.subs || []).forEach((sb) => { sb.status = 'done'; sb.pct = 100; (sb.steps || []).forEach((q) => { q.done = true; }); });
   }
