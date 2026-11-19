@@ -160,4 +160,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 149 | 1.0.149| 2026-11-19 20:51| rw-speech| `dfe9e14` | Kinyarwanda: text only, no voice and no mic (no speech service speaks or hears it yet) |
 | 150 | 1.0.150| 2026-11-19 21:18| rw-speech| `f81ea10` | Kinyarwanda: text only (no voice, no mic) (#19) |
 | 151 | 1.0.151| 2026-11-19 22:15| start-screen| `e0401b7` | 🎯 Today: the start screen after sign-in (Lean flow): my work and my blockers |
-| 152 | 1.0.152 | 2026-11-19 22:39 | start-screen | _this commit_ | _see git log_ |
+| 152 | 1.0.152| 2026-11-19 22:39| start-screen| `c5f951c` | Today review fixes: exact name match, due within the week, fresh lists after a tick, no reopen after closing, closed screens ignore errors,  |
+| 153 | 1.0.153 | 2026-11-19 23:05 | start-screen | _this commit_ | _see git log_ |

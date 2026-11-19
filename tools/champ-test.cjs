@@ -1121,8 +1121,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
     if (process.env.AUDIT_ONLY) { try { srv.kill(); } catch (e) {} const bad = results.filter((x) => !x.pass); for (const x of results) console.log(`${x.pass ? 'PASS' : 'FAIL'}  [${x.area}] ${x.name}${x.pass ? '' : '  → ' + x.detail}`); console.log(`\n${results.length - bad.length}/${results.length} passed`); process.exit(0); }
     await p.goto(`${BASE}/admin/#programs`); await p.reload(); await p.waitForSelector('#app:not([hidden])', { timeout: 10000 }).catch(() => {}); await sleep(800);
   }
-  const menu = await p.$$eval('.side-nav a:not([hidden])', (as) => as.map((a) => a.textContent.trim()));
-  ok('Console', 'menu shows only the project element (+ admin)', JSON.stringify(menu) === JSON.stringify(['🗂Programs', '🔗Dependency board', '📊Summary', '▦Pipeline board', '📅All projects', '＋New project', '👥People', '📅Team calendar', '📊Workload', '🙋My profile', '📨Enquiries', '👋Visitors & leads', '✨Ask AI', '📈Reports & data', '🔐Users & access', '📚Knowledge base', '🕘Activity log', '🏷Builds', '❓Help']), menu.join(' | '));
+  const menu = await p.$$eval('.side-nav a:not([hidden])', (as) => as.map((a) => { const c = a.cloneNode(true); c.querySelectorAll('.tdy-badge').forEach((b) => b.remove()); return c.textContent.trim(); }));   // without 🎯 Today's red count
+  ok('Console', 'menu shows only the project element (+ admin)', JSON.stringify(menu) === JSON.stringify(['🎯Today', '🗂Programs', '🔗Dependency board', '📊Summary', '▦Pipeline board', '📅All projects', '＋New project', '👥People', '📅Team calendar', '📊Workload', '🙋My profile', '📨Enquiries', '👋Visitors & leads', '✨Ask AI', '📈Reports & data', '🔐Users & access', '📚Knowledge base', '🕘Activity log', '🏷Builds', '❓Help']), menu.join(' | '));
   ok('Console', 'branded GKH Project Champ', (await p.textContent('.gkh-bar')).includes('GKH Project Champ') && (await p.title()).includes('Project Champ'));
   await p.waitForSelector('.pg-grid, .cs-tiles', { timeout: 8000 }).catch(() => {});
   ok('Programs', 'the console opens on Programs', /Programs/.test(await p.textContent('#view')) && (await p.$$('.cs-tabs .btn.on')).length === 1);
