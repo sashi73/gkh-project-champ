@@ -794,3 +794,18 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .side-today.tdy-land{animation:tdyLand .7s cubic-bezier(.2,1.6,.4,1)}
 @keyframes tdyLand{0%{background:rgba(201,162,39,.55);transform:scale(1.08)}100%{background:transparent;transform:none}}
 .tdy.tdy-calm .tdy-box *,.tdy.tdy-calm .tdy-box::after{animation:none!important}
+/* 🎯 Today: due today flashes red, due tomorrow amber */
+.tdy-now,.tdy-soon{display:inline-block;margin-left:6px;font-size:10.5px;font-weight:800;letter-spacing:.04em;padding:2px 7px;border-radius:999px;vertical-align:1px;color:#fff}
+.tdy-now{background:#DC2626;animation:tdyBlink 1s steps(2,jump-none) infinite;box-shadow:0 0 0 0 rgba(220,38,38,.6)}
+.tdy-soon{background:#D97706}
+.tdy-late{display:block;color:#DC2626;font-weight:700;font-size:11.5px}
+.tdy-t tbody tr.tdy-today td:first-child{box-shadow:inset 4px 0 0 #DC2626}
+.tdy-t tbody tr.tdy-today{animation:tdyFly .55s cubic-bezier(.2,.9,.3,1.15) both,tdyRowGlow 1.6s ease-in-out infinite;animation-delay:calc(.8s + var(--d,0) * 70ms),1.6s}
+.tdy-flow .tdy-blink{animation:tdyPop .45s cubic-bezier(.2,1.6,.4,1) both,tdyPillBlink 1.2s ease-in-out 1.2s infinite}
+@keyframes tdyBlink{0%{opacity:1}50%{opacity:.25}100%{opacity:1}}
+@keyframes tdyRowGlow{0%,100%{background:rgba(220,38,38,.06)}50%{background:rgba(220,38,38,.2)}}
+@keyframes tdyPillBlink{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}50%{box-shadow:0 0 0 5px rgba(220,38,38,.35)}}
+.tdy.tdy-calm .tdy-box .tdy-now{animation:tdyBlink 1s steps(2,jump-none) infinite!important}
+.tdy.tdy-calm .tdy-box tr.tdy-today{animation:tdyRowGlow 1.6s ease-in-out infinite!important}
+.tdy.tdy-calm .tdy-box .tdy-blink{animation:tdyPillBlink 1.2s ease-in-out infinite!important}
+@media (prefers-reduced-motion:reduce){.tdy .tdy-now,.tdy tr.tdy-today,.tdy .tdy-blink,.tdy.tdy-calm .tdy-box .tdy-now,.tdy.tdy-calm .tdy-box tr.tdy-today,.tdy.tdy-calm .tdy-box .tdy-blink{animation:none!important}}

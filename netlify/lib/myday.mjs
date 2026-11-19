@@ -69,9 +69,13 @@ export async function myDay(ctx, opts) {
   todo.sort((a, b) => b.lv - a.lv || (a.due || '9') .localeCompare(b.due || '9'));
   const cv = { R: 3, A: 2, G: 1 };
   att.sort((a, b) => (b.late - a.late) || (cv[b.c] - cv[a.c]) || (a.due || '9').localeCompare(b.due || '9'));
-  const wip = todo.filter((x) => x.start && x.start <= today).length;
+  // the counts take tasks and notes together: overdue, due today, due today or tomorrow (the next working day)
+  const both = todo.concat(att), soon1 = P.addWork(today, 1, false), tom = new Date(Date.parse(today + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);
+  const nextDue = tom > soon1 ? tom : soon1;
+  both.forEach((x) => { x.when = !x.due ? '' : x.due < today ? 'overdue' : x.due === today ? 'today' : x.due <= nextDue ? 'tomorrow' : ''; });
   return { today, name: ctx.name || '', todo: todo.slice(0, 100), attention: att.slice(0, 100), later,
-    counts: { overdue: todo.filter((x) => x.rag === 'red').length, dueSoon: todo.filter((x) => x.rag === 'amber').length, wip, blockers: att.length, lateBlockers: att.filter((x) => x.late).length } };
+    counts: { overdue: both.filter((x) => x.when === 'overdue').length, dueToday: both.filter((x) => x.when === 'today').length, dueSoon: both.filter((x) => x.when === 'today' || x.when === 'tomorrow').length,
+      blockers: att.length, lateBlockers: att.filter((x) => x.late).length } };
 }
 
 // ✓ from the start screen: tick an item done, or resolve a note (it then leaves the list)
