@@ -6,14 +6,15 @@
   functions = "netlify/functions"
 
 # LLM_MAX_TOKENS is just a number (like 500): it is not a secret, and that number appears all over normal code,
-# so the secrets scanner must not treat it as one (it was blocking every deploy).
+# so the secrets scanner must not treat it as one (it was blocking every deploy). Same for CHAMP_DB ("postgres" is all over the code).
 [build.environment]
-  SECRETS_SCAN_OMIT_KEYS = "LLM_MAX_TOKENS,LLM_MODEL,LLM_BASE_URL,AZURE_SPEECH_REGION,VOICE_RATE"
+  SECRETS_SCAN_OMIT_KEYS = "LLM_MAX_TOKENS,LLM_MODEL,LLM_BASE_URL,AZURE_SPEECH_REGION,VOICE_RATE,CHAMP_DB,CHAMP_FILES,CHAMP_DB_POOL"
 
 [functions]
   node_bundler = "esbuild"
-  # big library used only when a PDF is made: shipped beside the function, loaded on demand
-  external_node_modules = ["pdf-lib"]
+  # big libraries shipped beside the function and loaded on demand: pdf-lib only when a PDF is made,
+  # the Postgres driver only when CHAMP_DB = postgres (so Blobs mode starts as fast as before)
+  external_node_modules = ["pdf-lib", "pg"]
 
 # Keep server-only files out of the public site
 [[redirects]]

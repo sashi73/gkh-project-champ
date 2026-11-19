@@ -17,7 +17,7 @@ const month = (ms) => (ms ? new Date(ms + 10 * 3600e3).toISOString().slice(0, 7)
 async function data() {
   let d = await CU.get();
   if (!d.built) {   // first time: link every job there is
-    const jobs = (await kv.getMany(await kv.keys('job:'))).filter(Boolean);
+    const jobs = (await kv.values('job:')).filter(Boolean);
     d = await CU.rebuild(jobs);
   }
   const idx = await J.all();
@@ -85,7 +85,7 @@ export async function custPost(action, body, { who, by, audit }) {
     return out(200, { customer: c });
   }
   if (action === 'custRebuild') {
-    const jobs = (await kv.getMany(await kv.keys('job:'))).filter(Boolean);
+    const jobs = (await kv.values('job:')).filter(Boolean);
     const d = await CU.rebuild(jobs);
     if (audit) await audit(who, `Customer list rebuilt from ${jobs.length} jobs`);
     return out(200, { customers: Object.keys(d.list).length, jobs: jobs.length });

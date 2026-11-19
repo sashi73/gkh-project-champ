@@ -297,7 +297,7 @@ export async function save(core, plan, rev, by) {
 }
 export async function list() {
   const out = [];
-  for (const p of await kv.getMany(await kv.keys('plan:'))) if (p) out.push(p);
+  for (const p of await kv.values('plan:')) if (p) out.push(p);
   return out;
 }
 export async function remind(core, taskId, when, by, subId = '', stepId = '') {   // a task, a sub-task (level 1.1) or a step (level 1.1.1)

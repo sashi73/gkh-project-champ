@@ -1,13 +1,9 @@
-// Job tracker storage: Netlify Blobs only (store "mbs-jobs"). Free, nothing to set up on Netlify.
+// Job tracker storage (store "mbs-jobs"): Netlify Blobs, or Postgres when CHAMP_DB = postgres (see storage.mjs).
 // update() is safe when two changes arrive at the same moment: it retries instead of overwriting.
 // A fresh store handle for every call: Netlify gives each request its own short-lived access token,
 // so a handle kept from an earlier request fails with "Token expired" once the function stays warm.
-let lib = null;
-async function store() {
-  if (!lib) lib = import('@netlify/blobs').catch((e) => { lib = null; throw e; });
-  const { getStore } = await lib;
-  return getStore({ name: 'mbs-jobs', consistency: 'strong' });
-}
+import { getStore } from './storage.mjs';
+function store() { return getStore({ name: 'mbs-jobs' }); }
 
 export async function get(key) {
   const s = await store();
@@ -41,13 +37,23 @@ export async function update(key, fn, fallback = null) {
   throw new Error('Could not save ' + key + ' (too many changes at once, please try again)');
 }
 
-// read many keys at once (up to `limit` at a time) instead of one after another
+// read many keys at once: one query on Postgres; on Blobs up to `limit` requests at a time instead of one after another
 export async function getMany(keyList, limit = 16) {
+  if (!keyList.length) return [];
+  const s = await store();
+  if (s.getMany) return s.getMany(keyList);
   const out = new Array(keyList.length);
   let next = 0;
   const worker = async () => { while (next < keyList.length) { const i = next++; out[i] = await get(keyList[i]); } };
   await Promise.all(Array.from({ length: Math.min(limit, keyList.length) }, worker));
   return out;
+}
+
+// every record whose key starts with prefix (one query on Postgres)
+export async function values(prefix, limit = 16) {
+  const s = await store();
+  if (s.values) return s.values(prefix);
+  return getMany(await keys(prefix), limit);
 }
 
 export async function del(key) {

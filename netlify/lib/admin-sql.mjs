@@ -117,10 +117,10 @@ export async function tables() {
   const now = Date.now();
   const jobs = [];
   const [jobRecs, data, remList, visitRec, planList, stock, alloc] = await Promise.all([
-    kv.keys('job:').then((ks) => kv.getMany(ks)), ACC.allDocs(), J.reminders(),
-    import('@netlify/blobs').then(({ getStore }) => getStore({ name: 'mbs-visits', consistency: 'strong' }).get('count', { type: 'json' })).catch(() => null),
+    kv.values('job:'), ACC.allDocs(), J.reminders(),
+    import('./storage.mjs').then(({ getStore }) => getStore({ name: 'mbs-visits' })).then((st) => st.get('count', { type: 'json' })).catch(() => null),
     PLAN.list(), INV.full().catch(() => ({ items: [], suppliers: [] })), INV.allocations().catch(() => ({}))]);
-  const subRecs = await kv.keys('sub:').then((ks) => kv.getMany(ks)).catch(() => []);
+  const subRecs = await kv.values('sub:').catch(() => []);
   for (const j of jobRecs) {
     if (!j) continue;
     jobs.push({ ref: J.refFor(j), core: j.core, customer: '', stage: j.stage, name: j.name || '', phone: j.phone || '', email: j.email || '', suburb: j.suburb || '', service: j.service || '', program: j.program || '',

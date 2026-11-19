@@ -1,21 +1,19 @@
-// MBS admin console (CRM): login, sessions and data tools. Runs on Netlify, data in Netlify Blobs.
+// MBS admin console (CRM): login, sessions and data tools. Runs on Netlify, data in Netlify Blobs or Postgres (storage.mjs).
 // GKH Project Champ: see ownerName() / ensureSecret() below for how the Owner login works.
 import { createHmac, createHash, timingSafeEqual, scryptSync, randomBytes } from 'node:crypto';
 import { env } from './shared.mjs';
 import * as J from './jobs.mjs';
 import * as kv from './kv.mjs';
 import * as ACC from './accounts.mjs';
+import { getStore } from './storage.mjs';
 
 // ---------- stores ----------
 export const LIVE = 'mbs-jobs', TEST = 'mbs-jobs-test', VISITS = 'mbs-visits', ADMIN = 'mbs-admin';
 export const BROWSABLE = [LIVE, TEST, VISITS];
 // A fresh store handle for every call (each Netlify request has its own short-lived Blobs token;
-// reusing an old handle gives "Failed to decode token: Token expired").
-let lib = null;
+// reusing an old handle gives "Failed to decode token: Token expired"). Blobs, or Postgres when CHAMP_DB = postgres (storage.mjs).
 export async function store(name) {
-  if (!lib) lib = import('@netlify/blobs').catch((e) => { lib = null; throw e; });
-  const { getStore } = await lib;
-  return getStore({ name, consistency: 'strong' });
+  return getStore({ name });
 }
 
 // ---------- sessions ----------
