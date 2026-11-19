@@ -779,19 +779,20 @@
   }
 
   var planSeq = 0;
+  function planHere(core, job) { if (!/^#plan\//.test(location.hash)) return false; var h = decodeURIComponent(location.hash.split('/')[1] || ''); return h === core || (job && (h === job.core || h === job.ref)); }
   function planView(args) {
     var core = args[0], tab = args[1] || S.tab;
     if (S.plan && S.job && (core === S.core || core === S.job.ref) && args[1] && !S.away) { S.tab = tab; render(); loadChain(); return; }   // just a tab change (the quote/invoice may have moved on)
     var seq = ++planSeq;   // a new plan load: an older one still loading is dropped
     var pending = S.timer ? saveNow() : (S.q || Promise.resolve());
     return pending.then(function () { return api('planGet', { core: core }); }).then(function (d) {
-      if (seq !== planSeq || !/^#plan\//.test(location.hash)) return;   // a newer page was opened while this one loaded (another plan, or another page)
+      if (seq !== planSeq || !planHere(core, d.job)) return;   // a newer page was opened while this one loaded (another plan, another page, or back to the plan before)
       S.plan = null;
       S.core = d.job.core; S.job = d.job; S.reminders = d.reminders; S.expensesEx = d.expensesEx; S.tab = tab; S.mods = { bom: !d.champ || d.champ.bom !== false, swms: !d.champ || d.champ.swms !== false, change: !d.champ || d.champ.change !== false }; if (S.mods[S.tab] === false) S.tab = 'overview';
       if (!d.plan) return chooser();
       S.plan = normalise(d.plan); S.rev = d.plan.rev; S.chain = null; S.away = false; S.bench = d.bench || null; S.isTest = !!d.test;
       loadChain();
-      return loadInv().then(function () { if (seq === planSeq && /^#plan\//.test(location.hash)) { render(); estAuto(); } });
+      return loadInv().then(function () { if (seq === planSeq && planHere(core, d.job)) { render(); estAuto(); } });
     });
   }
   // dates written in plain words: "starts tomorrow and ends in one day", "start Monday, takes 3 days", "start 5/11, finish by 12/11", "done by Friday"
@@ -1121,8 +1122,9 @@
   function loadChain() {
     var core = S.core; if (M.me && M.me.scope) return Promise.resolve(null);   // v91: no quotes or invoices for a sub-contractor
     return api('planQuoteInfo', { core: core }).then(function (d) {
-      if (S.core !== core || !$('#planBody')) return; S.chain = d;
-      if (S.plan && JSON.stringify(d.gate || null) !== JSON.stringify(S.plan.gate || null)) { S.plan.gate = d.gate || null; render(); } else drawChain();
+      if (S.core !== core || !/^#plan\//.test(location.hash)) return; S.chain = d;   // you left the plan: dropped; the plan not drawn yet: kept, drawn with it
+      var moved = S.plan && JSON.stringify(d.gate || null) !== JSON.stringify(S.plan.gate || null); if (moved) S.plan.gate = d.gate || null;
+      if (!$('#planBody')) return d; if (moved) render(); else drawChain();
       return d;
     }).catch(function () {});
   }
