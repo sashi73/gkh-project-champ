@@ -166,4 +166,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 155 | 1.0.155| 2026-11-19 23:33| ci-fast| `b9cfd90` | CI: a quick check on every pull request (about 2 minutes); the full suite every night at 12 am Sydney and on demand (#21) |
 | 156 | 1.0.156| 2026-11-19 23:55| today-names| `fb43fa9` | Today knows you by your full name and email: middle names, @mentions in your own notes, the super user's OWNER_EMAIL (#22) |
 | 157 | 1.0.157| 2026-11-20 00:08| today-due| `3c7dbc9` | Today: notes count in "due today or tomorrow" and "overdue"; DUE TODAY flashes red, DUE TOMORROW amber; no WIP count (#23) |
-| 158 | 1.0.158 | 2026-11-20 00:15 | board-owner | _this commit_ | _see git log_ |
+| 158 | 1.0.158| 2026-11-20 00:15| board-owner| `a488f17` | Kanban / Scrum owner follows the Gantt: no board owner shows the ★ lead; picking an owner makes them the ★ lead; Today counts board owners ( |
+| 159 | 1.0.159 | 2026-11-20 00:34 | note-tags | _this commit_ | _see git log_ |

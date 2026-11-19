@@ -33,8 +33,8 @@
     o.classList.add('tdy-out'); setTimeout(function () { o.remove(); }, 520);   // no menu on screen (phone, menu folded): the page rolls back up
   }
   // the red count on 🎯 Today in the menu: overdue work and open blockers
-  function badge(c) { var a = $('.side-nav [data-today]'); if (!a) return; var n = c ? (c.overdue || 0) + (c.blockers || 0) : 0, el = $('.tdy-badge', a);
-    if (!n) { if (el) el.remove(); return; } if (!el) { el = document.createElement('span'); el.className = 'tdy-badge'; a.appendChild(el); } el.textContent = n > 99 ? '99+' : String(n); el.title = (c.overdue || 0) + ' overdue · ' + (c.blockers || 0) + ' blockers'; }
+  function badge(c) { var a = $('.side-nav [data-today]'); if (!a) return; var n = c ? (c.now != null ? c.now : (c.overdue || 0) + (c.blockers || 0)) : 0, el = $('.tdy-badge', a);
+    if (!n) { if (el) el.remove(); return; } if (!el) { el = document.createElement('span'); el.className = 'tdy-badge'; a.appendChild(el); } el.textContent = n > 99 ? '99+' : String(n); el.title = (c.overdue || 0) + ' overdue · ' + (c.dueToday || 0) + ' due today · ' + (c.blockers || 0) + ' #blockers'; }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
   function go(x, note) { close(true); M.focus = { core: x.core, t: x.t, s: x.s || '', q: x.q || '', note: note ? x.nid : '', at: Date.now() }; if (location.hash === x.link) { location.hash = '#portfolio'; setTimeout(function () { location.hash = x.link; }, 0); } else location.hash = x.link; }
 
@@ -45,12 +45,18 @@
       '<td class="tdy-proj">' + esc(x.project) + '</td><td class="tdy-act">' + (canEdit() ? '<button type="button" class="btn btn-sm" data-done title="Tick it done: it leaves the list">✓ Done</button>' : '') +
       '<button type="button" class="btn btn-sm btn-gold" data-open>Open →</button></td></tr>';
   }
+  // #tags as coloured chips (assets/note-tags.js)
+  var TG = function () { return window.CHAMP_TAGS || null; };
+  function tagged(h) { var g = TG(); if (!g) return h; return h.replace(/(^|[^\p{L}\p{N}_&])#([\p{L}_]+)/gu, function (m, a, w) { var t = g.tagOf(w); return t ? a + '<span class="ntag" style="--tc:' + t.c + '" title="' + esc(t.m) + '">' + t.i + ' #' + t.id + '</span>' : m; }); }
   function rowNote(x, i) {
-    return '<tr class="tdy-' + x.rag + (x.when === 'today' ? ' tdy-today' : '') + '" data-n="' + i + '" style="--d:' + (i + 3) + '">' + dueCell(x) +
-      '<td><span class="tdy-u tdy-n' + x.c + '">' + esc(x.urgency) + '</span></td><td class="tdy-what">' + (x.mention ? '<span class="tdy-k">@ you</span>' : '') + '<b>' + esc(String(x.text).slice(0, 220)) + '</b><small>on ' + esc(x.task) + '</small></td>' +
+    return '<tr class="tdy-' + x.rag + (x.when === 'today' ? ' tdy-today' : '') + '" data-n="' + i + '" data-tags="' + esc((x.tags || []).join(' ')) + '" style="--d:' + (i + 3) + '">' + dueCell(x) +
+      '<td><span class="tdy-u tdy-n' + x.c + '">' + esc(x.urgency) + '</span></td><td class="tdy-what">' + (x.mention ? '<span class="tdy-k">@ you</span>' : '') + '<b>' + tagged(esc(String(x.text).slice(0, 220))) + '</b><small>on ' + esc(x.task) + '</small></td>' +
       '<td>' + esc(x.by || '—') + '</td><td class="tdy-proj">' + esc(x.project) + '</td><td class="tdy-act">' + (canEdit() ? '<button type="button" class="btn btn-sm" data-done title="Mark the note done: it leaves the list">✓ Resolved</button>' : '') +
       '<button type="button" class="btn btn-sm btn-gold" data-open>Open →</button></td></tr>';
   }
+  function tagBar(c) { var g = TG(), t = (c && c.tags) || {}; if (!g || !Object.keys(t).length) return '';
+    return '<div class="tdy-tags"><button type="button" class="tdy-tf on" data-tf="">All <b>' + (c.notes || 0) + '</b></button>' + g.TAGS.filter(function (x) { return t[x.id]; }).map(function (x) {
+      return '<button type="button" class="tdy-tf" data-tf="' + x.id + '" style="--tc:' + x.c + '" title="' + esc(x.m) + '">' + x.i + ' #' + x.id + ' <b>' + t[x.id] + '</b></button>'; }).join('') + '</div>'; }
   function table(head, rows, none) {
     return rows ? '<div class="tdy-tw"><table class="tdy-t"><thead><tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
       : '<p class="tdy-none">✓ None. ' + none + '</p>';
@@ -77,10 +83,10 @@
       '<div class="tdy-h"><div><h2>🎯 Today</h2><p class="muted">' + esc(hi) + ' · ' + esc(day) + '</p></div><span class="sp"></span><button type="button" class="tdy-x" id="tdyX" title="Close (Esc)" aria-label="Close">✕</button></div>' +
       '<div class="tdy-flow"><span class="' + (c.overdue ? 'on-red' : '') + '"><b>' + (c.overdue || 0) + '</b> overdue</span>' +
         '<span class="' + (c.dueToday ? 'on-red tdy-blink' : c.dueSoon ? 'on-amber' : '') + '"><b>' + (c.dueSoon || 0) + '</b> due today or tomorrow' + (c.dueToday ? ' (' + c.dueToday + ' today)' : '') + '</span>' +
-        '<span class="' + (c.blockers ? 'on-red' : '') + '"><b>' + (c.blockers || 0) + '</b> blocker' + (c.blockers === 1 ? '' : 's') + '</span></div>' +
+        '<span class="' + (c.blockers ? 'on-red' : '') + '"><b>' + (c.blockers || 0) + '</b> 🚧 blocker' + (c.blockers === 1 ? '' : 's') + '</span>' + '<span><b>' + (c.notes || 0) + '</b> note' + (c.notes === 1 ? '' : 's') + ' for me</span></div>' +
       '<section><h3>1 · Things to do</h3>' + table(['Due', 'Urgency', 'What', 'Project', ''], d.todo.map(rowTodo).join(''), 'Nothing is linked to you that is due in the next week.') +
         (d.later ? '<p class="muted tdy-later">+ ' + d.later + ' more starting later (not shown, so today stays focused).</p>' : '') + '</section>' +
-      '<section><h3>2 · Needs my attention <small>blockers and notes for you</small></h3>' + table(['Due', 'Urgency', 'Note', 'Reported by', 'Project', ''], d.attention.map(rowNote).join(''), 'No open notes or blockers for you.') + '</section>' +
+      '<section><h3>2 · Needs my attention <small>blockers and notes for you, #blocker first</small></h3>' + tagBar(c) + table(['Due', 'Urgency', 'Note', 'Reported by', 'Project', ''], d.attention.map(rowNote).join(''), 'No open notes or blockers for you.') + '</section>' +
       '<div class="tdy-f"><span class="muted">Flashing red: due today. Red: overdue (or an urgent note). Amber: due tomorrow (or a semi-urgent note). Tick ✓ when it is done and it leaves the list.</span><span class="sp"></span><button type="button" class="btn btn-gold" id="tdyGo">Start working →</button></div>';
     $('#tdyX').onclick = close; $('#tdyGo').onclick = close;
     o.querySelectorAll('tr[data-i],tr[data-n]').forEach(function (tr) {
@@ -95,6 +101,9 @@
         }).catch(function (e) { b.disabled = false; M.toast(e.message); });
       };
     });
+    o.querySelectorAll('[data-tf]').forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-tf');
+      o.querySelectorAll('[data-tf]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      o.querySelectorAll('tr[data-n]').forEach(function (tr) { tr.hidden = !!k && (' ' + tr.getAttribute('data-tags') + ' ').indexOf(' ' + k + ' ') < 0; }); }; });
     var f = $('#tdyGo'); if (f) f.focus({ preventScroll: true });
     // the numbers count up as the page opens
     o.querySelectorAll('.tdy-flow b').forEach(function (b) { var n = +b.textContent || 0; if (!n || still()) return; var k = 0, steps = Math.min(n, 18); b.textContent = '0';
