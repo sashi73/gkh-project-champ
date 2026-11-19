@@ -780,17 +780,18 @@
 
   var planSeq = 0;
   function planView(args) {
-    var seq = ++planSeq, core = args[0], tab = args[1] || S.tab;
+    var core = args[0], tab = args[1] || S.tab;
     if (S.plan && S.job && (core === S.core || core === S.job.ref) && args[1] && !S.away) { S.tab = tab; render(); loadChain(); return; }   // just a tab change (the quote/invoice may have moved on)
+    var seq = ++planSeq;   // a new plan load: an older one still loading is dropped
     var pending = S.timer ? saveNow() : (S.q || Promise.resolve());
     return pending.then(function () { return api('planGet', { core: core }); }).then(function (d) {
-      if (seq !== planSeq) return;   // a newer page was opened while this one loaded
+      if (seq !== planSeq || !/^#plan\//.test(location.hash)) return;   // a newer page was opened while this one loaded (another plan, or another page)
       S.plan = null;
       S.core = d.job.core; S.job = d.job; S.reminders = d.reminders; S.expensesEx = d.expensesEx; S.tab = tab; S.mods = { bom: !d.champ || d.champ.bom !== false, swms: !d.champ || d.champ.swms !== false, change: !d.champ || d.champ.change !== false }; if (S.mods[S.tab] === false) S.tab = 'overview';
       if (!d.plan) return chooser();
       S.plan = normalise(d.plan); S.rev = d.plan.rev; S.chain = null; S.away = false; S.bench = d.bench || null; S.isTest = !!d.test;
       loadChain();
-      return loadInv().then(function () { if (seq === planSeq) { render(); estAuto(); } });
+      return loadInv().then(function () { if (seq === planSeq && /^#plan\//.test(location.hash)) { render(); estAuto(); } });
     });
   }
   // dates written in plain words: "starts tomorrow and ends in one day", "start Monday, takes 3 days", "start 5/11, finish by 12/11", "done by Friday"
@@ -1120,7 +1121,7 @@
   function loadChain() {
     var core = S.core; if (M.me && M.me.scope) return Promise.resolve(null);   // v91: no quotes or invoices for a sub-contractor
     return api('planQuoteInfo', { core: core }).then(function (d) {
-      if (S.core !== core) return; S.chain = d;
+      if (S.core !== core || !$('#planBody')) return; S.chain = d;
       if (S.plan && JSON.stringify(d.gate || null) !== JSON.stringify(S.plan.gate || null)) { S.plan.gate = d.gate || null; render(); } else drawChain();
       return d;
     }).catch(function () {});
