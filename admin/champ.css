@@ -828,3 +828,4 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .tdy-tf b{margin-left:2px}
 .tdy-tf.on{background:color-mix(in srgb,var(--tc,#C9A227) 22%,transparent);border-color:var(--tc,#C9A227);font-weight:700}
 .tdy-what .ntag{margin:0 1px}
+.stk-ok{margin-left:8px;font-size:11.5px;font-weight:800;color:#16A34A;animation:tdyPop .35s cubic-bezier(.2,1.6,.4,1) both}
