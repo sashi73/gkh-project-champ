@@ -177,6 +177,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
 
   const b = await chromium.launch({ executablePath: fs.existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined, args: ['--use-fake-device-for-media-stream'] });
   const ctx = await b.newContext({ viewport: { width: 1366, height: 900 } });
+  await ctx.addInitScript(() => { try { if (localStorage.getItem('champTodayOff') === null) localStorage.setItem('champTodayOff', '1'); } catch (e) {} });   // 🎯 Today stays shut in the other tests
   await ctx.route(/images\.unsplash\.com|accounts\.google\.com/, (r) => r.abort());   // no internet in the test
   await ctx.addInitScript(() => { if (!/intro=1/.test(location.search)) try { sessionStorage.setItem('champIntroSeen', '1'); } catch (e) {} });   // the intro has its own checks
   const p = await ctx.newPage();
@@ -676,6 +677,47 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       ok('Help', 'console: ❓ Help in the menu shows the 14 areas; an article opens at its section with ▶ Show me; the ? next to the title opens this screen\'s article in Champ\'s panel',
         menuHelp && cAreas === 14 && cHit === 'Mention someone with @' && cShow && before === 0 && /\/schedule$/.test(route) && /Gantt: add tasks, sub-tasks and steps/.test(card), JSON.stringify({ menuHelp, cAreas, cHit, cShow, route, before, card }));
     }
+    // 🎯 Today: the start screen: only what is linked to me (tasks, sub-tasks, steps; notes that @mention me or sit on my work), red when overdue, ✓ makes it leave
+    {
+      const dz = (n) => new Date(Date.now() + 11 * 3600000 + n * 864e5).toISOString().slice(0, 10), back0 = await p.evaluate(() => location.hash);
+      const myN = ((await (await api('me')).json()).name) || 'Sashi Sivam';
+      const tc = (await (await api('planNewProject', { name: 'Today check', client: 'Northside Health', program: 'Digital health' })).json()).core;
+      await api('planSave', { core: tc, plan: { name: 'Today check', charter: { manager: myN }, start: dz(-14), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+        { id: 't1', phase: 'ph1', name: 'Overdue design', dur: 2, pred: [], res: [myN], pct: 0, status: 'todo', stickies: [{ id: 'nme', c: 'R', text: 'My own reminder', by: myN, at: Date.now(), done: false }] },
+        { id: 't2', phase: 'ph1', name: 'Build', dur: 30, pred: [], res: ['Someone Else'], pct: 20, status: 'doing', subs: [{ id: 'a1', name: 'Wire the API', owner: myN, off: 0, dur: 2, status: 'todo' }],
+          stickies: [{ id: 'nb1', c: 'R', text: 'Blocked on the supplier: @' + myN + ' please call them', by: 'Bob Builder', at: Date.now(), done: false, due: dz(-1) }] },
+        { id: 't4', phase: 'ph1', name: 'Paint', dur: 3, pred: [], res: ['Someone Else'], pct: 0, status: 'todo', stickies: [{ id: 'nb2', c: 'A', text: 'Not for me', by: 'Bob Builder', at: Date.now(), done: false }] },
+        { id: 't3', phase: 'ph1', name: 'Already finished', dur: 1, pred: [], res: [myN], pct: 100, status: 'done' }] } });
+      const g1 = await (await api('planMyDayGet', {})).json(), mine = (g1.todo || []).filter((x) => x.core === tc), notes = (g1.attention || []).filter((x) => x.core === tc);
+      const od = mine.find((x) => x.t === 't1'), sub = mine.find((x) => x.s === 'a1'), nb = notes.find((x) => x.nid === 'nb1');
+      ok('Today', 'Today lists only my work: my overdue task (red, Overdue) and my sub-task, not the finished one; the note that @mentions me (reported by, past due, red), not my own note or one for someone else',
+        od && od.rag === 'red' && od.urgency === 'Overdue' && /#plan\//.test(od.link) && sub && sub.kind === 'Sub-task' && !mine.some((x) => x.t === 't3') && nb && nb.by === 'Bob Builder' && nb.late && nb.rag === 'red' && notes.length === 1 && g1.counts && g1.counts.blockers >= 1,
+        JSON.stringify({ mine: mine.map((x) => x.kind + ':' + x.name + ':' + x.rag + ':' + x.urgency), notes: notes.map((x) => x.nid + ':' + x.by + ':' + x.rag) }));
+      await api('planMyDayDone', { core: tc, t: 't1' }); await api('planMyDayDone', { core: tc, t: 't2', nid: 'nb1' });
+      const g2 = await (await api('planMyDayGet', {})).json();
+      const pl = (await (await api('planGet', { core: tc })).json()).plan, t1 = pl.tasks.find((x) => x.id === 't1'), n1 = pl.tasks.find((x) => x.id === 't2').stickies.find((x) => x.id === 'nb1');
+      ok('Today', '✓ Done and ✓ Resolved: the task is 100% and the note done (by me), and both leave Today; a note keeps its due date',
+        !(g2.todo || []).some((x) => x.core === tc && x.t === 't1') && !(g2.attention || []).some((x) => x.nid === 'nb1') && t1.pct === 100 && n1.done && n1.doneBy === myN && n1.due === dz(-1), JSON.stringify({ pct: t1.pct, n1 }));
+      // the splash: once each sign-in, over the console; Open goes to the row and its note; ✕ / Esc closes it; 🎯 Today in the menu opens it again
+      await api('planSave', { core: tc, plan: Object.assign(pl, { tasks: pl.tasks.map((x) => x.id === 't4' ? Object.assign(x, { stickies: x.stickies.concat([{ id: 'nb3', c: 'A', text: '@' + myN + ' check the quote', by: 'Bob Builder', at: Date.now(), done: false }]) }) : x) }), rev: pl.rev });
+      await p.evaluate(() => { try { localStorage.setItem('champTodayOff', '0'); sessionStorage.removeItem('champToday'); } catch (e) {} location.hash = '#portfolio'; }); await p.reload();
+      if (process.env.TDY_SHOTS) { for (const ms of [250, 300, 300, 400, 900]) { await sleep(ms); await p.screenshot({ path: '/tmp/tdy-' + Date.now() + '.png' }).catch(() => {}); } }   // frames of the opening, when asked
+      await p.waitForSelector('#tdy .tdy-t, #tdy .tdy-none', { timeout: 10000 }).catch(() => {});
+      const shown = await p.isVisible('#tdy'), rowsA = await p.$$eval('#tdy section:nth-of-type(2) tr[data-n]', (x) => x.length).catch(() => 0);
+      await p.reload(); await sleep(1500); const again = await p.isVisible('#tdy');   // a reload in the same tab: not again
+      await p.click('.side-nav [data-today]'); await p.waitForSelector('#tdy tr[data-n]', { timeout: 8000 }).catch(() => {});
+      const nRow = await p.$$eval('#tdy tr[data-n]', (rs) => rs.findIndex((r) => /check the quote/.test(r.textContent)));
+      if (nRow >= 0) await p.click(`#tdy tr[data-n="${nRow}"] [data-open]`).catch(() => {});
+      await p.waitForSelector('#stkPop', { timeout: 8000 }).catch(() => {});
+      const gone = !(await p.isVisible('#tdy')), hash = await p.evaluate(() => location.hash), pop = await p.textContent('#stkPop').catch(() => '');
+      await p.keyboard.press('Escape'); await p.click('.side-nav [data-today]'); await p.waitForSelector('#tdy', { timeout: 5000 }).catch(() => {}); await sleep(1600); await p.keyboard.press('Escape'); if (process.env.TDY_SHOTS) { for (const ms of [150, 200, 200, 400]) { await sleep(ms); await p.screenshot({ path: '/tmp/tdz-' + Date.now() + '.png' }).catch(() => {}); } } await sleep(800);   // it flies into 🎯 Today first
+      const escClosed = !(await p.isVisible('#tdy'));
+      const badgeN = await p.textContent('.side-nav [data-today] .tdy-badge').catch(() => '');
+      await p.evaluate(() => { try { localStorage.setItem('champTodayOff', '1'); } catch (e) {} });
+      await p.evaluate((h) => { location.hash = h; }, back0); await p.reload(); await sleep(1500);
+      ok('Today', 'the start screen shows after sign-in (not on a reload), with my blockers; Open closes it and lands on the task with its note open; 🎯 Today reopens it; Esc closes it',
+        shown && rowsA >= 1 && !again && nRow >= 0 && gone && hash === '#plan/' + tc + '/schedule' && /check the quote/.test(pop) && escClosed && +badgeN >= 1, JSON.stringify({ shown, rowsA, again, nRow, gone, hash, pop: pop.slice(0, 80), escClosed, badgeN }));
+    }
     // ⛶ the full-screen Gantt editor: the toolbar works on the selected row (add levels, indent / outdent, bold, highlight, expand / collapse, Esc back)
     {
       await p.click('#gFull'); await p.waitForSelector('#gCard.gfull .gtool', { timeout: 5000 }).catch(() => {});
@@ -1079,8 +1121,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
     if (process.env.AUDIT_ONLY) { try { srv.kill(); } catch (e) {} const bad = results.filter((x) => !x.pass); for (const x of results) console.log(`${x.pass ? 'PASS' : 'FAIL'}  [${x.area}] ${x.name}${x.pass ? '' : '  → ' + x.detail}`); console.log(`\n${results.length - bad.length}/${results.length} passed`); process.exit(0); }
     await p.goto(`${BASE}/admin/#programs`); await p.reload(); await p.waitForSelector('#app:not([hidden])', { timeout: 10000 }).catch(() => {}); await sleep(800);
   }
-  const menu = await p.$$eval('.side-nav a:not([hidden])', (as) => as.map((a) => a.textContent.trim()));
-  ok('Console', 'menu shows only the project element (+ admin)', JSON.stringify(menu) === JSON.stringify(['🗂Programs', '🔗Dependency board', '📊Summary', '▦Pipeline board', '📅All projects', '＋New project', '👥People', '📅Team calendar', '📊Workload', '🙋My profile', '📨Enquiries', '👋Visitors & leads', '✨Ask AI', '📈Reports & data', '🔐Users & access', '📚Knowledge base', '🕘Activity log', '🏷Builds', '❓Help']), menu.join(' | '));
+  const menu = await p.$$eval('.side-nav a:not([hidden])', (as) => as.map((a) => { const c = a.cloneNode(true); c.querySelectorAll('.tdy-badge').forEach((b) => b.remove()); return c.textContent.trim(); }));   // without 🎯 Today's red count
+  ok('Console', 'menu shows only the project element (+ admin)', JSON.stringify(menu) === JSON.stringify(['🎯Today', '🗂Programs', '🔗Dependency board', '📊Summary', '▦Pipeline board', '📅All projects', '＋New project', '👥People', '📅Team calendar', '📊Workload', '🙋My profile', '📨Enquiries', '👋Visitors & leads', '✨Ask AI', '📈Reports & data', '🔐Users & access', '📚Knowledge base', '🕘Activity log', '🏷Builds', '❓Help']), menu.join(' | '));
   ok('Console', 'branded GKH Project Champ', (await p.textContent('.gkh-bar')).includes('GKH Project Champ') && (await p.title()).includes('Project Champ'));
   await p.waitForSelector('.pg-grid, .cs-tiles', { timeout: 8000 }).catch(() => {});
   ok('Programs', 'the console opens on Programs', /Programs/.test(await p.textContent('#view')) && (await p.$$('.cs-tabs .btn.on')).length === 1);

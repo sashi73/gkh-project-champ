@@ -158,4 +158,8 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 147 | 1.0.147| 2026-11-19 09:49| help-centre| `21e1161` | Help review fixes: root Help link on 404, late loads never replace the screen or a closed panel, search text decoded once, ? reports load er |
 | 148 | 1.0.148| 2026-11-19 10:07| help-centre| `e876128` | Help centre: every feature and its parts, on the website, in the console and in Champ's answers (#18) |
 | 149 | 1.0.149| 2026-11-19 20:51| rw-speech| `dfe9e14` | Kinyarwanda: text only, no voice and no mic (no speech service speaks or hears it yet) |
-| 150 | 1.0.150 | 2026-11-19 21:18 | rw-speech | _this commit_ | _see git log_ |
+| 150 | 1.0.150| 2026-11-19 21:18| rw-speech| `f81ea10` | Kinyarwanda: text only (no voice, no mic) (#19) |
+| 151 | 1.0.151| 2026-11-19 22:15| start-screen| `e0401b7` | 🎯 Today: the start screen after sign-in (Lean flow): my work and my blockers |
+| 152 | 1.0.152| 2026-11-19 22:39| start-screen| `c5f951c` | Today review fixes: exact name match, due within the week, fresh lists after a tick, no reopen after closing, closed screens ignore errors,  |
+| 153 | 1.0.153| 2026-11-19 23:05| start-screen| `827eb6d` | Test: the console menu starts with 🎯 Today (its red count left out) |
+| 154 | 1.0.154 | 2026-11-19 23:05 | start-screen | _this commit_ | _see git log_ |

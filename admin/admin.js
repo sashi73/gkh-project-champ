@@ -85,15 +85,18 @@
   function firstPage() { var me0 = window.MBS && window.MBS.me; if (me0 && me0.scope) return 'portfolio';   // a contractor or project personnel: their projects only
     var order = [['programs', 'projects'], ['dashboard', 'crm'], ['quotes', 'accounts'], ['subs', 'subbies'], ['people', 'people'], ['sql/ask', 'data'], ['users', 'users']];
     for (var i = 0; i < order.length; i++) if (allowed(order[i][1], 'view')) return order[i][0]; return 'portfolio'; }
+  // 🎯 Today: the start screen, once each time you sign in (a reload in the same tab does not bring it back)
+  function todayReset() { try { sessionStorage.removeItem('champToday'); } catch (e) {} }
+  function todayShow() { var seen = false, off = false; try { seen = sessionStorage.getItem('champToday') === '1'; sessionStorage.setItem('champToday', '1'); off = localStorage.getItem('champTodayOff') === '1'; } catch (e) {} if (!window.MBS.today) return; if (!seen && !off) window.MBS.today.open(true); else window.MBS.today.refresh(); }   // champTodayOff: the test suite only
   function showApp(user) {
     $('#login').hidden = true;
     api('me').then(function (me) {
       window.MBS.me = me; applyAccess(me); $('#app').hidden = false;
       if (me.mustChange && window.MBS.users) { view.innerHTML = '<div class="empty">Set your own password to carry on.</div>'; window.MBS.users.changePassword(true); return; }
-      if (me.scope) { var h = location.hash.slice(1), pc = (h.match(/^plan\/([^/]+)/) || [])[1]; if (!(/^(portfolio|me|help)/.test(h) || (pc && me.scope.indexOf(pc) >= 0))) { location.hash = '#' + firstPage(); return; } }   // v91: their project only
+      if (me.scope) { var h = location.hash.slice(1), pc = (h.match(/^plan\/([^/]+)/) || [])[1]; if (!(/^(portfolio|me|help)/.test(h) || (pc && me.scope.indexOf(pc) >= 0))) { location.hash = '#' + firstPage(); todayShow(); return; } }   // v91: their project only
       var vmod = VIEWMOD[(location.hash.slice(1) || 'programs').split('/')[0]];   // v108: null = any signed-in user (My leave)
-      if (vmod !== null && !allowed(vmod || 'crm', 'view')) { var fp = firstPage(); if (location.hash.slice(1) !== fp) { location.hash = '#' + fp; return; } }
-      route();
+      if (vmod !== null && !allowed(vmod || 'crm', 'view')) { var fp = firstPage(); if (location.hash.slice(1) !== fp) { location.hash = '#' + fp; todayShow(); return; } }
+      route(); todayShow();
     }).catch(function () { showLogin(); });
   }
   $('#loginForm').addEventListener('submit', function (e) {
@@ -104,7 +107,7 @@
     api('login', { username: f.username.value, password: f.password.value, project: pj.hidden ? '' : f.project.value.trim() })
       .then(function (j) {
         if (j.needProject) { pj.hidden = false; msg.textContent = 'You are signing in as a sub-contractor: enter your project code.'; f.project.required = true; f.project.focus(); return; }   // v91
-        f.password.value = ''; showApp(j.user);
+        f.password.value = ''; todayReset(); showApp(j.user);
       })
       .catch(function (err) { msg.textContent = err.message; if (pj.hidden) { f.password.value = ''; f.password.focus(); } else f.project.focus(); })
       .then(function () { btn.disabled = false; btn.textContent = 'Sign in'; });
@@ -117,7 +120,7 @@
         try {
           window.google.accounts.id.initialize({ client_id: o.google, ux_mode: 'popup', callback: function (r) {
             var msg = $('#loginMsg'); msg.textContent = 'Signing in with Google…';
-            api('loginGoogle', { credential: r.credential }).then(function (j) { msg.textContent = ''; showApp(j.user); }).catch(function (e) { msg.textContent = e.message; });
+            api('loginGoogle', { credential: r.credential }).then(function (j) { msg.textContent = ''; todayReset(); showApp(j.user); }).catch(function (e) { msg.textContent = e.message; });
           } });
           window.google.accounts.id.renderButton($('#gsiBtn'), { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill', width: 280 });
           box.hidden = false;

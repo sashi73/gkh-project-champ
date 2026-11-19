@@ -16,6 +16,7 @@ import { tradeCode } from '../lib/store.mjs';
 import { acctGet, acctPost } from '../lib/admin-acct.mjs';
 import { sqlPost } from '../lib/admin-sql.mjs';
 import { planPost, get as getPlan, setModule, forgetModules } from '../lib/plan.mjs';
+import { myDay, myDayDone } from '../lib/myday.mjs';
 import { invPost } from '../lib/inventory.mjs';
 import { custPost } from '../lib/admin-cust.mjs';
 import { planQuotePost } from '../lib/plan-quote.mjs';
@@ -225,6 +226,9 @@ async function handle(req, context) {
     switch (action) {
       case 'me': return out(200, { build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.scope || null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
 
+      // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it
+      case 'planMyDayGet': return out(200, await myDay(ctx, body));
+      case 'planMyDayDone': { const r = await myDayDone(ctx, body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Today: ${body.nid ? 'note resolved' : 'done'} on ${String(body.core || '').slice(0, 40)}`).catch(() => {}); return out(200, r); }
       // ---------- CRM ----------
       case 'dashboard': {
         const now = Date.now();
