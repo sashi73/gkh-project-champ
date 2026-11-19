@@ -271,6 +271,7 @@
       if (L === lang && !fromPage) { if (after) after(); return; }
       var wasIdx = speakingIdx; stopVoice();
       lang = L; sel.value = L; ls('champChatLang', L);
+      if (NOVOICE[L]) { if (srOn) { try { srOn.abort ? srOn.abort() : srOn.stop(); } catch (e) {} } if (rec && rec.state === 'recording') { try { rec.stop(); } catch (e) {} } }   // Kinyarwanda: stop listening now (the results are dropped)
       if (!fromPage) window.dispatchEvent(new CustomEvent('champ:chatlang', { detail: L }));
       var my = ++switching;
       if (L === 'auto') { if (!box.hidden) { draw(); if (msgs.length && !obActive()) showMenu(); } if (after) after(); return; }
@@ -537,6 +538,7 @@
       r.onresult = function (e) { got = Array.prototype.map.call(e.results, function (x) { return x[0].transcript; }).join(' '); ta.value = got; };
       r.onerror = function (e) { err = e.error || 'error'; };
       r.onend = function () { srOn = null; micState(''); ta.value = ''; wake.resume(); var q = got.trim();
+        if (NOVOICE[curL()]) return;   // switched to Kinyarwanda meanwhile: text only, drop the speech
         if (q) { emptyRuns = 0; handle(q, true, curL()); return; }
         if (err === 'network' || err === 'language-not-supported' || err === 'service-not-allowed' || err === 'audio-capture') { srNo = true; return startRec(quiet); }   // the browser cannot: Azure listens
         if (err === 'not-allowed') { bubble('bot', '<p>' + esc(T(UI.micBlocked)) + '</p>', 'cc-err'); return; }
@@ -553,11 +555,12 @@
       if (!navigator.mediaDevices || !window.MediaRecorder) { bubble('bot', '<p>' + esc(T(UI.micBlocked)) + '</p>', 'cc-err'); return; }
       stopVoice();
       navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } }).then(function (stream) {
+        if (NOVOICE[curL()]) { stream.getTracks().forEach(function (t) { t.stop(); }); micState(''); return; }
         recStream = stream; recChunks = [];
         var types = ['audio/webm;codecs=opus', 'audio/ogg;codecs=opus', 'audio/mp4', 'audio/webm'], mt = types.filter(function (t) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t); })[0] || '';
         rec = new MediaRecorder(stream, mt ? { mimeType: mt } : undefined);
         rec.ondataavailable = function (e) { if (e.data && e.data.size) recChunks.push(e.data); };
-        rec.onstop = function () { var type = (rec.mimeType || mt || 'audio/webm').split(';')[0]; cleanRec(); send(new Blob(recChunks, { type: type }), type); };
+        rec.onstop = function () { var type = (rec.mimeType || mt || 'audio/webm').split(';')[0]; cleanRec(); if (NOVOICE[curL()]) { micState(''); return; } send(new Blob(recChunks, { type: type }), type); };
         rec.start(); micState('rec');
         recTimer = setTimeout(stopRec, 15000);   // a question, not a speech (long recordings are slow to hear)
         // stop by itself after a pause: about 1.4 s of quiet once you have started talking
