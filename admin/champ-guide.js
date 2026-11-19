@@ -109,8 +109,9 @@
       if ((cur + ' ' + sn).trim().length > 380) { if (cur) out.push(cur); cur = sn; } else cur = (cur + ' ' + sn).trim(); });
     if (cur) out.push(cur); return out.slice(0, 30);
   }
+  var NOVOICE = { rw: 1 };   // Kinyarwanda: no speech service speaks or hears it yet, so Champ writes only
   function speak(text, clear) {
-    hush(); if (!V.on || !text) return; var n = V.n, el = $('#cgVoice'), list = parts(text), got = [];
+    hush(); if (!V.on || !text || NOVOICE[lang()]) return; var n = V.n, el = $('#cgVoice'), list = parts(text), got = [];
     var get = function (i) { if (got[i]) return got[i]; return (got[i] = fetch('/.netlify/functions/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: list[i], lang: lang(), clear: !!clear }) })
       .then(function (r) { if (!r.ok) return r.json().catch(function () { return {}; }).then(function (j) { throw new Error(j.error || 'Champ’s voice is not available right now.'); }); return r.blob(); })); };
     var done = function () { if (el) el.classList.remove('talk'); };
@@ -458,6 +459,7 @@
   var sr = null;
   function mic() {
     var m = $('#cgMic'), SR = window.SpeechRecognition || window.webkitSpeechRecognition; hush();
+    if (NOVOICE[lang()]) return reply('Voice isn’t available in Kinyarwanda yet. Please type your question and I’ll answer in writing.', true);
     if (sr) { if (mic.finish) mic.finish(); else { try { sr.stop(); } catch (e) {} } return; }   // tap again: done talking
     if (SR && !mic.azure) {
       // listens until you have finished: pauses to breathe or think do not end it. It stops after ~3 seconds of silence once
