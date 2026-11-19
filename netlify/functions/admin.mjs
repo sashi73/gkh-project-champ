@@ -521,6 +521,14 @@ async function handle(req, context) {
         return out(200, { ...r, budget: DOCI.budget() });
       }
 
+      // ---------- where the data lives: Blobs or Postgres (README-POSTGRES.txt), super user only ----------
+      case 'dbMoveStatus': {
+        if (!ctx.owner) return bad('Only the super user can move the data.', 403);
+        const { blobStore, usingPostgres } = await import('../lib/storage.mjs');
+        const r = await (await blobStore(A.ADMIN)).get('db-move', { type: 'json' }).catch(() => null);
+        return out(200, { using: usingPostgres() ? 'postgres' : 'blobs', database: !!env('CHAMP_DATABASE_URL'), report: r });
+      }
+
       // ---------- data explorer ----------
       case 'stores': {
         const res = [];

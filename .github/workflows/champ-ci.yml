@@ -1,5 +1,5 @@
 # GKH Project Champ: the automated tests.
-# On every pull request (about 2 minutes): 1. every file parses, 2. the quick check (tools/champ-quick.mjs: the server,
+# On every pull request (about 2 minutes): 1. every file parses, 2. the quick check, 3. the storage test (tools/storage-test.mjs) (tools/champ-quick.mjs: the server,
 #   every page and the files it loads, signing in, projects, plans, Today, Ask Champ, the website chat; no browser).
 # Every night at 12 am Sydney (13:00 UTC; 11 pm during Sydney winter time) and on demand (Actions > Champ tests > Run workflow):
 #   the full end-to-end suite (tools/champ-test.cjs, Playwright + Chromium, ~470 checks of the website, the console,
@@ -22,6 +22,15 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # a throwaway Postgres for the storage test (Blobs vs Postgres must give the same answers)
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: champ
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -38,6 +47,13 @@ jobs:
         run: |
           set -o pipefail
           node tools/champ-quick.mjs . 2>&1 | tee champ-quick.log
+      - name: Storage test (Blobs and Postgres give the same answers)
+        shell: bash
+        env:
+          CHAMP_TEST_DATABASE_URL: postgres://postgres:champ@localhost:5432/postgres
+        run: |
+          set -o pipefail
+          node tools/storage-test.mjs 2>&1 | tee -a champ-quick.log
       - name: Result
         if: always()
         shell: bash
