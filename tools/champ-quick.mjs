@@ -26,7 +26,7 @@ const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += 
   s.end(JSON.stringify({ choices: [{ message: { content: json ? JSON.stringify({ tour: '', how: false, answer: 'Quick check answer.', help: '' }) : 'Quick check answer.' } }], usage: { total_tokens: 50 } })); }); }).listen(0);
 await sleep(50);
 const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
-  LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
+  OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
 const srv = spawn('node', ['local-server.mjs'], { cwd: SITE, env, stdio: ['ignore', 'pipe', 'pipe'] });
 let log = ''; srv.stdout.on('data', (d) => (log += d)); srv.stderr.on('data', (d) => (log += d));
 for (let i = 0; i < 80 && !/running/i.test(log); i++) await sleep(150);
@@ -59,17 +59,23 @@ try {
   ok('Sign-in', 'me: who is signed in, and the build', me.status === 200 && me.j.owner && me.j.build, JSON.stringify(me.j).slice(0, 120));
   const np = await api('planNewProject', { name: 'Quick check', client: 'Northside Health', program: 'Digital health' }), core = np.j.core;
   ok('Projects', 'a new project', np.status === 200 && !!core, JSON.stringify(np.j).slice(0, 160));
-  const d0 = (n) => new Date(Date.now() + 11 * 3600000 + n * 864e5).toISOString().slice(0, 10), myN = me.j.name || 'Sashi Sivam';
-  const sv = await api('planSave', { core, plan: { name: 'Quick check', start: d0(-10), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+  const d0 = (n) => new Date(Date.now() + 11 * 3600000 + n * 864e5).toISOString().slice(0, 10), myN = me.j.name || 'Sashi Sivam', mw = myN.split(' '), mid = mw[0] + ' Kumar ' + mw[mw.length - 1].toUpperCase();
+  const sv = await api('planSave', { core, plan: { name: 'Quick check', stakeholders: [{ name: 'The Boss', role: 'Sponsor', email: 'Owner@Example.com', raci: 'A' }], start: d0(-10), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
     { id: 't1', phase: 'ph1', name: 'Design', dur: 2, pred: [], res: [myN], pct: 0, status: 'todo' },
-    { id: 't2', phase: 'ph1', name: 'Build', dur: 20, pred: ['t1'], res: ['Someone Else'], pct: 0, status: 'todo', stickies: [{ id: 'n1', c: 'R', text: 'Blocked: @' + myN + ' please call', by: 'Bob Builder', at: Date.now(), done: false }] }] } });
+    { id: 't4', phase: 'ph1', name: 'Sign off', dur: 1, pred: [], res: ['The Boss'], pct: 0, status: 'todo' },
+    { id: 't2', phase: 'ph1', name: 'Build', dur: 20, pred: ['t1'], res: ['Someone Else'], pct: 0, status: 'todo', stickies: [{ id: 'n1', c: 'R', text: 'Blocked: @' + myN + ' please call', by: 'Bob Builder', at: Date.now(), done: false }] },
+    // my name with a middle name, and my own note that @mentions me that way (as people write it in the register)
+    { id: 't3', phase: 'ph1', name: 'Mobilise', dur: 3, pred: [], res: [mid], lead: mid, pct: 0, status: 'todo', stickies: [{ id: 'n2', c: 'R', text: '@' + mid + ' to look into this urgently', by: myN + ' (' + myN.split(' ')[0] + ')', at: Date.now(), done: false, due: d0(1) },
+      { id: 'n3', c: 'G', text: 'My own reminder, no mention', by: myN, at: Date.now(), done: false }] }] } });
   ok('Projects', 'a plan is saved', sv.status === 200 && sv.j.plan && sv.j.plan.rev >= 1, JSON.stringify(sv.j).slice(0, 160));
   const pg = await api('planGet', { core });
-  ok('Projects', 'the plan reads back, with the sticky note', pg.status === 200 && pg.j.plan && pg.j.plan.tasks.length === 2 && pg.j.plan.tasks[1].stickies.length === 1);
+  ok('Projects', 'the plan reads back, with the sticky note', pg.status === 200 && pg.j.plan && pg.j.plan.tasks.length === 4 && pg.j.plan.tasks.find((t) => t.id === 't2').stickies.length === 1);
   const pl = await api('planList');
   ok('Projects', 'the project list', pl.status === 200, String(pl.status));
   const td = await api('planMyDayGet');
   ok('Today', 'Today: my overdue task and the note for me', td.status === 200 && (td.j.todo || []).some((x) => x.core === core && x.t === 't1' && x.rag === 'red') && (td.j.attention || []).some((x) => x.nid === 'n1'), JSON.stringify(td.j.counts || td.j));
+  ok('Today', 'Today knows me by a name with a middle name: the task I lead, and my own note that @mentions me (not my own note without one)', (td.j.todo || []).some((x) => x.core === core && x.t === 't3') && (td.j.attention || []).some((x) => x.nid === 'n2') && !(td.j.attention || []).some((x) => x.nid === 'n3'), JSON.stringify({ todo: (td.j.todo || []).filter((x) => x.core === core).map((x) => x.t), att: (td.j.attention || []).map((x) => x.nid) }));
+  ok('Today', 'the super user is known by OWNER_EMAIL: a stakeholder with that email (under another name) is me', (td.j.todo || []).some((x) => x.core === core && x.t === 't4'), JSON.stringify((td.j.todo || []).filter((x) => x.core === core).map((x) => x.t)));
   const dn = await api('planMyDayDone', { core, t: 't1' });
   ok('Today', 'Today: ✓ done', dn.status === 200 && dn.j.ok, JSON.stringify(dn.j));
   const ga = await api('guideAsk', { q: 'How do I make a task bold?', tours: [] });

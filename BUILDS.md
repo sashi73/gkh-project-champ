@@ -163,4 +163,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 152 | 1.0.152| 2026-11-19 22:39| start-screen| `c5f951c` | Today review fixes: exact name match, due within the week, fresh lists after a tick, no reopen after closing, closed screens ignore errors,  |
 | 153 | 1.0.153| 2026-11-19 23:05| start-screen| `827eb6d` | Test: the console menu starts with 🎯 Today (its red count left out) |
 | 154 | 1.0.154| 2026-11-19 23:05| start-screen| `1d861c0` | 🎯 Today: the start screen after sign-in (your work and your blockers) (#20) |
-| 155 | 1.0.155 | 2026-11-19 23:33 | ci-fast | _this commit_ | _see git log_ |
+| 155 | 1.0.155| 2026-11-19 23:33| ci-fast| `b9cfd90` | CI: a quick check on every pull request (about 2 minutes); the full suite every night at 12 am Sydney and on demand (#21) |
+| 156 | 1.0.156 | 2026-11-19 23:55 | today-names | _this commit_ | _see git log_ |
