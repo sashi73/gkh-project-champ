@@ -169,4 +169,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 158 | 1.0.158| 2026-11-20 00:15| board-owner| `a488f17` | Kanban / Scrum owner follows the Gantt: no board owner shows the ★ lead; picking an owner makes them the ★ lead; Today counts board owners ( |
 | 159 | 1.0.159| 2026-11-20 00:34| note-tags| `dd27adc` | #Tags in sticky notes: blocker, issue, decision, waiting, action, risk, idea, fyi (#25) |
 | 160 | 1.0.160| 2026-11-20 00:37| note-save| `cdb6a09` | Sticky notes: a clear 💾 Save note / 💾 Save button and ✓ Saved after each save (#26) |
-| 161 | 1.0.161 | 2026-11-20 00:48 | today-open | _this commit_ | _see git log_ |
+| 161 | 1.0.161| 2026-11-20 00:48| today-open| `7726e96` | Today → Open: no detour through Portfolio (the cause of "Cannot set properties of null (setting 'innerHTML')"); errors from a page you have  |
+| 162 | 1.0.162 | 2026-11-20 00:52 | today-open | _this commit_ | _see git log_ |

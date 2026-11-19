@@ -50,9 +50,7 @@
     var t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
     clearTimeout(toastT); toastT = setTimeout(function () { t.className = 'toast' + (err ? ' err' : ''); }, 3200);
   }
-  // a page you have already left that is still loading can try to fill a box that is gone ("Cannot set properties of null"):
-  // that is not your problem, so it is logged for us, not shown to you
-  function fail(e) { var m = (e && e.message) || String(e); if (e instanceof TypeError && /of null|of undefined/.test(m)) { console.warn('Champ (a page closed while it loaded):', m); return; } toast(m, true); }
+  function fail(e) { toast(e.message || String(e), true); }
   function modal(html) { $('#modalBody').innerHTML = html; $('#modal').hidden = false; var f = $('#modalBody input,#modalBody button'); if (f) f.focus(); }
   function closeModal() { if ($('#modal').getAttribute('data-locked')) return; $('#modal').hidden = true; $('#modalBody').innerHTML = ''; }
   $('#modal').addEventListener('click', function (e) { if (e.target.id === 'modal' || e.target.hasAttribute('data-close')) closeModal(); });
@@ -191,6 +189,7 @@
   var routeGen = 0;
   function route() {
     if ($('#app').hidden) return;
+    var gen = ++routeGen;   // a new page: errors from the one before it (still loading) are not shown, even if this one is refused
     var parts = (location.hash.slice(1) || 'programs').split('/').map(decodeURIComponent);
     if (parts[0] === 'inventory') { location.replace('#portfolio'); return; }   // GKH Project Champ: no Inventory
     var name = VIEWS[parts[0]] ? parts[0] : (VIEWS.programs ? 'programs' : 'portfolio');
@@ -203,7 +202,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) { a.classList.toggle('on', a.getAttribute('data-nav') === navOn); });
     $('#side').classList.remove('open');
     view.innerHTML = '<div class="empty">Loading…</div>';
-    var gen = ++routeGen; Promise.resolve(VIEWS[name](parts.slice(1))).catch(function (e) { if (gen === routeGen) fail(e); });   // an error from a page you have left is not shown
+    Promise.resolve(VIEWS[name](parts.slice(1))).catch(function (e) { if (gen === routeGen) fail(e); });   // an error from a page you have left is not shown
     view.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }
