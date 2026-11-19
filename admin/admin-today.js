@@ -9,6 +9,12 @@
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   var dmy = function (s) { if (!s) return '—'; var p = String(s).split('-'); return +p[2] + ' ' + MON[+p[1] - 1]; };
   var DOT = { red: '🔴', amber: '🟠', green: '🟢' };
+  var DAYN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function dueCell(x) {
+    var tag = x.when === 'today' ? '<span class="tdy-now">DUE TODAY</span>' : x.when === 'overdue' ? '<small class="tdy-late">overdue</small>'
+      : x.when === 'tomorrow' ? '<span class="tdy-soon">' + (function () { var d = new Date(x.due + 'T00:00:00Z'), t = new Date(Date.now() + 864e5); return d.getUTCDate() === t.getDate() ? 'DUE TOMORROW' : 'DUE ' + DAYN[d.getUTCDay()].toUpperCase(); })() + '</span>' : '';
+    return '<td class="tdy-due">' + DOT[x.when === 'today' || x.when === 'overdue' ? 'red' : x.when === 'tomorrow' ? 'amber' : x.rag] + ' ' + esc(dmy(x.due)) + tag + '</td>';
+  }
   var canEdit = function () { var me = M.me || {}; return !!me.owner || (me.mods || {}).projects === 'edit'; };
 
   var still = function () { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
@@ -34,13 +40,13 @@
 
   function rowTodo(x, i) {
     var what = '<b>' + esc(x.name) + '</b>' + (x.parent ? '<small>' + esc(x.parent) + '</small>' : '');
-    return '<tr class="tdy-' + x.rag + '" data-i="' + i + '" style="--d:' + i + '"><td class="tdy-due">' + DOT[x.rag] + ' ' + esc(dmy(x.due)) + (x.rag === 'red' ? '<small>overdue</small>' : '') + '</td>' +
+    return '<tr class="tdy-' + x.rag + (x.when === 'today' ? ' tdy-today' : '') + '" data-i="' + i + '" style="--d:' + i + '">' + dueCell(x) +
       '<td><span class="tdy-u tdy-u' + x.lv + '">' + esc(x.urgency) + '</span></td><td class="tdy-what"><span class="tdy-k">' + esc(x.kind) + '</span>' + what + '</td>' +
       '<td class="tdy-proj">' + esc(x.project) + '</td><td class="tdy-act">' + (canEdit() ? '<button type="button" class="btn btn-sm" data-done title="Tick it done: it leaves the list">✓ Done</button>' : '') +
       '<button type="button" class="btn btn-sm btn-gold" data-open>Open →</button></td></tr>';
   }
   function rowNote(x, i) {
-    return '<tr class="tdy-' + x.rag + '" data-n="' + i + '" style="--d:' + (i + 3) + '"><td class="tdy-due">' + DOT[x.rag] + ' ' + esc(dmy(x.due)) + (x.late ? '<small>past due</small>' : '') + '</td>' +
+    return '<tr class="tdy-' + x.rag + (x.when === 'today' ? ' tdy-today' : '') + '" data-n="' + i + '" style="--d:' + (i + 3) + '">' + dueCell(x) +
       '<td><span class="tdy-u tdy-n' + x.c + '">' + esc(x.urgency) + '</span></td><td class="tdy-what">' + (x.mention ? '<span class="tdy-k">@ you</span>' : '') + '<b>' + esc(String(x.text).slice(0, 220)) + '</b><small>on ' + esc(x.task) + '</small></td>' +
       '<td>' + esc(x.by || '—') + '</td><td class="tdy-proj">' + esc(x.project) + '</td><td class="tdy-act">' + (canEdit() ? '<button type="button" class="btn btn-sm" data-done title="Mark the note done: it leaves the list">✓ Resolved</button>' : '') +
       '<button type="button" class="btn btn-sm btn-gold" data-open>Open →</button></td></tr>';
@@ -69,13 +75,13 @@
     var c = d.counts || {}; badge(c);
     $('.tdy-box', o).innerHTML =
       '<div class="tdy-h"><div><h2>🎯 Today</h2><p class="muted">' + esc(hi) + ' · ' + esc(day) + '</p></div><span class="sp"></span><button type="button" class="tdy-x" id="tdyX" title="Close (Esc)" aria-label="Close">✕</button></div>' +
-      '<div class="tdy-flow"><span class="' + (c.overdue ? 'on-red' : '') + '"><b>' + (c.overdue || 0) + '</b> overdue</span><span class="' + (c.dueSoon ? 'on-amber' : '') + '"><b>' + (c.dueSoon || 0) + '</b> due today or tomorrow</span>' +
-        '<span><b>' + (c.wip || 0) + '</b> in progress (WIP)</span><span class="' + (c.blockers ? 'on-red' : '') + '"><b>' + (c.blockers || 0) + '</b> blocker' + (c.blockers === 1 ? '' : 's') + '</span></div>' +
-      ((c.wip || 0) > 5 ? '<p class="tdy-tip">⚙ ' + c.wip + ' things are in progress at once. Finish what is started before pulling in more.</p>' : '') +
+      '<div class="tdy-flow"><span class="' + (c.overdue ? 'on-red' : '') + '"><b>' + (c.overdue || 0) + '</b> overdue</span>' +
+        '<span class="' + (c.dueToday ? 'on-red tdy-blink' : c.dueSoon ? 'on-amber' : '') + '"><b>' + (c.dueSoon || 0) + '</b> due today or tomorrow' + (c.dueToday ? ' (' + c.dueToday + ' today)' : '') + '</span>' +
+        '<span class="' + (c.blockers ? 'on-red' : '') + '"><b>' + (c.blockers || 0) + '</b> blocker' + (c.blockers === 1 ? '' : 's') + '</span></div>' +
       '<section><h3>1 · Things to do</h3>' + table(['Due', 'Urgency', 'What', 'Project', ''], d.todo.map(rowTodo).join(''), 'Nothing is linked to you that is due in the next week.') +
         (d.later ? '<p class="muted tdy-later">+ ' + d.later + ' more starting later (not shown, so today stays focused).</p>' : '') + '</section>' +
       '<section><h3>2 · Needs my attention <small>blockers and notes for you</small></h3>' + table(['Due', 'Urgency', 'Note', 'Reported by', 'Project', ''], d.attention.map(rowNote).join(''), 'No open notes or blockers for you.') + '</section>' +
-      '<div class="tdy-f"><span class="muted">Red: past its due date. Amber: due today or tomorrow (or a semi-urgent note). Tick ✓ when it is done and it leaves the list.</span><span class="sp"></span><button type="button" class="btn btn-gold" id="tdyGo">Start working →</button></div>';
+      '<div class="tdy-f"><span class="muted">Flashing red: due today. Red: overdue (or an urgent note). Amber: due tomorrow (or a semi-urgent note). Tick ✓ when it is done and it leaves the list.</span><span class="sp"></span><button type="button" class="btn btn-gold" id="tdyGo">Start working →</button></div>';
     $('#tdyX').onclick = close; $('#tdyGo').onclick = close;
     o.querySelectorAll('tr[data-i],tr[data-n]').forEach(function (tr) {
       var isN = tr.hasAttribute('data-n'), x = isN ? d.attention[+tr.getAttribute('data-n')] : d.todo[+tr.getAttribute('data-i')];
