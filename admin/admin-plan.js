@@ -778,17 +778,19 @@
       '<dl class="peekf">' + f.map(function (r) { return '<div><dt>' + r[0] + '</dt><dd>' + esc(r[1]) + '</dd></div>'; }).join('') + '</dl></div>';
   }
 
+  var planSeq = 0;
   function planView(args) {
-    var core = args[0], tab = args[1] || S.tab;
+    var seq = ++planSeq, core = args[0], tab = args[1] || S.tab;
     if (S.plan && S.job && (core === S.core || core === S.job.ref) && args[1] && !S.away) { S.tab = tab; render(); loadChain(); return; }   // just a tab change (the quote/invoice may have moved on)
     var pending = S.timer ? saveNow() : (S.q || Promise.resolve());
     return pending.then(function () { return api('planGet', { core: core }); }).then(function (d) {
+      if (seq !== planSeq) return;   // a newer page was opened while this one loaded
       S.plan = null;
       S.core = d.job.core; S.job = d.job; S.reminders = d.reminders; S.expensesEx = d.expensesEx; S.tab = tab; S.mods = { bom: !d.champ || d.champ.bom !== false, swms: !d.champ || d.champ.swms !== false, change: !d.champ || d.champ.change !== false }; if (S.mods[S.tab] === false) S.tab = 'overview';
       if (!d.plan) return chooser();
       S.plan = normalise(d.plan); S.rev = d.plan.rev; S.chain = null; S.away = false; S.bench = d.bench || null; S.isTest = !!d.test;
       loadChain();
-      return loadInv().then(render).then(estAuto);
+      return loadInv().then(function () { if (seq === planSeq) { render(); estAuto(); } });
     });
   }
   // dates written in plain words: "starts tomorrow and ends in one day", "start Monday, takes 3 days", "start 5/11, finish by 12/11", "done by Friday"
