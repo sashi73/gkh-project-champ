@@ -1469,7 +1469,7 @@
         p.baseline = { at: Date.now(), finish: R.finish, BAC: R.BAC, tasks: tasks }; saveNow('baseline set'); toast('Baseline set'); render();
       });
     };
-    ({ overview: overview, schedule: function (R2) { return S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
+    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
   }
   function timePct(R) { var t = today(); if (!R.start || t < R.start) return 0; if (t >= R.finish) return 100; return Math.round(workBetween(R.start, t) / Math.max(1, workBetween(R.start, R.finish)) * 100); }
   function varDays(base, now) { var d = workBetween(base, now) - 1; if (now <= base) { d = -(workBetween(now, base) - 1); } return d === 0 ? 'on baseline' : d > 0 ? d + ' days behind baseline' : (-d) + ' days ahead of baseline'; }
@@ -1798,10 +1798,12 @@
     L.addEventListener('mousedown', pick); L.addEventListener('focusin', pick);
     gPaint(p); gMark(p);
     var fc = M.focus;   // 🎯 Today: open on the row (and its note) you picked there
+    if (fc && (fc.core !== S.core || Date.now() - (fc.at || 0) > 20000)) { if (Date.now() - (fc.at || 0) > 20000) M.focus = null; fc = null; }   // another project, or long ago: not this one
     if (fc && fc.core === S.core) { M.focus = null; var fsel = fc.q ? { t: fc.t, s: fc.s, q: fc.q } : fc.s ? { t: fc.t, s: fc.s } : { t: fc.t };
       var ftr = gRowOf(fsel) || gRowOf({ t: fc.t, s: fc.s }) || gRowOf({ t: fc.t }); S.gsel = ftr ? gSelOf(ftr) : { t: fc.t }; gMark(p);
       if (ftr) setTimeout(function () { ftr.scrollIntoView({ block: 'center' }); ftr.classList.add('g-flash'); setTimeout(function () { ftr.classList.remove('g-flash'); }, 2200); }, 60);
-      if (fc.note) setTimeout(function () { var tr = gRowOf({ t: fc.t }); stkPanel(fc.t, (tr && tr.querySelector('[data-stk]')) || tr); }, 260); }
+      if (fc.note) { var fcore = S.core, fplan = S.plan; setTimeout(function () { if (S.core !== fcore || S.plan !== fplan || S.tab !== 'schedule') return;   // moved on meanwhile: not that note
+        var tr = gRowOf({ t: fc.t }); stkPanel(fc.t, (tr && tr.querySelector('[data-stk]')) || tr); }, 260); } }
     var fs = $('#gFull'); if (fs) fs.onclick = function () { gFull(!S.gfull); };
     if (!S.gfull) return;
     document.querySelectorAll('.gtool [data-gt]').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () { gAct(p, b.getAttribute('data-gt')); }; });

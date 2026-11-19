@@ -793,3 +793,4 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .tdy-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#DC2626;color:#fff;font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
 .side-today.tdy-land{animation:tdyLand .7s cubic-bezier(.2,1.6,.4,1)}
 @keyframes tdyLand{0%{background:rgba(201,162,39,.55);transform:scale(1.08)}100%{background:transparent;transform:none}}
+.tdy.tdy-calm .tdy-box *,.tdy.tdy-calm .tdy-box::after{animation:none!important}

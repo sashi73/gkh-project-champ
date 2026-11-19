@@ -682,7 +682,7 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
       const dz = (n) => new Date(Date.now() + 11 * 3600000 + n * 864e5).toISOString().slice(0, 10), back0 = await p.evaluate(() => location.hash);
       const myN = ((await (await api('me')).json()).name) || 'Sashi Sivam';
       const tc = (await (await api('planNewProject', { name: 'Today check', client: 'Northside Health', program: 'Digital health' })).json()).core;
-      await api('planSave', { core: tc, plan: { name: 'Today check', start: dz(-14), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+      await api('planSave', { core: tc, plan: { name: 'Today check', charter: { manager: myN }, start: dz(-14), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
         { id: 't1', phase: 'ph1', name: 'Overdue design', dur: 2, pred: [], res: [myN], pct: 0, status: 'todo', stickies: [{ id: 'nme', c: 'R', text: 'My own reminder', by: myN, at: Date.now(), done: false }] },
         { id: 't2', phase: 'ph1', name: 'Build', dur: 30, pred: [], res: ['Someone Else'], pct: 20, status: 'doing', subs: [{ id: 'a1', name: 'Wire the API', owner: myN, off: 0, dur: 2, status: 'todo' }],
           stickies: [{ id: 'nb1', c: 'R', text: 'Blocked on the supplier: @' + myN + ' please call them', by: 'Bob Builder', at: Date.now(), done: false, due: dz(-1) }] },

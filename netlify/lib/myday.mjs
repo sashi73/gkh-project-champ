@@ -15,7 +15,7 @@ function namesFor(ctx, plan) {
   (plan.stakeholders || []).forEach((s) => { if (em && String(s.email || '').toLowerCase() === em && norm(s.name)) n.add(norm(s.name)); });
   return n;
 }
-const isMe = (names, who) => { const w = norm(who); return !!w && [...names].some((n) => w === n || w.startsWith(n + ' ')); };
+const isMe = (names, who) => { const w = norm(who); return !!w && names.has(w); };   // the whole name: Alex is not Alex Chen
 const mentions = (names, text) => { const t = ' ' + String(text || '').toLowerCase() + ' '; return [...names].some((n) => t.includes('@' + n)); };
 
 // urgency: the priority set on the item, otherwise from how soon it is due
@@ -38,7 +38,7 @@ export async function myDay(ctx, opts) {
     const core = plan.core || '', proj = plan.name || 'Project', names = namesFor(ctx, plan), all = !!(plan.emergency || plan.weekends);
     if (!names.size) continue;
     const soon = P.addWork(today, 1, all), ahead = P.addWork(today, 7, all), link = '#plan/' + encodeURIComponent(core) + '/schedule';
-    const add = (row) => { if (row.start && row.start > ahead && !(row.due && row.due < today)) { later++; return; } const g = urgency(row.priority, row.due, today, soon); todo.push({ ...row, core, project: proj, link, urgency: g.u, lv: g.lv, rag: rag(row.due, today, soon) }); };
+    const add = (row) => { if (row.due && row.due > ahead) { later++; return; }const g = urgency(row.priority, row.due, today, soon); todo.push({ ...row, core, project: proj, link, urgency: g.u, lv: g.lv, rag: rag(row.due, today, soon) }); };   // due in the next week, or overdue
     for (const t of plan.tasks) {
       const tname = String(t.name || '').replace(/^[✓◆\s]+/, ''), onTask = (t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead);
       let mine = onTask;
@@ -47,8 +47,8 @@ export async function myDay(ctx, opts) {
         const ses = sb.off ? P.addWork(t.es, sb.off, all) : t.es, sef = sb.dur > 1 ? P.addWork(ses, sb.dur - 1, all) : ses;
         if (isMe(names, sb.owner)) { mine = true; if (sb.status !== 'done') add({ kind: 'Sub-task', name: sb.name, parent: tname, start: ses, due: sef, pct: sb.pct || 0, priority: sb.priority, t: t.id, s: sb.id }); }
         (sb.steps || []).forEach((st) => {
-          if (!isMe(names, st.owner)) return; mine = true; if (st.done) return;
           const es = st.off ? P.addWork(ses, st.off, all) : ses, ef = st.dur > 1 ? P.addWork(es, st.dur - 1, all) : es;
+          if (!isMe(names, st.owner)) return; mine = true; if (st.done) return;
           add({ kind: 'Step', name: st.name, parent: tname + ' › ' + sb.name, start: es, due: ef, priority: st.priority, t: t.id, s: sb.id, q: st.id });
         });
       });

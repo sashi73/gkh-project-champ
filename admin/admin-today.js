@@ -30,7 +30,7 @@
   function badge(c) { var a = $('.side-nav [data-today]'); if (!a) return; var n = c ? (c.overdue || 0) + (c.blockers || 0) : 0, el = $('.tdy-badge', a);
     if (!n) { if (el) el.remove(); return; } if (!el) { el = document.createElement('span'); el.className = 'tdy-badge'; a.appendChild(el); } el.textContent = n > 99 ? '99+' : String(n); el.title = (c.overdue || 0) + ' overdue · ' + (c.blockers || 0) + ' blockers'; }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
-  function go(x, note) { close(true); M.focus = { core: x.core, t: x.t, s: x.s || '', q: x.q || '', note: note ? x.nid : '' }; if (location.hash === x.link) { location.hash = '#portfolio'; setTimeout(function () { location.hash = x.link; }, 0); } else location.hash = x.link; }
+  function go(x, note) { close(true); M.focus = { core: x.core, t: x.t, s: x.s || '', q: x.q || '', note: note ? x.nid : '', at: Date.now() }; if (location.hash === x.link) { location.hash = '#portfolio'; setTimeout(function () { location.hash = x.link; }, 0); } else location.hash = x.link; }
 
   function rowTodo(x, i) {
     var what = '<b>' + esc(x.name) + '</b>' + (x.parent ? '<small>' + esc(x.parent) + '</small>' : '');
@@ -57,6 +57,7 @@
     document.body.appendChild(o); document.body.classList.add('tdy-open'); document.addEventListener('keydown', onKey, true);
     o.addEventListener('mousedown', function (e) { if (e.target === o) close(); });
     return api('planMyDayGet', {}).then(function (d) { if (!document.body.contains(o)) return; draw(o, d); }).catch(function (e) {
+      if (!document.body.contains(o) || o.classList.contains('tdy-out')) return;   // that screen is closed already
       if (auto) return close(true);   // no access to projects: no start screen
       $('.tdy-box', o).innerHTML = '<p class="bad">' + esc(e.message) + '</p><p><button class="btn" type="button" id="tdyX2">Close</button></p>'; $('#tdyX2').onclick = close; });
   }
@@ -81,7 +82,9 @@
       var b = $('[data-done]', tr); if (b) b.onclick = function () {
         b.disabled = true;
         api('planMyDayDone', { core: x.core, t: x.t, s: x.s || '', q: x.q || '', nid: isN ? x.nid : '' }).then(function () {
-          tr.classList.add('tdy-gone'); if (isN) { c.blockers = Math.max(0, (c.blockers || 0) - 1); } else if (x.rag === 'red') { c.overdue = Math.max(0, (c.overdue || 0) - 1); } badge(c); setTimeout(function () { var tb = tr.parentNode; tr.remove(); if (tb && !tb.children.length) { open(false); } }, 350);
+          tr.classList.add('tdy-gone');
+          var live = function () { return document.body.contains(o) && !o.classList.contains('tdy-out'); };
+          api('planMyDayGet', {}).then(function (d2) { setTimeout(function () { if (!live()) return; o.classList.add('tdy-calm'); draw(o, d2); }, 350); }).catch(function () { if (live()) tr.remove(); });   // fresh lists: its sub-tasks and the counts go too
         }).catch(function (e) { b.disabled = false; M.toast(e.message); });
       };
     });
