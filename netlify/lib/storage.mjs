@@ -42,9 +42,18 @@ function db() {
 async function connect() {
   const url = ownDatabase();
   if (!url) throw new Error('CHAMP_DB is postgres but CHAMP_DATABASE_URL is not set (see README-POSTGRES.txt).');
+  // Neon: its serverless driver sends each query as one HTTPS request and leaves no connection open. An open connection
+  // (the classic driver) keeps a serverless function busy after it has answered, which showed up as replies held back
+  // for up to a minute on gkhpmo.com. CHAMP_PG_DRIVER = pg forces the classic driver.
+  if (/\.neon\.tech\b/.test(url) && env('CHAMP_PG_DRIVER').trim().toLowerCase() !== 'pg') {
+    const { neon } = await import('@neondatabase/serverless');
+    const sql = neon(url);
+    return { run: (text, params) => sql.query(text, params), end: async () => {} };
+  }
+  // any other Postgres (a server of your own, a laptop): a small pool, reused while warm, that lets the process go idle
   const { default: pg } = await import('pg');
-  // TLS comes from the connection string (Neon and Supabase add sslmode=require; the driver then checks the certificate in full)
-  const pool = new pg.Pool({ connectionString: url, max: Number(env('CHAMP_DB_POOL')) || 5, idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 });
+  // TLS comes from the connection string (sslmode=require: the driver then checks the certificate in full)
+  const pool = new pg.Pool({ connectionString: url, max: Number(env('CHAMP_DB_POOL')) || 5, idleTimeoutMillis: 10000, connectionTimeoutMillis: 10000, allowExitOnIdle: true });
   pool.on('error', (e) => console.error('Postgres connection dropped:', e.message));
   return { run: async (text, params) => (await pool.query(text, params)).rows, end: () => pool.end() };
 }
