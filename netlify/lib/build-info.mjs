@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 167,
+  "build": 168,
   "commit": "",
-  "branch": "postgres",
+  "branch": "neon-http",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-20 02:14",
+  "builtAt": "2026-11-20 10:29",
   "site": ""
 };
