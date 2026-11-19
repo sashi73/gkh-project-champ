@@ -178,9 +178,17 @@ export const ARTICLES = [
   { id: 'gantt-notes', a: 'gantt', t: 'Sticky notes on tasks', w: '#plan/<project>/schedule', g: 'note', k: 'sticky note notes comment red amber green colour team message',
     s: 'Leave a note on a task, sub-task or step for the team, in red, amber or green.',
     subs: [
-      { id: 'add', h: 'Add a note', st: ['Press 🗒 on the row (Gantt or Kanban board).', 'Write the note, pick red, amber or green, and press Enter to save (or Add note).'] },
+      { id: 'add', h: 'Add a note', st: ['Press 🗒 on the row (Gantt or Kanban board).', 'Write the note, pick red, amber or green, add a Due by date if it has one, and press Enter to save (or Add note).', 'Type # to tag it (#blocker, #waiting …): see "#Tags in sticky notes".'] },
       { id: 'read', h: 'Read and edit notes', st: ['A number on 🗒 shows how many notes are open. Press it to read them.', 'Edit or delete a note there; drag the note to move it on the screen.'] },
       { id: 'mention', h: 'Mention someone with @', st: ['Type @ in the note: see "@ mentions" below.'] }
+    ] },
+  { id: 'note-tags', a: 'gantt', t: '#Tags in sticky notes: blocker, issue, decision, waiting, action, risk, idea, fyi', w: '#plan/<project>/schedule', k: 'tag tags hashtag # blocker blockers issue decision waiting action risk idea fyi kaizen andon label',
+    s: 'Put a #tag in a sticky note to say what kind of note it is. #blocker goes to the top of Today; #risk and #issue copy into the registers in one click.',
+    subs: [
+      { id: 'list', h: 'The tags and what they mean', st: ['🚧 #blocker: work cannot move until this is cleared (the andon).', '❗ #issue: something has gone wrong and needs fixing.', '⚖️ #decision: a decision is needed from someone.', '⏳ #waiting: waiting on someone outside the team (supplier, client, approval).', '✅ #action: a specific to-do for someone.', '⚠️ #risk: might go wrong; worth watching.', '💡 #idea: an improvement idea (kaizen).', 'ℹ️ #fyi: for information, no action needed.'] },
+      { id: 'add', h: 'Tag a note', st: ['Open 🗒 on a task.', 'Type # in the note: the list of tags opens; pick one with the arrows and Enter, or click it.', 'Or tap a tag under the note box. "What do they mean?" shows the list.', 'A note can have more than one tag, for example #blocker #waiting.'], tip: 'Add @Name and a Due by date too: the note then shows on that person\'s Today, red once it is past due.' },
+      { id: 'today', h: 'Tags on Today', st: ['Needs my attention shows each note with its tags; #blocker notes come first, then by due date.', 'The tag buttons above the list show only one kind (for example only #waiting).', 'The 🚧 blockers count is the #blocker notes for you.'] },
+      { id: 'registers', h: '#risk and #issue into the registers', st: ['A note tagged #risk shows ⚠ → Risks; #issue shows ❗ → Issues.', 'Press it: the note is added to the risk register or issue log, with the @ person as owner and the note\'s due date, and the note shows ✓ in risks / issues.'] }
     ] },
   { id: 'gantt-mentions', a: 'gantt', t: '@ mentions in notes', w: '#plan/<project>/stake', k: 'at mention @ tag person notify stakeholder email phone',
     s: 'Type @ in a sticky note to name a stakeholder. The list shows every stakeholder with a phone number or email.',

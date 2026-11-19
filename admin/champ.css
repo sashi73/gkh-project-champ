@@ -809,3 +809,22 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .tdy.tdy-calm .tdy-box tr.tdy-today{animation:tdyRowGlow 1.6s ease-in-out infinite!important}
 .tdy.tdy-calm .tdy-box .tdy-blink{animation:tdyPillBlink 1.2s ease-in-out infinite!important}
 @media (prefers-reduced-motion:reduce){.tdy .tdy-now,.tdy tr.tdy-today,.tdy .tdy-blink,.tdy.tdy-calm .tdy-box .tdy-now,.tdy.tdy-calm .tdy-box tr.tdy-today,.tdy.tdy-calm .tdy-box .tdy-blink{animation:none!important}}
+
+/* #tags on sticky notes and on Today */
+.ntag{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:700;line-height:1.5;white-space:nowrap;color:var(--tc,#64748B);background:color-mix(in srgb,var(--tc,#64748B) 14%,transparent);border:1px solid color-mix(in srgb,var(--tc,#64748B) 45%,transparent);vertical-align:1px}
+.ntag-b{cursor:pointer;font:inherit;font-size:11.5px;font-weight:700}
+.ntag-b:hover{background:color-mix(in srgb,var(--tc,#64748B) 26%,transparent)}
+.stk-tagrow{display:flex;flex-wrap:wrap;gap:4px;margin:6px 0 2px}
+.stk-tip{margin:4px 0 6px;font-size:11.5px;opacity:.85;line-height:1.45}
+.stk-tipmore{border:0;background:none;color:#B8860B;font:inherit;font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
+.stk-legend{list-style:none;margin:0 0 6px;padding:6px 8px;border-radius:8px;background:rgba(128,128,128,.08);font-size:11.5px;display:grid;gap:3px}
+.stk-hash button{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left}
+.stk-hash small{opacity:.75;font-size:11px;white-space:normal}
+.stk-to{border:1px solid rgba(128,128,128,.35);background:transparent;border-radius:6px;font-size:11px;font-weight:700;padding:1px 6px;cursor:pointer;color:inherit}
+.stk-to:hover{border-color:#C9A227}
+.stk-linked{font-size:11px;opacity:.7;margin-right:4px}
+.tdy-tags{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px}
+.tdy-tf{border:1px solid var(--tc,rgba(128,128,128,.4));background:transparent;color:inherit;border-radius:999px;padding:3px 10px;font:inherit;font-size:12.5px;cursor:pointer}
+.tdy-tf b{margin-left:2px}
+.tdy-tf.on{background:color-mix(in srgb,var(--tc,#C9A227) 22%,transparent);border-color:var(--tc,#C9A227);font-weight:700}
+.tdy-what .ntag{margin:0 1px}

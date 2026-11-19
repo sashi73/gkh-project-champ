@@ -5,6 +5,7 @@
 import * as kv from './kv.mjs';
 import * as P from './plan.mjs';
 import { sydToday } from './ai.mjs';
+import { TAGS, tagsIn } from '../../assets/note-tags.js';
 
 const norm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
 const LV = { High: 3, Medium: 2, Low: 1 };
@@ -64,21 +65,26 @@ export async function myDay(ctx, opts) {
         if (n.done || (isMe(names, n.by) && !mentions(names, n.text))) return;   // my own notes only when they @mention me
         if (!(mentions(names, n.text) || mine)) return;
         const due = n.due || t.ef || '';
-        att.push({ core, project: proj, link, t: t.id, nid: n.id, task: tname, text: n.text, by: n.by || '', at: n.at || 0, due, c: n.c, urgency: NOTE[n.c] || 'Fine', mention: mentions(names, n.text),
+        att.push({ core, project: proj, link, t: t.id, nid: n.id, task: tname, text: n.text, tags: tagsIn(n.text), by: n.by || '', at: n.at || 0, due, c: n.c, urgency: NOTE[n.c] || 'Fine', mention: mentions(names, n.text),
           rag: due && due < today ? 'red' : n.c === 'R' ? 'red' : n.c === 'A' ? 'amber' : 'green', late: !!(due && due < today) });
+        { const z = att[att.length - 1]; if (z.tags.includes('blocker')) { z.rag = 'red'; z.urgency = 'Blocker'; } }   // a #blocker is the andon: always red
       });
     }
   }
   todo.sort((a, b) => b.lv - a.lv || (a.due || '9') .localeCompare(b.due || '9'));
   const cv = { R: 3, A: 2, G: 1 };
-  att.sort((a, b) => (b.late - a.late) || (cv[b.c] - cv[a.c]) || (a.due || '9').localeCompare(b.due || '9'));
+  // #blocker first (the andon), then late, then by due date, then by colour; the other tags in their list order when the rest is equal
+  const tr = (x) => { const i = TAGS.findIndex((g) => (x.tags || []).includes(g.id)); return i < 0 ? 99 : i; };
+  att.sort((a, b) => ((b.tags || []).includes('blocker') - (a.tags || []).includes('blocker')) || (b.late - a.late) || (a.due || '9').localeCompare(b.due || '9') || (cv[b.c] - cv[a.c]) || (tr(a) - tr(b)));
   // the counts take tasks and notes together: overdue, due today, due today or tomorrow (the next working day)
   const both = todo.concat(att), soon1 = P.addWork(today, 1, false), tom = new Date(Date.parse(today + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);
   const nextDue = tom > soon1 ? tom : soon1;
   both.forEach((x) => { x.when = !x.due ? '' : x.due < today ? 'overdue' : x.due === today ? 'today' : x.due <= nextDue ? 'tomorrow' : ''; });
   return { today, name: ctx.name || '', todo: todo.slice(0, 100), attention: att.slice(0, 100), later,
     counts: { overdue: both.filter((x) => x.when === 'overdue').length, dueToday: both.filter((x) => x.when === 'today').length, dueSoon: both.filter((x) => x.when === 'today' || x.when === 'tomorrow').length,
-      blockers: att.length, lateBlockers: att.filter((x) => x.late).length } };
+      now: both.filter((x) => x.when === 'overdue' || x.when === 'today' || (x.tags || []).includes('blocker')).length,
+      blockers: att.filter((x) => (x.tags || []).includes('blocker')).length, notes: att.length, lateBlockers: att.filter((x) => x.late).length,
+      tags: Object.fromEntries(TAGS.map((g) => [g.id, att.filter((x) => (x.tags || []).includes(g.id)).length]).filter((e) => e[1])) } };
 }
 
 // ✓ from the start screen: tick an item done, or resolve a note (it then leaves the list)

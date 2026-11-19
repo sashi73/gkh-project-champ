@@ -3012,10 +3012,15 @@
     return '<button type="button" class="stkb stk-' + (c || 'X') + (all.length ? '' : ' none') + '" data-stk="' + esc(t.id) + '" title="' + (all.length ? esc(pl(o.length, 'open note') + ' (click to read or add)') : 'Add a sticky note for the team') + '">🗒' + (c === 'B' ? ' ✓' : o.length ? ' ' + o.length : '') + '</button>';
   }
   var STK_LI = /^\s*[-•*]\s+(\[( |x|X)\]\s*)?/;
+  // #tags in notes (assets/note-tags.js): coloured chips; #risk and #issue copy into the registers
+  var TG = function () { return window.CHAMP_TAGS || null; };
+  var TAG_RX = /(^|[^\p{L}\p{N}_&])#([\p{L}_]+)/gu;
+  function tagify(h) { var g = TG(); if (!g) return h; return h.replace(TAG_RX, function (m, a, w) { var t = g.tagOf(w); return t ? a + '<span class="ntag" style="--tc:' + t.c + '" title="' + esc(t.m) + '">' + t.i + ' #' + t.id + '</span>' : m; }); }
+  function tagsOfNote(x) { var g = TG(); return g ? g.tagsIn(x.text) : []; }
   function stkBody(x, ro) {   // a note: plain text, or a checklist when lines start with "- "
-    var L = String(x.text).split('\n'); if (!L.some(function (l) { return STK_LI.test(l); })) return '<div class="stk-tx" data-sedit title="Double-click to edit">' + esc(x.text).replace(/\n/g, '<br>') + '</div>';
-    return '<div class="stk-tx stk-cl" data-sedit>' + L.map(function (l, i) { var m = l.match(STK_LI); if (!m) return l.trim() ? '<div class="stk-p">' + esc(l) + '</div>' : '';
-      var on = !!(m[2] && m[2].toLowerCase() === 'x'); return '<label class="stk-li' + (on ? ' on' : '') + '"><input type="checkbox" data-sitem="' + i + '"' + (on ? ' checked' : '') + (ro ? ' disabled' : '') + '><span>' + esc(l.replace(STK_LI, '')) + '</span></label>'; }).join('') + '</div>';
+    var L = String(x.text).split('\n'); if (!L.some(function (l) { return STK_LI.test(l); })) return '<div class="stk-tx" data-sedit title="Double-click to edit">' + tagify(esc(x.text).replace(/\n/g, '<br>')) + '</div>';
+    return '<div class="stk-tx stk-cl" data-sedit>' + L.map(function (l, i) { var m = l.match(STK_LI); if (!m) return l.trim() ? '<div class="stk-p">' + tagify(esc(l)) + '</div>' : '';
+      var on = !!(m[2] && m[2].toLowerCase() === 'x'); return '<label class="stk-li' + (on ? ' on' : '') + '"><input type="checkbox" data-sitem="' + i + '"' + (on ? ' checked' : '') + (ro ? ' disabled' : '') + '><span>' + tagify(esc(l.replace(STK_LI, ''))) + '</span></label>'; }).join('') + '</div>';
   }
   function stkNl(e) {   // Shift+Enter: a new line in the note (a checklist line carries on with "- "); plain Enter saves
     if (e.key !== 'Enter' || !e.shiftKey) return false; var ta = e.target, v = ta.value, i = ta.selectionStart, ls = v.lastIndexOf('\n', i - 1) + 1, li = v.slice(ls, i);
@@ -3037,12 +3042,12 @@
               '<label class="stk-ck" title="' + (x.done ? 'Done: untick to open it again' : 'Tick when it is done') + '"><input type="checkbox" data-sdone' + (x.done ? ' checked' : '') + (ro ? ' disabled' : '') + '></label>' +
               (x.done ? '<span class="stk-tag stk-alldone">✓ All done</span>' : '<span class="stk-tag">' + STK[x.c][0] + '</span>') + (items.length ? '<span class="stk-cnt">' + ticked + '/' + items.length + '</span>' : '') +
               '<small>' + esc(x.by || '') + ' · ' + esc(when(x.at)) + (x.due ? ' · due ' + esc(pretty(x.due)) : '') + (x.editedAt ? ' · edited' + (x.editedBy && x.editedBy !== x.by ? ' by ' + esc(x.editedBy) : '') : '') + (x.done ? ' · done' + (x.doneBy ? ' by ' + esc(x.doneBy) : '') : '') + '</small><span class="sp"></span>' +
-              (ro || ed ? '' : '<button type="button" data-sed title="Edit this note">✏</button><button type="button" data-sdel title="Delete this note">🗑</button>') + '</div>' +
+              (ro || ed || x.done ? '' : tagsOfNote(x).filter(function (k) { return k === 'risk' || k === 'issue'; }).map(function (k) { return x.linked && x.linked.indexOf(k + ':') === 0 ? '<span class="stk-linked" title="Already in the ' + (k === 'risk' ? 'risk register' : 'issue log') + '">✓ in ' + (k === 'risk' ? 'risks' : 'issues') + '</span>' : '<button type="button" class="stk-to" data-s2="' + k + '" title="Copy this note into the ' + (k === 'risk' ? 'risk register' : 'issue log') + '">' + (k === 'risk' ? '⚠ → Risks' : '❗ → Issues') + '</button>'; }).join('')) + (ro || ed ? '' : '<button type="button" data-sed title="Edit this note">✏</button><button type="button" data-sdel title="Delete this note">🗑</button>') + '</div>' +
               (ed ? '<div class="stk-ed"><textarea data-setx rows="' + Math.max(3, Math.min(10, String(x.text).split('\n').length + 1)) + '" maxlength="1500">' + esc(x.text) + '</textarea><div class="stk-row">' +
                 ['R', 'A', 'G'].map(function (k) { return '<button type="button" class="stk-c stk-' + k + (x.c === k ? ' on' : '') + '" data-secol="' + k + '"><i></i>' + STK[k][0] + '</button>'; }).join('') +
                 '<span class="sp"></span><button type="button" class="btn btn-sm" data-secancel>Cancel</button><button type="button" class="btn btn-sm btn-gold" data-sesave>Save</button></div></div>' : stkBody(x, ro)) + '</div>'; }).join('')
           : '<p class="muted" style="margin:6px 2px">No notes yet. Leave a remark for the team: what is happening, what is blocked, what to watch.</p>') + '</div>' +
-        (ro ? '' : '<div class="stk-add"><textarea id="stkTx" rows="' + (S.stkBig ? 4 : 2) + '" maxlength="1500" placeholder="Write a note, press Enter to save.  Shift+Enter for a new line; start lines with - for a checklist"></textarea><div class="stk-row">' +
+        (ro ? '' : '<div class="stk-add"><textarea id="stkTx" rows="' + (S.stkBig ? 4 : 2) + '" maxlength="1500" placeholder="Write a note, press Enter to save.  Shift+Enter for a new line; start lines with - for a checklist"></textarea>' + '<div class="stk-tagrow">' + (TG() ? TG().TAGS.map(function (g) { return '<button type="button" class="ntag ntag-b" style="--tc:' + g.c + '" data-tagadd="' + g.id + '" title="' + esc(g.m) + '">' + g.i + ' ' + g.id + '</button>'; }).join('') : '') + '</div>' + '<p class="stk-tip">🎙 <b>Champ:</b> tag a note so everyone knows what it is: type <b>#</b> or tap a tag. <b>#blocker</b> goes to the top of Today. <button type="button" class="stk-tipmore" data-tagmore>' + (S.tagMore ? 'Hide' : 'What do they mean?') + '</button></p>' + (S.tagMore && TG() ? '<ul class="stk-legend">' + TG().TAGS.map(function (g) { return '<li><span class="ntag" style="--tc:' + g.c + '">' + g.i + ' #' + g.id + '</span> ' + esc(g.m) + '</li>'; }).join('') + '</ul>' : '') + '<div class="stk-row">' +
           ['R', 'A', 'G'].map(function (k) { return '<button type="button" class="stk-c stk-' + k + (col === k ? ' on' : '') + '" data-scol="' + k + '" title="' + STK[k][0] + '"><i></i>' + STK[k][0] + '</button>'; }).join('') + '<label class="stk-due" title="Optional: when it must be sorted by (it shows red on Today after this)">Due by <input type="date" id="stkDue"></label><span class="sp"></span><button type="button" class="btn btn-sm btn-gold" data-sadd>Add note</button></div></div>');
       var place = function () { var r = anchor && document.body.contains(anchor) ? anchor.getBoundingClientRect() : null, w = pop.offsetWidth, h = pop.offsetHeight;
         if (S.stkPos) { pop.style.left = Math.max(4, Math.min(innerWidth - w - 4, S.stkPos.x)) + 'px'; pop.style.top = Math.max(4, Math.min(innerHeight - 40, S.stkPos.y)) + 'px'; return; }   // where it was dragged to
@@ -3080,9 +3085,47 @@
         es.onclick = doSave; pop.querySelector('[data-setx]').onkeydown = function (e) { if (stkNl(e)) return; if (e.key === 'Enter') { e.preventDefault(); doSave(); } if (e.key === 'Escape') { e.stopPropagation(); S.stkEdit = null; draw(); } }; }
       pop.querySelectorAll('[data-sdel]').forEach(function (b) { b.onclick = function () { var id = b.closest('[data-nid]').getAttribute('data-nid'); t.stickies = (t.stickies || []).filter(function (q) { return q.id !== id; }); save('deleted'); }; });
       var ta = $('#stkTx'); if (ta) { ta.onkeydown = function (e) { if (stkNl(e)) return; if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add.onclick(); } }; if (first && !S.stkEdit) setTimeout(function () { ta.focus(); }, 30); } first = false;
-      pop.querySelectorAll('textarea').forEach(atMention);
+      pop.querySelectorAll('textarea').forEach(function (x) { atMention(x); hashTags(x); });
+      // a tag button puts #tag where you are typing (the note being edited, or the new one)
+      pop.querySelectorAll('[data-tagadd]').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () {
+        var ta = pop.querySelector('[data-setx]') || $('#stkTx'); if (!ta) return; var id = b.getAttribute('data-tagadd'), v = ta.value, i = ta.selectionStart == null ? v.length : ta.selectionStart;
+        if (new RegExp('(^|\\s)#' + id + '(?![\\p{L}_])', 'u').test(v)) { ta.focus(); return; }   // already there
+        var pre = v.slice(0, i), ins = (pre && !/\s$/.test(pre) ? ' ' : '') + '#' + id + ' '; ta.value = pre + ins + v.slice(i); var c = i + ins.length; ta.focus(); ta.setSelectionRange(c, c); }; });
+      var tm = pop.querySelector('[data-tagmore]'); if (tm) tm.onclick = function () { var keep = $('#stkTx') ? $('#stkTx').value : ''; S.tagMore = !S.tagMore; draw(); if ($('#stkTx')) { $('#stkTx').value = keep; $('#stkTx').focus(); } };
+      // #risk / #issue: copy the note into the register (once), with its owner and date
+      pop.querySelectorAll('[data-s2]').forEach(function (b) { b.onclick = function () { var x = noteOf(b), k = b.getAttribute('data-s2'); if (!x) return;
+        var plain = String(x.text).replace(TAG_RX, '$1').replace(/\s+/g, ' ').trim(), title = plain.slice(0, 160), who = (String(x.text).match(/@([\p{L}][\p{L}\p{M}.'-]*(?: [\p{L}][\p{L}\p{M}.'-]*){0,3})/u) || [])[1] || x.by || '';
+        var reg = (p.stakeholders || []).filter(function (h) { return h.name && who.toLowerCase().indexOf(String(h.name).toLowerCase()) === 0; })[0]; if (reg) who = reg.name;
+        var id = (k === 'risk' ? 'r' : 'i') + Date.now().toString(36), from = ' (from a note on #' + (n ? n.n : '') + ' ' + String(t.name).replace(/^[✓◆\s]+/, '').slice(0, 60) + ')';
+        if (k === 'risk') { p.risks = p.risks || []; p.risks.push({ id: id, title: title, cause: (plain.length > 160 ? plain : '') + from, p: 3, i: x.c === 'R' ? 4 : 3, response: 'Mitigate', action: '', owner: who, review: x.due || '', status: 'Open', raised: today() }); }
+        else { p.issues = p.issues || []; p.issues.push({ id: id, title: title, detail: (plain.length > 160 ? plain : '') + from, priority: x.c === 'R' ? 'High' : 'Medium', owner: who, raised: today(), due: x.due || '', status: 'Open', resolution: '' }); }
+        x.linked = k + ':' + id; save('copied to the ' + (k === 'risk' ? 'risk register' : 'issue log')); M.toast((k === 'risk' ? '⚠ Added to the risk register' : '❗ Added to the issue log') + ': ' + title.slice(0, 60)); }; });
     };
     draw();
+  }
+  function hashTags(ta) {   // # in a note lists the tags (assets/note-tags.js), with what each means; pick one to put #tag in the note
+    if (!ta || ta._hash || !TG()) return; ta._hash = 1; var box = null, hits = [], sel = 0;
+    var close = function () { if (box) { box.remove(); box = null; } };
+    var token = function () { var v = ta.value.slice(0, ta.selectionStart), m = v.match(/(^|\s)#([\p{L}_]*)$/u); return m ? { q: m[2].toLowerCase(), at: v.length - m[2].length - 1 } : null; };
+    var pick = function (id) { var tk = token(); if (!tk) return close(); var end = ta.selectionStart, rest = (ta.value.slice(end).match(/^[\p{L}_]*/u) || [''])[0]; end += rest.length;
+      var after = ta.value.slice(end), ins = '#' + id + (/^\s/.test(after) ? '' : ' '); ta.value = ta.value.slice(0, tk.at) + ins + after; var c = tk.at + ins.length + (/^\s/.test(after) ? 1 : 0); ta.setSelectionRange(c, c); close(); ta.focus(); };
+    var draw = function () { var tk = token(); if (!tk) return close();
+      hits = TG().TAGS.filter(function (g) { return !tk.q || g.id.indexOf(tk.q) === 0 || g.n.toLowerCase().indexOf(tk.q) === 0; }); if (!hits.length) return close(); sel = Math.min(sel, hits.length - 1);
+      if (!box) { box = document.createElement('div'); box.className = 'stk-at stk-hash'; box.onmousedown = function (e) { e.preventDefault(); }; document.body.appendChild(box); }
+      var rc = ta.getBoundingClientRect(), pp = ta.closest('.stkpop') || ta, pr = pp.getBoundingClientRect(), bw = 300, x;
+      if (pr.right + 8 + bw <= innerWidth - 8) x = pr.right + 8; else if (pr.left - 8 - bw >= 8) x = pr.left - 8 - bw; else x = Math.max(8, Math.min(rc.left, innerWidth - bw - 8));
+      var top = Math.max(8, Math.min(rc.top, innerHeight - 340)); box.style.position = 'fixed'; box.style.left = x + 'px'; box.style.top = top + 'px'; box.style.width = bw + 'px';
+      box.innerHTML = '<p class="stk-at-n">Tag this note</p>' + hits.map(function (g, i) { return '<button type="button" class="' + (i === sel ? 'on' : '') + '" data-hash="' + g.id + '"><span class="ntag" style="--tc:' + g.c + '">' + g.i + ' #' + g.id + '</span><small>' + esc(g.m) + '</small></button>'; }).join('');
+      box.querySelectorAll('[data-hash]').forEach(function (b) { b.onclick = function () { pick(b.getAttribute('data-hash')); }; });
+    };
+    ta.addEventListener('input', function () { sel = 0; draw(); }); ta.addEventListener('blur', function () { setTimeout(close, 150); });
+    var old = ta.onkeydown;
+    ta.onkeydown = function (e) {
+      if (box && hits.length && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : hits.length - 1)) % hits.length; draw(); return; }
+      if (box && hits.length && (e.key === 'Enter' || e.key === 'Tab')) { e.preventDefault(); pick(hits[sel].id); return; }
+      if (box && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); return; }
+      return old ? old.call(ta, e) : undefined;
+    };
   }
   function atMention(ta) {   // v174: @ in a sticky note lists the 👥 Stakeholder register (only that); pick one to put @Name in the note
     if (!ta || ta._at) return; ta._at = 1; var box = null, hits = [], sel = 0;
