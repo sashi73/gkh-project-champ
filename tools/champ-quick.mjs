@@ -63,13 +63,14 @@ try {
   const sv = await api('planSave', { core, plan: { name: 'Quick check', stakeholders: [{ name: 'The Boss', role: 'Sponsor', email: 'Owner@Example.com', raci: 'A' }], start: d0(-10), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
     { id: 't1', phase: 'ph1', name: 'Design', dur: 2, pred: [], res: [myN], pct: 0, status: 'todo' },
     { id: 't4', phase: 'ph1', name: 'Sign off', dur: 1, pred: [], res: ['The Boss'], pct: 0, status: 'todo' },
+    { id: 't5', phase: 'ph1', name: 'Board item', dur: 2, pred: [], res: ['Someone Else'], owner: myN, pct: 0, status: 'todo' },
     { id: 't2', phase: 'ph1', name: 'Build', dur: 20, pred: ['t1'], res: ['Someone Else'], pct: 0, status: 'todo', stickies: [{ id: 'n1', c: 'R', text: 'Blocked: @' + myN + ' please call', by: 'Bob Builder', at: Date.now(), done: false, due: d0(0) }] },
     // my name with a middle name, and my own note that @mentions me that way (as people write it in the register)
     { id: 't3', phase: 'ph1', name: 'Mobilise', dur: 3, pred: [], res: [mid], lead: mid, pct: 0, status: 'todo', stickies: [{ id: 'n2', c: 'R', text: '@' + mid + ' to look into this urgently', by: myN + ' (' + myN.split(' ')[0] + ')', at: Date.now(), done: false, due: d0(1) },
       { id: 'n3', c: 'G', text: 'My own reminder, no mention', by: myN, at: Date.now(), done: false }] }] } });
   ok('Projects', 'a plan is saved', sv.status === 200 && sv.j.plan && sv.j.plan.rev >= 1, JSON.stringify(sv.j).slice(0, 160));
   const pg = await api('planGet', { core });
-  ok('Projects', 'the plan reads back, with the sticky note', pg.status === 200 && pg.j.plan && pg.j.plan.tasks.length === 4 && pg.j.plan.tasks.find((t) => t.id === 't2').stickies.length === 1);
+  ok('Projects', 'the plan reads back, with the sticky note', pg.status === 200 && pg.j.plan && pg.j.plan.tasks.length === 5 && pg.j.plan.tasks.find((t) => t.id === 't2').stickies.length === 1);
   const pl = await api('planList');
   ok('Projects', 'the project list', pl.status === 200, String(pl.status));
   const td = await api('planMyDayGet');
@@ -78,6 +79,7 @@ try {
   ok('Today', 'the super user is known by OWNER_EMAIL: a stakeholder with that email (under another name) is me', (td.j.todo || []).some((x) => x.core === core && x.t === 't4'), JSON.stringify((td.j.todo || []).filter((x) => x.core === core).map((x) => x.t)));
   const n1 = (td.j.attention || []).find((x) => x.nid === 'n1'), n2 = (td.j.attention || []).find((x) => x.nid === 'n2'), cc = td.j.counts || {};
   ok('Today', 'notes count too: a note due today is "today" (it flashes), one due tomorrow is "tomorrow", both in "due today or tomorrow"; no WIP count', n1 && n1.when === 'today' && n2 && n2.when === 'tomorrow' && cc.dueToday >= 1 && cc.dueSoon >= 2 && !('wip' in cc), JSON.stringify({ n1: n1 && n1.when, n2: n2 && n2.when, cc }));
+  ok('Today', 'a task where I am the board owner (Kanban / Scrum) is mine too', (td.j.todo || []).some((x) => x.core === core && x.t === 't5'));
   const dn = await api('planMyDayDone', { core, t: 't1' });
   ok('Today', 'Today: ✓ done', dn.status === 200 && dn.j.ok, JSON.stringify(dn.j));
   const ga = await api('guideAsk', { q: 'How do I make a task bold?', tours: [] });

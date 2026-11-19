@@ -2201,7 +2201,7 @@
     });
     B.querySelectorAll('[data-sk="owner"],[data-qk="owner"]').forEach(function (inp) { inp.addEventListener('change', function () { var o = inp.hasAttribute('data-qk') ? stepOf(inp).q : subOf(inp).sb; if (!o) return; var v = inp.value.trim(), ok = v ? stakeOnly(v) : ''; o.owner = ok; inp.value = ok; dirty(ok ? 'owner: ' + ok : 'owner cleared'); }); });
     B.querySelectorAll('[data-sk="owner"],[data-qk="owner"]').forEach(function (inp) { inp.addEventListener('focus', function () { if (!stakeList().length) stakeNeed(); }); });
-    B.querySelectorAll('[data-rlead]').forEach(function (b) { b.onclick = function () { var t = task(b); t.lead = b.getAttribute('data-rlead'); fixRes(t); dirty(); render(); }; });
+    B.querySelectorAll('[data-rlead]').forEach(function (b) { b.onclick = function () { var t = task(b), was = t.lead; if (t.owner && ownerOf(t) === was) t.owner = '';   /* the board's owner was the old ★ lead: it follows the new one */ t.lead = b.getAttribute('data-rlead'); fixRes(t); dirty(); render(); }; });
     B.querySelectorAll('[data-rx]').forEach(function (b) { b.onclick = function () { var t = task(b), n = b.getAttribute('data-rx'); t.res = t.res.filter(function (x) { return x !== n; }); fixRes(t); crewAuto(t); dirty(); render(); }; });
     B.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { taskDelete(task(b)); }; });
     // type a number in # to move it there (1 = first); the rest close up behind it
@@ -2877,7 +2877,7 @@
       if (S.tab === 'stake' && !document.querySelector('#rcDrawer, .kpop')) render();
     }).catch(function () {});
   }
-  function ownerOf(t) { var sh = (S.plan.stakeholders || []).filter(function (x) { return x.id === t.owner; })[0]; return sh ? (sh.name || sh.role) : (t.owner || ''); }
+  function ownerOf(t) { var sh = (S.plan.stakeholders || []).filter(function (x) { return x.id === t.owner; })[0]; return sh ? (sh.name || sh.role) : (t.owner || t.lead || ''); }   // no owner on the board yet: the Gantt's ★ lead
   function initials(n) { return String(n || '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join('') || '?'; }
   function kFit() {   // each column scrolls on its own, in the space left on the screen
     var first = document.querySelector('#planBody .kcards'); if (!first || window.innerWidth <= 820) return;
@@ -3307,6 +3307,7 @@
       if (isNew) { var last = p.tasks[p.tasks.length - 1]; x = { id: 't' + Date.now().toString(36), phase: (last && last.phase) || 'ph1', name: '', dur: 1, res: [], lead: '', resource: '', qty: 0, unit: '', rate: 0, actual: 0, pct: 0, status: 'todo', pred: last ? [last.id] : [], snet: '', notes: '' }; p.tasks.push(x); }
       x.name = F.name.value.trim().slice(0, 160) || 'New item'; x.desc = F.desc.value.trim().slice(0, 300); x.points = +F.pts.value || 0; x.priority = F.prio.value;
       var on = F.owner.value.trim(), sh = (p.stakeholders || []).filter(function (s) { return (s.name || s.role) === on; })[0]; x.owner = sh ? sh.id : on;
+      if (on) { x.res = x.res || []; if (x.res.indexOf(on) < 0 && !x.res.length) x.res.push(on); if (x.res.indexOf(on) >= 0) { x.lead = on; x.resource = [on].concat(x.res.filter(function (r) { return r !== on; })).join(', '); } }   // the Gantt follows: the owner is the ★ lead
       x.dur = Math.max(1, Math.min(365, +F.dur.value || 1));
       // the stories: kept ones updated, removed ones gone (done ones always stay), new ones added across the item's days
       var old = {}, n0 = 0; (x.subs || []).forEach(function (sb) { old[sb.id] = sb; });
