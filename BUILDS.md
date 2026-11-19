@@ -168,4 +168,9 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 157 | 1.0.157| 2026-11-20 00:08| today-due| `3c7dbc9` | Today: notes count in "due today or tomorrow" and "overdue"; DUE TODAY flashes red, DUE TOMORROW amber; no WIP count (#23) |
 | 158 | 1.0.158| 2026-11-20 00:15| board-owner| `a488f17` | Kanban / Scrum owner follows the Gantt: no board owner shows the ★ lead; picking an owner makes them the ★ lead; Today counts board owners ( |
 | 159 | 1.0.159| 2026-11-20 00:34| note-tags| `dd27adc` | #Tags in sticky notes: blocker, issue, decision, waiting, action, risk, idea, fyi (#25) |
-| 160 | 1.0.160 | 2026-11-20 00:37 | note-save | _this commit_ | _see git log_ |
+| 160 | 1.0.160| 2026-11-20 00:37| note-save| `cdb6a09` | Sticky notes: a clear 💾 Save note / 💾 Save button and ✓ Saved after each save (#26) |
+| 161 | 1.0.161| 2026-11-20 00:48| today-open| `7726e96` | Today → Open: no detour through Portfolio (the cause of "Cannot set properties of null (setting 'innerHTML')"); errors from a page you have  |
+| 162 | 1.0.162| 2026-11-20 00:52| today-open| `be87f0a` | Review: errors on the page you are on always show; a refused page also cancels the old page's errors |
+| 163 | 1.0.163| 2026-11-20 00:59| today-open| `fdb7b1a` | Review: a slow plan load never replaces a newer page (load sequence) |
+| 164 | 1.0.164| 2026-11-20 01:06| today-open| `c0ab6cc` | Review: same-plan tab changes keep the load; leaving the plan drops it; a late quote update never redraws a page you left |
+| 165 | 1.0.165 | 2026-11-20 01:13 | today-open | _this commit_ | _see git log_ |

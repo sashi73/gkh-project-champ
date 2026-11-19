@@ -186,8 +186,10 @@
   var VIEWS = { dashboard: dashboard, jobs: jobs, job: jobView, new: newJob, reminders: reminders, reports: reports, data: dataExplorer, activity: activity, analytics: analytics };
   var TITLES = { dashboard: 'Dashboard', jobs: 'Projects', job: 'Project', new: 'New project', reminders: 'Reminders', reports: 'Reports', data: 'Data explorer', activity: 'Activity log', analytics: 'Analytics & AI' };
   var NAVKEY = { job: 'jobs' };
+  var routeGen = 0;
   function route() {
     if ($('#app').hidden) return;
+    var gen = ++routeGen;   // a new page: errors from the one before it (still loading) are not shown, even if this one is refused
     var parts = (location.hash.slice(1) || 'programs').split('/').map(decodeURIComponent);
     if (parts[0] === 'inventory') { location.replace('#portfolio'); return; }   // GKH Project Champ: no Inventory
     var name = VIEWS[parts[0]] ? parts[0] : (VIEWS.programs ? 'programs' : 'portfolio');
@@ -200,7 +202,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) { a.classList.toggle('on', a.getAttribute('data-nav') === navOn); });
     $('#side').classList.remove('open');
     view.innerHTML = '<div class="empty">Loading…</div>';
-    Promise.resolve(VIEWS[name](parts.slice(1))).catch(fail);
+    Promise.resolve(VIEWS[name](parts.slice(1))).catch(function (e) { if (gen === routeGen) fail(e); });   // an error from a page you have left is not shown
     view.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }
