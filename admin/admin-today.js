@@ -36,7 +36,7 @@
   function badge(c) { var a = $('.side-nav [data-today]'); if (!a) return; var n = c ? (c.now != null ? c.now : (c.overdue || 0) + (c.blockers || 0)) : 0, el = $('.tdy-badge', a);
     if (!n) { if (el) el.remove(); return; } if (!el) { el = document.createElement('span'); el.className = 'tdy-badge'; a.appendChild(el); } el.textContent = n > 99 ? '99+' : String(n); el.title = (c.overdue || 0) + ' overdue · ' + (c.dueToday || 0) + ' due today · ' + (c.blockers || 0) + ' #blockers'; }
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
-  function go(x, note) { close(true); M.focus = { core: x.core, t: x.t, s: x.s || '', q: x.q || '', note: note ? x.nid : '', at: Date.now() }; if (location.hash === x.link) { location.hash = '#portfolio'; setTimeout(function () { location.hash = x.link; }, 0); } else location.hash = x.link; }
+  function go(x, note) { close(true); M.focus = { core: x.core, t: x.t, s: x.s || '', q: x.q || '', note: note ? x.nid : '', at: Date.now() }; if (location.hash === x.link) { try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { window.dispatchEvent(new Event('hashchange')); } } else location.hash = x.link; }   // the same page: draw it again (no detour through another page)
 
   function rowTodo(x, i) {
     var what = '<b>' + esc(x.name) + '</b>' + (x.parent ? '<small>' + esc(x.parent) + '</small>' : '');

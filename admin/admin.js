@@ -50,7 +50,9 @@
     var t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
     clearTimeout(toastT); toastT = setTimeout(function () { t.className = 'toast' + (err ? ' err' : ''); }, 3200);
   }
-  function fail(e) { toast(e.message || String(e), true); }
+  // a page you have already left that is still loading can try to fill a box that is gone ("Cannot set properties of null"):
+  // that is not your problem, so it is logged for us, not shown to you
+  function fail(e) { var m = (e && e.message) || String(e); if (e instanceof TypeError && /of null|of undefined/.test(m)) { console.warn('Champ (a page closed while it loaded):', m); return; } toast(m, true); }
   function modal(html) { $('#modalBody').innerHTML = html; $('#modal').hidden = false; var f = $('#modalBody input,#modalBody button'); if (f) f.focus(); }
   function closeModal() { if ($('#modal').getAttribute('data-locked')) return; $('#modal').hidden = true; $('#modalBody').innerHTML = ''; }
   $('#modal').addEventListener('click', function (e) { if (e.target.id === 'modal' || e.target.hasAttribute('data-close')) closeModal(); });
@@ -186,6 +188,7 @@
   var VIEWS = { dashboard: dashboard, jobs: jobs, job: jobView, new: newJob, reminders: reminders, reports: reports, data: dataExplorer, activity: activity, analytics: analytics };
   var TITLES = { dashboard: 'Dashboard', jobs: 'Projects', job: 'Project', new: 'New project', reminders: 'Reminders', reports: 'Reports', data: 'Data explorer', activity: 'Activity log', analytics: 'Analytics & AI' };
   var NAVKEY = { job: 'jobs' };
+  var routeGen = 0;
   function route() {
     if ($('#app').hidden) return;
     var parts = (location.hash.slice(1) || 'programs').split('/').map(decodeURIComponent);
@@ -200,7 +203,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) { a.classList.toggle('on', a.getAttribute('data-nav') === navOn); });
     $('#side').classList.remove('open');
     view.innerHTML = '<div class="empty">Loading…</div>';
-    Promise.resolve(VIEWS[name](parts.slice(1))).catch(fail);
+    var gen = ++routeGen; Promise.resolve(VIEWS[name](parts.slice(1))).catch(function (e) { if (gen === routeGen) fail(e); });   // an error from a page you have left is not shown
     view.focus({ preventScroll: true });
     window.scrollTo(0, 0);
   }
