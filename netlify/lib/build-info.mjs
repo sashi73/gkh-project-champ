@@ -2,7 +2,7 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 153,
+  "build": 154,
   "commit": "",
   "branch": "start-screen",
   "deployId": "",

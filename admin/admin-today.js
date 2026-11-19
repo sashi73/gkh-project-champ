@@ -53,6 +53,7 @@
   function open(auto) {
     close(true);
     var o = document.createElement('div'); o.id = 'tdy'; o.className = 'tdy'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); o.setAttribute('aria-label', 'Today');
+    o._gen = 0;
     o.innerHTML = '<div class="tdy-stage"><div class="tdy-rod" aria-hidden="true"></div><div class="tdy-box"><div class="tdy-load"><span class="tdy-spark">✦</span> Unrolling your day…</div></div><div class="tdy-rod tdy-rod-b" aria-hidden="true"></div></div>';
     document.body.appendChild(o); document.body.classList.add('tdy-open'); document.addEventListener('keydown', onKey, true);
     o.addEventListener('mousedown', function (e) { if (e.target === o) close(); });
@@ -84,7 +85,7 @@
         api('planMyDayDone', { core: x.core, t: x.t, s: x.s || '', q: x.q || '', nid: isN ? x.nid : '' }).then(function () {
           tr.classList.add('tdy-gone');
           var live = function () { return document.body.contains(o) && !o.classList.contains('tdy-out'); };
-          api('planMyDayGet', {}).then(function (d2) { setTimeout(function () { if (!live()) return; o.classList.add('tdy-calm'); draw(o, d2); }, 350); }).catch(function () { if (live()) tr.remove(); });   // fresh lists: its sub-tasks and the counts go too
+          var gen = ++o._gen; api('planMyDayGet', {}).then(function (d2) { setTimeout(function () { if (!live() || gen !== o._gen) return;   /* a later tick's lists win */ o.classList.add('tdy-calm'); draw(o, d2); }, 350); }).catch(function () { if (live()) tr.remove(); });   // fresh lists: its sub-tasks and the counts go too
         }).catch(function (e) { b.disabled = false; M.toast(e.message); });
       };
     });
