@@ -700,3 +700,96 @@ table.gt tr.gsel>td:first-child{box-shadow:inset 4px 0 0 #E8C04A,inset 0 2px 0 #
 .cgp-hb{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px}
 .cgp-hl{color:#C9A227;font-size:13px}
 .cgp-read{display:block;margin-top:6px}
+
+/* 🎯 Today: the start screen after sign-in (Lean flow: your work and your blockers) */
+.side-today{font-weight:700}
+.tdy{position:fixed;inset:0;z-index:60;background:rgba(5,8,15,.62);backdrop-filter:blur(3px);display:flex;align-items:flex-start;justify-content:center;padding:4vh 14px;overflow:auto}
+.tdy-box{background:var(--card,#111);color:inherit;border:1px solid var(--line,rgba(128,128,128,.3));border-top:3px solid var(--gold,#C9A227);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.45);width:min(1080px,100%);padding:20px 22px 16px}
+.tdy-load{padding:40px;text-align:center;opacity:.7}
+.tdy-h{display:flex;align-items:flex-start;gap:10px}
+.tdy-h h2{margin:0;font-size:24px}
+.tdy-h p{margin:2px 0 0}
+.tdy-x{border:0;background:transparent;color:inherit;font-size:22px;cursor:pointer;padding:2px 8px;border-radius:8px}
+.tdy-x:hover{background:rgba(128,128,128,.18)}
+.tdy-flow{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 6px}
+.tdy-flow span{padding:6px 12px;border-radius:999px;border:1px solid var(--line,rgba(128,128,128,.3));font-size:13px}
+.tdy-flow b{font-size:15px;margin-right:3px}
+.tdy-flow .on-red{border-color:#DC2626;background:rgba(220,38,38,.12)}
+.tdy-flow .on-amber{border-color:#D97706;background:rgba(217,119,6,.12)}
+.tdy-tip{margin:6px 0;padding:6px 10px;border-left:3px solid #D97706;background:rgba(217,119,6,.1);border-radius:0 8px 8px 0;font-size:13px}
+.tdy section{margin-top:14px}
+.tdy h3{margin:0 0 6px;font-size:16px}
+.tdy h3 small{font-weight:400;opacity:.65;font-size:12.5px;margin-left:6px}
+.tdy-tw{overflow-x:auto}
+.tdy-t{width:100%;border-collapse:collapse;font-size:13.5px}
+.tdy-t th{text-align:left;font-weight:600;font-size:12px;opacity:.7;padding:6px 8px;border-bottom:1px solid var(--line,rgba(128,128,128,.3))}
+.tdy-t td{padding:8px;border-bottom:1px solid var(--line,rgba(128,128,128,.18));vertical-align:top}
+.tdy-t tr{transition:opacity .3s,transform .3s}
+.tdy-t tr.tdy-red td:first-child{box-shadow:inset 4px 0 0 #DC2626}
+.tdy-t tr.tdy-amber td:first-child{box-shadow:inset 4px 0 0 #D97706}
+.tdy-t tr.tdy-green td:first-child{box-shadow:inset 4px 0 0 #16A34A}
+.tdy-t tr.tdy-red{background:rgba(220,38,38,.07)}
+.tdy-t tr.tdy-gone{opacity:0;transform:translateX(30px)}
+.tdy-due{white-space:nowrap}
+.tdy-due small,.tdy-what small{display:block;opacity:.7;font-size:11.5px}
+.tdy-red .tdy-due small{color:#DC2626;opacity:1;font-weight:700}
+.tdy-what b{font-weight:600}
+.tdy-k{display:inline-block;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:rgba(128,128,128,.18);margin-right:6px;vertical-align:1px}
+.tdy-u{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.tdy-u4,.tdy-nR{background:#DC2626;color:#fff}
+.tdy-u3,.tdy-nA{background:#D97706;color:#fff}
+.tdy-u2{background:rgba(128,128,128,.22)}
+.tdy-u1,.tdy-nG{background:rgba(22,163,74,.2)}
+.tdy-proj{opacity:.8;font-size:12.5px}
+.tdy-act{white-space:nowrap;text-align:right}
+.tdy-act .btn{margin-left:4px}
+.tdy-none{margin:4px 0;padding:12px 14px;border:1px dashed var(--line,rgba(128,128,128,.35));border-radius:10px;opacity:.85}
+.tdy-later{font-size:12.5px;margin:6px 2px 0}
+.tdy-f{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:16px;padding-top:12px;border-top:1px solid var(--line,rgba(128,128,128,.25));font-size:12.5px}
+body.tdy-open{overflow:hidden}
+@media (max-width:700px){.tdy{padding:0}.tdy-box{border-radius:0;min-height:100%}.tdy-t thead{display:none}.tdy-t tr{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 0;border-bottom:1px solid var(--line,rgba(128,128,128,.25))}.tdy-t td{border:0;padding:2px 8px}.tdy-what{grid-column:1/-1}.tdy-act{grid-column:1/-1;text-align:left}}
+tr.g-flash td{animation:gflash 2.2s ease}
+@keyframes gflash{0%,40%{background:rgba(201,162,39,.35)}100%{background:transparent}}
+.stk-due{display:inline-flex;gap:4px;align-items:center;font-size:12px;margin-left:6px}
+.stk-due input{font:inherit;font-size:12px;padding:2px 4px}
+
+/* 🎯 Today opens like a scroll: a gold roller drops in, the page unrolls under it, the rows fly in one by one */
+.tdy{perspective:1600px;animation:tdyDim .35s ease both}
+.tdy-stage{position:relative;width:min(1080px,100%);transform-origin:50% 0}
+.tdy-rod{position:relative;z-index:2;height:14px;margin:0 -10px;border-radius:999px;background:linear-gradient(180deg,#F5E08A 0%,#C9A227 45%,#7A5C0E 100%);box-shadow:0 6px 16px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.6);animation:tdyRod .5s cubic-bezier(.2,1.4,.4,1) both}
+.tdy-rod::before,.tdy-rod::after{content:'';position:absolute;top:-4px;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#FFF3B0,#C9A227 55%,#6B4F0A);box-shadow:0 3px 8px rgba(0,0,0,.4)}
+.tdy-rod::before{left:-8px}.tdy-rod::after{right:-8px}
+.tdy-rod-b{margin-top:-7px;animation:tdyRodB .9s cubic-bezier(.3,.9,.3,1) .15s both}
+.tdy-stage .tdy-box{width:100%;margin-top:-7px;border-top:0;border-radius:4px 4px 14px 14px;transform-origin:50% 0;animation:tdyUnroll .9s cubic-bezier(.3,.9,.3,1) .15s both;
+  background-image:linear-gradient(180deg,rgba(201,162,39,.08),transparent 120px);position:relative;overflow:hidden}
+.tdy-stage .tdy-box::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(105deg,transparent 35%,rgba(255,236,160,.22) 50%,transparent 65%);transform:translateX(-100%);animation:tdyShine 1.3s ease .9s both}
+.tdy-spark{display:inline-block;color:#C9A227;animation:tdySpin 1.2s linear infinite}
+.tdy-h,.tdy-flow,.tdy section h3,.tdy-f,.tdy-tip,.tdy-none{animation:tdyRise .5s cubic-bezier(.2,.9,.3,1) both}
+.tdy-h{animation-delay:.55s}.tdy-flow{animation-delay:.65s}.tdy-tip{animation-delay:.7s}.tdy section h3{animation-delay:.72s}.tdy-none{animation-delay:.8s}.tdy-f{animation-delay:1s}
+.tdy-flow span{animation:tdyPop .45s cubic-bezier(.2,1.6,.4,1) both}
+.tdy-flow span:nth-child(1){animation-delay:.7s}.tdy-flow span:nth-child(2){animation-delay:.78s}.tdy-flow span:nth-child(3){animation-delay:.86s}.tdy-flow span:nth-child(4){animation-delay:.94s}
+.tdy-t tbody tr{animation:tdyFly .55s cubic-bezier(.2,.9,.3,1.15) both;animation-delay:calc(.8s + var(--d,0) * 70ms)}
+.tdy-t tbody tr.tdy-red td:first-child{animation:tdyPulse 1.1s ease calc(1.4s + var(--d,0) * 70ms) 1}
+.tdy-t tbody tr.tdy-gone{animation:none}
+.tdy.tdy-out{animation:tdyDimOut .5s ease both}
+.tdy.tdy-out .tdy-stage{animation:tdyRollUp .5s cubic-bezier(.6,0,.8,.4) both}
+@keyframes tdyDim{from{background:rgba(5,8,15,0);backdrop-filter:blur(0)}}
+@keyframes tdyDimOut{to{background:rgba(5,8,15,0);backdrop-filter:blur(0)}}
+@keyframes tdyRod{from{transform:translateY(-120px) scaleX(.2);opacity:0}}
+@keyframes tdyRodB{from{transform:translateY(-60vh);opacity:0}60%{opacity:1}}
+@keyframes tdyUnroll{from{transform:rotateX(-82deg) scaleY(.02);opacity:.4;clip-path:inset(0 0 100% 0)}60%{opacity:1}to{transform:none;clip-path:inset(0 0 0 0)}}
+@keyframes tdyShine{to{transform:translateX(100%)}}
+@keyframes tdySpin{to{transform:rotate(360deg)}}
+@keyframes tdyRise{from{opacity:0;transform:translateY(14px)}}
+@keyframes tdyPop{from{opacity:0;transform:scale(.6)}}
+@keyframes tdyFly{from{opacity:0;transform:translateX(70px) rotate(1.2deg)}}
+@keyframes tdyPulse{0%,100%{box-shadow:inset 4px 0 0 #DC2626}40%{box-shadow:inset 4px 0 0 #DC2626,0 0 0 4px rgba(220,38,38,.35)}}
+@keyframes tdyRollUp{to{transform:translateY(-40px) rotateX(70deg) scaleY(.05);opacity:0}}
+@media (prefers-reduced-motion:reduce){.tdy,.tdy *,.tdy *::before,.tdy *::after{animation:none!important}}
+@media (max-width:700px){.tdy-stage{width:100%}.tdy-rod{margin:0}.tdy-stage .tdy-box{border-radius:0}}
+.tdy.tdy-fly .tdy-stage{animation:none}
+.tdy.tdy-fly{animation:tdyDimOut .6s ease both}
+.side-today{position:relative}
+.tdy-badge{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:#DC2626;color:#fff;font-size:11.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center}
+.side-today.tdy-land{animation:tdyLand .7s cubic-bezier(.2,1.6,.4,1)}
+@keyframes tdyLand{0%{background:rgba(201,162,39,.55);transform:scale(1.08)}100%{background:transparent;transform:none}}

@@ -1797,6 +1797,11 @@
     var pick = function (e) { var tr = e.target.closest && e.target.closest('tbody tr'); var s = gSelOf(tr); if (!s) return; S.gsel = s; gMark(p); };
     L.addEventListener('mousedown', pick); L.addEventListener('focusin', pick);
     gPaint(p); gMark(p);
+    var fc = M.focus;   // 🎯 Today: open on the row (and its note) you picked there
+    if (fc && fc.core === S.core) { M.focus = null; var fsel = fc.q ? { t: fc.t, s: fc.s, q: fc.q } : fc.s ? { t: fc.t, s: fc.s } : { t: fc.t };
+      var ftr = gRowOf(fsel) || gRowOf({ t: fc.t, s: fc.s }) || gRowOf({ t: fc.t }); S.gsel = ftr ? gSelOf(ftr) : { t: fc.t }; gMark(p);
+      if (ftr) setTimeout(function () { ftr.scrollIntoView({ block: 'center' }); ftr.classList.add('g-flash'); setTimeout(function () { ftr.classList.remove('g-flash'); }, 2200); }, 60);
+      if (fc.note) setTimeout(function () { var tr = gRowOf({ t: fc.t }); stkPanel(fc.t, (tr && tr.querySelector('[data-stk]')) || tr); }, 260); }
     var fs = $('#gFull'); if (fs) fs.onclick = function () { gFull(!S.gfull); };
     if (!S.gfull) return;
     document.querySelectorAll('.gtool [data-gt]').forEach(function (b) { b.onmousedown = function (e) { e.preventDefault(); }; b.onclick = function () { gAct(p, b.getAttribute('data-gt')); }; });
@@ -3029,14 +3034,14 @@
             return '<div class="stk-n stk-' + x.c + (x.done ? ' done' : '') + (ed ? ' editing' : '') + '" data-nid="' + esc(x.id) + '"><div class="stk-m">' +
               '<label class="stk-ck" title="' + (x.done ? 'Done: untick to open it again' : 'Tick when it is done') + '"><input type="checkbox" data-sdone' + (x.done ? ' checked' : '') + (ro ? ' disabled' : '') + '></label>' +
               (x.done ? '<span class="stk-tag stk-alldone">✓ All done</span>' : '<span class="stk-tag">' + STK[x.c][0] + '</span>') + (items.length ? '<span class="stk-cnt">' + ticked + '/' + items.length + '</span>' : '') +
-              '<small>' + esc(x.by || '') + ' · ' + esc(when(x.at)) + (x.editedAt ? ' · edited' + (x.editedBy && x.editedBy !== x.by ? ' by ' + esc(x.editedBy) : '') : '') + (x.done ? ' · done' + (x.doneBy ? ' by ' + esc(x.doneBy) : '') : '') + '</small><span class="sp"></span>' +
+              '<small>' + esc(x.by || '') + ' · ' + esc(when(x.at)) + (x.due ? ' · due ' + esc(pretty(x.due)) : '') + (x.editedAt ? ' · edited' + (x.editedBy && x.editedBy !== x.by ? ' by ' + esc(x.editedBy) : '') : '') + (x.done ? ' · done' + (x.doneBy ? ' by ' + esc(x.doneBy) : '') : '') + '</small><span class="sp"></span>' +
               (ro || ed ? '' : '<button type="button" data-sed title="Edit this note">✏</button><button type="button" data-sdel title="Delete this note">🗑</button>') + '</div>' +
               (ed ? '<div class="stk-ed"><textarea data-setx rows="' + Math.max(3, Math.min(10, String(x.text).split('\n').length + 1)) + '" maxlength="1500">' + esc(x.text) + '</textarea><div class="stk-row">' +
                 ['R', 'A', 'G'].map(function (k) { return '<button type="button" class="stk-c stk-' + k + (x.c === k ? ' on' : '') + '" data-secol="' + k + '"><i></i>' + STK[k][0] + '</button>'; }).join('') +
                 '<span class="sp"></span><button type="button" class="btn btn-sm" data-secancel>Cancel</button><button type="button" class="btn btn-sm btn-gold" data-sesave>Save</button></div></div>' : stkBody(x, ro)) + '</div>'; }).join('')
           : '<p class="muted" style="margin:6px 2px">No notes yet. Leave a remark for the team: what is happening, what is blocked, what to watch.</p>') + '</div>' +
         (ro ? '' : '<div class="stk-add"><textarea id="stkTx" rows="' + (S.stkBig ? 4 : 2) + '" maxlength="1500" placeholder="Write a note, press Enter to save.  Shift+Enter for a new line; start lines with - for a checklist"></textarea><div class="stk-row">' +
-          ['R', 'A', 'G'].map(function (k) { return '<button type="button" class="stk-c stk-' + k + (col === k ? ' on' : '') + '" data-scol="' + k + '" title="' + STK[k][0] + '"><i></i>' + STK[k][0] + '</button>'; }).join('') + '<span class="sp"></span><button type="button" class="btn btn-sm btn-gold" data-sadd>Add note</button></div></div>');
+          ['R', 'A', 'G'].map(function (k) { return '<button type="button" class="stk-c stk-' + k + (col === k ? ' on' : '') + '" data-scol="' + k + '" title="' + STK[k][0] + '"><i></i>' + STK[k][0] + '</button>'; }).join('') + '<label class="stk-due" title="Optional: when it must be sorted by (it shows red on Today after this)">Due by <input type="date" id="stkDue"></label><span class="sp"></span><button type="button" class="btn btn-sm btn-gold" data-sadd>Add note</button></div></div>');
       var place = function () { var r = anchor && document.body.contains(anchor) ? anchor.getBoundingClientRect() : null, w = pop.offsetWidth, h = pop.offsetHeight;
         if (S.stkPos) { pop.style.left = Math.max(4, Math.min(innerWidth - w - 4, S.stkPos.x)) + 'px'; pop.style.top = Math.max(4, Math.min(innerHeight - 40, S.stkPos.y)) + 'px'; return; }   // where it was dragged to
         if (S.stkBig || !r) { pop.style.left = Math.max(10, (innerWidth - w) / 2) + 'px'; pop.style.top = Math.max(10, (innerHeight - h) / 2) + 'px'; return; }
@@ -3052,7 +3057,7 @@
       pop.querySelector('[data-sbig]').onclick = function () { S.stkBig = !S.stkBig; S.stkPos = null; pop.classList.toggle('big', S.stkBig); draw(); };
       pop.querySelectorAll('[data-scol]').forEach(function (b) { b.onclick = function () { S.stkCol = b.getAttribute('data-scol'); pop.querySelectorAll('[data-scol]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
       var add = pop.querySelector('[data-sadd]'); if (add) add.onclick = function () { var tx = $('#stkTx').value.trim(); if (!tx) { $('#stkTx').focus(); return; }
-        t.stickies = (t.stickies || []).concat([{ id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), c: S.stkCol || 'G', text: tx, by: me, at: Date.now(), done: false }]); save('added (' + STK[S.stkCol || 'G'][0].toLowerCase() + ')'); };
+        t.stickies = (t.stickies || []).concat([{ id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), c: S.stkCol || 'G', text: tx, by: me, at: Date.now(), done: false, due: ($('#stkDue') && $('#stkDue').value) || '' }]); save('added (' + STK[S.stkCol || 'G'][0].toLowerCase() + ')'); };
       var noteOf = function (el) { var id = el.closest('[data-nid]').getAttribute('data-nid'); return (t.stickies || []).filter(function (q) { return q.id === id; })[0]; };
       pop.querySelectorAll('[data-sdone]').forEach(function (b) { b.onchange = function () { var x = noteOf(b); if (!x) return; x.done = b.checked; x.doneBy = x.done ? me : '';
         if (x.done) x.text = String(x.text).split('\n').map(function (l) { return STK_LI.test(l) ? '- [x] ' + l.replace(STK_LI, '') : l; }).join('\n');   // done: every item ticked
