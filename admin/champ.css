@@ -849,5 +849,6 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .holadd{gap:6px;margin-top:8px}
 .ghol{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(220,38,38,.10) 0 4px,rgba(220,38,38,.04) 4px 8px);pointer-events:auto;z-index:0}
 .gscale .gd.hol{background:rgba(220,38,38,.14);color:#B91C1C;font-weight:700}
-.holadd{display:flex;flex-wrap:nowrap;align-items:center}
+.holadd{display:flex;flex-wrap:wrap;align-items:center}
+.holadd input:not([type=date]){min-width:0;flex:1 1 180px}
 .holadd input[type=date]{flex:0 0 auto;width:auto;max-width:170px}

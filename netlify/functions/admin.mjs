@@ -229,7 +229,7 @@ async function handle(req, context) {
 
       // 📍 Location: search a place (countries and states offline, towns from OpenStreetMap), and its weekend and public holidays
       case 'planPlacesGet': return out(200, { places: await WCAL.places(clean(body.q, 60)) });
-      case 'planHolidaysGet': { const cc = clean(body.cc, 2).toUpperCase(), st = clean(body.st, 6), pl = WCAL.placeOf(cc, st, clean(body.place, 120));
+      case 'planHolidaysGet': { const cc = clean(body.cc, 2).toUpperCase(), st = clean(body.st, 24), pl = WCAL.placeOf(cc, st, clean(body.place, 120));
         if (!WCAL.countryName(cc)) return bad('Pick a place from the list.');
         return out(200, { ...pl, hols: WCAL.holidays(cc, pl.st, body.from, body.to), from: +body.from || 0, to: +body.to || 0 }); }
       // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it

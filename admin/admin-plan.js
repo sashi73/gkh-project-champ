@@ -93,7 +93,9 @@
     var Y = calYears(p);
     return api('planHolidaysGet', { cc: pick.cc, st: pick.st || '', place: pick.place, from: Y.y0, to: Y.y1 }).then(function (d) {
       var old = {}; ((keep && keep.hols) || []).forEach(function (h) { old[h.d] = h; });
-      var hols = d.hols.map(function (h) { return old[h.d] && old[h.d].work ? { d: h.d, n: h.n, work: true } : h; }).concat(((keep && keep.hols) || []).filter(function (h) { return h.own; }));
+      var by = {}; d.hols.forEach(function (h) { by[h.d] = old[h.d] && old[h.d].work ? { d: h.d, n: h.n, work: true } : h; });
+      ((keep && keep.hols) || []).forEach(function (h) { if (h.own) by[h.d] = h; });   // your own holiday wins (with its work setting)
+      var hols = Object.keys(by).sort().map(function (k) { return by[k]; });
       return { place: d.place, cc: d.cc, st: d.st, wk: keep && keep.cc === d.cc && keep.st === d.st && keep.wk ? keep.wk : d.wk, hols: hols, y0: Y.y0, y1: Y.y1 };
     });
   }
@@ -108,13 +110,13 @@
       '<input id="locQ" type="search" autocomplete="off" placeholder="e.g. Kua, Alor Setar, Jeddah, Tehran" value="" style="width:100%;font-size:16px">' +
       '<div id="locL" class="loclist"></div>' + (c ? '<p class="muted" style="margin-top:10px">Now: <b>' + esc(c.place) + '</b> · weekend ' + esc(wkName(c.wk)) + '</p>' : '') +
       '<div class="row" style="margin-top:12px">' + (c ? '<button class="btn" type="button" id="locRm">Remove the location (back to Mon–Fri)</button>' : '') + '<span class="sp"></span><button class="btn" type="button" data-close>Cancel</button></div>');
-    var q = $('#locQ'), L = $('#locL'); q.focus();
+    var q = $('#locQ'), L = $('#locL'), live = function () { return document.body.contains(q) && S.plan === p; }; q.focus();
     var draw = function () { L.innerHTML = list.length ? list.map(function (x, i) { return '<button type="button" class="locit' + (i === sel ? ' on' : '') + '" data-li="' + i + '"><b>' + esc(x.place) + '</b><small>' + esc(x.kind) + ' · weekend ' + esc(x.wkName) + '</small></button>'; }).join('') : (q.value.trim().length >= 2 ? '<p class="muted">No match yet: keep typing, or try the country.</p>' : '');
       L.querySelectorAll('[data-li]').forEach(function (b) { b.onclick = function () { choose(list[+b.getAttribute('data-li')]); }; }); };
     var choose = function (x) { if (!x) return; L.innerHTML = '<p class="muted">Loading the public holidays for ' + esc(x.place) + '…</p>';
-      calLoad(p, x, c && c.cc === x.cc && c.st === x.st ? c : null).then(function (cal) { M.closeModal(); calSet(p, cal, '📍 ' + cal.place + ' (weekend ' + wkName(cal.wk) + ')'); }).catch(function (e) { L.innerHTML = '<p class="bad">' + esc(e.message) + '</p>'; }); };
-    q.oninput = function () { clearTimeout(tm); var v = q.value.trim(); if (v.length < 2) { list = []; draw(); return; }
-      tm = setTimeout(function () { var my = ++seq; api('planPlacesGet', { q: v }).then(function (d) { if (my !== seq) return; list = d.places || []; sel = 0; draw(); }).catch(function () {}); }, 250); };
+      calLoad(p, x, c && c.cc === x.cc && c.st === x.st ? c : null).then(function (cal) { if (!live()) return; M.closeModal(); calSet(p, cal, '📍 ' + cal.place + ' (weekend ' + wkName(cal.wk) + ')'); }).catch(function (e) { if (live()) L.innerHTML = '<p class="bad">' + esc(e.message) + '</p>'; }); };   // Cancelled, or another plan: nothing changes
+    q.oninput = function () { clearTimeout(tm); var my = ++seq, v = q.value.trim(); list = []; sel = 0; if (v.length < 2) { draw(); return; }   // older searches are dropped as you type
+      tm = setTimeout(function () { api('planPlacesGet', { q: v }).then(function (d) { if (my !== seq || !live()) return; list = d.places || []; sel = 0; draw(); }).catch(function (e) { if (my === seq && live()) L.innerHTML = '<p class="bad">' + esc(e.message) + '</p>'; }); }, 250); };
     q.onkeydown = function (e) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (list.length) { sel = (sel + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; draw(); } } else if (e.key === 'Enter') { e.preventDefault(); choose(list[sel]); } };
     var rm = $('#locRm'); if (rm) rm.onclick = function () { M.closeModal(); calSet(p, undefined, 'location removed (Mon–Fri)'); };
   }
@@ -144,7 +146,8 @@
     wire();
     $('#holAdd').onclick = function () { var d = $('#holD').value, n = $('#holN').value.trim(); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { toast('Pick the date', true); return; }
       c.hols = c.hols.filter(function (h) { return h.d !== d; }).concat([{ d: d, n: n || 'Holiday', own: true }]).sort(function (a, b) { return a.d < b.d ? -1 : 1; }); $('#holL').innerHTML = body(); wire(); $('#holN').value = ''; };
-    var more = $('#holMore'); if (more) more.onclick = function () { more.disabled = true; calLoad(p, c, c).then(function (n) { c = n; $('#holL').innerHTML = body(); wire(); more.parentNode.remove(); }).catch(function (e) { toast(e.message, true); more.disabled = false; }); };
+    var more = $('#holMore'), hl = $('#holL'), open = function () { return document.body.contains(hl) && S.plan === p; };
+    if (more) more.onclick = function () { more.disabled = true; $('#holOk').disabled = true; calLoad(p, c, c).then(function (n) { if (!open()) return; c = n; hl.innerHTML = body(); wire(); more.parentNode.remove(); $('#holOk').disabled = false; }).catch(function (e) { if (!open()) return; toast(e.message, true); more.disabled = false; $('#holOk').disabled = false; }); };
     $('#holOk').onclick = function () { M.closeModal(); calSet(p, c, 'public holidays updated'); };
   }
   function coolOf(p) { return 0; }   // Project Champ: no cooling-off period (that was the builder's consumer-law rule)

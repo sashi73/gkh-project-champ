@@ -25,7 +25,7 @@ function calClean(c) {
   const wk = [...new Set((Array.isArray(c.wk) ? c.wk : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].slice(0, 3);
   const seen = new Set(), hols = (Array.isArray(c.hols) ? c.hols : []).filter((h) => h && /^\d{4}-\d{2}-\d{2}$/.test(String(h.d || '')) && !seen.has(h.d) && seen.add(h.d)).slice(0, 400)
     .map((h) => ({ d: h.d, n: String(h.n || 'Holiday').slice(0, 80), ...(h.work ? { work: true } : {}), ...(h.own ? { own: true } : {}) })).sort((a, b) => a.d.localeCompare(b.d));
-  return { place: String(c.place || '').slice(0, 120), cc: c.cc, st: String(c.st || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 6), wk, hols, y0: Number(c.y0) || 0, y1: Number(c.y1) || 0 };
+  return { place: String(c.place || '').slice(0, 120), cc: c.cc, st: String(c.st || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 24), wk, hols, y0: Number(c.y0) || 0, y1: Number(c.y1) || 0 };
 }
 
 // ---------- working days ----------
