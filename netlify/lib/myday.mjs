@@ -27,14 +27,12 @@ const mentions = (names, text) => { const t = String(text || ''); let i = t.inde
 // the board's owner of a task: a stakeholder id or a name
 const ownerName = (plan, t) => { const sh = (plan.stakeholders || []).find((x) => x.id === t.owner); return sh ? sh.name || '' : t.owner || ''; };
 
-// 📞 who to call: the person's number on the project's Stakeholder register, otherwise in People (never your own)
+// 📞 who to call: the person's number on the project's Stakeholder register only (never your own)
 const sameName = (a, b) => { const x = norm(a), y = norm(b); if (!x || !y) return false; if (x === y) return true; const e = ends(x); return !!e && e === ends(y); };
 function phoneOf(plan, ppl, who) {
   if (!norm(who)) return '';
   const sh = (plan.stakeholders || []).find((x) => sameName(x.name, who) && String(x.phone || '').replace(/[^\d]/g, '').length >= 6);
-  if (sh) return sh.phone;
-  const pp = ppl.find((x) => !x.archived && sameName(x.name, who) && String(x.phone || '').replace(/[^\d]/g, '').length >= 6);
-  return pp ? pp.phone : '';
+  return sh ? sh.phone : '';   // stakeholder numbers only: no number on the register, no 📞 button
 }
 const callFor = (plan, ppl, names, who) => (!who || isMe(names, who) ? null : ((ph) => (ph ? { name: who, tel: String(ph).replace(/[^\d+]/g, ''), show: ph } : null))(phoneOf(plan, ppl, who)));
 // 👁 "viewed on phone": kept apart from the plan (seen:<core>), so a tap on a phone never clashes with someone editing the plan
@@ -65,7 +63,7 @@ export async function myDay(ctx, opts) {
   const today = /^\d{4}-\d{2}-\d{2}$/.test(String((opts || {}).today || '')) ? opts.today : sydToday();
   const keys = (await kv.keys('plan:')).filter((k) => !ctx.scope || ctx.scope.includes(k.slice(5))).slice(0, 300);
   const plans = await kv.getMany(keys), todo = [], att = [];
-  const ppl = Object.values(((await kv.get('ppl-index').catch(() => null)) || {}).people || {}), seenAll = await kv.getMany(plans.map((p) => 'seen:' + ((p && p.core) || '-'))).catch(() => []), me = String(ctx.name || '');
+  const ppl = [], seenAll = await kv.getMany(plans.map((p) => 'seen:' + ((p && p.core) || '-'))).catch(() => []), me = String(ctx.name || '');
   let later = 0, laterNotes = 0;   // the work week: what is due in the next 5 working days (or late); the rest is counted, not listed
   for (const plan of plans) {
     if (!plan || !Array.isArray(plan.tasks)) continue;

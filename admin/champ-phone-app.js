@@ -3,7 +3,7 @@
    - To do this week: your tasks, sub-tasks and steps
    Each message: 👁 Mark as viewed (the computer then shows "Viewed on phone"), and 📞 Call the person who raised it
    (a note: whoever wrote it; a task: the project manager), when their number is on the project's stakeholders
-   (or in People) and it is not you. Items leave when they are ticked done or reach 100% on the computer. */
+   and it is not you. Items leave when they are ticked done or reach 100% on the computer. */
 (function () {
   'use strict';
   var M = window.MBS, P = window.ChampPhone; if (!M || !P || !P.is) return;
