@@ -185,4 +185,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 174 | 1.0.174| 2026-11-20 12:01| free-view| `11e805b` | Website: free to explore with Google sign-in (view-only, no payment, no credit card), under the hero and on the login page (#32) |
 | 175 | 1.0.175| 2026-11-20 12:35| hol-allowed| `30e6623` | 📅 Public holidays allowed (off by default) re-plans the work; Weekends allowed says the new finish; full screen keeps the calendar row (wee |
 | 176 | 1.0.176| 2026-11-20 13:12| cal-tidy| `b589462` | 📱 Phone edition: detects the phone and OS; landing page (intro, what Champ is, the film, language, big Login); after sign-in only Today, li |
-| 177 | 1.0.177 | 2026-11-20 14:27 | stk-only | _this commit_ | _see git log_ |
+| 177 | 1.0.177| 2026-11-20 14:27| stk-only| `781d76a` | 📞 Call numbers from the project's stakeholder list only (no People fallback) (#37) |
+| 178 | 1.0.178 | 2026-11-20 14:33 | todo-tidy | _this commit_ | _see git log_ |

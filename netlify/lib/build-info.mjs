@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 177,
+  "build": 178,
   "commit": "",
-  "branch": "stk-only",
+  "branch": "todo-tidy",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-20 14:27",
+  "builtAt": "2026-11-20 14:33",
   "site": ""
 };
