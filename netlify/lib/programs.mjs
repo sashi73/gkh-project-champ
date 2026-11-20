@@ -70,6 +70,7 @@ export async function save(body, who) {
     if (p.name && p.name !== name) renamed = { from: p.name, to: name };
     Object.assign(p, { name, manager: s(body.manager, 80), sponsor: s(body.sponsor, 80), client: s(body.client, 120), email: s(body.email, 160), phone: s(body.phone, 40), site: s(body.site, 80), objective: s(body.objective, 600), status: STATUS[body.status] ? body.status : (p.status || 'active'),
       color: /^#[0-9a-f]{6}$/i.test(body.color || '') ? body.color : p.color, start: day(body.start), finish: day(body.finish), updated: Date.now(), updatedBy: who || '' });
+    if (body.director !== undefined) p.director = /^U-\d{3,5}$/.test(String(body.director || '')) ? String(body.director) : '';   // 🔒 the program director (a login): opens this program's Finance vault
     res = { ...p }; return cur;
   }, { list: [] });
   if (renamed) for (const j of await J.all()) if (j.program === renamed.from) await J.setProgram(j.core, renamed.to);   // the projects follow the new name

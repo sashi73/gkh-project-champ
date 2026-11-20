@@ -150,16 +150,19 @@
       '<p class="muted" style="margin:4px 0 0;font-size:12.5px">Filled in automatically on every new project in this program (you can change them on the project):</p>' +
       '<div class="champ-2"><label>Client / organisation<input name="client" maxlength="120" value="' + esc(x.client || '') + '"></label><label>Location<input name="site" maxlength="80" value="' + esc(x.site || '') + '"></label></div>' +
       '<div class="champ-2"><label>Contact email<input name="email" type="email" maxlength="160" value="' + esc(x.email || '') + '"></label><label>Contact phone<input name="phone" maxlength="40" value="' + esc(x.phone || '') + '"></label></div>' +
+      '<label>🔒 Program director <small class="muted">(opens this program\'s Finance vault, with the CEO, the CFO and the super user)</small><select name="director" id="pgDir"><option value="">No one named</option>' + (x.director ? '<option value="' + esc(x.director) + '" selected>' + esc(x.director) + '</option>' : '') + '</select></label>' +
       '<label>Objective and benefits<textarea name="objective" rows="3" maxlength="600" placeholder="What the program delivers, and the benefits it should bring">' + esc(x.objective || '') + '</textarea></label>' +
       '<div class="champ-2"><label>Status<select name="status">' + Object.keys(D.statuses).map(function (k) { return '<option value="' + k + '"' + (x.status === k ? ' selected' : '') + '>' + esc(D.statuses[k]) + '</option>'; }).join('') + '</select></label>' +
       '<label>Colour<span class="pg-colors">' + COLORS.map(function (c) { return '<label><input type="radio" name="color" value="' + c + '"' + (x.color === c ? ' checked' : '') + '><i style="background:' + c + '"></i></label>'; }).join('') + '</span></label></div>' +
       '<div class="champ-2"><label>Target start <small class="muted">(optional)</small><input type="date" name="start" value="' + esc(x.start || '') + '"></label><label>Target finish <small class="muted">(optional)</small><input type="date" name="finish" value="' + esc(x.finish || '') + '"></label></div>' +
       '<div class="actions" style="justify-content:flex-end"><button class="btn" type="button" data-close>Cancel</button><button class="btn btn-gold" type="submit">' + (p ? 'Save' : 'Create program') + '</button></div></form>');
     var f = document.getElementById('pgForm');
+    api('userList').then(function (d) { var sl = document.getElementById('pgDir'); if (!sl) return; var cur = x.director || '';
+      sl.innerHTML = '<option value="">No one named</option>' + (d.users || []).filter(function (u) { return u.active !== false && /^U-/.test(u.id) && !(u.kind === 'google' && !u.upgraded); }).map(function (u) { return '<option value="' + esc(u.id) + '"' + (u.id === cur ? ' selected' : '') + '>' + esc((u.name || u.username) + ' · ' + (u.role || '')) + '</option>'; }).join(''); }).catch(function () {});
     f.onsubmit = function (e) {
       e.preventDefault();
       var col = f.querySelector('input[name=color]:checked');
-      api('planProgramSave', { id: p ? p.id : '', name: f.name.value, manager: f.manager.value, sponsor: f.sponsor.value, client: f.client.value, site: f.site.value, email: f.email.value, phone: f.phone.value, objective: f.objective.value, status: f.status.value, color: col ? col.value : '', start: f.start.value, finish: f.finish.value })
+      api('planProgramSave', { id: p ? p.id : '', director: f.director ? f.director.value : undefined, name: f.name.value, manager: f.manager.value, sponsor: f.sponsor.value, client: f.client.value, site: f.site.value, email: f.email.value, phone: f.phone.value, objective: f.objective.value, status: f.status.value, color: col ? col.value : '', start: f.start.value, finish: f.finish.value })
         .then(function (r) { M.closeModal(); toast(p ? 'Program saved' : 'Program created'); location.hash = '#programs/' + r.program.id; if (p) programView(p.id); }).catch(fail);
     };
   }

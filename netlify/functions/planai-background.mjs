@@ -58,6 +58,11 @@ async function run(req) {
       if (!r.error) await A.audit(session.u, `Champ wrote the CEO briefing (${r.brief.verdict}, ${r.brief.tokens || 0} tokens)`);
       return ok();
     }
+    if (body.mode === 'vaultRedact') {   // 🖍 the AI pass on the team's redacted copy of a file just put in the Finance vault
+      const V = await import('../lib/vault.mjs'), r = await V.refine(String(body.core || '').slice(0, 40), String(body.file || '').slice(0, 24)).catch((e) => ({ error: e.message }));
+      await kv.set('aiplan:' + id, { status: r.error ? 'error' : 'done', error: r.error, count: r.count || 0, at: Date.now() });
+      return ok();
+    }
     if (body.mode === 'ceoAsk') {   // 🧭 Ask Champ on the CEO view: the strategy adviser
       if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) { await kv.set('aiplan:' + id, { status: 'error', error: 'The strategy adviser is for the CEO.', at: Date.now() }); return ok(); }
       const CEO = await import('../lib/ceo.mjs'), { sydToday } = await import('../lib/ai.mjs');
