@@ -101,7 +101,7 @@
   }
   function makeBrief(b, filter) {
     b.disabled = true; b.textContent = '🎙 Champ is reading the portfolio…';
-    bgJob({ mode: 'ceoBrief' }).then(function (x) { D.brief = x.brief; draw(filter); toast('🎙 Champ\'s briefing is ready'); var rd = document.getElementById('ceoRead'); if (rd) readOut(D.brief.say || D.brief.overview, rd); })
+    bgJob({ mode: 'ceoBrief' }).then(function (x) { D.brief = x.brief; M.ceoRag = ragOf(); if (M.champBtn) M.champBtn(); draw(filter); toast('🎙 Champ\'s briefing is ready'); var rd = document.getElementById('ceoRead'); if (rd) readOut(D.brief.say || D.brief.overview, rd); })
       .catch(function (e) { b.disabled = false; b.textContent = '🎙 Get Champ\'s briefing'; fail(e); });
   }
   var HIST = [];
@@ -178,7 +178,11 @@
     var bg = v.querySelector('#ceoBrief'); if (bg) bg.onclick = function () { makeBrief(bg, filter); };
     var rd = v.querySelector('#ceoRead'); if (rd) rd.onclick = function () { if (TT.on) { stopRead(); return; } readOut(D.brief.say || D.brief.overview, rd); };
   }
-  function load() { return api('planCeoGet', { today: today() }).then(function (d) { D = d; }); }
+  // the colour of Champ's button on this screen: the briefing's verdict, or the same rules from the numbers
+  function ragOf() { if (D.brief && D.brief.verdict) return { turnaround: 'red', steady: 'amber', keep: 'green' }[D.brief.verdict] || 'amber';
+    var A = D.all, low = function (x, t) { return x != null && x < t; }, over = A.budget ? -A.vac / A.budget : 0;
+    return (A.n && A.red / A.n >= 0.34) || low(A.SPI, 0.9) || low(A.CPI, 0.9) || over > 0.1 ? 'red' : A.red || A.amber || low(A.SPI, 1) || low(A.CPI, 1) ? 'amber' : 'green'; }
+  function load() { return api('planCeoGet', { today: today() }).then(function (d) { D = d; M.ceoRag = ragOf(); if (M.champBtn) M.champBtn(); }); }
   // 🎙 a few words from Champ when the CEO view opens (once every 10 minutes at most)
   function greet() {
     var last = 0; try { last = +sessionStorage.getItem('champCeoHi') || 0; } catch (e) {} if (Date.now() - last < 600000 || !M.champGreet) return;
