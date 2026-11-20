@@ -179,5 +179,14 @@
     var rd = v.querySelector('#ceoRead'); if (rd) rd.onclick = function () { if (TT.on) { stopRead(); return; } readOut(D.brief.say || D.brief.overview, rd); };
   }
   function load() { return api('planCeoGet', { today: today() }).then(function (d) { D = d; }); }
-  M.addView('ceo', 'CEO view', function () { M.view().innerHTML = '<div class="empty">Gathering every project…</div>'; return load().then(function () { draw(''); }); }, 'ceo');
+  // 🎙 a few words from Champ when the CEO view opens (once every 10 minutes at most)
+  function greet() {
+    var last = 0; try { last = +sessionStorage.getItem('champCeoHi') || 0; } catch (e) {} if (Date.now() - last < 600000 || !M.champGreet) return;
+    try { sessionStorage.setItem('champCeoHi', String(Date.now())); } catch (e) {}
+    var A = D.all, h = new Date().getHours(), hi = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening', nm = String((M.me && M.me.name) || '').split(' ')[0];
+    var state = A.red ? A.red + ' of ' + A.n + ' project' + (A.n === 1 ? '' : 's') + (A.red === 1 ? ' is' : ' are') + ' in trouble' + (A.amber ? ' and ' + A.amber + ' at risk' : '') : A.amber ? A.amber + ' of ' + A.n + ' projects ' + (A.amber === 1 ? 'is' : 'are') + ' at risk' : A.n === 1 ? 'the project is on track' : 'all ' + A.n + ' projects are on track';
+    var cash = D.cash ? ' ' + D.cash.word + '.' : '';
+    M.champGreet(hi + (nm ? ', ' + nm : '') + '. Here is the CEO view: ' + state + '.' + cash + ' Ask me anything about the projects, or tap Get Champ\'s briefing for the full picture.');
+  }
+  M.addView('ceo', 'CEO view', function () { M.view().innerHTML = '<div class="empty">Gathering every project…</div>'; return load().then(function () { draw(''); setTimeout(greet, 600); }); }, 'ceo');
 })();
