@@ -178,4 +178,7 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 167 | 1.0.167| 2026-11-20 02:14| postgres| `93bbccf` | Data: Postgres behind one switch (CHAMP_DB), faster loading, owner-only move (#28) |
 | 168 | 1.0.168| 2026-11-20 11:01| today-week| `d515f2a` | Today: one work week at a time, and no ✓ Done / ✓ Resolved (open it and deal with it there) |
 | 169 | 1.0.169| 2026-11-20 11:08| today-week| `4e41327` | Review: the work week starts on the next working day (weekends see Mon–Fri) |
-| 170 | 1.0.170 | 2026-11-20 11:15 | today-week | _this commit_ | _see git log_ |
+| 170 | 1.0.170| 2026-11-20 11:15| today-week| `d3815a8` | Today: one work week at a time; Open only (#30) |
+| 171 | 1.0.171| 2026-11-20 11:36| work-calendar| `d23b44b` | 📍 Location: each project follows its place's weekend and public holidays |
+| 172 | 1.0.172| 2026-11-20 11:49| work-calendar| `0d328d6` | Review: one holiday per date (yours wins), Cancel and older searches never apply, Save waits for the later years, the add row wraps on phone |
+| 173 | 1.0.173 | 2026-11-20 11:59 | work-calendar | _this commit_ | _see git log_ |

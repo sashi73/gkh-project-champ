@@ -231,9 +231,17 @@ export const ARTICLES = [
   { id: 'gantt-settings', a: 'gantt', t: 'Work days, freeze columns and the WBS', w: '#plan/<project>/schedule', k: 'weekend saturday sunday work days freeze columns column width wbs work breakdown structure tree',
     s: 'Count weekends as work days, freeze columns like Excel, and see the plan as a Work Breakdown Structure.',
     subs: [
-      { id: 'weekends', h: 'Weekends', st: ['Tick "Count Saturday and Sunday as work days" in the plan set-up.'] },
+      { id: 'weekends', h: 'Weekends and public holidays', st: ['Set 📍 the location: the schedule follows its weekend (Friday–Saturday in Kedah or Jeddah, Thursday–Friday in Tehran) and its public holidays. See "Location".', 'Tick 📅 Weekends allowed to work every day (public holidays still off).'] },
       { id: 'freeze', h: 'Freeze columns', st: ['Press ❄ and pick how many columns stay put while you scroll. ↺ All columns to normal width resets them.'] },
       { id: 'wbs', h: 'Work Breakdown Structure', st: ['Press 🌳 WBS to see the plan as a tree. Press 🌳 WBS ✕ to go back.'] }
+    ] },
+  { id: 'location', a: 'gantt', t: 'Location: the weekend and public holidays of the place', w: '#plan/<project>/schedule', k: 'location place country state town weekend friday saturday thursday public holidays holiday calendar kedah jeddah tehran malaysia saudi iran work week',
+    s: 'Set where the project is worked: the schedule then skips that place\'s weekend (for example Friday–Saturday in Kedah or Jeddah, Thursday–Friday in Tehran) and its public holidays.',
+    subs: [
+      { id: 'set', h: 'Set the location', st: ['On ▤ Gantt press 📍 Set the location.', 'Type a few letters of the town, state or country (for example Kua, Alor Setar, Jeddah) and pick it from the list.', 'The weekend and the public holidays for the plan\'s years come in; the dates move to fit.'] },
+      { id: 'weekend', h: 'Change the weekend', st: ['Press Weekend: … and tick the days this team does not work (up to three).', 'Weekends allowed still works: the team then works every day except the public holidays.'] },
+      { id: 'holidays', h: 'Public holidays', st: ['Press 📅 Public holidays: ticked days are off and the schedule skips them.', 'Untick a holiday the team will work. Add your own, such as a site shutdown, with the date and ＋ Add.', 'If the plan runs into a later year, the button shows ⚠: open it and press ↻ Add the later years.'], tip: 'Islamic holidays can move a day with the moon sighting: check them nearer the time.' },
+      { id: 'remove', h: 'Back to Monday–Friday', st: ['Press 📍, then Remove the location.'] }
     ] },
   { id: 'gantt-export', a: 'gantt', t: 'Export the Gantt chart', w: '#plan/<project>/schedule', k: 'export gantt picture png jpeg pdf image save print share',
     s: 'Save the Gantt chart as a PNG, JPEG or PDF to put in a report or send.',

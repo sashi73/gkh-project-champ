@@ -12,7 +12,19 @@
   var toS = function (d) { return d.toISOString().slice(0, 10); };
   // Mon-Fri; an emergency plan (v34), or one with "Weekends allowed" ticked (v40), also works Saturday and Sunday. ALL follows the plan being scheduled (set in schedule()).
   var ALL = false;
-  var wk = function (d) { if (ALL) return true; var w = d.getUTCDay(); return w !== 0 && w !== 6; };
+  // ALL: false (Mon–Fri), true (every day), or a work calendar { wk: weekend days (0 Sun … 6 Sat), hol: { date: name } } from 📍 Location
+  var wk = function (d) { if (ALL === true) return true; if (ALL && typeof ALL === 'object') return ALL.wk.indexOf(d.getUTCDay()) < 0 && !ALL.hol[toS(d)]; var w = d.getUTCDay(); return w !== 0 && w !== 6; };
+  function calOf(p) {   // the same rules as the server's allDays()
+    var c = p && p.cal, every = !!(p && (p.emergency || p.weekends));
+    if (!c || !Array.isArray(c.wk)) return every;
+    if (p.emergency) return true;
+    var hol = {}, n = 0; (c.hols || []).forEach(function (h) { if (!h.work) { hol[h.d] = h.n || 'Public holiday'; n++; } });
+    if (!every && !n && c.wk.length === 2 && c.wk.indexOf(0) >= 0 && c.wk.indexOf(6) >= 0) return false;
+    return { wk: every ? [] : c.wk.slice(), hol: hol };
+  }
+  // a day off in the Gantt: the plan's weekend days and public holidays ('' = a work day)
+  function dayOff(p, s) { var A = calOf(p); if (A === true) return ''; var w = toD(s).getUTCDay();
+    if (A && typeof A === 'object') { if (A.hol[s]) return 'hol'; return A.wk.indexOf(w) >= 0 ? 'we' : ''; } return w === 0 || w === 6 ? 'we' : ''; }
   function nextWork(s) { var d = toD(s); while (!wk(d)) d = new Date(d.getTime() + 864e5); return toS(d); }
   function addWork(s, n) { var d = toD(s); while (n > 0) { d = new Date(d.getTime() + 864e5); if (wk(d)) n--; } return toS(d); }
   function workBetween(a, b) { if (!a || !b || b < a) return 0; var n = 0, d = toD(a), e = toD(b); while (d <= e) { if (wk(d)) n++; d = new Date(d.getTime() + 864e5); } return n; }
@@ -64,10 +76,84 @@
   }
   // When can the work start (same rule as the server)? Emergency: straight away, the same day as the site inspection.
   // Otherwise: quote accepted (until then: the quote date) + cooling-off (default 3 business days). "Work starts" can only make it later.
+  /* ---------- 📍 Location: the project's weekend and public holidays ---------- */
+  var DN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var wkName = function (wk) { return (wk || []).slice().sort(function (a, b) { return (a + 6) % 7 - (b + 6) % 7; }).map(function (d) { return DN[d]; }).join('–') || 'none'; };
+  function calYears(p) { var R = rollup(p, today()), y0 = +String(p.start || today()).slice(0, 4), y1 = +String(R.finish || p.finishBy || p.start || today()).slice(0, 4); return { y0: Math.min(y0, +today().slice(0, 4)), y1: Math.max(y1 + 1, y0 + 1) }; }
+  function calBar(p) {
+    var c = p.cal, off = c ? (c.hols || []).filter(function (h) { return !h.work; }).length : 0, Y = calYears(p), stale = c && (Y.y1 > (c.y1 || 0));
+    return '<span class="calbar">' +
+      '<button type="button" class="btn btn-sm calloc" id="pLoc" title="Where the work is done: it sets the weekend and the public holidays the schedule skips">📍 ' + (c ? esc(c.place || 'Location') : 'Set the location') + '</button>' +
+      '<button type="button" class="btn btn-sm calwk" id="pWkDays" title="The weekend at this location (change it if this team works differently)">Weekend: <b>' + esc(c ? wkName(c.wk) : 'Sat–Sun') + '</b></button>' +
+      (c ? '<button type="button" class="btn btn-sm calhol' + (stale ? ' stale' : '') + '" id="pHols" title="' + (stale ? 'The plan now runs past ' + c.y1 + ': open to add the later years' : 'The public holidays the schedule skips; untick one the team will work') + '">📅 Public holidays <b>' + off + '</b>' + (stale ? ' ⚠' : '') + '</button>' : '') +
+      '</span>';
+  }
+  function calSet(p, c, why) { var f0 = rollup(p, today()).finish; p.cal = c; dirty(why); render(); var f1 = rollup(p, today()).finish; if (f0 && f1 && f0 !== f1) toast('📅 ' + why + ': the plan now finishes ' + dmy(f1) + ' (was ' + dmy(f0) + ')'); }
+  function calLoad(p, pick, keep) {   // the place's weekend and holidays for the plan's years (keeps worked days and your own holidays)
+    var Y = calYears(p);
+    return api('planHolidaysGet', { cc: pick.cc, st: pick.st || '', place: pick.place, from: Y.y0, to: Y.y1 }).then(function (d) {
+      var old = {}; ((keep && keep.hols) || []).forEach(function (h) { old[h.d] = h; });
+      var by = {}; d.hols.forEach(function (h) { by[h.d] = old[h.d] && old[h.d].work ? { d: h.d, n: h.n, work: true } : h; });
+      ((keep && keep.hols) || []).forEach(function (h) { if (h.own) by[h.d] = h; });   // your own holiday wins (with its work setting)
+      var hols = Object.keys(by).sort().map(function (k) { return by[k]; });
+      return { place: d.place, cc: d.cc, st: d.st, wk: keep && keep.cc === d.cc && keep.st === d.st && keep.wk ? keep.wk : d.wk, hols: hols, y0: d.from || Y.y0, y1: d.to || Y.y1 };   // the years the server loaded: ⚠ stays if the plan runs past them
+    });
+  }
+  function calWire(p) {
+    var lb = $('#pLoc'); if (lb) lb.onclick = function () { locPick(p); };
+    var wb = $('#pWkDays'); if (wb) wb.onclick = function () { wkPick(p); };
+    var hb = $('#pHols'); if (hb) hb.onclick = function () { holEdit(p); };
+  }
+  function locPick(p) {
+    var c = p.cal, list = [], sel = 0, tm = null, seq = 0;
+    M.modal('<h2>📍 Where is this project worked?</h2><p class="muted">Type a few letters of the town, state or country. It sets the weekend and the public holidays the schedule skips. For example, Alor Setar (Kedah) works Sunday to Thursday.</p>' +
+      '<input id="locQ" type="search" autocomplete="off" placeholder="e.g. Kua, Alor Setar, Jeddah, Tehran" value="" style="width:100%;font-size:16px">' +
+      '<div id="locL" class="loclist"></div>' + (c ? '<p class="muted" style="margin-top:10px">Now: <b>' + esc(c.place) + '</b> · weekend ' + esc(wkName(c.wk)) + '</p>' : '') +
+      '<div class="row" style="margin-top:12px">' + (c ? '<button class="btn" type="button" id="locRm">Remove the location (back to Mon–Fri)</button>' : '') + '<span class="sp"></span><button class="btn" type="button" data-close>Cancel</button></div>');
+    var q = $('#locQ'), L = $('#locL'), live = function () { return document.body.contains(q) && S.plan === p; }; q.focus();
+    var draw = function () { L.innerHTML = list.length ? list.map(function (x, i) { return '<button type="button" class="locit' + (i === sel ? ' on' : '') + '" data-li="' + i + '"><b>' + esc(x.place) + '</b><small>' + esc(x.kind) + ' · weekend ' + esc(x.wkName) + '</small></button>'; }).join('') : (q.value.trim().length >= 2 ? '<p class="muted">No match yet: keep typing, or try the country.</p>' : '');
+      L.querySelectorAll('[data-li]').forEach(function (b) { b.onclick = function () { choose(list[+b.getAttribute('data-li')]); }; }); };
+    var choose = function (x) { if (!x) return; L.innerHTML = '<p class="muted">Loading the public holidays for ' + esc(x.place) + '…</p>';
+      calLoad(p, x, c && c.cc === x.cc && c.st === x.st ? c : null).then(function (cal) { if (!live()) return; M.closeModal(); calSet(p, cal, '📍 ' + cal.place + ' (weekend ' + wkName(cal.wk) + ')'); }).catch(function (e) { if (live()) L.innerHTML = '<p class="bad">' + esc(e.message) + '</p>'; }); };   // Cancelled, or another plan: nothing changes
+    q.oninput = function () { clearTimeout(tm); var my = ++seq, v = q.value.trim(); list = []; sel = 0; if (v.length < 2) { draw(); return; }   // older searches are dropped as you type
+      tm = setTimeout(function () { api('planPlacesGet', { q: v }).then(function (d) { if (my !== seq || !live()) return; list = d.places || []; sel = 0; draw(); }).catch(function (e) { if (my === seq && live()) L.innerHTML = '<p class="bad">' + esc(e.message) + '</p>'; }); }, 250); };
+    q.onkeydown = function (e) { if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); if (list.length) { sel = (sel + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; draw(); } } else if (e.key === 'Enter') { e.preventDefault(); choose(list[sel]); } };
+    var rm = $('#locRm'); if (rm) rm.onclick = function () { M.closeModal(); calSet(p, undefined, 'location removed (Mon–Fri)'); };
+  }
+  function wkPick(p) {
+    if (!p.cal) { toast('Set the location first: 📍 Set the location. It knows the local weekend (for example Friday–Saturday in Kedah or Jeddah).'); locPick(p); return; }
+    var w = p.cal.wk.slice();
+    M.modal('<h2>Weekend at ' + esc(p.cal.place) + '</h2><p class="muted">The days the team does not work each week. Set from the location; change it if this team works differently.</p><div class="wkdays">' +
+      [1, 2, 3, 4, 5, 6, 0].map(function (d) { return '<label class="wkd"><input type="checkbox" data-wd="' + d + '"' + (w.indexOf(d) >= 0 ? ' checked' : '') + '> ' + DN[d] + '</label>'; }).join('') + '</div>' +
+      '<div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn" type="button" data-close>Cancel</button><button class="btn btn-gold" type="button" id="wkOk">Save</button></div>');
+    $('#wkOk').onclick = function () { var n = [].slice.call(document.querySelectorAll('[data-wd]')).filter(function (x) { return x.checked; }).map(function (x) { return +x.getAttribute('data-wd'); });
+      if (n.length > 3) { toast('Three days at most: the rest are work days', true); return; } M.closeModal(); var c = JSON.parse(JSON.stringify(p.cal)); c.wk = n; calSet(p, c, 'weekend ' + wkName(n)); };
+  }
+  function holEdit(p) {
+    var c = JSON.parse(JSON.stringify(p.cal)), Y = calYears(p), stale = Y.y1 > (c.y1 || 0);
+    var body = function () { var by = {}; c.hols.forEach(function (h, i) { (by[h.d.slice(0, 4)] = by[h.d.slice(0, 4)] || []).push(i); });
+      return Object.keys(by).sort().map(function (y) { return '<h3 class="holy">' + y + '</h3>' + by[y].map(function (i) { var h = c.hols[i], dd = toD(h.d);
+        return '<label class="holr' + (h.work ? ' worked' : '') + '"><input type="checkbox" data-hi="' + i + '"' + (h.work ? '' : ' checked') + '><span class="hold">' + DN[dd.getUTCDay()] + ' ' + dmy(h.d) + '</span><span>' + esc(h.n) + (h.own ? ' <small class="muted">(added)</small>' : '') + '</span>' + (h.own ? '<button type="button" class="hrm" data-hx="' + i + '" title="Remove">✕</button>' : '') + '</label>'; }).join(''); }).join('') || '<p class="muted">No public holidays found for these years.</p>'; };
+    M.modal('<h2>📅 Public holidays · ' + esc(c.place) + '</h2><p class="muted">Ticked days are off: the schedule skips them. Untick one the team will work. Islamic holidays can move a day with the moon sighting: check them nearer the time.</p>' +
+      (stale ? '<p class="hc-tip">⚠ The plan now runs into ' + Y.y1 + '; these holidays cover ' + c.y0 + '–' + c.y1 + '. <button class="btn btn-sm" type="button" id="holMore">↻ Add the later years</button></p>' : '') +
+      '<div id="holL" class="holl">' + body() + '</div>' +
+      '<div class="row holadd"><input type="date" id="holD"><input id="holN" placeholder="Add a holiday or shutdown, e.g. Site shutdown" style="flex:1"><button class="btn btn-sm" type="button" id="holAdd">＋ Add</button></div>' +
+      '<div class="row" style="margin-top:12px"><span class="sp"></span><button class="btn" type="button" data-close>Cancel</button><button class="btn btn-gold" type="button" id="holOk">Save</button></div>');
+    var wire = function () {
+      document.querySelectorAll('[data-hi]').forEach(function (x) { x.onchange = function () { var h = c.hols[+x.getAttribute('data-hi')]; if (x.checked) delete h.work; else h.work = true; x.closest('.holr').classList.toggle('worked', !x.checked); }; });
+      document.querySelectorAll('[data-hx]').forEach(function (x) { x.onclick = function (e) { e.preventDefault(); c.hols.splice(+x.getAttribute('data-hx'), 1); $('#holL').innerHTML = body(); wire(); }; });
+    };
+    wire();
+    $('#holAdd').onclick = function () { var d = $('#holD').value, n = $('#holN').value.trim(); if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) { toast('Pick the date', true); return; }
+      c.hols = c.hols.filter(function (h) { return h.d !== d; }).concat([{ d: d, n: n || 'Holiday', own: true }]).sort(function (a, b) { return a.d < b.d ? -1 : 1; }); $('#holL').innerHTML = body(); wire(); $('#holN').value = ''; };
+    var more = $('#holMore'), hl = $('#holL'), open = function () { return document.body.contains(hl) && S.plan === p; };
+    if (more) more.onclick = function () { more.disabled = true; $('#holOk').disabled = true; calLoad(p, c, c).then(function (n) { if (!open()) return; c = n; hl.innerHTML = body(); wire(); more.parentNode.remove(); $('#holOk').disabled = false; }).catch(function (e) { if (!open()) return; toast(e.message, true); more.disabled = false; $('#holOk').disabled = false; }); };
+    $('#holOk').onclick = function () { M.closeModal(); calSet(p, c, 'public holidays updated'); };
+  }
   function coolOf(p) { return 0; }   // Project Champ: no cooling-off period (that was the builder's consumer-law rule)
   function gateOf(p) {
     p.emergency = false;   // Project Champ: no emergency mode
-    ALL = !!(p.emergency || p.weekends);
+    ALL = calOf(p);
     var re = /^\d{4}-\d{2}-\d{2}$/, ws = re.test(p.workStart || '') ? nextWork(p.workStart) : '';
     if (p.emergency) return { date: ws, why: ws ? 'work' : 'emergency' };
     var g = p.gate, q = g && re.test(g.date || '') ? addWork(nextWork(g.date), coolOf(p)) : '';
@@ -85,7 +171,7 @@
     return w + '🔒 Quote <b>' + esc(g.id) + '</b> is not accepted yet. The work waits for acceptance: assuming acceptance on the quote date (' + esc(dmy(g.date)) + '), the work starts <b>' + esc(dmy(gateDate(p))) + '</b>. It moves if the client accepts later.';
   }
   function schedule(p) {
-    ALL = !!(p.emergency || p.weekends);   // emergency, or "Weekends (Sat, Sun) allowed": weekends are work days
+    ALL = calOf(p);   // emergency or "Weekends allowed": every day; 📍 a location: its weekend and public holidays
     var start = nextWork(p.start || today()), byId = {}, gate = holdDate(p), gated = gate ? gatedTasks(p) : [];
     var quoteMs = p.emergency ? p.tasks.filter(function (t) { return t.dur === 0 && /quote/i.test(t.name); })[0] : null;   // emergency: work the same day as the inspection
     p.tasks.forEach(function (t) { byId[t.id] = t; t.es = ''; t.ef = ''; });
@@ -971,7 +1057,7 @@
         '<label style="display:grid;gap:4px;font-weight:700">Start date<input type="date" id="tplStart" value="' + (j.docStart && j.docStart >= today() ? j.docStart : today()) + '" style="width:auto"></label>' +
         '<label style="display:grid;gap:4px;font-weight:700"><span>Finish by <small class="muted" style="font-weight:400">(optional)</small></span><input type="date" id="aiFinish" value="' + esc(S.aiFinish || '') + '" style="width:auto"></label>' +
         '<input type="checkbox" id="tplEmerg" hidden>' +
-        '<label class="qchk" title="Tick if the crew can work Saturday and Sunday: the schedule counts every day and finishes sooner"><input type="checkbox" id="tplWeek"' + (S.tplWeek ? ' checked' : '') + '> 📅 Weekends (Sat, Sun) allowed</label>' +
+        '<label class="qchk" title="Tick if the crew can work Saturday and Sunday: the schedule counts every day and finishes sooner"><input type="checkbox" id="tplWeek"' + (S.tplWeek ? ' checked' : '') + '> 📅 Weekends allowed</label>' +
         '<p class="pdates-note">✨ <b>Not sure of the end date?</b> Leave <b>Finish by</b> empty and choose <b>Ask AI to build it</b>: the AI works out the end date for this job. If you set a Finish by date, the plan is checked against it (and ✨ Fit to finish-by can bring it in).</p>' +
       '</div><div class="tpl-grid tmodes">' +
       [['type', '📋 Pick a project type', CATALOG.reduce(function (a, c) { return a + c.items.length; }, 0) + ' ready-made project types: GKH consulting (ESG, technology, project and program management, training, strategy, change, go-to-market), cloud projects (hosting, migration, Kubernetes, CI/CD, IaC, DR, zero trust), general and fun projects for learning (birthday, wedding, holiday, moving house) and construction. Builds tasks, milestones, example costs and risks.'], ['blank', '⬜ Blank plan', 'Two rows to start from. Add your own tasks.'], ['ai', '✨ Ask AI to build it', 'Describe the project (any industry); AI works out the tasks, sub-tasks, costs, scope and risks, plus tips to help you plan.']]
@@ -2025,12 +2111,17 @@
     var dayW = S.zoom === 'week' ? 7 : 20, days = daysBetween(from, to) + 1, W = days * dayW;
     var x = function (s) { return daysBetween(from, s) * dayW; };
     var firstW = toD(from).getUTCDay(), satOff = ((6 - firstW + 7) % 7) * dayW;
-    var weekendBg = p.emergency || p.weekends ? '' : 'background-image:repeating-linear-gradient(90deg,transparent 0,transparent ' + satOff + 'px,rgba(0,0,0,.045) ' + satOff + 'px,rgba(0,0,0,.045) ' + (satOff + 2 * dayW) + 'px,transparent ' + (satOff + 2 * dayW) + 'px,transparent ' + 7 * dayW + 'px);background-size:' + 7 * dayW + 'px 100%';
+    // the location's weekend days shaded every week, and its public holidays as marks on each row
+    var CAL = calOf(p), weD = CAL === true ? [] : CAL && typeof CAL === 'object' ? CAL.wk : [6, 0], SH = 'rgba(0,0,0,.045)', stops = [];
+    weD.map(function (w) { return (w - firstW + 7) % 7; }).sort(function (a, b) { return a - b; }).forEach(function (o) { stops.push('transparent ' + o * dayW + 'px', SH + ' ' + o * dayW + 'px', SH + ' ' + (o + 1) * dayW + 'px', 'transparent ' + (o + 1) * dayW + 'px'); });
+    var weekendBg = stops.length ? 'background-image:repeating-linear-gradient(90deg,transparent 0,' + stops.join(',') + ',transparent ' + 7 * dayW + 'px);background-size:' + 7 * dayW + 'px 100%' : '';
+    var holMarks = '', holTitle = {};
+    if (CAL && typeof CAL === 'object') Object.keys(CAL.hol).forEach(function (h) { if (h >= from && h <= to) { holTitle[h] = CAL.hol[h]; holMarks += '<i class="ghol" style="left:' + x(h) + 'px;width:' + dayW + 'px" title="' + esc('Public holiday: ' + CAL.hol[h]) + '"></i>'; } });
     var scale = '<div class="gscale" style="width:' + W + 'px">';
     for (var i = 0; i < days; i++) {
       var d = toS(new Date(toD(from).getTime() + i * 864e5)), dd = +d.slice(8), wd = toD(d).getUTCDay();
       if (dd === 1 || i === 0) scale += '<span class="gm" style="left:' + i * dayW + 'px">' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+d.slice(5, 7) - 1] + ' ' + d.slice(2, 4) + '</span>';
-      if (S.zoom === 'day') scale += '<span class="gd' + (wd === 0 || wd === 6 ? ' we' : '') + (d === t0 ? ' td' : '') + '" style="left:' + i * dayW + 'px;width:' + dayW + 'px">' + dd + '</span>';
+      if (S.zoom === 'day') { var dOff = holTitle[d] ? 'hol' : weD.indexOf(wd) >= 0 ? 'we' : ''; scale += '<span class="gd' + (dOff ? ' ' + dOff : '') + (d === t0 ? ' td' : '') + '" style="left:' + i * dayW + 'px;width:' + dayW + 'px"' + (holTitle[d] ? ' title="' + esc(holTitle[d]) + '"' : '') + '>' + dd + '</span>'; }
       else if (wd === 1) scale += '<span class="gd" style="left:' + i * dayW + 'px;width:' + 7 * dayW + 'px">' + dd + '</span>';
     }
     scale += '</div>';
@@ -2045,7 +2136,7 @@
     };
     var html = '<div class="card gcard' + (S.gfull ? ' gfull' : '') + '" id="gCard" style="padding:12px">' + gTool() + '<div class="row" style="margin-bottom:10px">' + (phone() ? '' : '<button class="btn btn-sm gfull-btn" id="gFull" type="button" title="' + (S.gfull ? 'Back to the normal view (Esc)' : 'Edit the plan full screen, with a toolbar: add levels 1, 1.1 and 1.1.1, indent, outdent, bold, colours and more') + '">' + (S.gfull ? '⤡ Exit full screen' : '⛶ Full screen') + '</button>') + (phone() ? '<button class="btn btn-sm" id="mpsList" type="button">📋 List</button>' : '') + '<button class="btn btn-sm btn-gold" id="addTask">＋ Task</button><button class="btn btn-sm" id="addMile">◆ Milestone</button><button class="btn btn-sm est-ai" id="estAi" type="button" title="AI fills in indicative costs from Australian and international benchmarks: a reference only, to review and change">✨ Indicative costs</button><button class="btn btn-sm" id="depAi" type="button" title="The AI works out which tasks must finish before each one starts (After #), with parallel work where it can. You review the links before anything changes.">🔗 Work out dependencies</button>' + (S.depUndo && S.depUndo.core === S.core ? '<button class="btn btn-sm" id="depUndo" type="button" title="Put the links back as they were before">↶ Undo links</button>' : '') +
       '<div class="qgate' + (p.emergency ? ' emerg' : p.gate && p.gate.accepted ? ' ok' : '') + '"><div class="qrow"><input type="checkbox" id="pEmerg" hidden>' +
-        '<label class="qchk" title="' + (p.emergency ? 'Emergency jobs already work Saturday and Sunday' : 'Tick if the crew can work Saturday and Sunday on this job: the schedule then counts every day and finishes sooner') + '"><input type="checkbox" id="pWeek"' + (p.emergency || p.weekends ? ' checked' : '') + (p.emergency ? ' disabled' : '') + '> 📅 Weekends (Sat, Sun) allowed</label>' +
+        '<label class="qchk" title="' + (p.emergency ? 'Emergency jobs already work Saturday and Sunday' : 'Tick if the team can work its weekend days on this job: the schedule then counts every day (public holidays still off) and finishes sooner') + '"><input type="checkbox" id="pWeek"' + (p.emergency || p.weekends ? ' checked' : '') + (p.emergency ? ' disabled' : '') + '> 📅 Weekends allowed</label>' + calBar(p) +
         '<select id="pCool" hidden><option value="0" selected>0</option></select></div><div>' + gateText(p) + '</div></div>' +
       fitBar(p, R) + estBanner(p) +
       '<span class="muted phint" style="font-size:12.5px">To move a task, type its new number in <b>#</b> (1 = first) or drag <b>⠿</b>. Sub-tasks move inside their own task. Days are working days (' + (p.emergency ? 'emergency: every day, Saturday and Sunday included' : p.weekends ? 'weekends allowed: every day, Saturday and Sunday included' : 'Mon–Fri') + '). “After #” = starts when those rows finish. Moving a card on the Board updates the % here.</span>' +
@@ -2080,7 +2171,7 @@
         '<td><input data-k="pct" type="number" min="0" max="100" step="1" value="' + t.pct + '" style="width:54px"' + (subs.length ? ' disabled title="Worked out from the sub-tasks"' : '') + '></td>' +
         '<td class="acts">' + lvlBtns(1, t.dur > 0 && prevL1(p, t) && !(t.subs || []).some(function (x) { return (x.steps || []).length; }), false, t.dur === 0 ? 'A milestone stays at level 1' : !prevL1(p, t) ? 'The first task has nothing above it to go under' : 'Move its steps out first: a sub-task has only one level below it') + '<button class="btn btn-sm" data-rem title="Reminder">🔔</button><button class="btn btn-sm" data-del title="Delete">✕</button></td>' +
         '</tr>';
-      G += '<tr data-gtid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack" style="width:' + W + 'px;' + weekendBg + '">' + todayLine + bar(t, base) + '</div></td></tr>';
+      G += '<tr data-gtid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack" style="width:' + W + 'px;' + weekendBg + '">' + holMarks + todayLine + bar(t, base) + '</div></td></tr>';
       if (open) subs.forEach(function (sb, j) {
         var d = subDates(t, sb), sl = sb.status !== 'done' && d.ef && d.ef < t0, maxDur = Math.max(1, t.dur) - sb.off;
         var left = d.es ? x(d.es) : 0, sw = d.es ? (daysBetween(d.es, d.ef) + 1) * dayW : 0;
@@ -2098,7 +2189,7 @@
           '<td class="muted"' + (stp.length ? ' title="From its steps (weighted by days)"' : '') + '>' + subPct(sb) + '</td>' +
           '<td class="acts">' + lvlBtns(2, j > 0 && !stp.length, true, j === 0 ? 'The first sub-task has no sub-task above it to go under' : 'It has steps: a step cannot have steps of its own') + '<button class="btn btn-sm" data-srem title="Reminder">🔔</button><button class="btn btn-sm" data-sdel title="Delete sub-task">✕</button></td>' +
           '</tr>';
-        G += '<tr data-gsid="' + esc(sb.id) + '" data-gptid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack gtrack-sub" style="width:' + W + 'px;' + weekendBg + '">' + todayLine + (d.es ? '<span class="gsub st-' + sb.status + ' pb-' + pband(subPct(sb)) + (sl ? ' late' : '') + '" style="left:' + left + 'px;width:' + sw + 'px" title="' + esc(sb.name + ' · ' + pretty(d.es) + ' – ' + pretty(d.ef) + ' · ' + stName[sb.status]) + '"><span class="gfill" style="width:' + subPct(sb) + '%"></span></span><span class="glab" style="left:' + (left + sw + 4) + 'px">' + esc(sb.owner || '') + '</span>' : '') + '</div></td></tr>';
+        G += '<tr data-gsid="' + esc(sb.id) + '" data-gptid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack gtrack-sub" style="width:' + W + 'px;' + weekendBg + '">' + holMarks + todayLine + (d.es ? '<span class="gsub st-' + sb.status + ' pb-' + pband(subPct(sb)) + (sl ? ' late' : '') + '" style="left:' + left + 'px;width:' + sw + 'px" title="' + esc(sb.name + ' · ' + pretty(d.es) + ' – ' + pretty(d.ef) + ' · ' + stName[sb.status]) + '"><span class="gfill" style="width:' + subPct(sb) + '%"></span></span><span class="glab" style="left:' + (left + sw + 4) + 'px">' + esc(sb.owner || '') + '</span>' : '') + '</div></td></tr>';
         if (sOpen) stp.forEach(function (q, k) {
           var qd = stepDates(t, sb, q), ql = !q.done && qd.ef && qd.ef < t0, qMax = Math.max(1, sb.dur) - q.off, ql2 = qd.es ? x(qd.es) : 0, qw = qd.es ? (daysBetween(qd.es, qd.ef) + 1) * dayW : 0;
           html += '<tr class="tstep' + (q.done ? ' tdone' : '') + (ql ? ' tlate' : '') + '" data-qid="' + esc(q.id) + '" data-qsid="' + esc(sb.id) + '" data-qtid="' + esc(t.id) + '"><td class="muted nowrap stepn">' + r.n + '.' + (j + 1) + '.' + (k + 1) + '</td>' +
@@ -2108,7 +2199,7 @@
             '<td><input data-qk="start" type="date" value="' + esc(qd.es) + '" min="' + esc(d.es) + '" max="' + esc(d.ef) + '" title="Between ' + esc(dmy(d.es)) + ' and ' + esc(dmy(d.ef)) + ' (the story\'s dates)"></td>' +
             '<td class="nowrap">' + esc(dmy(qd.ef)) + '</td><td class="muted" style="font-size:11px">in #' + r.n + '.' + (j + 1) + '</td><td></td><td></td><td></td><td class="muted subcost">–</td><td></td>' +
             '<td class="muted" style="font-size:11.5px">' + (q.done ? '✓ Done' : ql ? 'Late' : 'To do') + '</td><td class="muted">' + (q.done ? 100 : 0) + '</td><td class="acts">' + lvlBtns(3, false, true) + '<button class="btn btn-sm" data-qrem title="Reminder">🔔</button><button class="btn btn-sm" data-qdel title="Delete step">✕</button></td></tr>';
-          G += '<tr data-gqid="' + esc(q.id) + '"><td class="gcol"><div class="gtrack gtrack-step" style="width:' + W + 'px;' + weekendBg + '">' + todayLine + (qd.es ? '<span class="gstep' + (q.done ? ' done' : '') + (ql ? ' late' : '') + '" style="left:' + ql2 + 'px;width:' + qw + 'px" title="' + esc(q.name + ' · ' + pretty(qd.es) + (qd.ef !== qd.es ? ' – ' + pretty(qd.ef) : '') + (q.done ? ' · done' : '')) + '"></span>' + (q.done ? '<span class="glab gstep-l" style="left:' + (ql2 + qw + 3) + 'px">✓</span>' : '') : '') + '</div></td></tr>';
+          G += '<tr data-gqid="' + esc(q.id) + '"><td class="gcol"><div class="gtrack gtrack-step" style="width:' + W + 'px;' + weekendBg + '">' + holMarks + todayLine + (qd.es ? '<span class="gstep' + (q.done ? ' done' : '') + (ql ? ' late' : '') + '" style="left:' + ql2 + 'px;width:' + qw + 'px" title="' + esc(q.name + ' · ' + pretty(qd.es) + (qd.ef !== qd.es ? ' – ' + pretty(qd.ef) : '') + (q.done ? ' · done' : '')) + '"></span>' + (q.done ? '<span class="glab gstep-l" style="left:' + (ql2 + qw + 3) + 'px">✓</span>' : '') : '') + '</div></td></tr>';
         });
       });
     });
@@ -2139,6 +2230,7 @@
     $('#pStart').onchange = function () { if (this.value && p.finishBy && this.value > p.finishBy) { toast('The project can\'t start after your Finish by date (' + dmy(p.finishBy) + '). Move Finish by later first, or clear it.', true); render(); return; } if (this.value) { var f0 = rollup(p, today()).finish; p.start = this.value; dirty(); render(); afterDates(f0, 'the project start changed'); } };
     $('#pWork').onchange = function () { setWorkStart(this.value); };
     $('#pFinishBy').onchange = function () { var first = p.workStart && p.workStart > p.start ? p.workStart : p.start; if (this.value && this.value < first) { toast('Finish by can\'t be before the ' + (first === p.start ? 'project starts' : 'work starts') + ' (' + dmy(first) + ').', true); render(); return; } p.finishBy = this.value || ''; S.fitUndo = null; dirty('finish by ' + (p.finishBy || 'cleared')); render(); afterDates('', 'Finish by changed'); };
+    calWire(p);
     $('#pWeek').onchange = function () { var f0 = rollup(p, today()).finish; p.weekends = this.checked; dirty(p.weekends ? 'weekends allowed' : 'weekdays only'); render(); var Rw = rollup(p, today()); toast(p.weekends ? '📅 Saturday and Sunday are work days now: finishes ' + dmy(Rw.finish) : 'Weekdays only (Mon–Fri): finishes ' + dmy(Rw.finish)); afterDates(f0, 'weekend work changed'); };
     var fw = $('#fitWeek'); if (fw) fw.onclick = function () { var f0 = rollup(p, today()).finish; p.weekends = true; dirty('weekends allowed'); render(); toast('📅 Weekends allowed: finishes ' + dmy(rollup(p, today()).finish)); afterDates(f0, ''); };
     var fg = $('#fitGo'); if (fg) fg.onclick = fitRun;
