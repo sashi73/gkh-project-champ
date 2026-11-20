@@ -170,7 +170,7 @@ export async function cashFlow(day, plans, docs) {
     unscheduled: F.unscheduled || 0, lateIn: r2((F.expected || []).filter((e) => e.late).reduce((a, e) => a + e.amount, 0)) };
 }
 
-// 🧭 Ask Champ on the CEO view: a strategy adviser in the tradition of Peter Drucker and Michael Porter, answering from the portfolio's own figures
+// 🧭 Ask Champ on the CEO view: Champ, in control of the whole project environment (RAG over the documents and plans), with an executive strategy layer
 // every project's people and facts, so "who is the customer / project manager / owner of X?" gets a straight answer
 async function projectFacts(day, V) {
   const [plans, jobs, programs, U] = await Promise.all([P.list(), J.all(), PG.list(), import('./users.mjs')]);
@@ -184,19 +184,45 @@ async function projectFacts(day, V) {
       budget: r.budget, spent: r.spent, forecast_cost: r.eac, contract: r.contract || r.quoted || 0, invoiced: r.invoiced, received: r.received,
       stakeholders: (p.stakeholders || []).filter((x) => x.name).slice(0, 12).map((x) => ({ name: x.name, role: x.role || '', raci: x.raci || '', organisation: x.org || x.company || undefined })) }; });
 }
+// 🔎 RAG across the whole project environment: every project's documents (their readable text) and its plan (tasks, risks, issues,
+// changes, stakeholders, charter), ranked by the question's words, so Champ answers from what is actually in Champ
+async function rag(q) {
+  const words = [...new Set(String(q || '').toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) || [])].filter((w) => !/^(the|and|for|who|what|when|where|which|how|with|our|are|is|this|that|from|about|project|projects|please|tell|show)$/.test(w)).slice(0, 12);
+  if (!words.length) return { documents: [], plan_items: [] };
+  const DMS = await import('./dms.mjs'), plans = await P.list(), docs = [], items = [];
+  const score = (t) => { const low = String(t || '').toLowerCase(); let sc = 0; for (const w of words) { const k = low.split(w).length - 1; if (k) sc += 1 + Math.log(1 + k); } return sc; };
+  await Promise.all(plans.slice(0, 80).map(async (p) => {
+    try { const h = await DMS.search(p.core, q); for (const x of (h.hits || []).slice(0, 5)) docs.push({ project: p.name, document: x.name, folder: x.folder, page: x.page || undefined, score: x.score, text: x.text }); } catch (e) {}
+    const add = (kind, text, extra) => { const sc = score(text); if (sc > 0) items.push({ project: p.name, kind, text: String(text).slice(0, 260), score: sc, ...extra }); };
+    const c = p.charter || {}; add('charter', [c.objective, c.inScope, c.outScope, c.deliverables, c.acceptance, c.assumptions].filter(Boolean).join(' | '));
+    for (const t of p.tasks || []) add('task', t.name, { start: t.es, finish: t.ef, pct: t.pct || 0, people: (t.res || []).join(', ') || undefined });
+    for (const r of p.risks || []) add('risk', r.title + (r.action ? ' — ' + r.action : ''), { score_pxi: (r.p || 0) * (r.i || 0), owner: r.owner, status: r.status });
+    for (const x of p.issues || []) add('issue', x.title + (x.resolution ? ' — ' + x.resolution : ''), { priority: x.priority, owner: x.owner, status: x.status, due: x.due });
+    for (const x of p.changes || []) add('change request', x.title, { status: x.status });
+    for (const x of p.stakeholders || []) add('stakeholder', [x.name, x.role, x.org].filter(Boolean).join(', '), { raci: x.raci });
+    for (const t of p.tasks || []) for (const n of t.stickies || []) add('sticky note', n.text, { on: t.name, by: n.by, due: n.due || undefined, done: !!n.done });
+  }));
+  docs.sort((a, b) => b.score - a.score); items.sort((a, b) => b.score - a.score);
+  return { documents: docs.slice(0, 14).map((d) => ({ ...d, score: undefined })), plan_items: items.slice(0, 30).map((d) => ({ ...d, score: undefined })) };
+}
 export async function ask(day, q, history) {
   const AI = await import('./ai.mjs');
   await AI.checkLimit();
   const { facts, verdict, V } = await factsOf(day);
   facts.projects_detail = await projectFacts(day, V).catch(() => []);
-  const sys = 'You are Champ in strategy-adviser mode, advising the CEO of the company that runs this project portfolio. Reason with these strategic ideas, applied to the figures, but never name authors or theories in the answer: ' +
+  facts.search = await rag(q).catch(() => ({ documents: [], plan_items: [] }));
+  const sys = 'You are Champ, the AI inside GKH Project Champ, talking with the CEO on the CEO view. You are in control of the whole project environment: every program and project, its people, schedule, risks, issues, changes, sticky notes, documents and money. ' +
+    'Answer anything about it from the data given: projects_detail (who is who and the key facts of each project), search (what Champ found in the documents and plans for this question: quote the document and page or the task, risk or note it came from), and the portfolio figures. ' +
+    'Match projects and people by name even when the user spells them loosely. If the data does not hold the answer, say exactly what is missing in Champ and where to add it. Never invent names, numbers or dates. ' +
+    'On top of that you think like a seasoned executive and strategist. Reason with these ideas when a question is about direction, priorities or money, but never name authors or theories: ' +
     'Drucker: what is our business and who is the customer; results come from opportunities, not problems; management by objectives and by exception; effectiveness (doing the right things) before efficiency; planned abandonment of what no longer earns its keep; concentrate scarce resources on the few things that matter; cash and knowledge workers as the real constraints. ' +
     'Porter: competitive advantage through a clear position (cost leadership, differentiation or focus) and avoiding being stuck in the middle; the five forces (clients\' bargaining power, suppliers and subcontractors, rivals, substitutes, new entrants); the value chain and where margin is made or lost; strategy is choosing what not to do (trade-offs) and fit between activities. ' +
-    `The portfolio verdict is ${verdict} (fixed by rules). Be objective and specific: use only the figures given; name programs and projects; money in $ rounded; no jargon. If the question is outside the data, say what you would need. ` +
-    'Two kinds of question. A FACT question (who is the customer, the project manager, the owner or sponsor, the program director, the stakeholders, dates, status, budget, contract of a project or program): answer it directly and precisely from projects_detail, matching the project by name or ref even if the user spells it loosely (e.g. "scmp master plan"); say plainly if a field is empty in Champ; leave options, decision and measures empty. ' +
-    'A STRATEGY question: answer as a short strategy decision report: answer (2-3 sentences, the direct answer and your recommendation), options (2-3 options, each {option, upside, downside}), decision (one sentence: what you would decide and why, in plain business terms), measures (2-3 things to track, each under 10 words), say (the answer and the decision in 2-3 spoken sentences, under 70 words). No markdown. ' +
+    `The portfolio verdict is ${verdict} (fixed by rules). Be objective and specific; money in $ rounded; no jargon. ` +
+    'For a FACT question (who, what, when, where, how much, status, what does a document say): answer directly in 1-4 sentences, citing the source; leave options, decision and measures empty. ' +
+    'For a STRATEGY question (what should we do, where to focus, how to fix, which to back or stop): answer (2-3 sentences, the direct answer and your recommendation), options (2-3, each {option, upside, downside}), decision (one sentence, in plain business terms), measures (2-3 things to track, each under 10 words). ' +
+    'say: the answer in 1-3 spoken sentences, under 70 words. No markdown. ' +
     'JSON only: {"answer":"","options":[{"option":"","upside":"","downside":""}],"decision":"","measures":[""],"say":""}';
-  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Portfolio figures: ' + JSON.stringify(facts) }];
+  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Champ data: ' + JSON.stringify(facts).slice(0, 60000) }];
   for (const h of (Array.isArray(history) ? history : []).slice(-4)) { if (h && h.q && h.a) { msgs.push({ role: 'user', content: String(h.q).slice(0, 400) }); msgs.push({ role: 'assistant', content: String(h.a).slice(0, 800) }); } }
   msgs.push({ role: 'user', content: String(q).slice(0, 600) });
   const r = await AI.llmJson(msgs, { maxTokens: 1100, timeoutMs: 90000, temperature: 0.3 });

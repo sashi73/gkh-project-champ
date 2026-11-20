@@ -437,14 +437,13 @@
   // 🧭 on the CEO view Champ is a strategy adviser (the ideas of Drucker and Porter, never named to the user): questions go to the CEO screen's own adviser (admin-ceo.js)
   var stratOn = function () { return /^#ceo(\/|$)/.test(location.hash) && !!M.ceoAsk; };
   function stratMode() {
-    var p = $('#cgPanel'); if (!p) return; var on = stratOn(), b = p.querySelector('.cgp-h b'); if (b) b.textContent = on ? '🧭 Strategy adviser' : 'Champ';
-    p.classList.toggle('cgp-strat', on); var q = $('#cgQ'); if (q) q.placeholder = on ? 'Ask a strategy question about the portfolio…' : 'Ask me anything…';
-    if (on && !p.getAttribute('data-strat')) { p.setAttribute('data-strat', '1'); tr(['I am your strategy adviser while you are on the CEO view, working from your portfolio\'s own figures. Ask me where to focus, what to stop, how to fix the cash, or which programs to back.']).then(function (x) { say('bot', x[0]); }); }
+    var p = $('#cgPanel'); if (!p) return; var on = stratOn();   // still Champ: same name and look, with the whole project environment and an executive layer behind it
+    if (on && !p.getAttribute('data-strat')) { p.setAttribute('data-strat', '1'); tr(['Ask me anything about your projects: who the customer or project manager is, what a contract or document says, what is late, the risks, the money, or what we should do next. I search everything in Champ to answer.']).then(function (x) { say('bot', x[0]); }); }
     if (!on) p.removeAttribute('data-strat');
   }
   window.addEventListener('hashchange', stratMode);
   function stratAsk(q) {
-    var wait = say('bot', '🧭 Thinking it through…');
+    var wait = say('bot', '🔎 Searching your projects…');
     M.ceoAsk(q).then(function (a) {
       if (wait) wait.remove(); var d = say('bot', ''); lastBot = a.say || a.answer;
       d.innerHTML = '<div class="cgp-rep"><p>' + esc(a.answer) + '</p>' + (a.options && a.options.length ? '<b>Options</b><ol>' + a.options.map(function (o) { return '<li><b>' + esc(o.option) + '</b><br><span class="up">▲ ' + esc(o.upside) + '</span><br><span class="dn">▼ ' + esc(o.downside) + '</span></li>'; }).join('') + '</ol>' : '') +
