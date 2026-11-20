@@ -61,15 +61,17 @@
     var c = '<div class="ceo-ts">' + tile('Budget', money(A.budget), A.n + ' live project' + (A.n === 1 ? '' : 's')) + tile('Spent to date', money(A.spent), A.budget ? Math.round(A.spent / A.budget * 100) + '% of budget' : '') +
       tile('Value earned', money(A.earned), 'work done, at budget rates') + tile('Forecast at completion', money(A.eac), 'at today\'s cost rate') +
       tile(A.vac < -0.5 ? 'Forecast overspend' : 'Forecast under budget', money(Math.abs(A.vac)), A.budget ? Math.round(Math.abs(A.vac) / A.budget * 100) + '% of budget' : '', A.vac < -0.5 ? 'neg' : 'pos') + '</div>';
+    if (!A.contract && !A.quoted && !A.invoiced && !A.received) return '<h4 class="ceo-sub">Cost</h4>' + c + '<h4 class="ceo-sub">Revenue and profit</h4><div class="ceo-none">💡 <b>Not tracked yet.</b> No project has an accepted quote or an invoice in Champ, so contract value, invoiced, received and profit cannot be worked out. They fill in as soon as quotes and invoices are recorded against projects.</div>';
     var r = '<div class="ceo-ts">' + tile('Contract value', money(A.contract), A.quoted ? '+ ' + money(A.quoted) + ' quoted, not yet accepted' : 'accepted quotes') +
       tile('Invoiced', money(A.invoiced), A.price ? Math.round(A.invoiced / A.price * 100) + '% of the price' : '') + tile('Received', money(A.received), A.invoiced ? Math.round(A.received / A.invoiced * 100) + '% of invoiced' : '') +
       tile('Still owed', money(A.owed), A.overdue ? '<b class="ceo-neg">' + money(A.overdue) + ' overdue</b>' : 'none overdue', A.overdue ? 'neg' : '') +
       tile('Forecast profit', A.profit == null ? '–' : money(A.profit), A.margin == null ? 'no prices yet' : A.margin + '% margin' + (A.unpriced ? ' · ' + A.unpriced + ' project' + (A.unpriced === 1 ? '' : 's') + ' not priced' : ''), A.profit != null && A.profit < 0 ? 'neg' : 'pos') + '</div>';
     return '<h4 class="ceo-sub">Cost</h4>' + c + '<h4 class="ceo-sub">Revenue and profit</h4>' + r;
   }
+  function pill(c, n, w) { return n ? '<span class="ceo-pill ' + c + '" title="' + n + ' project' + (n === 1 ? '' : 's') + ' ' + w + '">' + n + '</span>' : ''; }
   function programs(P) {
     return '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Program</th><th>Health</th><th class="num">Budget</th><th class="num">Spent</th><th class="num">Forecast</th><th class="num">Over / under</th><th class="num">Contract</th><th class="num">Invoiced</th><th class="num">Received</th><th class="num">Profit</th></tr></thead><tbody>' +
-      P.map(function (p) { return '<tr><td><b>' + esc(p.name) + '</b><small>' + p.n + ' project' + (p.n === 1 ? '' : 's') + '</small></td><td class="nowrap">' + (p.red ? '<span class="ceo-pill red">' + p.red + '</span>' : '') + (p.amber ? '<span class="ceo-pill amber">' + p.amber + '</span>' : '') + (p.green ? '<span class="ceo-pill green">' + p.green + '</span>' : '') + '</td>' +
+      P.map(function (p) { return '<tr><td><b>' + esc(p.name) + '</b><small>' + p.n + ' project' + (p.n === 1 ? '' : 's') + '</small></td><td class="nowrap">' + pill('red', p.red, 'in trouble') + pill('amber', p.amber, 'at risk') + pill('green', p.green, 'on track') + '</td>' +
         '<td class="num">' + money(p.budget) + '</td><td class="num">' + money(p.spent) + '</td><td class="num">' + money(p.eac) + '</td><td class="num">' + (p.vac < -0.5 ? '<b class="ceo-neg">' + money(p.vac) + '</b>' : '<span class="ceo-pos">' + money(p.vac) + '</span>') + '</td>' +
         '<td class="num">' + money(p.contract || p.quoted) + '</td><td class="num">' + money(p.invoiced) + '</td><td class="num">' + money(p.received) + '</td><td class="num">' + (p.profit == null ? '<span class="muted">–</span>' : '<b class="' + (p.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + money(p.profit) + '</b><small>' + p.margin + '%</small>') + '</td></tr>'; }).join('') + '</tbody></table></div>';
   }
@@ -84,7 +86,7 @@
       '<div class="table-wrap"><table class="ceo-tab ceo-rows"><thead><tr><th></th><th>Project</th><th class="hide-sm">Phase</th><th>Done</th><th>SPI</th><th>CPI</th><th>Finish</th><th class="num">Cost vs budget</th><th class="num">Profit</th></tr></thead><tbody>' + rowsHtml(L) + '</tbody></table></div></section>' +
       '<section class="card ceo-s"><h3>2 · Where\'s the money?</h3>' + money2(A) +
       '<div class="ceo-2"><div><h4 class="ceo-sub">Cash flow by month</h4>' + flowChart(D.flow) + '</div><div><h4 class="ceo-sub">Biggest forecast overspends</h4>' + ov + '</div></div>' +
-      '<h4 class="ceo-sub">By program</h4>' + programs(D.byProgram) + '</section>' +
+      '<h4 class="ceo-sub">By program</h4><p class="ceo-legend">Health: how many of the program\'s projects are <span class="ceo-pill red">n</span> in trouble, <span class="ceo-pill amber">n</span> at risk and <span class="ceo-pill green">n</span> on track. Over / under: forecast cost against budget.</p>' + programs(D.byProgram) + '</section>' +
       '<p class="muted ceo-note">Red: SPI or CPI under 0.90, or serious slippage, overspend, late work or risks (the same rules as Champ\'s watch). Amber: slipping. Forecast at completion = budget ÷ CPI. Profit = contract value (or the open quote) − forecast cost. Amounts exclude tax.</p></div>';
     var v = M.view();
     v.querySelectorAll('[data-hf]').forEach(function (b) { b.onclick = function () { draw(filter === b.getAttribute('data-hf') ? '' : b.getAttribute('data-hf')); }; });

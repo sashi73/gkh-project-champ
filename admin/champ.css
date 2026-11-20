@@ -941,3 +941,7 @@ input.dayno{animation:dayno .9s ease 2;border-color:#DC2626!important}
   body:has(.ceo) .main{margin:0!important;padding:0!important}.ceo-s{break-inside:avoid;box-shadow:none!important}.ceo-rows tbody tr{break-inside:avoid}}
 /* 👔 the CEO's menu: read-only, so no "New project" */
 body.is-ceo [data-nav="projnew"]{display:none!important}
+.ceo-legend{margin:-2px 0 8px;font-size:12.5px;color:var(--muted,#6B6657)}
+.ceo-legend .ceo-pill{min-width:0;padding:0 6px;font-size:10.5px}
+.ceo-none{padding:12px 14px;border-radius:12px;background:#FFFBEB;border:1px solid #FCD34D;font-size:13.5px;color:#713F12}
+.ceo-pill{cursor:help}
