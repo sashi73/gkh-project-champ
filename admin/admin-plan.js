@@ -3146,6 +3146,21 @@
     var n = ordered().filter(function (x) { return x.t.id === tid; })[0], me = (M.me && (M.me.name || M.me.user)) || 'Admin', ro = !!(M.me && M.me.scope && (M.me.mods || {}).projects !== 'edit');
     S.stkEdit = null; var first = true, pop = document.createElement('div'); pop.id = 'stkPop'; pop.className = 'stkpop' + (S.stkBig ? ' big' : ''); document.body.appendChild(pop);
     var when = function (ms) { return new Date(ms).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); };
+    // #risk / #issue on a note: it goes into the risk register / issue log by itself (once), with its owner, colour and date
+    var linkedTo = function (x, k) { return new RegExp('(^| )' + k + ':').test(x.linked || ''); };
+    var toReg = function (x, only) {
+      var got = [];
+      tagsOfNote(x).filter(function (k) { return (k === 'risk' || k === 'issue') && (!only || only.indexOf(k) >= 0) && !linkedTo(x, k); }).forEach(function (k) {
+        var plain = String(x.text).replace(TAG_RX, '$1').replace(/\s+/g, ' ').trim(), title = plain.slice(0, 160), who = (String(x.text).match(/@([\p{L}][\p{L}\p{M}.'-]*(?: [\p{L}][\p{L}\p{M}.'-]*){0,3})/u) || [])[1] || x.by || '';
+        var reg = (p.stakeholders || []).filter(function (h) { return h.name && who.toLowerCase().indexOf(String(h.name).toLowerCase()) === 0; })[0]; if (reg) who = reg.name;
+        var id = (k === 'risk' ? 'r' : 'i') + Date.now().toString(36) + Math.random().toString(36).slice(2, 4), from = ' (from a note on #' + (n ? n.n : '') + ' ' + String(t.name).replace(/^[✓◆\s]+/, '').slice(0, 60) + ')';
+        if (k === 'risk') { p.risks = p.risks || []; p.risks.push({ id: id, title: title, cause: (plain.length > 160 ? plain : '') + from, p: 3, i: x.c === 'R' ? 4 : 3, response: 'Mitigate', action: '', owner: who, review: x.due || '', status: 'Open', raised: today() }); }
+        else { p.issues = p.issues || []; p.issues.push({ id: id, title: title, detail: (plain.length > 160 ? plain : '') + from, priority: x.c === 'R' ? 'High' : 'Medium', owner: who, raised: today(), due: x.due || '', status: 'Open', resolution: '' }); }
+        x.linked = ((x.linked || '') + ' ' + k + ':' + id).trim(); got.push([k, title]);
+      });
+      return got;
+    };
+    var regToast = function (got) { if (!got.length) return; setTimeout(function () { M.toast(got.map(function (g) { return g[0] === 'risk' ? '⚠ Added to the risk register' : '❗ Added to the issue log'; }).join(' and ') + ': ' + got[0][1].slice(0, 60)); }, 300); };
     var draw = function () {
       var L = (t.stickies || []).slice().sort(function (a, b) { return (a.done - b.done) || (b.at - a.at); }), col = S.stkCol || 'G';
       pop.innerHTML = '<div class="stk-h" title="Drag to move the note"><span class="stk-grip">⠿</span><b>🗒 Notes</b><span class="stk-t">#' + (n ? n.n : '') + ' ' + esc(String(t.name).replace(/^[✓◆\s]+/, '')) + '</span>' + (Date.now() - (S.stkSaved || 0) < 2500 ? '<span class="stk-ok">✓ Saved</span>' : '') + '<span class="sp"></span><button type="button" class="stk-x" data-sbig title="' + (S.stkBig ? 'Make smaller' : 'Expand') + '">' + (S.stkBig ? '⤡' : '⤢') + '</button><button type="button" class="stk-x" data-sclose title="Close">✕</button></div>' +
@@ -3155,7 +3170,7 @@
               '<label class="stk-ck" title="' + (x.done ? 'Done: untick to open it again' : 'Tick when it is done') + '"><input type="checkbox" data-sdone' + (x.done ? ' checked' : '') + (ro ? ' disabled' : '') + '></label>' +
               (x.done ? '<span class="stk-tag stk-alldone">✓ All done</span>' : '<span class="stk-tag">' + STK[x.c][0] + '</span>') + (items.length ? '<span class="stk-cnt">' + ticked + '/' + items.length + '</span>' : '') +
               '<small>' + esc(x.by || '') + ' · ' + esc(when(x.at)) + (x.due ? ' · due ' + esc(pretty(x.due)) : '') + (x.editedAt ? ' · edited' + (x.editedBy && x.editedBy !== x.by ? ' by ' + esc(x.editedBy) : '') : '') + (x.done ? ' · done' + (x.doneBy ? ' by ' + esc(x.doneBy) : '') : '') + '</small><span class="sp"></span>' +
-              (ro || ed || x.done ? '' : tagsOfNote(x).filter(function (k) { return k === 'risk' || k === 'issue'; }).map(function (k) { return x.linked && x.linked.indexOf(k + ':') === 0 ? '<span class="stk-linked" title="Already in the ' + (k === 'risk' ? 'risk register' : 'issue log') + '">✓ in ' + (k === 'risk' ? 'risks' : 'issues') + '</span>' : '<button type="button" class="stk-to" data-s2="' + k + '" title="Copy this note into the ' + (k === 'risk' ? 'risk register' : 'issue log') + '">' + (k === 'risk' ? '⚠ → Risks' : '❗ → Issues') + '</button>'; }).join('')) + (ro || ed ? '' : '<button type="button" data-sed title="Edit this note">✏</button><button type="button" data-sdel title="Delete this note">🗑</button>') + '</div>' +
+              (ro || ed || x.done ? '' : tagsOfNote(x).filter(function (k) { return k === 'risk' || k === 'issue'; }).map(function (k) { return linkedTo(x, k) ? '<span class="stk-linked" title="Already in the ' + (k === 'risk' ? 'risk register' : 'issue log') + '">✓ in ' + (k === 'risk' ? 'risks' : 'issues') + '</span>' : '<button type="button" class="stk-to" data-s2="' + k + '" title="Copy this note into the ' + (k === 'risk' ? 'risk register' : 'issue log') + '">' + (k === 'risk' ? '⚠ → Risks' : '❗ → Issues') + '</button>'; }).join('')) + (ro || ed ? '' : '<button type="button" data-sed title="Edit this note">✏</button><button type="button" data-sdel title="Delete this note">🗑</button>') + '</div>' +
               (ed ? '<div class="stk-ed"><textarea data-setx rows="' + Math.max(3, Math.min(10, String(x.text).split('\n').length + 1)) + '" maxlength="1500">' + esc(x.text) + '</textarea><div class="stk-row">' +
                 ['R', 'A', 'G'].map(function (k) { return '<button type="button" class="stk-c stk-' + k + (x.c === k ? ' on' : '') + '" data-secol="' + k + '"><i></i>' + STK[k][0] + '</button>'; }).join('') +
                 '<span class="sp"></span><button type="button" class="btn btn-sm" data-secancel>Cancel</button><button type="button" class="btn btn-sm btn-gold" data-sesave title="Save the changes (or press Enter)">💾 Save</button></div></div>' : stkBody(x, ro)) + '</div>'; }).join('')
@@ -3180,7 +3195,7 @@
       pop.querySelector('[data-sbig]').onclick = function () { S.stkBig = !S.stkBig; S.stkPos = null; pop.classList.toggle('big', S.stkBig); draw(); };
       pop.querySelectorAll('[data-scol]').forEach(function (b) { b.onclick = function () { S.stkCol = b.getAttribute('data-scol'); pop.querySelectorAll('[data-scol]').forEach(function (x) { x.classList.toggle('on', x === b); }); }; });
       var add = pop.querySelector('[data-sadd]'); if (add) add.onclick = function () { var tx = $('#stkTx').value.trim(); if (!tx) { $('#stkTx').focus(); return; }
-        t.stickies = (t.stickies || []).concat([{ id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), c: S.stkCol || 'G', text: tx, by: me, at: Date.now(), done: false, due: ($('#stkDue') && $('#stkDue').value) || '' }]); save('added (' + STK[S.stkCol || 'G'][0].toLowerCase() + ')'); };
+        t.stickies = (t.stickies || []).concat([{ id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), c: S.stkCol || 'G', text: tx, by: me, at: Date.now(), done: false, due: ($('#stkDue') && $('#stkDue').value) || '' }]); var got = toReg(t.stickies[t.stickies.length - 1]); save('added (' + STK[S.stkCol || 'G'][0].toLowerCase() + ')'); regToast(got); };
       var noteOf = function (el) { var id = el.closest('[data-nid]').getAttribute('data-nid'); return (t.stickies || []).filter(function (q) { return q.id === id; })[0]; };
       pop.querySelectorAll('[data-sdone]').forEach(function (b) { b.onchange = function () { var x = noteOf(b); if (!x) return; x.done = b.checked; x.doneBy = x.done ? me : '';
         if (x.done) x.text = String(x.text).split('\n').map(function (l) { return STK_LI.test(l) ? '- [x] ' + l.replace(STK_LI, '') : l; }).join('\n');   // done: every item ticked
@@ -3197,7 +3212,7 @@
       var ec = pop.querySelector('[data-secancel]'); if (ec) ec.onclick = function () { S.stkEdit = null; draw(); };
       var es = pop.querySelector('[data-sesave]'); if (es) { var doSave = function () { var x = noteOf(es), tx = pop.querySelector('[data-setx]').value.trim(); if (!x) return; if (!tx) { pop.querySelector('[data-setx]').focus(); return; }
           var changed = tx !== x.text || (S.stkEditCol && S.stkEditCol !== x.c); S.stkEdit = null; if (!changed) { draw(); return; }
-          x.text = tx; if (S.stkEditCol) x.c = S.stkEditCol; x.editedAt = Date.now(); x.editedBy = me; save('edited'); };
+          x.text = tx; if (S.stkEditCol) x.c = S.stkEditCol; x.editedAt = Date.now(); x.editedBy = me; var got = x.done ? [] : toReg(x); save('edited'); regToast(got); };
         es.onclick = doSave; pop.querySelector('[data-setx]').onkeydown = function (e) { if (stkNl(e)) return; if (e.key === 'Enter') { e.preventDefault(); doSave(); } if (e.key === 'Escape') { e.stopPropagation(); S.stkEdit = null; draw(); } }; }
       pop.querySelectorAll('[data-sdel]').forEach(function (b) { b.onclick = function () { var id = b.closest('[data-nid]').getAttribute('data-nid'); t.stickies = (t.stickies || []).filter(function (q) { return q.id !== id; }); save('deleted'); }; });
       var ta = $('#stkTx'); if (ta) { ta.onkeydown = function (e) { if (stkNl(e)) return; if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); add.onclick(); } }; if (first && !S.stkEdit) setTimeout(function () { ta.focus(); }, 30); } first = false;
@@ -3208,14 +3223,8 @@
         if (new RegExp('(^|\\s)#' + id + '(?![\\p{L}_])', 'u').test(v)) { ta.focus(); return; }   // already there
         var pre = v.slice(0, i), ins = (pre && !/\s$/.test(pre) ? ' ' : '') + '#' + id + ' '; ta.value = pre + ins + v.slice(i); var c = i + ins.length; ta.focus(); ta.setSelectionRange(c, c); }; });
       var tm = pop.querySelector('[data-tagmore]'); if (tm) tm.onclick = function () { var keep = $('#stkTx') ? $('#stkTx').value : ''; S.tagMore = !S.tagMore; draw(); if ($('#stkTx')) { $('#stkTx').value = keep; $('#stkTx').focus(); } };
-      // #risk / #issue: copy the note into the register (once), with its owner and date
-      pop.querySelectorAll('[data-s2]').forEach(function (b) { b.onclick = function () { var x = noteOf(b), k = b.getAttribute('data-s2'); if (!x) return;
-        var plain = String(x.text).replace(TAG_RX, '$1').replace(/\s+/g, ' ').trim(), title = plain.slice(0, 160), who = (String(x.text).match(/@([\p{L}][\p{L}\p{M}.'-]*(?: [\p{L}][\p{L}\p{M}.'-]*){0,3})/u) || [])[1] || x.by || '';
-        var reg = (p.stakeholders || []).filter(function (h) { return h.name && who.toLowerCase().indexOf(String(h.name).toLowerCase()) === 0; })[0]; if (reg) who = reg.name;
-        var id = (k === 'risk' ? 'r' : 'i') + Date.now().toString(36), from = ' (from a note on #' + (n ? n.n : '') + ' ' + String(t.name).replace(/^[✓◆\s]+/, '').slice(0, 60) + ')';
-        if (k === 'risk') { p.risks = p.risks || []; p.risks.push({ id: id, title: title, cause: (plain.length > 160 ? plain : '') + from, p: 3, i: x.c === 'R' ? 4 : 3, response: 'Mitigate', action: '', owner: who, review: x.due || '', status: 'Open', raised: today() }); }
-        else { p.issues = p.issues || []; p.issues.push({ id: id, title: title, detail: (plain.length > 160 ? plain : '') + from, priority: x.c === 'R' ? 'High' : 'Medium', owner: who, raised: today(), due: x.due || '', status: 'Open', resolution: '' }); }
-        x.linked = k + ':' + id; save('copied to the ' + (k === 'risk' ? 'risk register' : 'issue log')); M.toast((k === 'risk' ? '⚠ Added to the risk register' : '❗ Added to the issue log') + ': ' + title.slice(0, 60)); }; });
+      // #risk / #issue: an old note not yet in the register can still be copied by hand
+      pop.querySelectorAll('[data-s2]').forEach(function (b) { b.onclick = function () { var x = noteOf(b), k = b.getAttribute('data-s2'); if (!x) return; var got = toReg(x, [k]); save('copied to the ' + (k === 'risk' ? 'risk register' : 'issue log')); regToast(got); }; });
     };
     draw();
   }
