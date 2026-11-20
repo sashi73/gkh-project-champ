@@ -5,7 +5,7 @@
   'use strict';
   var M = window.MBS; if (!M) return;
   var esc = M.esc, $ = function (s) { return document.querySelector(s); };
-  var H = null, load = function () { if (!H) H = import('../assets/help/articles.js?v=1'); return H; };
+  var H = null, load = function () { if (!H) H = import('../assets/help/articles.js?v=2'); return H; };
 
   function view(parts) {
     var mine = location.hash;   // a later screen owns the view if the user moved on while the articles loaded

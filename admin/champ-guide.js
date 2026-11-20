@@ -399,7 +399,7 @@
   function reply(text, quiet) { var p = $('#cgPanel'); if (!p || p.hidden) { if (p) p.hidden = false; else openPanel(); } tr([text]).then(function (x) { say('bot', x[0]); lastBot = x[0]; if (!quiet) speak(x[0]); }); }
 
   // ❓ the help centre's articles (assets/help/articles.js): shown in the panel, and offered with Champ's answers
-  var H = null, hLoad = function () { if (!H) H = import('../assets/help/articles.js?v=1').catch(function () { H = null; return null; }); return H; };
+  var H = null, hLoad = function () { if (!H) H = import('../assets/help/articles.js?v=2').catch(function () { H = null; return null; }); return H; };
   function helpCard(a, sub) {   // an article (or one of its sections) in the panel, in the console's language
     var subs = (a.subs || []).filter(function (x) { return !sub || x.id === sub; }); if (!subs.length) subs = a.subs || [];
     var list = [a.t, a.s, '▶ Show me', 'Open in the help centre'];

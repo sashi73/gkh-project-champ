@@ -97,7 +97,7 @@
 </div></section>
 </main>
 <script type="module">
-import { AREAS, ARTICLES, search, byId } from './assets/help/articles.js?v=1';
+import { AREAS, ARTICLES, search, byId } from './assets/help/articles.js?v=2';
 var $ = function (s) { return document.querySelector(s); }, body = $('#hcBody');
 var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
 var areaOf = function (id) { return AREAS.filter(function (x) { return x.id === id; })[0] || { n: '', i: '' }; };
