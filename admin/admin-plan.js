@@ -3167,6 +3167,9 @@
         if (S.stkBig || !r) { pop.style.left = Math.max(10, (innerWidth - w) / 2) + 'px'; pop.style.top = Math.max(10, (innerHeight - h) / 2) + 'px'; return; }
         var x = Math.min(innerWidth - w - 10, Math.max(10, r.left)), y = r.bottom + 6; if (y + h > innerHeight - 10) y = Math.max(10, r.top - h - 6); pop.style.left = x + 'px'; pop.style.top = y + 'px'; };
       place();
+      api('planSeenGet', { core: S.core }).then(function (r) { var m = (r && r.seen) || {};   // 👁 who has read each note on their phone
+        pop.querySelectorAll('.stk-n[data-nid]').forEach(function (el) { var v = m['n:' + tid + ':' + el.getAttribute('data-nid')] || {}, L = Object.keys(v).map(function (k) { return '<b>' + esc(k) + '</b> ' + esc(when(v[k].at)); });
+          if (!L.length || el.querySelector('.stk-seen')) return; var d = document.createElement('div'); d.className = 'stk-seen'; d.innerHTML = '👁 Viewed on phone: ' + L.join(' · '); el.appendChild(d); }); }).catch(function () {});
       var save = function (what) { S.stkSaved = Date.now(); setTimeout(function () { var ok = pop.querySelector('.stk-ok'); if (ok) ok.remove(); }, 2600); dirty('note on #' + (n ? n.n : '') + ': ' + what); var keep = S.stkBig; setTimeout(function () { render(); var a2 = document.querySelector('[data-stk="' + tid + '"]'); anchor = a2 || anchor; S.stkBig = keep; draw(); }, 0); };
       pop.querySelector('[data-sclose]').onclick = function () { pop.remove(); };
       // ✥ drag the note anywhere on the screen by its top bar (mouse or touch); it stays there for the next note

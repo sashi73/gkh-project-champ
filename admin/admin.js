@@ -64,7 +64,8 @@
   }
 
   /* ---------------- login ---------------- */
-  function showLogin() { $('#app').hidden = true; $('#login').hidden = false; setTimeout(function () { var u = $('#loginForm [name=username]'); if (u) u.focus(); }, 50); }
+  function showLogin() { if (window.ChampPhone && window.ChampPhone.is) { location.replace('../login.html'); return; }   // 📱 phones sign in on the phone login page
+    $('#app').hidden = true; $('#login').hidden = false; setTimeout(function () { var u = $('#loginForm [name=username]'); if (u) u.focus(); }, 50); }
   // v86: Users & access: what the signed-in person can use. The menu shows only the modules they have; a page they can't use says so.
   var NAVMOD = { enquiries: 'crm', dashboard: 'crm', jobs: 'crm', customers: 'crm', new: 'crm', reminders: 'crm', wonderbird: 'crm', projects: 'projects', projnew: 'projects', programs: 'projects', deps: 'projects', psummary: 'projects', pboard: 'projects', builds: 'users', visitors: 'crm', quotes: 'accounts', invoices: 'accounts', expenses: 'accounts', accounts: 'accounts',
     inventory: 'stock', suppliers: 'stock', subs: 'subbies', subscomp: 'subbies', people: 'people', peoplecomp: 'people', peoplework: 'people', peoplecal: 'people', payroll: 'people', leave: 'people', ask: 'data', sql: 'data', data: 'data', activity: 'data', analytics: 'data', users: 'users' };
@@ -91,7 +92,9 @@
   function showApp(user) {
     $('#login').hidden = true;
     api('me').then(function (me) {
-      window.MBS.me = me; applyAccess(me); $('#app').hidden = false;
+      window.MBS.me = me; applyAccess(me);
+      if (window.ChampPhone && window.ChampPhone.is && window.MBS.phoneApp) { window.MBS.phoneApp.start(me); return; }   // 📱 a phone: only Today, like a messenger (champ-phone-app.js)
+      $('#app').hidden = false;
       if (me.mustChange && window.MBS.users) { view.innerHTML = '<div class="empty">Set your own password to carry on.</div>'; window.MBS.users.changePassword(true); return; }
       if (me.scope) { var h = location.hash.slice(1), pc = (h.match(/^plan\/([^/]+)/) || [])[1]; if (!(/^(portfolio|me|help)/.test(h) || (pc && me.scope.indexOf(pc) >= 0))) { location.hash = '#' + firstPage(); todayShow(); return; } }   // v91: their project only
       var vmod = VIEWMOD[(location.hash.slice(1) || 'programs').split('/')[0]];   // v108: null = any signed-in user (My leave)

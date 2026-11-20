@@ -27,6 +27,31 @@ const mentions = (names, text) => { const t = String(text || ''); let i = t.inde
 // the board's owner of a task: a stakeholder id or a name
 const ownerName = (plan, t) => { const sh = (plan.stakeholders || []).find((x) => x.id === t.owner); return sh ? sh.name || '' : t.owner || ''; };
 
+// 📞 who to call: the person's number on the project's Stakeholder register, otherwise in People (never your own)
+const sameName = (a, b) => { const x = norm(a), y = norm(b); if (!x || !y) return false; if (x === y) return true; const e = ends(x); return !!e && e === ends(y); };
+function phoneOf(plan, ppl, who) {
+  if (!norm(who)) return '';
+  const sh = (plan.stakeholders || []).find((x) => sameName(x.name, who) && String(x.phone || '').replace(/[^\d]/g, '').length >= 6);
+  if (sh) return sh.phone;
+  const pp = ppl.find((x) => !x.archived && sameName(x.name, who) && String(x.phone || '').replace(/[^\d]/g, '').length >= 6);
+  return pp ? pp.phone : '';
+}
+const callFor = (plan, ppl, names, who) => (!who || isMe(names, who) ? null : ((ph) => (ph ? { name: who, tel: String(ph).replace(/[^\d+]/g, ''), show: ph } : null))(phoneOf(plan, ppl, who)));
+// 👁 "viewed on phone": kept apart from the plan (seen:<core>), so a tap on a phone never clashes with someone editing the plan
+export const seenKey = (x) => (x.nid ? 'n:' + x.t + ':' + x.nid : 't:' + x.t + (x.s ? ':' + x.s : '') + (x.q ? ':' + x.q : ''));
+export async function seenGet(ctx, core) {
+  if (!core || (ctx.scope && !ctx.scope.includes(core))) return { seen: {} };
+  return { seen: (await kv.get('seen:' + core)) || {} };
+}
+export async function seenMark(ctx, body) {
+  const core = String(body.core || ''), plan = core && (await P.get(core));
+  if (!plan) return { error: 'That project is not there any more.', code: 404 };
+  if (ctx.scope && !ctx.scope.includes(core)) return { error: 'This login can only see the projects it was given.', code: 403 };
+  const k = seenKey({ t: String(body.t || ''), s: body.s ? String(body.s) : '', q: body.q ? String(body.q) : '', nid: body.nid ? String(body.nid) : '' }).slice(0, 120), who = String(ctx.name || 'Someone').slice(0, 80), at = Date.now();
+  await kv.update('seen:' + core, (m) => { m[k] = Object.assign({}, m[k] || {}, { [who]: { at, via: body.via === 'phone' ? 'phone' : 'web' } }); const ks = Object.keys(m); if (ks.length > 2000) delete m[ks[0]]; return m; }, () => ({}));
+  return { ok: true, at };
+}
+
 // urgency: the priority set on the item, otherwise from how soon it is due
 function urgency(priority, due, today, soon) {
   if (due && due < today) return { u: 'Overdue', lv: 4 };
@@ -40,14 +65,16 @@ export async function myDay(ctx, opts) {
   const today = /^\d{4}-\d{2}-\d{2}$/.test(String((opts || {}).today || '')) ? opts.today : sydToday();
   const keys = (await kv.keys('plan:')).filter((k) => !ctx.scope || ctx.scope.includes(k.slice(5))).slice(0, 300);
   const plans = await kv.getMany(keys), todo = [], att = [];
+  const ppl = Object.values(((await kv.get('ppl-index').catch(() => null)) || {}).people || {}), seenAll = await kv.getMany(plans.map((p) => 'seen:' + ((p && p.core) || '-'))).catch(() => []), me = String(ctx.name || '');
   let later = 0, laterNotes = 0;   // the work week: what is due in the next 5 working days (or late); the rest is counted, not listed
   for (const plan of plans) {
     if (!plan || !Array.isArray(plan.tasks)) continue;
     try { P.schedule(plan); } catch { continue; }
     const core = plan.core || '', proj = plan.name || 'Project', names = namesFor(ctx, plan), all = !!(plan.emergency || plan.weekends);
     if (!names.size) continue;
+    const seen = seenAll[plans.indexOf(plan)] || {}, pmCall = callFor(plan, ppl, names, (plan.charter || {}).manager), mark = (x) => { const v = seen[seenKey(x)] || {}; x.viewed = v[me] ? v[me].at : 0; x.seenBy = Object.entries(v).filter((e) => e[0] !== me).map((e) => ({ name: e[0], at: e[1].at, via: e[1].via })); return x; };
     const soon = P.addWork(today, 1, all), ahead = P.addWork(P.nextWork(today, false), 4, false), link = '#plan/' + encodeURIComponent(core) + '/schedule';   // one work week for everyone (Mon–Fri), the same as the date shown
-    const add = (row) => { if (row.due && row.due > ahead) { later++; return; }const g = urgency(row.priority, row.due, today, soon); todo.push({ ...row, core, project: proj, link, urgency: g.u, lv: g.lv, rag: rag(row.due, today, soon) }); };   // due in the next week, or overdue
+    const add = (row) => { if (row.due && row.due > ahead) { later++; return; }const g = urgency(row.priority, row.due, today, soon); todo.push(mark({ ...row, core, project: proj, link, urgency: g.u, lv: g.lv, rag: rag(row.due, today, soon), call: pmCall, callWhy: 'Project manager' })); };   // due in the next week, or overdue
     for (const t of plan.tasks) {
       const tname = String(t.name || '').replace(/^[✓◆\s]+/, ''), onTask = (t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead) || isMe(names, ownerName(plan, t));
       let mine = onTask;
@@ -68,7 +95,7 @@ export async function myDay(ctx, opts) {
         if (due && due > ahead) { laterNotes++; return; }
         att.push({ core, project: proj, link, t: t.id, nid: n.id, task: tname, text: n.text, tags: tagsIn(n.text), by: n.by || '', at: n.at || 0, due, c: n.c, urgency: NOTE[n.c] || 'Fine', mention: mentions(names, n.text),
           rag: due && due < today ? 'red' : n.c === 'R' ? 'red' : n.c === 'A' ? 'amber' : 'green', late: !!(due && due < today) });
-        { const z = att[att.length - 1]; if (z.tags.includes('blocker')) { z.rag = 'red'; z.urgency = 'Blocker'; } }   // a #blocker is the andon: always red
+        { const z = att[att.length - 1]; mark(z); z.call = callFor(plan, ppl, names, n.by); z.callWhy = 'Raised the note'; if (z.tags.includes('blocker')) { z.rag = 'red'; z.urgency = 'Blocker'; } }   // a #blocker is the andon: always red
       });
     }
   }

@@ -880,3 +880,6 @@ table.gt tr.gsel>td:first-child{box-shadow:inset 5px 0 0 #D4A017,inset 0 2px 0 #
 /* a day off typed into a date: the box flashes red */
 input.dayno{animation:dayno .9s ease 2;border-color:#DC2626!important}
 @keyframes dayno{50%{background:#FEE2E2}}
+/* 👁 viewed on a phone (Today and sticky notes) */
+.tdy-seen{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:#166534;background:#DCFCE7;border-radius:999px;padding:1px 8px}
+.stk-seen{margin:4px 0 0 26px;font-size:11px;color:#166534}
