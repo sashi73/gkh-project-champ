@@ -117,22 +117,28 @@ export async function brief(day, by) {
   const AI = await import('./ai.mjs'), B = await import('./billing.mjs');
   await AI.checkLimit();
   const { facts, verdict } = await factsOf(day);
-  const sys = 'You are Champ, the portfolio advisor inside GKH Project Champ, briefing the CEO like a seasoned PMO director and turnaround consultant. Use only the figures given (money in $, rounded, e.g. $1.2M). ' +
-    `The verdict is fixed: ${verdict.toUpperCase()} (${PLAN_NAME[verdict]}). turnaround = the portfolio is in trouble: write a firm, time-boxed turnaround plan (stabilise, fix, recover). steady = mixed: steady the weak spots and strengthen what works. keep = healthy: say so plainly, say what to keep doing and where to grow. Do not soften or change the verdict. ` +
-    'Name the real programs and projects and their numbers. Be direct and concise, management by exception: no generic advice. ' +
-    'headline: one sentence that states the verdict in plain words. overview: 3-4 sentences on how the portfolio and the money stand. ' +
-    'concerns: 3-5 things to be concerned about, worst first, each {title (under 9 words), detail (1-2 sentences with the figures and who/which project)}. ' +
-    'quick_wins: 3-5 things that can be done in the next 2 weeks, each {title, detail}. strategy: 3-4 strategic moves for the next quarter, each {title, detail}. ' +
-    'road_ahead: 2-3 sentences on what the road ahead looks like if the plan is followed, and the risk if it is not. ' +
-    'cash_view: your crystal-ball view of the cash flow in 3-4 sentences: how healthy it is (use the cash health given), the lowest point and when, where the cash ends up at the end of the horizon, and the one or two moves that change it most (billing milestones, chasing late money, pacing spend). Costs are the plans spread over their dates; money in is payments, unpaid invoices and milestones still to bill, all before tax. ' +
-    `plan: the ${PLAN_NAME[verdict]} as 3-4 time-boxed steps, each {when ("Next 2 weeks", "30 days", "60 days", "90 days"), what (one sentence)}. ` +
-    'say: the whole briefing as a spoken script for Champ to read aloud to the CEO, 180-260 words, in this order: overview, the concerns, the quick wins, the cash flow view, the strategy and way forward. Plain sentences, no lists, no symbols, money said naturally ("one point two million dollars" is not needed: "$1.2 million" is fine). No markdown anywhere. ' +
-    'JSON only: {"headline":"","overview":"","concerns":[{"title":"","detail":""}],"quick_wins":[{"title":"","detail":""}],"strategy":[{"title":"","detail":""}],"road_ahead":"","cash_view":"","plan":[{"when":"","what":""}],"say":""}';
+  const strat = verdict === 'turnaround' ? 'turnaround strategy' : verdict === 'keep' ? 'winning strategy' : 'strategy to steady and strengthen';
+  const sys = 'You are Champ, briefing the CEO on the project portfolio. Be objective and specific: every point rests on the figures given (money in $, rounded, e.g. $1.2M; name the programs and projects). No generic advice, no management jargon and no names of authors or theories. ' +
+    'Use sound strategic thinking (focus scarce resources on what earns, stop what no longer earns its keep, manage by exception, protect margin and cash, know where advantage comes from) but do not name it. ' +
+    `The verdict is fixed: ${verdict.toUpperCase()}. turnaround = the portfolio is in trouble: recommend a firm, time-boxed turnaround strategy. steady = mixed: steady the weak spots and build on what works. keep = healthy: recommend the winning strategy to keep it so and grow. Do not soften or change the verdict. ` +
+    'Write, in this order: ' +
+    'faring: how we are faring, 3-4 sentences (delivery, money, cash, with the key figures). ' +
+    'concerns: what I am concerned about, 2-5 points worst first, each {title (under 9 words), detail (1-2 sentences with figures and which program or project)}. ' +
+    'positives: what I am happy about, 1-4 points, each {title, detail}; if nothing is going well, one honest point. ' +
+    `strategy: the recommended ${strat}, 3-4 moves, each {title, detail}. ` +
+    'focus: what we should focus on in the coming weeks, 3-5 points, each {title, detail}, the most important first. ' +
+    'cash_view: how our cash flow looks going forward, 3-4 sentences: health, the lowest point and when, where it ends up, and the one or two moves that change it most. Costs are the plans spread over their dates; money in is payments, unpaid invoices and milestones still to bill, all before tax. ' +
+    'conclusion: 2 sentences: the bottom line and the one thing that matters most now. ' +
+    'plan: the strategy as 3-4 time-boxed steps, each {when ("Next 2 weeks", "30 days", "60 days", "90 days"), what (one sentence)}. ' +
+    'headline: one sentence stating the verdict in plain words. ' +
+    'say: the whole briefing as a spoken script for Champ to read aloud, 200-280 words, in this order: how we are faring, what concerns me and what I am happy about, the recommended strategy, what to focus on, the cash flow going forward, the conclusion. Plain sentences, no lists or symbols. No markdown anywhere. ' +
+    'JSON only: {"headline":"","faring":"","concerns":[{"title":"","detail":""}],"positives":[{"title":"","detail":""}],"strategy":[{"title":"","detail":""}],"focus":[{"title":"","detail":""}],"cash_view":"","conclusion":"","plan":[{"when":"","what":""}],"say":""}';
   const r = await AI.llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(facts) }], { maxTokens: 2200, timeoutMs: 110000, temperature: 0.3 });
   const d = r && r.data; if (!d || !d.headline) return { error: 'Champ could not write the briefing just now. Try again in a minute.' };
   const S = (x, n) => String(x || '').slice(0, n), L = (a, n) => (Array.isArray(a) ? a : []).slice(0, n).map((x) => ({ title: S(x && x.title, 140), detail: S(x && x.detail, 500) })).filter((x) => x.title);
-  const out = { verdict, plan_name: PLAN_NAME[verdict], headline: S(d.headline, 300), overview: S(d.overview, 1400), concerns: L(d.concerns, 5), quick_wins: L(d.quick_wins, 5), strategy: L(d.strategy, 4), road_ahead: S(d.road_ahead, 900), cash_view: S(d.cash_view, 1000),
-    plan: (Array.isArray(d.plan) ? d.plan : []).slice(0, 4).map((x) => ({ when: S(x && x.when, 40), what: S(x && x.what, 400) })).filter((x) => x.what), say: S(d.say, 3000), at: Date.now(), day, by, lang: AI.reqLang(), tokens: r.used || 0 };
+  const out = { verdict, plan_name: PLAN_NAME[verdict], strategy_name: verdict === 'turnaround' ? 'Recommended turnaround strategy' : verdict === 'keep' ? 'Recommended winning strategy' : 'Recommended strategy: steady and strengthen',
+    headline: S(d.headline, 300), faring: S(d.faring || d.overview, 1400), concerns: L(d.concerns, 5), positives: L(d.positives, 4), strategy: L(d.strategy, 4), focus: L(d.focus || d.quick_wins, 5), cash_view: S(d.cash_view, 1000), conclusion: S(d.conclusion || d.road_ahead, 600),
+    plan: (Array.isArray(d.plan) ? d.plan : []).slice(0, 4).map((x) => ({ when: S(x && x.when, 40), what: S(x && x.what, 400) })).filter((x) => x.what), say: S(d.say, 3200), at: Date.now(), day, by, lang: AI.reqLang(), tokens: r.used || 0 };
   await AI.usage(true, r.used || 0).catch(() => {});
   await kv.set('ceo-brief', out).catch(() => {});
   return { brief: out };
@@ -168,11 +174,11 @@ export async function ask(day, q, history) {
   const AI = await import('./ai.mjs');
   await AI.checkLimit();
   const { facts, verdict } = await factsOf(day);
-  const sys = 'You are Champ in strategy-adviser mode, advising the CEO of the company that runs this project portfolio. Think and speak like a blend of Peter Drucker and Michael Porter, applied to these figures: ' +
+  const sys = 'You are Champ in strategy-adviser mode, advising the CEO of the company that runs this project portfolio. Reason with these strategic ideas, applied to the figures, but never name authors or theories in the answer: ' +
     'Drucker: what is our business and who is the customer; results come from opportunities, not problems; management by objectives and by exception; effectiveness (doing the right things) before efficiency; planned abandonment of what no longer earns its keep; concentrate scarce resources on the few things that matter; cash and knowledge workers as the real constraints. ' +
     'Porter: competitive advantage through a clear position (cost leadership, differentiation or focus) and avoiding being stuck in the middle; the five forces (clients\' bargaining power, suppliers and subcontractors, rivals, substitutes, new entrants); the value chain and where margin is made or lost; strategy is choosing what not to do (trade-offs) and fit between activities. ' +
-    `The portfolio verdict is ${verdict} (fixed by rules). Use only the figures given; name programs and projects; money in $ rounded. If the question is outside the data, say what you would need. ` +
-    'Answer as a short strategy decision report: answer (2-3 sentences, the direct answer and your recommendation), options (2-3 options, each {option, upside, downside}), decision (one sentence: what you would decide and why, naming Drucker or Porter where the idea comes from), measures (2-3 things to track, each under 10 words), say (the answer and the decision in 2-3 spoken sentences, under 70 words). No markdown. ' +
+    `The portfolio verdict is ${verdict} (fixed by rules). Be objective and specific: use only the figures given; name programs and projects; money in $ rounded; no jargon. If the question is outside the data, say what you would need. ` +
+    'Answer as a short strategy decision report: answer (2-3 sentences, the direct answer and your recommendation), options (2-3 options, each {option, upside, downside}), decision (one sentence: what you would decide and why, in plain business terms), measures (2-3 things to track, each under 10 words), say (the answer and the decision in 2-3 spoken sentences, under 70 words). No markdown. ' +
     'JSON only: {"answer":"","options":[{"option":"","upside":"","downside":""}],"decision":"","measures":[""],"say":""}';
   const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Portfolio figures: ' + JSON.stringify(facts) }];
   for (const h of (Array.isArray(history) ? history : []).slice(-4)) { if (h && h.q && h.a) { msgs.push({ role: 'user', content: String(h.q).slice(0, 400) }); msgs.push({ role: 'assistant', content: String(h.a).slice(0, 800) }); } }

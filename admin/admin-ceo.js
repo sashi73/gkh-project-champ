@@ -80,13 +80,16 @@
   function list(L) { return L && L.length ? '<ol class="ceo-bl">' + L.map(function (x) { return '<li><b>' + esc(x.title) + '</b><span>' + esc(x.detail) + '</span></li>'; }).join('') + '</ol>' : ''; }
   function briefHtml() {
     var B = D.brief;
-    if (!B) return '<section class="card ceo-s ceo-brief"><div class="ceo-bh"><div><h3>🎙 Champ\'s CEO briefing</h3><p class="muted">Champ reads everything on this page and tells you how it stands: the overview, what to be concerned about, quick wins, the cash flow, and the strategy and way forward, with a turnaround plan if it is needed. It can read it out.</p></div><button class="btn btn-gold" id="ceoBrief" type="button">🎙 Get Champ\'s briefing</button></div></section>';
+    if (!B) return '<section class="card ceo-s ceo-brief"><div class="ceo-bh"><div><h3>🎙 Champ\'s CEO briefing</h3><p class="muted">Champ reads everything on this page and tells you how we are faring, what it is concerned and happy about, the recommended turnaround or winning strategy, what to focus on next, the cash flow going forward, and its conclusion. It can read it out.</p></div><button class="btn btn-gold" id="ceoBrief" type="button">🎙 Get Champ\'s briefing</button></div></section>';
     var v = VERD[B.verdict] || VERD.steady, when = new Date(B.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
     return '<section class="card ceo-s ceo-brief ' + v[0] + '"><div class="ceo-bh"><div><span class="ceo-verd ' + v[0] + '">' + v[1] + ' ' + esc(B.plan_name) + '</span><h3>' + esc(B.headline) + '</h3><p class="muted">Champ\'s briefing · written ' + esc(when) + '</p></div>' +
       '<div class="row" style="gap:6px"><button class="btn btn-gold" id="ceoRead" type="button">' + (TT.on ? '⏹ Stop' : '▶ Read it out') + '</button><button class="btn btn-sm" id="ceoBrief" type="button">↻ Fresh briefing</button></div></div>' +
-      '<div class="ceo-bg"><div><h4 class="ceo-sub">Overview</h4><p>' + esc(B.overview) + '</p>' + (B.cash_view ? '<h4 class="ceo-sub">🔮 Cash flow: Champ\'s crystal ball</h4><p>' + esc(B.cash_view) + '</p>' : '') + '</div>' +
-      '<div><h4 class="ceo-sub">⚠ Things to be concerned about</h4>' + list(B.concerns) + '</div><div><h4 class="ceo-sub">⚡ Quick wins (next 2 weeks)</h4>' + list(B.quick_wins) + '</div>' +
-      '<div><h4 class="ceo-sub">🧭 Strategy and way forward</h4>' + list(B.strategy) + (B.road_ahead ? '<p class="ceo-road"><b>The road ahead.</b> ' + esc(B.road_ahead) + '</p>' : '') + '</div></div>' +
+      '<div class="ceo-bg"><div><h4 class="ceo-sub">📊 How we are faring</h4><p>' + esc(B.faring || B.overview || '') + '</p></div>' +
+      '<div><h4 class="ceo-sub">⚠ What I am concerned about</h4>' + list(B.concerns) + (B.positives && B.positives.length ? '<h4 class="ceo-sub">👍 What I am happy about</h4>' + list(B.positives) : '') + '</div>' +
+      '<div><h4 class="ceo-sub">🧭 ' + esc(B.strategy_name || 'Recommended strategy') + '</h4>' + list(B.strategy) + '</div>' +
+      '<div><h4 class="ceo-sub">🎯 What we should focus on next</h4>' + list(B.focus || B.quick_wins) + '</div>' +
+      (B.cash_view ? '<div><h4 class="ceo-sub">💧 Our cash flow going forward</h4><p>' + esc(B.cash_view) + '</p></div>' : '') + '</div>' +
+      (B.conclusion || B.road_ahead ? '<p class="ceo-road"><b>Conclusion.</b> ' + esc(B.conclusion || B.road_ahead) + '</p>' : '') +
       (B.plan && B.plan.length ? '<h4 class="ceo-sub">🗓 ' + esc(B.plan_name) + '</h4><div class="ceo-plan">' + B.plan.map(function (x) { return '<div><b>' + esc(x.when) + '</b><span>' + esc(x.what) + '</span></div>'; }).join('') + '</div>' : '') + '</section>';
   }
   // a long job (the AI takes up to a couple of minutes): the background function, then ask for the result until it is ready
