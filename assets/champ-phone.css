@@ -1,0 +1,93 @@
+/* GKH Project Champ on a phone (assets/champ-phone.js): the landing page, the login card and the Today messenger. */
+/* no AI chat, no voice, no theme panel on phones */
+html.ph #champChat,html.ph #champChatBtn,html.ph .cc-box,html.ph .cc-btn,html.ph #champLangBtn,html.ph .ct-lang,html.ph #champCtl,html.ph #champQuick,html.ph #champTheme,html.ph #champThemeBtn,
+html.ph #cgBtn,html.ph #cgPanel,html.ph .cg-tip,html.ph #mNav,html.ph .askfx{display:none!important}
+
+/* ---------- home: the landing page ---------- */
+html.ph-home body>.topbar,html.ph-home body>header.site,html.ph-home body>main,html.ph-home body>footer.site{display:none!important}
+html.ph-home body{visibility:visible!important;background:radial-gradient(120% 60% at 50% 0%,#2A2210 0%,#0A0A0A 60%) fixed}
+.ph-land{min-height:100svh;box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;gap:14px;padding:calc(28px + env(safe-area-inset-top)) 22px calc(24px + env(safe-area-inset-bottom));max-width:480px;margin:0 auto;color:#EDEAE3;font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.ph-top{text-align:center}
+.ph-top img{width:84px;height:84px;border-radius:50%;animation:phIn .8s ease both}
+.ph-top h1{margin:10px 0 0;font-size:32px;letter-spacing:-.5px;color:#fff}
+.ph-by{margin:0;color:#B9B29E;font-size:13px}
+.ph-lead{margin:4px 0 0;text-align:center;font-size:22px;font-weight:800;color:#fff}
+.ph-desc{margin:0;color:#D6D1C4;font-size:15.5px;text-align:center}
+.ph-desc b{color:#F2D98B}
+.ph-watch{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:6px;padding:14px;border-radius:14px;border:1px solid rgba(242,217,139,.45);background:rgba(242,217,139,.08);color:#F2D98B;font:700 16px system-ui,sans-serif;cursor:pointer}
+.ph-play{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:#E8C04A;color:#0A0A0A;font-size:13px;padding-left:2px;box-sizing:border-box}
+.ph-lang{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#EDEAE3;font-weight:700;font-size:15px}
+.ph-lang select{flex:0 1 60%;font:600 15px system-ui,sans-serif;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:#15130E;color:#fff}
+.ph-login{display:block;margin-top:6px;padding:18px;border-radius:16px;text-align:center;text-decoration:none;font:800 20px system-ui,sans-serif;letter-spacing:.3px;color:#0A0A0A;background:linear-gradient(180deg,#F5D774,#D9A92B);box-shadow:0 10px 30px rgba(232,192,74,.35);animation:phPulse 2.4s ease-in-out 1.5s 3}
+.ph-free{margin:0;text-align:center;color:#9BD8A9;font-size:13px}
+.ph-dev{margin:10px 0 0;text-align:center;color:#8C8775;font-size:12px}
+.ph-home{margin:0;text-align:center;color:#8C8775;font-size:12px}
+.ph-full{align-self:center;color:#8C8775;font-size:12px}
+.ph-film{position:fixed;inset:0;z-index:2147483000;background:#000;display:flex;align-items:center;justify-content:center}
+.ph-film iframe{width:100%;height:100%;border:0}
+.ph-x{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:18px}
+@keyframes phIn{from{opacity:0;transform:scale(.7)}}
+@keyframes phPulse{50%{box-shadow:0 10px 40px rgba(232,192,74,.7);transform:scale(1.02)}}
+
+/* ---------- login: just the card ---------- */
+html.ph-login body>.topbar,html.ph-login body>header.site,html.ph-login body>footer.site{display:none!important}
+html.ph-login .c-login{min-height:100svh;padding:calc(18px + env(safe-area-inset-top)) 16px 24px!important;box-sizing:border-box}
+html.ph-login .c-login-card{max-width:440px;margin:0 auto}
+html.ph-login .c-login-card .btn[type=submit]{padding:16px!important;font-size:18px!important}
+.ph-loginx{display:grid;gap:10px;margin-top:14px}
+.ph-loginx .ph-lang{color:inherit}
+
+/* ---------- console: Today as a messenger ---------- */
+html.ph-admin body>*:not(#phApp):not(#login):not(#toast):not(#modal):not(script){display:none!important}
+html.ph-admin body{background:#ECE5DA}
+html.ph-admin #login{min-height:100svh}
+#phApp{min-height:100svh;display:flex;flex-direction:column;background:#ECE5DA;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1C1A14}
+.pa-h{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 12px 10px;background:#0F0E0B;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.pa-h img{width:38px;height:38px;border-radius:50%}
+.pa-t{flex:1;min-width:0}
+.pa-t b{display:block;font-size:17px}
+.pa-t small{display:block;color:#B9B29E;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pa-ib{width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,.1);color:#fff;font-size:17px;display:grid;place-items:center}
+.pa-ib.spin{animation:paSpin .8s linear infinite}
+@keyframes paSpin{to{transform:rotate(360deg)}}
+.pa-lang{max-width:96px;font:600 12px system-ui,sans-serif;padding:7px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:#1D1B15;color:#fff}
+.pa-sum{display:flex;gap:6px;overflow-x:auto;padding:10px 12px 2px;scrollbar-width:none}
+.pa-sum span{flex:0 0 auto;padding:5px 11px;border-radius:999px;background:#fff;font-size:12.5px;font-weight:700;color:#4A4639;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.pa-sum .r{background:#FEE2E2;color:#991B1B}.pa-sum .a{background:#FEF3C7;color:#92400E}
+.pa-feed{flex:1;padding:6px 10px calc(28px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+.pa-day{align-self:center;margin:10px 0 2px;padding:4px 12px;border-radius:999px;background:#D9E8F5;color:#2B4A63;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.4px}
+.pa-m{position:relative;max-width:92%;align-self:flex-start;background:#fff;border-radius:4px 16px 16px 16px;padding:10px 12px 8px;box-shadow:0 1px 2px rgba(0,0,0,.12);border-left:4px solid #22A06B}
+.pa-m.amber{border-left-color:#E8A317}.pa-m.red{border-left-color:#DC2626}
+.pa-m.task{align-self:flex-end;border-radius:16px 4px 16px 16px;background:#FFF8DC}
+.pa-w{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.pa-av{flex:0 0 auto;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;background:#6B7280}
+.pa-w b{font-size:14px;color:#0F5132}
+.pa-m.task .pa-w b{color:#7A5200}
+.pa-w small{display:block;font-size:11.5px;color:#7A7566;line-height:1.2}
+.pa-x{white-space:pre-wrap;word-break:break-word;font-size:15px}
+.pa-x small{display:block;color:#7A7566;font-size:12.5px;margin-top:2px}
+.pa-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.pa-tags span{font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--tc,#888) 16%,#fff);color:var(--tc,#555)}
+.pa-due{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:999px;background:#EEF2F0;color:#365145}
+.pa-due.overdue,.pa-due.today{background:#DC2626;color:#fff}
+.pa-due.today{animation:paFlash 1s steps(2,start) infinite}
+.pa-due.tomorrow{background:#F59E0B;color:#fff}
+@keyframes paFlash{50%{background:#7F1D1D}}
+.pa-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:9px}
+.pa-acts button,.pa-acts a{flex:1 1 auto;min-height:40px;padding:8px 12px;border-radius:12px;font:700 14px system-ui,sans-serif;text-decoration:none;text-align:center;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:0}
+.pa-view{background:#1F6F4A;color:#fff}
+.pa-seen{background:#E7F5EC!important;color:#1F6F4A!important;cursor:default}
+.pa-call{background:#0E7AFE;color:#fff}
+.pa-ts{display:block;text-align:right;font-size:11px;color:#9A9483;margin-top:4px}
+.pa-empty{margin:40px 10px;text-align:center;color:#6B6657}
+.pa-empty b{display:block;font-size:40px}
+.pa-later{align-self:center;font-size:12.5px;color:#6B6657;text-align:center;margin:4px 12px}
+.pa-foot{margin:8px 14px calc(18px + env(safe-area-inset-bottom));text-align:center;font-size:12px;color:#7A7566}
+.pa-foot a{color:#7A7566}
+/* Login always in view at the foot of the landing page; the language on one line */
+.ph-land{padding-bottom:calc(110px + env(safe-area-inset-bottom))}
+.ph-land .ph-login{position:fixed;left:16px;right:16px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:20;max-width:448px;margin:0 auto}
+.ph-lang{flex-direction:row!important;text-align:left}
+.ph-lang>span{flex:0 0 auto;white-space:nowrap}
+.ph-lang select{width:auto!important;min-width:0;flex:1 1 auto!important;margin:0!important}
+.pa-out{width:auto;padding:0 12px;border-radius:19px;font:700 13px system-ui,sans-serif}

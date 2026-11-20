@@ -856,3 +856,6 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .holadd input:not([type=date]){min-width:0;flex:1 1 180px}
 .holadd input[type=date]{flex:0 0 auto;width:auto;max-width:170px}
 .calhol.worked{opacity:.6}
+/* 👁 viewed on a phone (Today and sticky notes) */
+.tdy-seen{display:inline-block;margin-top:3px;font-size:11px;font-weight:700;color:#166534;background:#DCFCE7;border-radius:999px;padding:1px 8px}
+.stk-seen{margin:4px 0 0 26px;font-size:11px;color:#166534}

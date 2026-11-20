@@ -183,4 +183,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 172 | 1.0.172| 2026-11-20 11:49| work-calendar| `0d328d6` | Review: one holiday per date (yours wins), Cancel and older searches never apply, Save waits for the later years, the add row wraps on phone |
 | 173 | 1.0.173| 2026-11-20 11:59| work-calendar| `db7aab0` | 📍 Location: weekends and public holidays by place (#31) |
 | 174 | 1.0.174| 2026-11-20 12:01| free-view| `11e805b` | Website: free to explore with Google sign-in (view-only, no payment, no credit card), under the hero and on the login page (#32) |
-| 175 | 1.0.175 | 2026-11-20 12:35 | hol-allowed | _this commit_ | _see git log_ |
+| 175 | 1.0.175| 2026-11-20 12:35| hol-allowed| `30e6623` | 📅 Public holidays allowed (off by default) re-plans the work; Weekends allowed says the new finish; full screen keeps the calendar row (wee |
+| 176 | 1.0.176 | 2026-11-20 14:12 | mobile | _this commit_ | _see git log_ |

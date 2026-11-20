@@ -16,7 +16,7 @@ import { tradeCode } from '../lib/store.mjs';
 import { acctGet, acctPost } from '../lib/admin-acct.mjs';
 import { sqlPost } from '../lib/admin-sql.mjs';
 import { planPost, get as getPlan, setModule, forgetModules } from '../lib/plan.mjs';
-import { myDay, myDayDone } from '../lib/myday.mjs';
+import { myDay, myDayDone, seenGet, seenMark } from '../lib/myday.mjs';
 import * as WCAL from '../lib/workcal.mjs';
 import { invPost } from '../lib/inventory.mjs';
 import { custPost } from '../lib/admin-cust.mjs';
@@ -235,6 +235,8 @@ async function handle(req, context) {
         return out(200, { ...pl, hols: WCAL.holidays(cc, pl.st, y0, y1), from: y0, to: y1 }); }   // the years actually loaded
       // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
+      case 'planSeenGet': return out(200, await seenGet(ctx, String(body.core || '')));
+      case 'planMyDaySeen': { const r = await seenMark(ctx, body); if (r.error) return bad(r.error, r.code || 400); return out(200, r); }
       case 'planMyDayDone': { const r = await myDayDone(ctx, body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Today: ${body.nid ? 'note resolved' : 'done'} on ${String(body.core || '').slice(0, 40)}`).catch(() => {}); return out(200, r); }
       // ---------- CRM ----------
       case 'dashboard': {
