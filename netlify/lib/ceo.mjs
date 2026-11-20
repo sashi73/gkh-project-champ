@@ -85,7 +85,102 @@ export async function ceoView(day) {
   if (!(snap && snap.days && snap.days[day])) await kv.update('ceo-snap', (s) => { const d = { ...((s && s.days) || {}) }; d[day] = Object.fromEntries(rows.map((r) => [r.core, [r.health, r.SPI, r.CPI]]));
     const ks = Object.keys(d).sort(); while (ks.length > 60) delete d[ks.shift()]; return { days: d }; }, () => ({ days: {} })).catch(() => {});
 
-  return { today: day, since: old ? old.day : '', all: totals(live), closed: rows.filter((r) => r.closed).length, rows, byProgram,
+  const cash = await cashFlow(day, plans, docs).catch((e) => { console.error('CEO cash flow: ' + e.message); return null; });
+  return { today: day, since: old ? old.day : '', all: totals(live), closed: rows.filter((r) => r.closed).length, rows, byProgram, cash,
     overspends: live.filter((r) => r.vac < -0.5).sort((a, b) => a.vac - b.vac).slice(0, 5).map((r) => ({ core: r.core, name: r.name, program: r.program, vac: r.vac, over: r.over })),
     flow: M.map((k) => ({ month: k, planned: r2(flow[k].planned), invoiced: r2(flow[k].invoiced), received: r2(flow[k].received) })), at: Date.now() };
+}
+
+// 🎙 Champ's CEO briefing: the AI reads the CEO view and writes the overview, the concerns, quick wins, strategy and the road ahead.
+// The verdict is fixed by rules (not the AI): a turnaround plan when it is bad, steady-and-strengthen in the middle, keep it up when it is good.
+export function verdictOf(V) {
+  const A = V.all, red = A.n ? A.red / A.n : 0, low = (x, t) => x != null && x < t, over = A.budget ? -A.vac / A.budget : 0;
+  if (red >= 0.34 || low(A.SPI, 0.9) || low(A.CPI, 0.9) || over > 0.1) return 'turnaround';
+  if (A.red > 0 || A.amber > 0 || low(A.SPI, 1) || low(A.CPI, 1) || over > 0.02 || (A.overdue || 0) > 0) return 'steady';
+  return 'keep';
+}
+const PLAN_NAME = { turnaround: 'Turnaround plan', steady: 'Steady and strengthen', keep: 'Keep it up' };
+async function factsOf(day) {
+  const B = await import('./billing.mjs');
+  const V = await ceoView(day), F = await B.finance(day).catch(() => null), verdict = verdictOf(V), A = V.all;
+  const facts = { date: day, verdict, totals: { projects: A.n, in_trouble: A.red, at_risk: A.amber, on_track: A.green, no_plan: A.grey, SPI: A.SPI, CPI: A.CPI, budget: A.budget, spent: A.spent, earned_value: A.earned,
+      forecast_at_completion: A.eac, forecast_over_under: A.vac, contract_value: A.contract || A.price, invoiced_ex_tax: A.invoiced, received_ex_tax: A.received, owed_ex_tax: A.owed, overdue_ex_tax: A.overdue, forecast_profit: A.profit, margin_pct: A.margin, unpriced_projects: A.unpriced },
+    finance: F ? { ready_to_invoice: F.totals.ready, ready_milestones: F.totals.readyN, overdue_invoices: F.totals.overdueN, owed_by_age: F.aging } : null,
+    programs: V.byProgram.slice(0, 12).map((p) => ({ program: p.name, projects: p.n, red: p.red, amber: p.amber, green: p.green, budget: p.budget, forecast: p.eac, over_under: p.vac, profit: p.profit, margin: p.margin })),
+    worst_projects: V.rows.filter((r) => !r.closed && r.health !== 'green').slice(0, 12).map((r) => ({ project: r.name, program: r.program, health: r.health, why: r.why, done_pct: r.pct, SPI: r.SPI, CPI: r.CPI, days_late: r.slip, over_under: r.vac, profit: r.profit, trend: r.trend || 'n/a' })),
+    healthy_projects: V.rows.filter((r) => !r.closed && r.health === 'green').slice(0, 8).map((r) => r.name), biggest_overspends: V.overspends,
+    cash: V.cash ? { health: V.cash.word, next_6_months_in: V.cash.in6, next_6_months_out: V.cash.out6, cover_in_over_out: V.cash.cover6, lowest_point: V.cash.low, end_of_horizon: V.cash.end, late_money_expected: V.cash.lateIn, contract_not_yet_on_a_milestone: V.cash.unscheduled,
+      quarters: V.cash.quarters.map((q) => ({ quarter: q.quarter, in: q.in, out: q.out, net: q.net, position_at_end: q.position, actual: q.actual })) } : null };
+  return { facts, verdict, V };
+}
+export async function brief(day, by) {
+  const AI = await import('./ai.mjs'), B = await import('./billing.mjs');
+  await AI.checkLimit();
+  const { facts, verdict } = await factsOf(day);
+  const sys = 'You are Champ, the portfolio advisor inside GKH Project Champ, briefing the CEO like a seasoned PMO director and turnaround consultant. Use only the figures given (money in $, rounded, e.g. $1.2M). ' +
+    `The verdict is fixed: ${verdict.toUpperCase()} (${PLAN_NAME[verdict]}). turnaround = the portfolio is in trouble: write a firm, time-boxed turnaround plan (stabilise, fix, recover). steady = mixed: steady the weak spots and strengthen what works. keep = healthy: say so plainly, say what to keep doing and where to grow. Do not soften or change the verdict. ` +
+    'Name the real programs and projects and their numbers. Be direct and concise, management by exception: no generic advice. ' +
+    'headline: one sentence that states the verdict in plain words. overview: 3-4 sentences on how the portfolio and the money stand. ' +
+    'concerns: 3-5 things to be concerned about, worst first, each {title (under 9 words), detail (1-2 sentences with the figures and who/which project)}. ' +
+    'quick_wins: 3-5 things that can be done in the next 2 weeks, each {title, detail}. strategy: 3-4 strategic moves for the next quarter, each {title, detail}. ' +
+    'road_ahead: 2-3 sentences on what the road ahead looks like if the plan is followed, and the risk if it is not. ' +
+    'cash_view: your crystal-ball view of the cash flow in 3-4 sentences: how healthy it is (use the cash health given), the lowest point and when, where the cash ends up at the end of the horizon, and the one or two moves that change it most (billing milestones, chasing late money, pacing spend). Costs are the plans spread over their dates; money in is payments, unpaid invoices and milestones still to bill, all before tax. ' +
+    `plan: the ${PLAN_NAME[verdict]} as 3-4 time-boxed steps, each {when ("Next 2 weeks", "30 days", "60 days", "90 days"), what (one sentence)}. ` +
+    'say: the whole briefing as a spoken script for Champ to read aloud to the CEO, 180-260 words, in this order: overview, the concerns, the quick wins, the cash flow view, the strategy and way forward. Plain sentences, no lists, no symbols, money said naturally ("one point two million dollars" is not needed: "$1.2 million" is fine). No markdown anywhere. ' +
+    'JSON only: {"headline":"","overview":"","concerns":[{"title":"","detail":""}],"quick_wins":[{"title":"","detail":""}],"strategy":[{"title":"","detail":""}],"road_ahead":"","cash_view":"","plan":[{"when":"","what":""}],"say":""}';
+  const r = await AI.llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(facts) }], { maxTokens: 2200, timeoutMs: 110000, temperature: 0.3 });
+  const d = r && r.data; if (!d || !d.headline) return { error: 'Champ could not write the briefing just now. Try again in a minute.' };
+  const S = (x, n) => String(x || '').slice(0, n), L = (a, n) => (Array.isArray(a) ? a : []).slice(0, n).map((x) => ({ title: S(x && x.title, 140), detail: S(x && x.detail, 500) })).filter((x) => x.title);
+  const out = { verdict, plan_name: PLAN_NAME[verdict], headline: S(d.headline, 300), overview: S(d.overview, 1400), concerns: L(d.concerns, 5), quick_wins: L(d.quick_wins, 5), strategy: L(d.strategy, 4), road_ahead: S(d.road_ahead, 900), cash_view: S(d.cash_view, 1000),
+    plan: (Array.isArray(d.plan) ? d.plan : []).slice(0, 4).map((x) => ({ when: S(x && x.when, 40), what: S(x && x.what, 400) })).filter((x) => x.what), say: S(d.say, 3000), at: Date.now(), day, by, lang: AI.reqLang(), tokens: r.used || 0 };
+  await AI.usage(true, r.used || 0).catch(() => {});
+  await kv.set('ceo-brief', out).catch(() => {});
+  return { brief: out };
+}
+
+
+// 💧 the crystal ball: cash month by month (6 back, 12 ahead) and by quarter. In: payments received (actual), then unpaid invoices and
+// milestones still to bill (forecast). Out: each plan's cost, spread over its tasks' dates. All before tax. Running position from the start of the window.
+export async function cashFlow(day, plans, docs) {
+  const B = await import('./billing.mjs'), F = await B.finance(day);
+  const [y, m] = day.split('-').map(Number), cur = day.slice(0, 7), M = [];
+  for (let i = -6; i <= 12; i++) M.push(new Date(Date.UTC(y, m - 1 + i, 1)).toISOString().slice(0, 7));
+  const row = Object.fromEntries(M.map((k) => [k, { in: 0, out: 0 }]));
+  for (const p of plans) { try { P.schedule(p); } catch (e) { continue; } for (const t of p.tasks || []) spread(t, P.taskCost(t), (k, v) => { if (row[k]) row[k].out += v; }); }
+  for (const i of docs.invoices) { if (i.status === 'void' || i.status === 'draft') continue; const inc = i.totals.inc, ex = i.totals.ex;
+    for (const pay of i.payments || []) { const k = (pay.date || '').slice(0, 7); if (row[k] && k <= cur) row[k].in += inc ? pay.amount * ex / inc : 0; } }
+  for (const e of F.expected || []) if (row[e.month] && e.month >= cur) row[e.month].in += e.amount;
+  let run = 0;
+  const months = M.map((k) => { const r = row[k], net = r2(r.in - r.out); run = r2(run + net); return { month: k, in: r2(r.in), out: r2(r.out), net, position: run, actual: k < cur, now: k === cur }; });
+  const qOf = (k) => { const [yy, mm] = k.split('-').map(Number); return yy + ' Q' + Math.ceil(mm / 3); }, Q = {};
+  for (const x of months) { const q = (Q[qOf(x.month)] = Q[qOf(x.month)] || { quarter: qOf(x.month), in: 0, out: 0, net: 0, position: 0, actual: true }); q.in = r2(q.in + x.in); q.out = r2(q.out + x.out); q.net = r2(q.net + x.net); q.position = x.position; if (!x.actual) q.actual = false; }
+  const ahead = months.filter((x) => x.month >= cur), six = ahead.slice(0, 6), inN = six.reduce((a, x) => a + x.in, 0), outN = six.reduce((a, x) => a + x.out, 0);
+  const low = ahead.reduce((a, x) => (x.position < a.position ? x : a), ahead[0] || { position: 0, month: cur }), end = months[months.length - 1];
+  const cover = outN > 0 ? Math.round(inN / outN * 100) / 100 : null;
+  const health = (low.position < 0 && -low.position > 0.25 * Math.max(1, outN)) || (cover != null && cover < 0.7) ? 'red' : low.position < 0 || (cover != null && cover < 1) ? 'amber' : 'green';
+  const word = { red: 'Cash under pressure', amber: 'Cash is tight', green: 'Cash is healthy' }[health];
+  return { months, quarters: Object.values(Q), health, word, cover6: cover, in6: r2(inN), out6: r2(outN), low: { month: low.month, position: low.position }, end: { month: end.month, position: end.position },
+    unscheduled: F.unscheduled || 0, lateIn: r2((F.expected || []).filter((e) => e.late).reduce((a, e) => a + e.amount, 0)) };
+}
+
+// 🧭 Ask Champ on the CEO view: a strategy adviser in the tradition of Peter Drucker and Michael Porter, answering from the portfolio's own figures
+export async function ask(day, q, history) {
+  const AI = await import('./ai.mjs');
+  await AI.checkLimit();
+  const { facts, verdict } = await factsOf(day);
+  const sys = 'You are Champ in strategy-adviser mode, advising the CEO of the company that runs this project portfolio. Think and speak like a blend of Peter Drucker and Michael Porter, applied to these figures: ' +
+    'Drucker: what is our business and who is the customer; results come from opportunities, not problems; management by objectives and by exception; effectiveness (doing the right things) before efficiency; planned abandonment of what no longer earns its keep; concentrate scarce resources on the few things that matter; cash and knowledge workers as the real constraints. ' +
+    'Porter: competitive advantage through a clear position (cost leadership, differentiation or focus) and avoiding being stuck in the middle; the five forces (clients\' bargaining power, suppliers and subcontractors, rivals, substitutes, new entrants); the value chain and where margin is made or lost; strategy is choosing what not to do (trade-offs) and fit between activities. ' +
+    `The portfolio verdict is ${verdict} (fixed by rules). Use only the figures given; name programs and projects; money in $ rounded. If the question is outside the data, say what you would need. ` +
+    'Answer as a short strategy decision report: answer (2-3 sentences, the direct answer and your recommendation), options (2-3 options, each {option, upside, downside}), decision (one sentence: what you would decide and why, naming Drucker or Porter where the idea comes from), measures (2-3 things to track, each under 10 words), say (the answer and the decision in 2-3 spoken sentences, under 70 words). No markdown. ' +
+    'JSON only: {"answer":"","options":[{"option":"","upside":"","downside":""}],"decision":"","measures":[""],"say":""}';
+  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Portfolio figures: ' + JSON.stringify(facts) }];
+  for (const h of (Array.isArray(history) ? history : []).slice(-4)) { if (h && h.q && h.a) { msgs.push({ role: 'user', content: String(h.q).slice(0, 400) }); msgs.push({ role: 'assistant', content: String(h.a).slice(0, 800) }); } }
+  msgs.push({ role: 'user', content: String(q).slice(0, 600) });
+  const r = await AI.llmJson(msgs, { maxTokens: 1100, timeoutMs: 90000, temperature: 0.3 });
+  const d = r && r.data; if (!d || !d.answer) return { error: 'Champ could not answer just now. Ask again in a moment.' };
+  const S = (x, n) => String(x || '').slice(0, n);
+  await AI.usage(true, r.used || 0).catch(() => {});
+  return { answer: { answer: S(d.answer, 1200), options: (Array.isArray(d.options) ? d.options : []).slice(0, 3).map((o) => ({ option: S(o && o.option, 200), upside: S(o && o.upside, 300), downside: S(o && o.downside, 300) })).filter((o) => o.option),
+    decision: S(d.decision, 600), measures: (Array.isArray(d.measures) ? d.measures : []).slice(0, 3).map((x) => S(x, 120)).filter(Boolean), say: S(d.say, 600), tokens: r.used || 0 } };
 }

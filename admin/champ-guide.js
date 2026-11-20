@@ -365,7 +365,7 @@
       $('#cgMic').onclick = mic; $('#cgMenuBtn').onclick = function () { menu(); };
       chipsFill(p);
     }
-    p.hidden = false; watchBtn();
+    p.hidden = false; watchBtn(); stratMode();
     var core = planHash();
     if (core && !W.told[core]) watchBrief(false);   // in a project: Champ's view of it comes first
     else if (!core) greet(false);   // in a project, Champ's view of it is the hello
@@ -434,8 +434,27 @@
     return top >= 3 ? best : null;
   }
   var HOW = /\b(how|where|show me|guide me|walk me|can i|cara|bagaimana|di mana|tunjuk)\b|எப்படி|எங்கே|如何|怎么|どうやって|어떻게|چگونه|كيف|कैसे|ทำอย่างไร/i;
+  // 🧭 on the CEO view Champ is a strategy adviser (Drucker, Porter): questions go to the CEO screen's own adviser (admin-ceo.js)
+  var stratOn = function () { return /^#ceo(\/|$)/.test(location.hash) && !!M.ceoAsk; };
+  function stratMode() {
+    var p = $('#cgPanel'); if (!p) return; var on = stratOn(), b = p.querySelector('.cgp-h b'); if (b) b.textContent = on ? '🧭 Strategy adviser' : 'Champ';
+    p.classList.toggle('cgp-strat', on); var q = $('#cgQ'); if (q) q.placeholder = on ? 'Ask a strategy question about the portfolio…' : 'Ask me anything…';
+    if (on && !p.getAttribute('data-strat')) { p.setAttribute('data-strat', '1'); tr(['I am in strategy-adviser mode while you are on the CEO view, thinking like Peter Drucker and Michael Porter with your portfolio\'s figures. Ask me where to focus, what to stop, how to fix the cash, or which programs to back.']).then(function (x) { say('bot', x[0]); }); }
+    if (!on) p.removeAttribute('data-strat');
+  }
+  window.addEventListener('hashchange', stratMode);
+  function stratAsk(q) {
+    var wait = say('bot', '🧭 Thinking it through…');
+    M.ceoAsk(q).then(function (a) {
+      if (wait) wait.remove(); var d = say('bot', ''); lastBot = a.say || a.answer;
+      d.innerHTML = '<div class="cgp-rep"><p>' + esc(a.answer) + '</p>' + (a.options && a.options.length ? '<b>Options</b><ol>' + a.options.map(function (o) { return '<li><b>' + esc(o.option) + '</b><br><span class="up">▲ ' + esc(o.upside) + '</span><br><span class="dn">▼ ' + esc(o.downside) + '</span></li>'; }).join('') + '</ol>' : '') +
+        (a.decision ? '<b>Decision</b><p>' + esc(a.decision) + '</p>' : '') + (a.measures && a.measures.length ? '<b>Track</b><ul>' + a.measures.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+      var L = $('#cgLog'); if (L) L.scrollTop = L.scrollHeight; speak(a.say || a.answer);
+    }).catch(function (e) { if (wait) wait.remove(); say('bot', (e && e.message) || 'I could not answer just now. Ask again in a moment.'); });
+  }
   function ask(q) {
     openPanel(); say('me', q);
+    if (stratOn() && !MENU_WORDS.test(q.trim())) return stratAsk(q);
     if (MENU_WORDS.test(q.trim())) return menu(true);
     var hit = (HOW.test(q) || q.split(/\s+/).length <= 4) ? local(q) : null; if (hit) return start(hit);   // "how do I make a charter?": straight to the guide
     var wait = say('bot', '…');
