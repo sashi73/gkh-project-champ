@@ -89,8 +89,12 @@
   // 🎯 Today: the start screen, once each time you sign in (a reload in the same tab does not bring it back)
   function todayReset() { try { sessionStorage.removeItem('champToday'); } catch (e) {} }
   function todayShow() { var seen = false, off = false; try { seen = sessionStorage.getItem('champToday') === '1'; sessionStorage.setItem('champToday', '1'); off = localStorage.getItem('champTodayOff') === '1'; } catch (e) {} if (!window.MBS.today) return; if (!seen && !off) window.MBS.today.open(true); else window.MBS.today.refresh(); }   // champTodayOff: the test suite only
+  // ⚡ Today will open: start its call now, at the same time as 'me', so the splash has its data sooner (admin-today.js uses it)
+  function todayEarly() { var seen = false, off = false; try { seen = sessionStorage.getItem('champToday') === '1'; off = localStorage.getItem('champTodayOff') === '1'; } catch (e) {}
+    if (seen || off || (window.ChampPhone && window.ChampPhone.is)) return; var p = api('planMyDayGet', {}); p.catch(function () {}); window.MBS.todayPre = { at: Date.now(), p: p }; }
   function showApp(user) {
     $('#login').hidden = true;
+    todayEarly();
     api('me').then(function (me) {
       window.MBS.me = me; applyAccess(me);
       if (window.ChampPhone && window.ChampPhone.is && window.MBS.phoneApp) { window.MBS.phoneApp.start(me); return; }   // 📱 a phone: only Today, like a messenger (champ-phone-app.js)
