@@ -199,4 +199,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 188 | 1.0.188| 2026-11-20 23:52| ask2| `2d1519c` | 🧭 Ask Champ on the CEO view answers project questions (customer, project manager, owner/sponsor, program director, stakeholders, dates, sta |
 | 189 | 1.0.189| 2026-11-20 23:54| champ-rag| `fcd38ad` | 🔎 Ask Champ on the CEO view: plain Champ again (no 'strategy adviser'), in control of the whole project environment: RAG over every project |
 | 190 | 1.0.190| 2026-11-20 23:56| read-all| `20a5a5a` | 🔊 Ask Champ on the CEO view reads the whole answer aloud (answer, each option with upside and downside, the decision, what to track); overv |
-| 191 | 1.0.191 | 2026-11-20 23:58 | greet | _this commit_ | _see git log_ |
+| 191 | 1.0.191| 2026-11-20 23:58| greet| `7015ded` | 🎙 Champ says a few words when the CEO view opens (greeting, the headline, cash, where to start); at most once every 10 minutes (#52) |
+| 192 | 1.0.192 | 2026-11-21 00:11 | ask-fix | _this commit_ | _see git log_ |

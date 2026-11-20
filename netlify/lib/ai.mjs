@@ -61,7 +61,7 @@ export function withLangMsgs(messages, l = reqLang()) {
   if (i >= 0) out[i] = { ...out[i], content: String(out[i].content) + '\n' + line }; else out.unshift({ role: 'system', content: line.trim() });
   return out;
 }
-export async function llmJson(messages, { maxTokens = 500, timeoutMs = aiTimeout(), temperature = 0.1 } = {}) {
+export async function llmJson(messages, { maxTokens = 500, timeoutMs = aiTimeout(), temperature = 0.1, textOk = '' } = {}) {
   messages = withLangMsgs(messages);
   const L = llmSetup();
   if (!L) { const e = new Error('AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.'); e.code = 503; e.mbs = true; throw e; }
@@ -86,6 +86,7 @@ export async function llmJson(messages, { maxTokens = 500, timeoutMs = aiTimeout
       // the JSON with words around it ("Here is the answer: {...}"): take the object itself
       const a0 = txt.indexOf('{'), b0 = txt.lastIndexOf('}'); if (a0 >= 0 && b0 > a0) { try { data = JSON.parse(txt.slice(a0, b0 + 1)); } catch {} }
       if (!data) data = cut ? repairJson(txt.slice(Math.max(0, txt.indexOf('{')))) : null;
+      if ((!data || typeof data !== 'object') && textOk && txt.trim()) data = { [textOk]: txt.trim().slice(0, 4000), _text: true };   // a plain-words answer where words will do: keep it
       if (!data || typeof data !== 'object') throw new Error(cut ? 'The AI answer was cut off by the token limit. Ask a simpler question.' : 'The AI gave an answer that could not be read.');
     }
     if (cut && data && typeof data === 'object') Object.defineProperty(data, '_cutOff', { value: true, enumerable: false });
