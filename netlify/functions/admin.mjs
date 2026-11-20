@@ -231,7 +231,8 @@ async function handle(req, context) {
       case 'planPlacesGet': return out(200, { places: await WCAL.places(clean(body.q, 60)) });
       case 'planHolidaysGet': { const cc = clean(body.cc, 2).toUpperCase(), st = clean(body.st, 24), pl = WCAL.placeOf(cc, st, clean(body.place, 120));
         if (!WCAL.countryName(cc)) return bad('Pick a place from the list.');
-        return out(200, { ...pl, hols: WCAL.holidays(cc, pl.st, body.from, body.to), from: +body.from || 0, to: +body.to || 0 }); }
+        const y0 = Math.max(2000, Math.min(2100, +body.from || new Date().getUTCFullYear())), y1 = Math.max(y0, Math.min(y0 + 12, +body.to || y0));
+        return out(200, { ...pl, hols: WCAL.holidays(cc, pl.st, y0, y1), from: y0, to: y1 }); }   // the years actually loaded
       // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
       case 'planMyDayDone': { const r = await myDayDone(ctx, body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Today: ${body.nid ? 'note resolved' : 'done'} on ${String(body.core || '').slice(0, 40)}`).catch(() => {}); return out(200, r); }

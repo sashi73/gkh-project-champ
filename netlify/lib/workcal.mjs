@@ -12,7 +12,7 @@ const DAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const COUNTRY_WE = { IR: [4, 5] };   // Iran: Thursday–Friday (the 2025 law); the locale data still says Friday only
 const STATE_WE = { 'MY-02': [5, 6], 'MY-03': [5, 6], 'MY-11': [5, 6] };   // Kedah, Kelantan, Terengganu (Johor went back to Sat–Sun in 2025)
 
-const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+const norm = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N} ]+/gu, ' ').replace(/\s+/g, ' ').trim();   // any script: تهران, 東京
 export const dayNames = (wk) => (wk || []).slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DAY[d]).join('–');
 
 export function weekendOf(cc, st) {
@@ -33,7 +33,7 @@ export const stateName = (cc, st) => (cc && st && (HD.getStates(String(cc).toUpp
 export function holidays(cc, st, from, to) {
   cc = String(cc || '').toUpperCase(); st = String(st || '').toUpperCase();
   if (!/^[A-Z]{2}$/.test(cc) || !countryName(cc)) return [];
-  const y0 = Math.max(2000, Math.min(2100, +from || new Date().getUTCFullYear())), y1 = Math.max(y0, Math.min(y0 + 5, +to || y0));
+  const y0 = Math.max(2000, Math.min(2100, +from || new Date().getUTCFullYear())), y1 = Math.max(y0, Math.min(y0 + 12, +to || y0));
   let hd; try { hd = st && stateName(cc, st) ? new Holidays(cc, st) : new Holidays(cc); } catch { return []; }
   const out = new Map();
   for (let y = y0; y <= y1; y++) {
@@ -57,9 +57,10 @@ export function placeOf(cc, st, label) {
 
 // the state code for a state name from a map service ("Kedah" → 02)
 function stateCode(cc, name) {
-  const S = HD.getStates(cc, 'en') || {}, n = norm(name).replace(/^(state of|wilayah persekutuan|federal territory of) /, '');
-  if (!n) return '';
-  for (const [k, v] of Object.entries(S)) { const m = norm(v); if (m === n || m.includes(n) || n.includes(m)) return k; }
+  const n = norm(name).replace(/^(state of|wilayah persekutuan|federal territory of) /, ''); if (!n) return '';
+  const S = [HD.getStates(cc, 'en') || {}, HD.getStates(cc) || {}];   // English and local names (Bavaria / Bayern)
+  for (const T of S) for (const [k, v] of Object.entries(T)) if (norm(v) === n) return k;   // exact first: West Virginia is not Virginia
+  for (const T of S) for (const [k, v] of Object.entries(T)) { const m = norm(v); if (m.includes(n) || n.includes(m)) return k; }
   return '';
 }
 
@@ -75,8 +76,8 @@ export async function places(q, fetcher = fetch) {
   if (s.length >= 3) {
     try {
       const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 3000);
+      try {
       const r = await fetcher('https://photon.komoot.io/api/?limit=8&lang=en&osm_tag=place&q=' + encodeURIComponent(String(q).slice(0, 60)), { signal: ctl.signal, headers: { 'User-Agent': 'GKH Project Champ (gkhpmo.com)' } });
-      clearTimeout(tm);
       if (r.ok) {
         const j = await r.json();
         for (const f of (j.features || [])) {
@@ -86,6 +87,7 @@ export async function places(q, fetcher = fetch) {
           push({ ...placeOf(cc, st, label), kind: 'Town' });
         }
       }
+      } finally { clearTimeout(tm); }   // the 3-second limit covers reading the answer too
     } catch { /* offline, or the map service is slow: countries and states still work */ }
   }
   return out;

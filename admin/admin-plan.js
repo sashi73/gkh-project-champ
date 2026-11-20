@@ -96,7 +96,7 @@
       var by = {}; d.hols.forEach(function (h) { by[h.d] = old[h.d] && old[h.d].work ? { d: h.d, n: h.n, work: true } : h; });
       ((keep && keep.hols) || []).forEach(function (h) { if (h.own) by[h.d] = h; });   // your own holiday wins (with its work setting)
       var hols = Object.keys(by).sort().map(function (k) { return by[k]; });
-      return { place: d.place, cc: d.cc, st: d.st, wk: keep && keep.cc === d.cc && keep.st === d.st && keep.wk ? keep.wk : d.wk, hols: hols, y0: Y.y0, y1: Y.y1 };
+      return { place: d.place, cc: d.cc, st: d.st, wk: keep && keep.cc === d.cc && keep.st === d.st && keep.wk ? keep.wk : d.wk, hols: hols, y0: d.from || Y.y0, y1: d.to || Y.y1 };   // the years the server loaded: ⚠ stays if the plan runs past them
     });
   }
   function calWire(p) {
