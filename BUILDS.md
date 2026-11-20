@@ -187,4 +187,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 176 | 1.0.176| 2026-11-20 13:12| cal-tidy| `b589462` | 📱 Phone edition: detects the phone and OS; landing page (intro, what Champ is, the film, language, big Login); after sign-in only Today, li |
 | 177 | 1.0.177| 2026-11-20 14:27| stk-only| `781d76a` | 📞 Call numbers from the project's stakeholder list only (no People fallback) (#37) |
 | 178 | 1.0.178| 2026-11-20 14:33| todo-tidy| `108c6ca` | 📱 Today on the phone: tidy full-width cards; tasks as compact rows (title, how late, project, progress bar, smaller buttons) (#38) |
-| 179 | 1.0.179 | 2026-11-20 14:36 | auto-raid | _this commit_ | _see git log_ |
+| 179 | 1.0.179| 2026-11-20 14:36| auto-raid| `77927c1` | #risk / #issue notes go into the risk register / issue log by themselves when saved (new or edited), once each (#39) |
+| 180 | 1.0.180 | 2026-11-20 14:58 | remind | _this commit_ | _see git log_ |

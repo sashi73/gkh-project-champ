@@ -28,7 +28,7 @@
   function acts(x, k) {
     var v = x.viewed ? '<button type="button" class="pa-seen" disabled>✓ Viewed ' + esc(clock(x.viewed)) + '</button>' : '<button type="button" class="pa-view" data-view="' + k + '">👁 Mark as viewed</button>';
     var c = x.call && x.call.tel ? '<a class="pa-call" href="tel:' + esc(x.call.tel) + '" data-noi18n>📞 Call ' + esc(String(x.call.name).split(' ')[0]) + '</a>' : '';
-    return '<div class="pa-acts">' + v + c + '</div>';
+    return '<div class="pa-acts">' + v + '<button type="button" class="pa-rem" data-rem="' + k + '">⏰ Remind me</button>' + c + '</div>';
   }
   function note(x, i) {
     var k = 'a' + i;
@@ -57,14 +57,55 @@
     if (!A.length && !T.length) { feed.innerHTML = '<div class="pa-empty"><b>🎉</b>Nothing for you this work week.<br><small>New notes and tasks will show here.</small></div>' + later(); return; }
     feed.innerHTML = (A.length ? '<span class="pa-day">Needs you · ' + A.length + '</span>' + A.map(note).join('') : '') +
       (T.length ? '<span class="pa-day">To do this week · ' + T.length + '</span>' + T.map(task).join('') : '') + later();
-    feed.querySelectorAll('[data-view]').forEach(function (b) { b.onclick = function () { view(b); }; });
+    wire(feed);
   }
   function later() { var n = (D.later || 0) + (D.laterNotes || 0); return n ? '<p class="pa-later">+ ' + n + ' more due after ' + esc(day(D.weekEnd)) + '</p>' : ''; }
+  function wire(el) { el.querySelectorAll('[data-view]').forEach(function (b) { b.onclick = function () { view(b); }; }); el.querySelectorAll('[data-rem]').forEach(function (b) { b.onclick = function () { remind(b.getAttribute('data-rem')); }; }); }
+  // ⏰ Remind me: an event with an alert in Google Calendar, or in the phone's own calendar (Apple Calendar on an iPhone) from a calendar file
+  var two = function (n) { return (n < 10 ? '0' : '') + n; };
+  var utc = function (d) { return d.getUTCFullYear() + two(d.getUTCMonth() + 1) + two(d.getUTCDate()) + 'T' + two(d.getUTCHours()) + two(d.getUTCMinutes()) + '00Z'; };
+  var at = function (ymd, h, m) { var d = ymd ? new Date(ymd + 'T00:00:00') : new Date(); d.setHours(h, m || 0, 0, 0); return d; };
+  var localIn = function (d) { return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()) + 'T' + two(d.getHours()) + ':' + two(d.getMinutes()); };
+  var nice = function (d) { return d.toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }); };
+  function remind(k) {
+    var x = k[0] === 'a' ? D.attention[+k.slice(1)] : D.todo[+k.slice(1)]; if (!x) return;
+    var now = new Date(), tom = new Date(now.getTime() + 864e5), ymd = function (d) { return d.getFullYear() + '-' + two(d.getMonth() + 1) + '-' + two(d.getDate()); };
+    var opts = [['In 1 hour', new Date(Math.ceil((now.getTime() + 3600000) / 300000) * 300000)]];
+    if (at(null, 16, 0) - opts[0][1] >= 3600000) opts.push(['Today 4:00 pm', at(null, 16, 0)]);
+    opts.push(['Tomorrow 9:00 am', at(ymd(tom), 9, 0)]);
+    if (x.due && x.due > ymd(tom)) opts.push(['9:00 am on the due day (' + day(x.due) + ')', at(x.due, 9, 0)]);
+    var pick = x.due && x.due > ymd(tom) ? opts.length - 1 : 0;
+    var title = x.nid ? 'Note from ' + (x.by || 'the team') + ': ' + String(x.text || '').replace(/\s+/g, ' ').slice(0, 90) : x.kind + ': ' + x.name;
+    var desc = (x.project || '') + (x.nid ? ' · on ' + x.task : x.parent ? ' · ' + x.parent : '') + (x.due ? ' · due ' + day(x.due) : '') + (x.call && x.call.tel ? ' · call ' + x.call.name + ' ' + x.call.show : '');
+    var ios = P.os === 'iOS', mine = ios ? '🍎 Apple Calendar' : '📅 Phone calendar';
+    var o = document.createElement('div'); o.className = 'pa-sheet';
+    o.innerHTML = '<div class="pa-sh"><div class="pa-grab"></div><b>⏰ Remind me</b><p class="pa-sht">' + esc(title) + '</p><div class="pa-when">' +
+      opts.map(function (q, i) { return '<label><input type="radio" name="paw" value="' + i + '"' + (i === pick ? ' checked' : '') + '><span>' + esc(q[0]) + '<small>' + esc(nice(q[1])) + '</small></span></label>'; }).join('') +
+      '<label><input type="radio" name="paw" value="c"><span>Pick a time<input type="datetime-local" id="paWhen" value="' + localIn(opts[pick][1]) + '"></span></label></div>' +
+      '<div class="pa-apps">' + (ios ? '<button type="button" data-app="ics">' + mine + '</button><button type="button" data-app="g">Google Calendar</button>' : '<button type="button" data-app="g">Google Calendar</button><button type="button" data-app="ics">' + mine + '</button>') + '</div>' +
+      '<p class="pa-shn">It goes into your calendar with an alert at that time. Your phone asks you to confirm.</p><button type="button" class="pa-shx">Cancel</button></div>';
+    document.body.appendChild(o); requestAnimationFrame(function () { o.classList.add('on'); });
+    var close = function () { o.classList.remove('on'); setTimeout(function () { o.remove(); }, 250); };
+    o.onclick = function (e) { if (e.target === o) close(); }; o.querySelector('.pa-shx').onclick = close;
+    o.querySelector('#paWhen').onfocus = function () { o.querySelector('input[value=c]').checked = true; };
+    o.querySelectorAll('[data-app]').forEach(function (b) { b.onclick = function () {
+      var v = (o.querySelector('input[name=paw]:checked') || {}).value, when = v === 'c' ? new Date(o.querySelector('#paWhen').value) : opts[+v][1];
+      if (!when || isNaN(when)) { toast('Pick a time first', true); return; }
+      if (when < new Date(Date.now() - 60000)) { toast('That time has passed: pick a later one', true); return; }
+      var link = '/admin/' + (x.link || ''), end = new Date(when.getTime() + 15 * 60000);
+      if (b.getAttribute('data-app') === 'g') {
+        window.open('https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent('⏰ ' + title) + '&dates=' + utc(when) + '/' + utc(end) + '&details=' + encodeURIComponent(desc + '\n' + location.origin + link), '_blank');
+      } else {
+        location.href = '/.netlify/functions/admin?action=ics&start=' + utc(when) + '&title=' + encodeURIComponent('⏰ ' + title) + '&desc=' + encodeURIComponent(desc) + '&link=' + encodeURIComponent(link);
+      }
+      close(); toast('⏰ Reminder for ' + nice(when) + ': confirm it in your calendar');
+    }; });
+  }
   function view(b) {
     var k = b.getAttribute('data-view'), x = k[0] === 'a' ? D.attention[+k.slice(1)] : D.todo[+k.slice(1)]; if (!x) return;
     b.disabled = true; b.textContent = '…';
     api('planMyDaySeen', { core: x.core, t: x.t, s: x.s || '', q: x.q || '', nid: x.nid || '', via: 'phone' }).then(function (r) {
-      x.viewed = r.at || Date.now(); var m = document.getElementById('pm-' + k); if (m) { var h = (k[0] === 'a' ? note : task)(x, +k.slice(1)), t = document.createElement('div'); t.innerHTML = h; m.replaceWith(t.firstChild); }
+      x.viewed = r.at || Date.now(); var m = document.getElementById('pm-' + k); if (m) { var h = (k[0] === 'a' ? note : task)(x, +k.slice(1)), t = document.createElement('div'); t.innerHTML = h; var nm = t.firstChild; m.replaceWith(nm); wire(nm); }
       if (navigator.vibrate) navigator.vibrate(15);
     }).catch(function (e) { b.disabled = false; b.textContent = '👁 Mark as viewed'; toast(e.message, true); });
   }

@@ -114,6 +114,17 @@ async function handle(req, context) {
       const action = url.searchParams.get('action');
       const gctx = await U.context(who, '', canIn);   // v86: Users & access
       if (!gctx) return bad('Please log in', 401);
+      if (action === 'ics') {   // 📱 ⏰ Remind me: a calendar file the phone opens in Apple Calendar / its calendar app, with an alert at the time
+        const T = (k, n) => String(url.searchParams.get(k) || '').replace(/[\r\n]+/g, ' ').slice(0, n), st = T('start', 16);
+        if (!/^\d{8}T\d{6}Z$/.test(st)) return bad('Pick a time for the reminder.', 400);
+        const e = (s) => s.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,'), d0 = new Date(Date.UTC(+st.slice(0, 4), +st.slice(4, 6) - 1, +st.slice(6, 8), +st.slice(9, 11), +st.slice(11, 13)));
+        const z = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''), link = T('link', 160), href = new URL(/^\/admin\/[\w#%/.-]*$/.test(link) ? link : '/admin/', url.origin).href;
+        const fold = (l) => l.match(/.{1,70}/g).join('\r\n ');
+        const ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//GKH//Project Champ//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'BEGIN:VEVENT', 'UID:champ-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + '@gkhpmo.com',
+          'DTSTAMP:' + z(new Date()), 'DTSTART:' + z(d0), 'DTEND:' + z(new Date(d0.getTime() + 15 * 60000)), 'SUMMARY:' + e(T('title', 140) || 'Project Champ reminder'), 'DESCRIPTION:' + e(T('desc', 400) + ' Open: ' + href), 'URL:' + href,
+          'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + e(T('title', 140) || 'Project Champ reminder'), 'TRIGGER:-PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
+        return new Response(ics, { status: 200, headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'inline; filename="champ-reminder.ics"', 'Cache-Control': 'no-store' } });
+      }
       if (gctx.scope) return bad('Not available to sub-contractor logins.', 403);   // v91
       const gmod = action === 'photo' || action === 'export' ? 'job' : action === 'backup' ? 'dataDelete' : action === 'voucherPdf' ? 'promoList' : action === 'payslipPdf' ? 'prlRuns' : 'acctReport';
       const gok = U.allows(gctx, gmod); if (!gok.ok) return bad(gok.error, 403);
