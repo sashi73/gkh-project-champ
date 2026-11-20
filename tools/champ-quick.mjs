@@ -174,6 +174,30 @@ try {
       b.status === 'done' && b.brief && ['turnaround', 'steady', 'keep'].includes(b.brief.verdict) && b.brief.concerns.length && b.brief.quick_wins.length && b.brief.cash_view && b.brief.say && cv2.j.brief && cv2.j.brief.at === b.brief.at, JSON.stringify(b).slice(0, 300));
     const a = await bg({ mode: 'ceoAsk', q: 'Where should we focus next quarter?', history: [] });
     ok('CEO', '🧭 Ask Champ on the CEO view: a strategy decision report (answer, options, decision, measures)', a.status === 'done' && a.answer && a.answer.answer && a.answer.decision && a.answer.options.length, JSON.stringify(a).slice(0, 300)); }
+    // ---------- 🔒 the Finance vault ----------
+  { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };
+    for (const [e, n, r] of [['pm1@example.com', 'Pat Manager', 'Project manager'], ['dir1@example.com', 'Dana Director', 'Project director'], ['dir2@example.com', 'Dev Director', 'Project director']]) await api('userCreate', { user: { email: e, name: n, password: 'Vaultpass2026x', role: r } });
+    const ul = await api('userList'), id1 = (ul.j.users || []).find((u) => u.username === 'dir1@example.com').id;
+    const pl = await api('planProgramList', {}), dh = (pl.j.programs || []).find((g) => g.name === 'Digital health'), bcard = (pl.j.cards || []).find((c) => c.name === 'Billing test'), vc = bcard.core;
+    const sv = await api('planProgramSave', { id: dh.id, name: dh.name, director: id1, manager: dh.manager || '', sponsor: dh.sponsor || '', status: dh.status || 'active' });
+    const b64 = (t) => Buffer.from(t).toString('base64'), secret = 'Contract sum $250,000 plus GST. Pay to BSB 062-000 Account no 12345678. Contact pat@client.com or 0412 345 678. Scope: build the clinic.';
+    const cfoAdd = await as('cfo1@example.com', 'Cfopass2026x', () => api('vaultAdd', { core: vc, folder: 'billing', name: 'billing-schedule.txt', type: 'text/plain', size: 40, file: b64('Billing schedule $100,000'), text: 'Billing schedule $100,000' }));
+    const pmBill = await as('pm1@example.com', 'Vaultpass2026x', () => api('vaultAdd', { core: vc, folder: 'billing', name: 'x.txt', file: b64('x'), text: 'x' }));
+    const pmAdd = await as('pm1@example.com', 'Vaultpass2026x', () => api('vaultAdd', { core: vc, folder: 'contracts', name: 'contract.txt', type: 'text/plain', size: secret.length, file: b64(secret), text: secret }));
+    const pmList = await as('pm1@example.com', 'Vaultpass2026x', () => api('vaultList', { core: vc })), pmFin = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctFinanceGet', {}));
+    const d1 = await as('dir1@example.com', 'Vaultpass2026x', () => api('vaultList', { core: vc })), d2 = await as('dir2@example.com', 'Vaultpass2026x', () => api('vaultList', { core: vc }));
+    const ceo = await as('ceo1@example.com', 'Ceopass2026x', () => api('vaultList', { core: vc })), own = await api('vaultList', { core: vc });
+    ok('Vault', '🔒 who opens it: the super user, the CEO, the CFO and the named program director; not another director, not a project manager (who also loses Finance)',
+      sv.status === 200 && own.status === 200 && ceo.status === 200 && d1.status === 200 && d2.status === 403 && pmList.status === 403 && pmFin.status === 403 && (own.j.files || []).some((f) => f.folder === 'billing') && (own.j.files || []).some((f) => f.champ === 'invoice'),
+      [sv.status, own.status, ceo.status, d1.status, d2.status, pmList.status, pmFin.status].join(' '));
+    const ig = await api('intelGet', { core: vc }), cp = (ig.j.docs || []).find((d) => pmAdd.j.copy && d.id === pmAdd.j.copy.id);
+    const V = await import(pathToFileURL(path.join(SITE, 'netlify/lib/vault.mjs')).href), R = V.redact(secret);
+    ok('Vault', '🖍 filing: the CFO files anywhere; a project manager only into Contracts and Documents, and the team gets a redacted copy (amounts, bank, email and phone blacked out, the scope kept)',
+      cfoAdd.status === 200 && pmBill.status === 403 && pmAdd.status === 200 && cp && /^REDACTED /.test(cp.name) && (cp.tags || []).includes('redacted') && !/250,000|12345678|pat@client|0412 345 678|062-000/.test(R.text) && /build the clinic/.test(R.text),
+      [cfoAdd.status, pmBill.status, pmAdd.status, cp && cp.name, R.text].join(' | '));
+    const up = await api('intelUpload', { core: vc, name: 'old-contract.txt', type: 'text/plain', text: 'Old contract worth $90,000 for the fit-out.', file: b64('Old contract worth $90,000 for the fit-out.'), folder: 'contracts', kind: 'Contract' });
+    const mv = await api('vaultMoveIn', {}), ig2 = await api('intelGet', { core: vc }), od = (ig2.j.docs || []).find((d) => d.id === up.j.doc.id), own2 = await api('vaultList', { core: vc });
+    ok('Vault', '📦 contracts already in the project folders move into the vault; the project keeps a redacted copy', mv.status === 200 && mv.j.moved >= 1 && od && /^REDACTED /.test(od.name) && (own2.j.files || []).some((f) => f.name === 'old-contract.txt'), JSON.stringify([mv.j, od && od.name])); }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

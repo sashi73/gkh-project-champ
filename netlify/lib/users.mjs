@@ -39,8 +39,8 @@ export const ROLES = {
   CEO: { ...all('none'), projects: 'view', accounts: 'view', data: 'view' },
   // 💵 the CFO (one per company): billing, invoices and payments (edit), every project read-only, Ask AI
   CFO: { ...all('none'), projects: 'view', accounts: 'edit', data: 'view' },
-  'Project director': { ...all('edit'), crm: 'none' },
-  'Project manager': { ...all('edit'), crm: 'none' },
+  'Project director': { ...all('edit'), crm: 'none', accounts: 'none' },
+  'Project manager': { ...all('edit'), crm: 'none', accounts: 'none' },
   Contractor: { ...all('none'), projects: 'edit' },
   'Project personnel': { ...all('none'), projects: 'edit', data: 'view' },
   Administrator: { ...all('edit') },
@@ -62,6 +62,7 @@ export const OWNER_MODS = all('edit');
 const READ = /^(dashboard|jobs|job|reminders|report|stores|dataList|dataGet|log|pipelineBoard|aiPing|sqlUsage|sqlAsk|sqlAnswer|sqlData|sqlNarrative|sqlPdf|docForJob|docGet)$|(List|Lists|Get|Log|Status|Setup|Analysis|Info|Jobs|Insights|For|Usage|Analyse|Report|Export|Assign)$/;
 export function need(action) {
   const a = String(action || '');
+  if (/^vault[A-Z]/.test(a)) return null;   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
   if (['me', 'logout', 'login', 'userPassword', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk'].includes(a)) return null;   // My profile: anyone signed in, their own record
   let mod;
   if (a === 'quoteStart' || a === 'planQuote') mod = 'accounts';
@@ -98,7 +99,7 @@ export function allows(ctx, action) {
 export function allowsBg(ctx, mode) {
   if (!ctx) return false; if (ctx.owner) return true;
   const lv = LV[(ctx.mods || {}).projects] || 0;
-  return mode === 'ceoBrief' || mode === 'ceoAsk' || mode === 'intel' || mode === 'watch' || mode === 'docAnalyse' || mode === 'docReview' || mode === 'lessonsReport' ? lv >= 1 : lv >= 2;
+  return mode === 'vaultRedact' || mode === 'ceoBrief' || mode === 'ceoAsk' || mode === 'intel' || mode === 'watch' || mode === 'docAnalyse' || mode === 'docReview' || mode === 'lessonsReport' ? lv >= 1 : lv >= 2;
 }
 
 // ---------- passwords ----------
@@ -156,7 +157,10 @@ export async function get(id) { return /^U-\d{3,5}$/.test(id || '') ? kv.get('us
 async function put(u) { await kv.set('user:' + u.id, u); await kv.update('user-index', (x) => { x.users = x.users || {}; x.users[u.id] = summary(u); return x; }, () => ({ users: {} })); return u; }
 
 // the signed-in user's access (or null when the login no longer works: disabled, password reset, removed from People)
-export async function context(session, ownerName, personOk) {
+// 🔒 money is the CFO's: project managers and directors no longer see quotes, invoices or payments, whatever an older login says
+const finLock = (c) => (c && ['Project manager', 'Project director'].includes(c.role) && c.mods ? { ...c, mods: { ...c.mods, accounts: 'none' } } : c);
+export async function context(session, ownerName, personOk) { return finLock(await context0(session, ownerName, personOk)); }
+async function context0(session, ownerName, personOk) {
   if (!session) return null;
   if (!session.uid) return { owner: true, who: session.u, uid: '', role: 'Super user', mods: OWNER_MODS, name: process.env.OWNER_NAME || 'Sashi Sivam', email: String(process.env.OWNER_EMAIL || '').trim().toLowerCase() };   // OWNER_EMAIL (Netlify): the super user's email, so the plans know them by it
   const u = await get(session.uid);

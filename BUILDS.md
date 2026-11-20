@@ -193,4 +193,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 182 | 1.0.182| 2026-11-20 22:44| ceo| `d8fee94` | 👔 CEO view (Persona, stage 1): one CEO per company in Users & access; the CEO lands on how every project is doing (worst first, why, SPI/CP |
 | 183 | 1.0.183| 2026-11-20 23:24| ceo2| `2612f04` | 👔 CEO view: a legend for the program health counts (and hover text); revenue says 'not tracked yet' instead of $0 when no quotes or invoice |
 | 184 | 1.0.184| 2026-11-20 23:30| finance| `eb79780` | 💵 Finance: milestone billing (contract value + each milestone's share; a done milestone is ready to invoice; raise it once), every invoice  |
-| 185 | 1.0.185 | 2026-11-20 23:36 | brief | _this commit_ | _see git log_ |
+| 185 | 1.0.185| 2026-11-20 23:36| brief| `ed7c9e4` | 🎙 Champ's CEO briefing (overview, concerns, quick wins, cash view, strategy and road ahead; verdict by rules: turnaround / steady and stren |
+| 186 | 1.0.186 | 2026-11-20 23:44 | vault | _this commit_ | _see git log_ |
