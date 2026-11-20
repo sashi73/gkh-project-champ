@@ -35,10 +35,17 @@
     return '<div class="pa-m ' + x.rag + '" id="pm-' + k + '"><div class="pa-w"><span class="pa-av" style="background:' + hue(x.by) + '" data-noi18n>' + esc(initials(x.by)) + '</span><div><b data-noi18n>' + esc(x.by || 'Someone') + '</b><small>' + esc(x.project) + ' · ' + esc(x.task) + '</small></div></div>' +
       '<div class="pa-x">' + esc(String(x.text || '').replace(/^- \[( |x|X)\] /gm, '• ')) + '</div>' + tags(x) + due(x) + acts(x, k) + '<span class="pa-ts">' + esc(ago(x.at)) + '</span></div>';
   }
+  function short(x) {   // the due chip on a task card: 3 days late / Today / Tomorrow / Mon 23 Nov
+    if (!x.due) return '';
+    var late = D && D.today && x.due < D.today ? Math.round((Date.parse(D.today) - Date.parse(x.due)) / 864e5) : 0;
+    var t = x.when === 'overdue' ? (late ? late + (late === 1 ? ' day' : ' days') + ' late' : 'Late') : x.when === 'today' ? 'Due today' : x.when === 'tomorrow' ? 'Tomorrow' : day(x.due).replace(',', '');
+    return '<span class="pa-due ' + (x.when || '') + '">' + esc(t) + '</span>';
+  }
   function task(x, i) {
-    var k = 't' + i, ic = { Task: '📋', Milestone: '◆', 'Sub-task': '↳', Step: '•' }[x.kind] || '📋';
-    return '<div class="pa-m task ' + x.rag + '" id="pm-' + k + '"><div class="pa-w"><span class="pa-av" style="background:#B7791F">' + ic + '</span><div><b>' + esc(x.kind) + (x.urgency ? ' · ' + esc(x.urgency) : '') + '</b><small>' + esc(x.project) + '</small></div></div>' +
-      '<div class="pa-x"><b>' + esc(x.name) + '</b>' + (x.parent ? '<small>' + esc(x.parent) + '</small>' : '') + (x.kind !== 'Step' && x.pct != null ? '<small>' + x.pct + '% done</small>' : '') + '</div>' + due(x) + acts(x, k) + '</div>';
+    var k = 't' + i, ic = { Task: '📋', Milestone: '◆', 'Sub-task': '↳', Step: '•' }[x.kind] || '📋', pc = Math.max(0, Math.min(100, +x.pct || 0));
+    var where = [x.kind, x.project].concat(x.parent ? [x.parent] : []).join(' · ');
+    return '<div class="pa-m task ' + x.rag + '" id="pm-' + k + '"><div class="pa-tr"><span class="pa-ic">' + ic + '</span><div class="pa-tt"><b>' + esc(x.name) + '</b><small>' + esc(where) + '</small></div>' + short(x) + '</div>' +
+      (x.kind !== 'Step' && x.kind !== 'Milestone' ? '<div class="pa-pg"><span class="pa-bar"><i style="width:' + pc + '%"></i></span><small>' + pc + '%</small></div>' : '') + acts(x, k) + '</div>';
   }
   function draw() {
     if (!root) return;
