@@ -61,9 +61,11 @@ const rag = (due, today, soon) => (due && due < today ? 'red' : due && due <= so
 
 export async function myDay(ctx, opts) {
   const today = /^\d{4}-\d{2}-\d{2}$/.test(String((opts || {}).today || '')) ? opts.today : sydToday();
-  const keys = (await kv.keys('plan:')).filter((k) => !ctx.scope || ctx.scope.includes(k.slice(5))).slice(0, 300);
-  const plans = await kv.getMany(keys), todo = [], att = [];
-  const ppl = [], seenAll = await kv.getMany(plans.map((p) => 'seen:' + ((p && p.core) || '-'))).catch(() => []), me = String(ctx.name || '');
+  // the plans and who has seen what, read at the same time (on Postgres: two queries side by side instead of three one after another)
+  const [planRows, seenRows] = await Promise.all([kv.entries('plan:'), kv.entries('seen:').catch(() => [])]);
+  const plans = planRows.filter((r) => !ctx.scope || ctx.scope.includes(r.key.slice(5))).slice(0, 300).map((r) => r.val), todo = [], att = [];
+  const seenBy = new Map(seenRows.map((r) => [r.key, r.val]));
+  const ppl = [], seenAll = plans.map((p) => seenBy.get('seen:' + ((p && p.core) || '-')) || null), me = String(ctx.name || '');
   let later = 0, laterNotes = 0;   // the work week: what is due in the next 5 working days (or late); the rest is counted, not listed
   for (const plan of plans) {
     if (!plan || !Array.isArray(plan.tasks)) continue;

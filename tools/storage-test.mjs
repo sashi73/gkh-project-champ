@@ -93,6 +93,21 @@ await kv.putFile('pdocfile:P-1:d1', Buffer.from('%PDF-1.4 test'), { name: 'a.pdf
 const gf = await kv.getFile('pdocfile:P-1:d1');
 ok('kv', 'a PDF saved and read back (bytes and name)', gf && gf.buf.toString() === '%PDF-1.4 test' && gf.metadata.name === 'a.pdf');
 
+// ---------- 2b. one request: a record read twice is fetched once, never stale after a save ----------
+await kv.set('memo:a', { n: 1 });
+await S.withDbStats(async () => {
+  const st = S.dbStats();
+  const a1 = await kv.get('memo:a'), n0 = st.n; const a2 = await kv.get('memo:a');
+  ok('One request', 'a record read twice: the second read needs no query', st.n === n0 && a2.n === 1);
+  a2.n = 99; ok('One request', 'each read is its own copy (changing one does not change the next)', (await kv.get('memo:a')).n === 1);
+  await kv.set('memo:a', { n: 2 }); ok('One request', 'read after a save in the same request: the new value', (await kv.get('memo:a')).n === 2);
+  await S.withDbStats(() => kv.set('memo:a', { n: 3 }));   // someone else saves it meanwhile
+  await kv.update('memo:a', (c) => ({ n: c.n + 10 }));
+  ok('One request', 'a change after someone else saved: built on their value, not an old copy', (await S.withDbStats(() => kv.get('memo:a'))).n === 13);
+  await kv.del('memo:a'); ok('One request', 'read after delete: gone', (await kv.get('memo:a')) === null);
+});
+ok('kv', 'kv.entries gives keys with values, in key order', JSON.stringify((await kv.entries('plan:P-00')).map((e) => e.key).slice(0, 2)) === JSON.stringify(['plan:P-000', 'plan:P-001']));
+
 // ---------- 3. timings: the same work on both ----------
 async function time(label, fn, n = 1) { const t0 = performance.now(); for (let i = 0; i < n; i++) await fn(); return (performance.now() - t0) / n; }
 process.env.CHAMP_DB = 'blobs';

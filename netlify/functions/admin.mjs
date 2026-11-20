@@ -1,4 +1,6 @@
+import fs from 'node:fs';
 import { langCtx } from '../lib/ai.mjs';
+import { withDbStats, dbStats } from '../lib/storage.mjs';
 // MBS admin console API.  POST /.netlify/functions/admin  { action, ... }   (JSON in, JSON out)
 //                          GET  /.netlify/functions/admin?action=photo|export|backup ...
 // Every action except "login" needs a valid session cookie. POSTs must carry the X-MBS-Admin header,
@@ -95,8 +97,14 @@ function signLog(req, context, e) {
 export default async (req, context) => {
   const t0 = Date.now(), first = served++ === 0;
   const lg = String(req.headers.get('x-champ-lang') || '').slice(0, 5).toLowerCase();   // 🌐 the console language: the AI writes in it
-  const res = await langCtx.run(/^[a-z]{2}$/.test(lg) ? lg : 'en', () => handle(req, context));
-  try { res.headers.set('Server-Timing', `app;dur=${Date.now() - t0}`); res.headers.set('X-MBS-Start', first ? 'cold' : 'warm'); } catch {}
+  let st = null, traceAction = '';
+  if (process.env.CHAMP_DB_TRACE && req.method === 'POST') traceAction = await req.clone().json().then((b) => b.action || '').catch(() => '');
+  const res = await withDbStats(() => { st = dbStats(); return langCtx.run(/^[a-z]{2}$/.test(lg) ? lg : 'en', () => handle(req, context)); });
+  try {
+    res.headers.set('Server-Timing', `app;dur=${Date.now() - t0}` + (st && st.n ? `, db;dur=${Math.round(st.ms)};desc="${st.n} queries"` : ''));
+    res.headers.set('X-MBS-Start', first ? 'cold' : 'warm');
+    if (process.env.CHAMP_DB_TRACE && st) fs.appendFileSync(process.env.CHAMP_DB_TRACE, JSON.stringify({ url: req.url.replace(/^https?:\/\/[^/]+/, ''), action: traceAction, n: st.n, ms: Math.round(st.ms), keys: st.keys }) + '\n');
+  } catch {}
   return res;
 };
 

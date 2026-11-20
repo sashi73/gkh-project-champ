@@ -189,4 +189,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 178 | 1.0.178| 2026-11-20 14:33| todo-tidy| `108c6ca` | 📱 Today on the phone: tidy full-width cards; tasks as compact rows (title, how late, project, progress bar, smaller buttons) (#38) |
 | 179 | 1.0.179| 2026-11-20 14:36| auto-raid| `77927c1` | #risk / #issue notes go into the risk register / issue log by themselves when saved (new or edited), once each (#39) |
 | 180 | 1.0.180| 2026-11-20 14:58| remind| `6bdbd5a` | 📱 ⏰ Remind me on the phone: any Today item into Apple Calendar / the phone calendar (calendar file with an alert) or Google Calendar, at a  |
-| 181 | 1.0.181 | 2026-11-20 15:39 | speed | _this commit_ | _see git log_ |
+| 181 | 1.0.181| 2026-11-20 15:39| speed| `af36df0` | Speed: the console's scripts and styles are cached by the browser (they carry a version), instead of no-store on every load; the console pag |
+| 182 | 1.0.182 | 2026-11-20 18:35 | db-speed | _this commit_ | _see git log_ |

@@ -49,6 +49,14 @@ export async function getMany(keyList, limit = 16) {
   return out;
 }
 
+// every record whose key starts with prefix, with its key: [{ key, val }] (one query on Postgres)
+export async function entries(prefix, limit = 16) {
+  const s = await store();
+  if (s.entries) return s.entries(prefix);
+  const ks = await keys(prefix), vals = await getMany(ks, limit);
+  return ks.map((key, i) => ({ key, val: vals[i] }));
+}
+
 // every record whose key starts with prefix (one query on Postgres)
 export async function values(prefix, limit = 16) {
   const s = await store();

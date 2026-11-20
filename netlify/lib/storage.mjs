@@ -13,6 +13,7 @@
 // (get, getWithMetadata, setJSON, set, delete, list), so the rest of Champ does not change. Extras that make pages load faster:
 //   getMany(keys)     one query for many records (Blobs needs one request each)
 //   values(prefix)    every record whose key starts with prefix, in one query (Blobs: a listing, then one request each)
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { env } from './shared.mjs';
 
 export const usingPostgres = () => env('CHAMP_DB').trim().toLowerCase() === 'postgres';
@@ -82,11 +83,23 @@ async function ensureSchema(conn) {
   if (!schemaP) schemaP = (async () => { for (const s of SCHEMA) await conn.run(s, []); })().catch((e) => { schemaP = null; throw e; });
   return schemaP;
 }
+// per-request database time and query count (shown in the Server-Timing header as db;dur=..;desc="N queries")
+const dbStatsCtx = new AsyncLocalStorage();
+export const withDbStats = (fn) => dbStatsCtx.run({ n: 0, ms: 0, keys: [], memo: new Map() }, fn);
+// within one request, a record read twice is fetched once (a copy each time, so a change to one copy can't leak);
+// any save or delete of that record in the request drops it, so a read after a write is always fresh
+const memoGet = (store, key) => { const st = dbStatsCtx.getStore(); const m = st && st.memo && st.memo.get(store + '\u0000' + key); return m ? { val: structuredClone(m.val), ver: m.ver } : null; };
+const memoPut = (store, key, val, ver) => { const st = dbStatsCtx.getStore(); if (st && st.memo && st.memo.size < 500) st.memo.set(store + '\u0000' + key, { val: structuredClone(val), ver }); };
+const memoDrop = (store, key) => { const st = dbStatsCtx.getStore(); if (st && st.memo) st.memo.delete(store + '\u0000' + key); };
+export const dbStats = () => dbStatsCtx.getStore() || null;
 export async function q(text, params = []) {
-  const conn = await db();
+  const conn = await db(), st = dbStatsCtx.getStore(), t0 = performance.now();
   try { return await conn.run(text, params); } catch (e) {
     if (e && e.code === '42P01') { await ensureSchema(conn); return conn.run(text, params); }   // table missing: make it, try again
     throw e;
+  } finally {
+    const ms = performance.now() - t0;
+    if (st) { st.n++; st.ms += ms; if (st.keys.length < 400) st.keys.push(`${text.slice(0, 22).replace(/\s+/g, ' ')}|${params[0] || ''}|${Array.isArray(params[1]) ? '[' + params[1].length + ']' : params[1] || ''}|${ms.toFixed(1)}`); }
   }
 }
 export async function setupDatabase() { await ensureSchema(await db()); }
@@ -119,18 +132,25 @@ export function pgStore(name) {
     name,
     async get(key, opts = {}) {
       if (isFileType(opts.type)) { const f = await readFile(key); return f ? shape(f, opts.type) : null; }
-      const rows = await q('SELECT val FROM champ_kv WHERE store = $1 AND key = $2', [name, key]);
-      if (!rows.length) return null;
+      const m = memoGet(name, key);
+      if (m) return m.ver == null ? null : opts.type === 'json' ? m.val : asJson(m.val);
+      const rows = await q('SELECT val, ver FROM champ_kv WHERE store = $1 AND key = $2', [name, key]);
+      if (!rows.length) { memoPut(name, key, null, null); return null; }
+      memoPut(name, key, rows[0].val, String(rows[0].ver));
       return opts.type === 'json' ? rows[0].val : asJson(rows[0].val);
     },
     async getWithMetadata(key, opts = {}) {
       if (isFileType(opts.type)) { const f = await readFile(key); return f ? { data: shape(f, opts.type), etag: f.etag, metadata: f.metadata } : null; }
+      const m = memoGet(name, key);
+      if (m) return m.ver == null ? null : { data: opts.type === 'json' ? m.val : asJson(m.val), etag: m.ver, metadata: {} };
       const rows = await q('SELECT val, ver FROM champ_kv WHERE store = $1 AND key = $2', [name, key]);
-      if (!rows.length) return null;
+      if (!rows.length) { memoPut(name, key, null, null); return null; }
+      memoPut(name, key, rows[0].val, String(rows[0].ver));
       return { data: opts.type === 'json' ? rows[0].val : asJson(rows[0].val), etag: String(rows[0].ver), metadata: {} };
     },
     // onlyIfNew / onlyIfMatch work as in Blobs: { modified: false } when someone else saved first
     async setJSON(key, value, opts = {}) {
+      memoDrop(name, key);
       const v = asJson(value);
       let rows;
       if (opts.onlyIfNew) rows = await q('INSERT INTO champ_kv (store, key, val) VALUES ($1, $2, $3::json) ON CONFLICT (store, key) DO NOTHING RETURNING ver', [name, key, v]);
@@ -156,6 +176,7 @@ export function pgStore(name) {
       return rows.length ? { modified: true, etag: String(rows[0].ver) } : { modified: false };
     },
     async delete(key) {
+      memoDrop(name, key);
       const gone = await q('DELETE FROM champ_kv WHERE store = $1 AND key = $2 RETURNING 1', [name, key]);
       if (gone.length) return;
       const f = await q('DELETE FROM champ_files WHERE store = $1 AND key = $2 RETURNING data IS NULL AS in_blobs', [name, key]);
@@ -175,6 +196,10 @@ export function pgStore(name) {
       const rows = await q('SELECT key, val FROM champ_kv WHERE store = $1 AND key = ANY($2::text[])', [name, keys]);
       const m = new Map(rows.map((r) => [r.key, r.val]));
       return keys.map((k) => (m.has(k) ? m.get(k) : null));
+    },
+    async entries(prefix) {
+      const rows = await q('SELECT key, val FROM champ_kv WHERE store = $1 AND key >= $2 AND key < $2 || $3 ORDER BY key', [name, String(prefix || ''), TOP]);
+      return rows.map((r) => ({ key: r.key, val: r.val }));
     },
     async values(prefix) {
       const rows = await q('SELECT val FROM champ_kv WHERE store = $1 AND key >= $2 AND key < $2 || $3 ORDER BY key', [name, String(prefix || ''), TOP]);

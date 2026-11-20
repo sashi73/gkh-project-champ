@@ -29,7 +29,7 @@
       setTimeout(function () { o.remove(); nav.classList.remove('tdy-land'); void nav.offsetWidth; nav.classList.add('tdy-land'); }, 640);
       return;
     }
-    o.classList.add('tdy-out'); setTimeout(function () { o.remove(); }, 520);   // no menu on screen (phone, menu folded): the page rolls back up
+    o.classList.add('tdy-out'); setTimeout(function () { o.remove(); }, 360);   // no menu on screen (phone, menu folded): the page rolls back up
   }
   // the red count on 🎯 Today in the menu: overdue work and open blockers
   function badge(c) { var a = $('.side-nav [data-today]'); if (!a) return; var n = c ? (c.now != null ? c.now : (c.overdue || 0) + (c.blockers || 0)) : 0, el = $('.tdy-badge', a);
@@ -67,7 +67,10 @@
     o.innerHTML = '<div class="tdy-stage"><div class="tdy-rod" aria-hidden="true"></div><div class="tdy-box"><div class="tdy-load"><span class="tdy-spark">✦</span> Unrolling your day…</div></div><div class="tdy-rod tdy-rod-b" aria-hidden="true"></div></div>';
     document.body.appendChild(o); document.body.classList.add('tdy-open'); document.addEventListener('keydown', onKey, true);
     o.addEventListener('mousedown', function (e) { if (e.target === o) close(); });
-    return api('planMyDayGet', {}).then(function (d) { if (!document.body.contains(o)) return; draw(o, d); }).catch(function (e) {
+    // the Today call starts at sign-in, alongside the console's own first call (admin.js todayEarly), not after it
+    var pre = M.todayPre; M.todayPre = null;
+    var got = pre && Date.now() - pre.at < 60000 ? pre.p : api('planMyDayGet', {});
+    return got.then(function (d) { if (!document.body.contains(o)) return; draw(o, d); }).catch(function (e) {
       if (!document.body.contains(o) || o.classList.contains('tdy-out')) return;   // that screen is closed already
       if (auto) return close(true);   // no access to projects: no start screen
       $('.tdy-box', o).innerHTML = '<p class="bad">' + esc(e.message) + '</p><p><button class="btn" type="button" id="tdyX2">Close</button></p>'; $('#tdyX2').onclick = close; });
@@ -98,7 +101,7 @@
     var f = $('#tdyGo'); if (f) f.focus({ preventScroll: true });
     // the numbers count up as the page opens
     o.querySelectorAll('.tdy-flow b').forEach(function (b) { var n = +b.textContent || 0; if (!n || still()) return; var k = 0, steps = Math.min(n, 18); b.textContent = '0';
-      var tick = function () { k++; b.textContent = String(Math.round(n * k / steps)); if (k < steps) setTimeout(tick, 420 / steps); }; setTimeout(tick, 450); });
+      var tick = function () { k++; b.textContent = String(Math.round(n * k / steps)); if (k < steps) setTimeout(tick, 300 / steps); }; setTimeout(tick, 150); });
     o.classList.add('tdy-ready');
   }
 
