@@ -18,7 +18,7 @@
     var c = p && p.cal, every = !!(p && (p.emergency || p.weekends));
     if (!c || !Array.isArray(c.wk)) return every;
     if (p.emergency) return true;
-    var hol = {}, n = 0; (c.hols || []).forEach(function (h) { if (!h.work) { hol[h.d] = h.n || 'Public holiday'; n++; } });
+    var hol = {}, n = 0; if (!p.holidaysOk) (c.hols || []).forEach(function (h) { if (!h.work) { hol[h.d] = h.n || 'Public holiday'; n++; } });   // "Public holidays allowed": worked
     if (!every && !n && c.wk.length === 2 && c.wk.indexOf(0) >= 0 && c.wk.indexOf(6) >= 0) return false;
     return { wk: every ? [] : c.wk.slice(), hol: hol };
   }
@@ -85,10 +85,11 @@
     return '<span class="calbar">' +
       '<button type="button" class="btn btn-sm calloc" id="pLoc" title="Where the work is done: it sets the weekend and the public holidays the schedule skips">📍 ' + (c ? esc(c.place || 'Location') : 'Set the location') + '</button>' +
       '<button type="button" class="btn btn-sm calwk" id="pWkDays" title="The weekend at this location (change it if this team works differently)">Weekend: <b>' + esc(c ? wkName(c.wk) : 'Sat–Sun') + '</b></button>' +
-      (c ? '<button type="button" class="btn btn-sm calhol' + (stale ? ' stale' : '') + '" id="pHols" title="' + (stale ? 'The plan now runs past ' + c.y1 + ': open to add the later years' : 'The public holidays the schedule skips; untick one the team will work') + '">📅 Public holidays <b>' + off + '</b>' + (stale ? ' ⚠' : '') + '</button>' : '') +
+      (c ? '<label class="qchk" title="Tick if the team works on public holidays: the schedule then counts them as work days"><input type="checkbox" id="pHolOk"' + (p.holidaysOk ? ' checked' : '') + '> 📅 Public holidays allowed</label>' : '') +
+      (c ? '<button type="button" class="btn btn-sm calhol' + (stale ? ' stale' : '') + (p.holidaysOk ? ' worked' : '') + '" id="pHols" title="' + (stale ? 'The plan now runs past ' + c.y1 + ': open to add the later years' : 'The public holidays the schedule skips; untick one the team will work') + '">📅 Public holidays <b>' + off + '</b>' + (stale ? ' ⚠' : '') + '</button>' : '') +
       '</span>';
   }
-  function calSet(p, c, why) { var f0 = rollup(p, today()).finish; p.cal = c; dirty(why); render(); var f1 = rollup(p, today()).finish; if (f0 && f1 && f0 !== f1) toast('📅 ' + why + ': the plan now finishes ' + dmy(f1) + ' (was ' + dmy(f0) + ')'); }
+  function calSet(p, c, why) { var f0 = rollup(p, today()).finish; p.cal = c; dirty(why); render(); var f1 = rollup(p, today()).finish; toast('📅 ' + why + (f0 && f1 && f0 !== f1 ? ': the plan is re-worked and now finishes ' + dmy(f1) + ' (was ' + dmy(f0) + ')' : ': the plan still finishes ' + dmy(f1))); afterDates(f0, why); }
   function calLoad(p, pick, keep) {   // the place's weekend and holidays for the plan's years (keeps worked days and your own holidays)
     var Y = calYears(p);
     return api('planHolidaysGet', { cc: pick.cc, st: pick.st || '', place: pick.place, from: Y.y0, to: Y.y1 }).then(function (d) {
@@ -103,6 +104,7 @@
     var lb = $('#pLoc'); if (lb) lb.onclick = function () { locPick(p); };
     var wb = $('#pWkDays'); if (wb) wb.onclick = function () { wkPick(p); };
     var hb = $('#pHols'); if (hb) hb.onclick = function () { holEdit(p); };
+    var ho = $('#pHolOk'); if (ho) ho.onchange = function () { var f0 = rollup(p, today()).finish; p.holidaysOk = this.checked; dirty(p.holidaysOk ? 'public holidays allowed' : 'public holidays off'); render(); var R1 = rollup(p, today()); toast((p.holidaysOk ? '📅 Public holidays are work days now' : '📅 Public holidays are days off again') + ': the plan is re-worked and finishes ' + dmy(R1.finish) + (f0 && f0 !== R1.finish ? ' (was ' + dmy(f0) + ')' : '')); afterDates(f0, 'public holidays changed'); };
   }
   function locPick(p) {
     var c = p.cal, list = [], sel = 0, tm = null, seq = 0;
@@ -2231,7 +2233,7 @@
     $('#pWork').onchange = function () { setWorkStart(this.value); };
     $('#pFinishBy').onchange = function () { var first = p.workStart && p.workStart > p.start ? p.workStart : p.start; if (this.value && this.value < first) { toast('Finish by can\'t be before the ' + (first === p.start ? 'project starts' : 'work starts') + ' (' + dmy(first) + ').', true); render(); return; } p.finishBy = this.value || ''; S.fitUndo = null; dirty('finish by ' + (p.finishBy || 'cleared')); render(); afterDates('', 'Finish by changed'); };
     calWire(p);
-    $('#pWeek').onchange = function () { var f0 = rollup(p, today()).finish; p.weekends = this.checked; dirty(p.weekends ? 'weekends allowed' : 'weekdays only'); render(); var Rw = rollup(p, today()); toast(p.weekends ? '📅 Saturday and Sunday are work days now: finishes ' + dmy(Rw.finish) : 'Weekdays only (Mon–Fri): finishes ' + dmy(Rw.finish)); afterDates(f0, 'weekend work changed'); };
+    $('#pWeek').onchange = function () { var f0 = rollup(p, today()).finish; p.weekends = this.checked; dirty(p.weekends ? 'weekends allowed' : 'weekdays only'); render(); var Rw = rollup(p, today()); toast((p.weekends ? '📅 Weekends are work days now' : '📅 Weekends are days off again' + (p.cal ? ' (' + wkName(p.cal.wk) + ')' : ' (Mon–Fri)')) + ': the plan is re-worked and finishes ' + dmy(Rw.finish) + (f0 && f0 !== Rw.finish ? ' (was ' + dmy(f0) + ')' : '')); afterDates(f0, 'weekend work changed'); };
     var fw = $('#fitWeek'); if (fw) fw.onclick = function () { var f0 = rollup(p, today()).finish; p.weekends = true; dirty('weekends allowed'); render(); toast('📅 Weekends allowed: finishes ' + dmy(rollup(p, today()).finish)); afterDates(f0, ''); };
     var fg = $('#fitGo'); if (fg) fg.onclick = fitRun;
     var fu = $('#fitUndo'); if (fu) fu.onclick = fitUndo;

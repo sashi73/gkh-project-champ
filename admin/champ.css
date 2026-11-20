@@ -644,7 +644,10 @@ body.gantt-full{overflow:hidden}
 body.gantt-full #cgBtn,body.gantt-full #cgPanel,body.gantt-full #sideFold,body.gantt-full #champTheme{display:none!important}
 /* full screen sits on layer 39: under dialogs (40), messages (50), pop-ups (70) and the undo bar (95), so they all show over it */
 body.gantt-full #resTip{z-index:45}
-.gfull .qgate,.gfull .phint{display:none!important}
+.gfull .phint{display:none!important}
+/* full screen keeps the calendar row (weekends, public holidays, location), not the explanations under it */
+.gfull .qgate{margin:0 0 8px!important;padding:6px 10px!important}
+.gfull .qgate > div:not(.qrow){display:none!important}
 .gfull .gsplit{flex:1 1 auto;min-height:0;max-height:none!important}
 .gfull .gpane{max-height:none!important;height:100%}
 .gtool{display:flex;flex-wrap:wrap;align-items:center;gap:3px;padding:7px 10px;margin:0 0 10px;background:inherit;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.06);flex:0 0 auto}
@@ -852,3 +855,4 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .holadd{display:flex;flex-wrap:wrap;align-items:center}
 .holadd input:not([type=date]){min-width:0;flex:1 1 180px}
 .holadd input[type=date]{flex:0 0 auto;width:auto;max-width:170px}
+.calhol.worked{opacity:.6}
