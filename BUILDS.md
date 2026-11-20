@@ -181,4 +181,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 170 | 1.0.170| 2026-11-20 11:15| today-week| `d3815a8` | Today: one work week at a time; Open only (#30) |
 | 171 | 1.0.171| 2026-11-20 11:36| work-calendar| `d23b44b` | 📍 Location: each project follows its place's weekend and public holidays |
 | 172 | 1.0.172| 2026-11-20 11:49| work-calendar| `0d328d6` | Review: one holiday per date (yours wins), Cancel and older searches never apply, Save waits for the later years, the add row wraps on phone |
-| 173 | 1.0.173 | 2026-11-20 11:59 | work-calendar | _this commit_ | _see git log_ |
+| 173 | 1.0.173| 2026-11-20 11:59| work-calendar| `db7aab0` | 📍 Location: weekends and public holidays by place (#31) |
+| 174 | 1.0.174 | 2026-11-20 12:01 | free-view | _this commit_ | _see git log_ |
