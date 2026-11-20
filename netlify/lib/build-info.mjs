@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 187,
+  "build": 188,
   "commit": "",
-  "branch": "brief2",
+  "branch": "ask2",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-20 23:47",
+  "builtAt": "2026-11-20 23:52",
   "site": ""
 };

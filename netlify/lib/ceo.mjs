@@ -6,6 +6,7 @@
 import * as kv from './kv.mjs';
 import * as P from './plan.mjs';
 import * as PG from './programs.mjs';
+import * as J from './jobs.mjs';
 import * as ACC from './accounts.mjs';
 import * as W from './watch.mjs';
 
@@ -170,15 +171,30 @@ export async function cashFlow(day, plans, docs) {
 }
 
 // 🧭 Ask Champ on the CEO view: a strategy adviser in the tradition of Peter Drucker and Michael Porter, answering from the portfolio's own figures
+// every project's people and facts, so "who is the customer / project manager / owner of X?" gets a straight answer
+async function projectFacts(day, V) {
+  const [plans, jobs, programs, U] = await Promise.all([P.list(), J.all(), PG.list(), import('./users.mjs')]);
+  const users = await U.list().catch(() => []), uname = Object.fromEntries(users.map((u) => [u.id, (u.name || u.username) + (u.role ? ' (' + u.role + ')' : '')]));
+  const jb = Object.fromEntries(jobs.map((j) => [j.core, j])), row = Object.fromEntries(V.rows.map((r) => [r.core, r])), pg = Object.fromEntries(programs.map((g) => [g.name, g]));
+  return plans.slice(0, 60).map((p) => { const j = jb[p.core] || {}, c = p.charter || {}, r = row[p.core] || {}, g = pg[j.program || ''] || {};
+    return { project: p.name, ref: j.core ? J.refFor(j) : p.core, customer: j.name || c.customer || '', customer_email: j.email || undefined, customer_phone: j.phone || undefined, site: j.suburb || undefined,
+      program: j.program || '', program_director: g.director ? uname[g.director] || '' : '', program_manager: g.manager || '', program_sponsor: g.sponsor || '',
+      project_manager: c.manager || j.manager || '', project_sponsor_owner: j.sponsor || '', objective: String(c.objective || '').slice(0, 240),
+      phase: r.phase || '', health: r.health || '', why: r.why || '', done_pct: r.pct, start: p.start || '', forecast_finish: r.forecast || '', baseline_finish: r.baseline || '', finish_by: p.finishBy || '',
+      budget: r.budget, spent: r.spent, forecast_cost: r.eac, contract: r.contract || r.quoted || 0, invoiced: r.invoiced, received: r.received,
+      stakeholders: (p.stakeholders || []).filter((x) => x.name).slice(0, 12).map((x) => ({ name: x.name, role: x.role || '', raci: x.raci || '', organisation: x.org || x.company || undefined })) }; });
+}
 export async function ask(day, q, history) {
   const AI = await import('./ai.mjs');
   await AI.checkLimit();
-  const { facts, verdict } = await factsOf(day);
+  const { facts, verdict, V } = await factsOf(day);
+  facts.projects_detail = await projectFacts(day, V).catch(() => []);
   const sys = 'You are Champ in strategy-adviser mode, advising the CEO of the company that runs this project portfolio. Reason with these strategic ideas, applied to the figures, but never name authors or theories in the answer: ' +
     'Drucker: what is our business and who is the customer; results come from opportunities, not problems; management by objectives and by exception; effectiveness (doing the right things) before efficiency; planned abandonment of what no longer earns its keep; concentrate scarce resources on the few things that matter; cash and knowledge workers as the real constraints. ' +
     'Porter: competitive advantage through a clear position (cost leadership, differentiation or focus) and avoiding being stuck in the middle; the five forces (clients\' bargaining power, suppliers and subcontractors, rivals, substitutes, new entrants); the value chain and where margin is made or lost; strategy is choosing what not to do (trade-offs) and fit between activities. ' +
     `The portfolio verdict is ${verdict} (fixed by rules). Be objective and specific: use only the figures given; name programs and projects; money in $ rounded; no jargon. If the question is outside the data, say what you would need. ` +
-    'Answer as a short strategy decision report: answer (2-3 sentences, the direct answer and your recommendation), options (2-3 options, each {option, upside, downside}), decision (one sentence: what you would decide and why, in plain business terms), measures (2-3 things to track, each under 10 words), say (the answer and the decision in 2-3 spoken sentences, under 70 words). No markdown. ' +
+    'Two kinds of question. A FACT question (who is the customer, the project manager, the owner or sponsor, the program director, the stakeholders, dates, status, budget, contract of a project or program): answer it directly and precisely from projects_detail, matching the project by name or ref even if the user spells it loosely (e.g. "scmp master plan"); say plainly if a field is empty in Champ; leave options, decision and measures empty. ' +
+    'A STRATEGY question: answer as a short strategy decision report: answer (2-3 sentences, the direct answer and your recommendation), options (2-3 options, each {option, upside, downside}), decision (one sentence: what you would decide and why, in plain business terms), measures (2-3 things to track, each under 10 words), say (the answer and the decision in 2-3 spoken sentences, under 70 words). No markdown. ' +
     'JSON only: {"answer":"","options":[{"option":"","upside":"","downside":""}],"decision":"","measures":[""],"say":""}';
   const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Portfolio figures: ' + JSON.stringify(facts) }];
   for (const h of (Array.isArray(history) ? history : []).slice(-4)) { if (h && h.q && h.a) { msgs.push({ role: 'user', content: String(h.q).slice(0, 400) }); msgs.push({ role: 'assistant', content: String(h.a).slice(0, 800) }); } }

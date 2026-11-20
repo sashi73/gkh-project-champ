@@ -26,9 +26,11 @@ const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += 
   s.setHeader('Content-Type', 'application/json');
   const sys = ((j.messages || []).find((m) => m.role === 'system') || {}).content || '';
   const ans = /briefing the CEO/.test(sys) ? { headline: 'Steady the portfolio.', faring: 'Quick check faring.', concerns: [{ title: 'Harbour bridge overspend', detail: 'Over budget.' }], positives: [{ title: 'Clinic fit-out under budget', detail: 'By $93k.' }], strategy: [{ title: 'Focus', detail: 'Back the winners.' }], focus: [{ title: 'Bill the done milestone', detail: 'Raise it.' }], cash_view: 'Cash dips then recovers.', conclusion: 'Steady and bill on time.', plan: [{ when: 'Next 2 weeks', what: 'Stabilise.' }], say: 'Quick check briefing.' }
-    : /strategy-adviser mode/.test(sys) ? { answer: 'Focus on the few programs that earn.', options: [{ option: 'Focus', upside: 'Margin', downside: 'Less growth' }], decision: 'Focus, as Drucker would.', measures: ['Margin by program'], say: 'Focus.' }
+    : /strategy-adviser mode/.test(sys) ? (/who is/i.test(JSON.stringify(j.messages.slice(-1))) ? '__FACT__' : { answer: 'Focus on the few programs that earn.', options: [{ option: 'Focus', upside: 'Margin', downside: 'Less growth' }], decision: 'Focus, as Drucker would.', measures: ['Margin by program'], say: 'Focus.' })
     : { tour: '', how: false, answer: 'Quick check answer.', help: '' };
-  s.end(JSON.stringify({ choices: [{ message: { content: json ? JSON.stringify(ans) : 'Quick check answer.' } }], usage: { total_tokens: 50 } })); }); }).listen(0);
+  const pd = /projects_detail/.test(JSON.stringify(j.messages || [])) && /customer\\?":\\?"Northside Health/.test(JSON.stringify(j.messages || [])) && /project_manager/.test(JSON.stringify(j.messages || []));
+  const content = ans === '__FACT__' ? 'Here is the answer: ' + JSON.stringify({ answer: pd ? 'The customer is Northside Health.' : 'I do not have that.', options: [], decision: '', measures: [], say: 'Northside Health.' }) + ' Hope that helps.' : json ? JSON.stringify(ans) : 'Quick check answer.';
+  s.end(JSON.stringify({ choices: [{ message: { content } }], usage: { total_tokens: 50 } })); }); }).listen(0);
 await sleep(50);
 const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
   OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
@@ -173,6 +175,8 @@ try {
     ok('CEO', '🎙 Champ\'s briefing: how we are faring, concerns and positives, the recommended strategy, focus, cash flow going forward and a conclusion, with a fixed verdict and a script to read out; kept for the CEO view',
       b.status === 'done' && b.brief && ['turnaround', 'steady', 'keep'].includes(b.brief.verdict) && b.brief.faring && b.brief.concerns.length && b.brief.positives.length && b.brief.strategy.length && b.brief.focus.length && b.brief.cash_view && b.brief.conclusion && b.brief.say && /strategy/i.test(b.brief.strategy_name) && cv2.j.brief && cv2.j.brief.at === b.brief.at, JSON.stringify(b).slice(0, 300));
     const a = await bg({ mode: 'ceoAsk', q: 'Where should we focus next quarter?', history: [] });
+    const fq = await bg({ mode: 'ceoAsk', q: 'Who is the customer for billing test?', history: [] });
+    ok('CEO', '🧭 a project question on the CEO view gets a straight answer from the project facts (customer, project manager...), even with words around the AI\'s JSON', fq.status === 'done' && fq.answer && /Northside Health/.test(fq.answer.answer), JSON.stringify(fq).slice(0, 300));
     ok('CEO', '🧭 Ask Champ on the CEO view: a strategy decision report (answer, options, decision, measures)', a.status === 'done' && a.answer && a.answer.answer && a.answer.decision && a.answer.options.length, JSON.stringify(a).slice(0, 300)); }
     // ---------- 🔒 the Finance vault ----------
   { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };

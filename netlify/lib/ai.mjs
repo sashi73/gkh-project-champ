@@ -83,7 +83,9 @@ export async function llmJson(messages, { maxTokens = 500, timeoutMs = aiTimeout
     const used = Number(j?.usage?.total_tokens) || Math.round(JSON.stringify(messages).length / 3.6 + txt.length / 3.6);
     const cut = j?.choices?.[0]?.finish_reason === 'length';
     let data; try { data = JSON.parse(txt); } catch {
-      data = cut ? repairJson(txt) : null;
+      // the JSON with words around it ("Here is the answer: {...}"): take the object itself
+      const a0 = txt.indexOf('{'), b0 = txt.lastIndexOf('}'); if (a0 >= 0 && b0 > a0) { try { data = JSON.parse(txt.slice(a0, b0 + 1)); } catch {} }
+      if (!data) data = cut ? repairJson(txt.slice(Math.max(0, txt.indexOf('{')))) : null;
       if (!data || typeof data !== 'object') throw new Error(cut ? 'The AI answer was cut off by the token limit. Ask a simpler question.' : 'The AI gave an answer that could not be read.');
     }
     if (cut && data && typeof data === 'object') Object.defineProperty(data, '_cutOff', { value: true, enumerable: false });
