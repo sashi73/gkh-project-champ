@@ -945,3 +945,19 @@ body.is-ceo [data-nav="projnew"]{display:none!important}
 .ceo-legend .ceo-pill{min-width:0;padding:0 6px;font-size:10.5px}
 .ceo-none{padding:12px 14px;border-radius:12px;background:#FFFBEB;border:1px solid #FCD34D;font-size:13.5px;color:#713F12}
 .ceo-pill{cursor:help}
+/* ---------- 💵 Finance ---------- */
+.ceo-t.warn{background:#FFFBEB;border-color:#FCD34D}.ceo-t.warn>b{color:#B45309}
+.fin-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.fin-tab{border:1px solid var(--line,#E7E2D6);background:var(--card,#fff);border-radius:999px;padding:5px 12px;font:600 13px inherit;cursor:pointer;color:inherit}
+.fin-tab.on{background:#1C1A14;color:#fff;border-color:#1C1A14}
+.fin-tab b{margin-left:3px}
+.fin-st{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.fin-st.paid{background:#DCFCE7;color:#166534}.fin-st.late{background:#FEE2E2;color:#B91C1C}.fin-st.open{background:#EEF2F0;color:#365145}.fin-st.draft{background:#F1F5F9;color:#475569}
+.fin-age{display:grid;gap:6px}
+.fin-age div{display:flex;justify-content:space-between;padding:8px 12px;border-radius:10px;background:#F7F5EF;font-size:14px}
+.fin-age div.a{background:#FFFBEB;color:#92400E}.fin-age div.r{background:#FEF2F2;color:#B91C1C}
+.fin-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:0 0 12px}
+.fin-form label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;font-weight:700}
+.fin-form input,.fin-form select{font:15px inherit;padding:8px 10px;border:1px solid var(--line,#D6D1C4);border-radius:10px}
+.fin-pc{width:72px;text-align:right;padding:5px 6px;border:1px solid var(--line,#D6D1C4);border-radius:8px;font:inherit}
+@media print{body:has(.fin) .ceo-head .row,body:has(.fin) [data-pay],body:has(.fin) [data-raise],body:has(.fin) .fin-tabs{display:none!important}}

@@ -4190,11 +4190,13 @@
   function drawDocs() {
     var el = $('#planChain'); if (!el) return; var p = S.plan, K = budgetCalc(p), c = p.charter || {}, last = S.pdoc && S.pdoc.core === S.core ? S.pdoc.doc : null;
     var step = function (on, icon, title, sub, btn) { return '<div class="vstep' + (on ? ' done' : '') + '"><b>' + icon + ' ' + esc(title) + '</b><small>' + sub + '</small>' + btn + '</div>'; };
+    var finOk = !!(M.me && (M.me.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].indexOf(M.me.role) >= 0) && !M.me.scope);   // 💵 the project's billing, on the Finance screen
     el.innerHTML = '<div class="vchain docs3">' +
       step(!!c.budget, '💰', 'Costing', c.budget ? 'approved ' + esc(money(c.budget)) + (Math.abs(c.budget - K.total) >= 1 ? ' · works out at ' + esc(money(K.total)) : '') : 'works out at ' + esc(money(K.total)) + ' · not approved yet', '<button class="btn btn-sm btn-gold" data-dact="budget">💰 Work out the costing</button>') +
       step(c.docStatus === 'Approved', '📜', 'Project charter', 'v' + esc(c.docVersion || '1.0') + ' · ' + esc(c.docStatus || 'Draft') + ' · up to 4 pages', '<button class="btn btn-sm" data-dact="charter">📜 Generate the charter</button>') +
       step(!!last, '📘', 'Project plan', last ? 'AI narrative ' + esc(new Date(last.at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })) + ' · about 20 pages' : 'about 20 pages · PDF and Word', '<button class="btn btn-sm" data-dact="plan">📘 Generate the project plan</button>') + '</div>';
-    el.querySelectorAll('[data-dact]').forEach(function (b) { b.onclick = function () { var a = b.getAttribute('data-dact'); if (a === 'budget') location.hash = '#plan/' + S.core + '/budget'; else if (a === 'charter') charterDialog(); else planDocDialog(); }; });
+    if (finOk && !el.querySelector('[data-dact="billing"]')) { var vc = el.querySelector('.vchain'); if (vc) vc.insertAdjacentHTML('beforeend', step(false, '💵', 'Billing', 'contract value and milestone invoices', '<button class="btn btn-sm" data-dact="billing">💵 Open billing</button>')); }
+    el.querySelectorAll('[data-dact]').forEach(function (b) { b.onclick = function () { var a = b.getAttribute('data-dact'); if (a === 'billing') { location.hash = '#finance/' + encodeURIComponent(S.core); return; } if (a === 'budget') location.hash = '#plan/' + S.core + '/budget'; else if (a === 'charter') charterDialog(); else planDocDialog(); }; });
     if (!S.pdoc || S.pdoc.core !== S.core) { var core = S.core; S.pdoc = { core: core, doc: null }; api('intelPlanDocGet', { core: core }).then(function (d) { if (S.core === core) { S.pdoc = { core: core, doc: d.doc }; if (d.doc) drawDocs(); } }).catch(function () {}); }
   }
 
