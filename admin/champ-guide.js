@@ -221,6 +221,9 @@
   var RAGTXT = { red: '🔴 Act now', amber: '🟠 Watch closely', green: '🟢 On track', grey: '⚪ Not enough data yet' };
   function watchBtn() {
     var b = $('#cgBtn'), core = planHash(), on = core && W.core === core && W.rag;
+    var ceo = /^#ceo(\/|$)/.test(location.hash) && M.ceoRag;   // 👔 the CEO view: the same button, coloured by the whole portfolio
+    if (b && ceo) { ['red', 'amber', 'green', 'grey'].forEach(function (c) { b.classList.remove('cg-' + c); }); b.classList.add('cg-' + M.ceoRag);
+      b.title = 'Champ\'s view of the portfolio. Tap to ask anything.'; var sp0 = b.querySelector('span'); if (sp0) sp0.textContent = M.ceoRag === 'red' ? 'Champ: act now' : M.ceoRag === 'amber' ? 'Champ: watch' : 'Champ: on track'; b = null; }
     if (b) {
       ['red', 'amber', 'green', 'grey'].forEach(function (c) { b.classList.remove('cg-' + c); });
       var sp = b.querySelector('span');
@@ -237,6 +240,7 @@
   }
   window.addEventListener('hashchange', function () { setTimeout(function () { watchCheck(); }, 400); });
   setInterval(function () { if (planHash() && !document.hidden) watchCheck(true); }, 120000);
+  M.champBtn = function () { watchBtn(); };
   M.champGreet = function (text) { tr([text]).then(function (x) { M.toast('🎙 ' + x[0]); lastBot = x[0]; speak(x[0]); }); };   // 👔 a few words when a screen opens (the CEO view)
   M.watchCheck = watchCheck; M.champHush = hush;   // other features (the lessons video) quiet Champ before they speak
   // 🩺 Champ's watch across every project (Programs and Summary): red / amber / green, what changed since yesterday, the alerts
@@ -443,6 +447,9 @@
     if (!on) p.removeAttribute('data-strat');
   }
   window.addEventListener('hashchange', stratMode);
+  // 👔 moving onto or off the CEO view: Champ folds back into its button (the conversation there is about the portfolio)
+  var lastCeo = /^#ceo(\/|$)/.test(location.hash);
+  window.addEventListener('hashchange', function () { var now = /^#ceo(\/|$)/.test(location.hash); if (now !== lastCeo) { var p = $('#cgPanel'); if (p && !p.hidden) closePanel(); } lastCeo = now; watchBtn(); });
   function stratAsk(q) {
     var wait = say('bot', '🔎 Searching your projects…');
     M.ceoAsk(q).then(function (a) {
