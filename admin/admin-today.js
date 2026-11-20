@@ -37,8 +37,9 @@
   function onKey(e) { if (e.key === 'Escape') { e.preventDefault(); close(); } }
   function go(x, note) { close(true); M.focus = { core: x.core, t: x.t, s: x.s || '', q: x.q || '', note: note ? x.nid : '', at: Date.now() }; if (location.hash === x.link) { try { window.dispatchEvent(new HashChangeEvent('hashchange')); } catch (e) { window.dispatchEvent(new Event('hashchange')); } } else location.hash = x.link; }   // the same page: draw it again (no detour through another page)
 
+  function seenOf(x) { return x.viewed ? '<span class="tdy-seen" title="You marked this as viewed on your phone">👁 Viewed on phone ' + esc(new Date(x.viewed).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) + '</span>' : ''; }
   function rowTodo(x, i) {
-    var what = '<b>' + esc(x.name) + '</b>' + (x.parent ? '<small>' + esc(x.parent) + '</small>' : '');
+    var what = '<b>' + esc(x.name) + '</b>' + (x.parent ? '<small>' + esc(x.parent) + '</small>' : '') + seenOf(x);
     return '<tr class="tdy-' + x.rag + (x.when === 'today' ? ' tdy-today' : '') + '" data-i="' + i + '" style="--d:' + i + '">' + dueCell(x) +
       '<td><span class="tdy-u tdy-u' + x.lv + '">' + esc(x.urgency) + '</span></td><td class="tdy-what"><span class="tdy-k">' + esc(x.kind) + '</span>' + what + '</td>' +
       '<td class="tdy-proj">' + esc(x.project) + '</td><td class="tdy-act">' + '<button type="button" class="btn btn-sm btn-gold" data-open>Open →</button></td></tr>';
@@ -48,7 +49,7 @@
   function tagged(h) { var g = TG(); if (!g) return h; return h.replace(/(^|[^\p{L}\p{N}_&])#([\p{L}_]+)/gu, function (m, a, w) { var t = g.tagOf(w); return t ? a + '<span class="ntag" style="--tc:' + t.c + '" title="' + esc(t.m) + '">' + t.i + ' #' + t.id + '</span>' : m; }); }
   function rowNote(x, i) {
     return '<tr class="tdy-' + x.rag + (x.when === 'today' ? ' tdy-today' : '') + '" data-n="' + i + '" data-tags="' + esc((x.tags || []).join(' ')) + '" style="--d:' + (i + 3) + '">' + dueCell(x) +
-      '<td><span class="tdy-u tdy-n' + x.c + '">' + esc(x.urgency) + '</span></td><td class="tdy-what">' + (x.mention ? '<span class="tdy-k">@ you</span>' : '') + '<b>' + tagged(esc(String(x.text).slice(0, 220))) + '</b><small>on ' + esc(x.task) + '</small></td>' +
+      '<td><span class="tdy-u tdy-n' + x.c + '">' + esc(x.urgency) + '</span></td><td class="tdy-what">' + (x.mention ? '<span class="tdy-k">@ you</span>' : '') + '<b>' + tagged(esc(String(x.text).slice(0, 220))) + '</b><small>on ' + esc(x.task) + '</small>' + seenOf(x) + '</td>' +
       '<td>' + esc(x.by || '—') + '</td><td class="tdy-proj">' + esc(x.project) + '</td><td class="tdy-act">' + '<button type="button" class="btn btn-sm btn-gold" data-open>Open →</button></td></tr>';
   }
   function tagBar(c) { var g = TG(), t = (c && c.tags) || {}; if (!g || !Object.keys(t).length) return '';

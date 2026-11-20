@@ -61,7 +61,7 @@ try {
   const np = await api('planNewProject', { name: 'Quick check', client: 'Northside Health', program: 'Digital health' }), core = np.j.core;
   ok('Projects', 'a new project', np.status === 200 && !!core, JSON.stringify(np.j).slice(0, 160));
   const d0 = (n) => new Date(Date.now() + 11 * 3600000 + n * 864e5).toISOString().slice(0, 10), myN = me.j.name || 'Sashi Sivam', mw = myN.split(' '), mid = mw[0] + ' Kumar ' + mw[mw.length - 1].toUpperCase();
-  const sv = await api('planSave', { core, plan: { name: 'Quick check', stakeholders: [{ name: 'The Boss', role: 'Sponsor', email: 'Owner@Example.com', raci: 'A' }], start: d0(-10), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+  const sv = await api('planSave', { core, plan: { name: 'Quick check', stakeholders: [{ name: 'The Boss', role: 'Sponsor', email: 'Owner@Example.com', raci: 'A' }, { name: 'Bob Builder', role: 'Site lead', phone: '+61 400 111 222', raci: 'R' }], charter: { manager: myN }, start: d0(-10), phases: [{ id: 'ph1', name: 'Work' }], tasks: [
     { id: 't1', phase: 'ph1', name: 'Design', dur: 2, pred: [], res: [myN], pct: 0, status: 'todo' },
     { id: 't4', phase: 'ph1', name: 'Sign off', dur: 1, pred: [], res: ['The Boss'], pct: 0, status: 'todo' },
     { id: 't5', phase: 'ph1', name: 'Board item', dur: 2, pred: [], res: ['Someone Else'], owner: myN, pct: 0, status: 'todo' },
@@ -86,6 +86,10 @@ try {
   const n4 = (td.j.attention || []).find((x) => x.nid === 'n4'), pn4 = pg.j.plan.tasks.find((t) => t.id === 't3').stickies.find((x) => x.id === 'n4');
   ok('Today', '#tags: a #blocker note (any case) comes first with its tags, the blockers count is the #blocker notes, the tag counts are given, and a copied-to-register link is kept', n4 && (td.j.attention || [])[0].nid === 'n4' && n4.tags.join() === 'blocker,waiting' && n4.rag === 'red' && n4.urgency === 'Blocker' && cc.blockers === 1 && cc.tags.blocker === 1 && cc.tags.waiting === 1 && cc.now >= 1 && pn4 && pn4.linked === 'risk:r1', JSON.stringify({ first: (td.j.attention || [])[0] && td.j.attention[0].nid, n4: n4 && n4.tags, cc, linked: pn4 && pn4.linked }));
   ok('Today', 'the work week only: a note due in three weeks is not listed but counted as later, and the week end is given', !(td.j.attention || []).some((x) => x.nid === 'n5') && td.j.laterNotes >= 1 && /^\d{4}-\d{2}-\d{2}$/.test(td.j.weekEnd || '') && !(td.j.todo || []).some((x) => x.due > td.j.weekEnd && x.when !== 'overdue'), JSON.stringify({ laterNotes: td.j.laterNotes, weekEnd: td.j.weekEnd, later: td.j.later }));
+  { const a1 = (td.j.attention || []).find((x) => x.nid === 'n1'), a2 = (td.j.attention || []).find((x) => x.nid === 'n2'), t1 = (td.j.todo || []).find((x) => x.core === core && x.t === 't1');
+    ok('Today', '📞 a note raised by someone else carries their number from the stakeholders; my own note and a task I manage have none', a1 && a1.call && a1.call.tel === '+61400111222' && a2 && !a2.call && t1 && !t1.call, JSON.stringify([a1 && a1.call, a2 && a2.call, t1 && t1.call]));
+    const sm = await api('planMyDaySeen', { core, t: 't2', nid: 'n1', via: 'phone' }), td2 = await api('planMyDayGet'), b1 = (td2.j.attention || []).find((x) => x.nid === 'n1'), sg = await api('planSeenGet', { core });
+    ok('Today', '👁 marked as viewed on the phone: Today shows it viewed, and the project knows who viewed it on a phone', sm.status === 200 && b1 && b1.viewed > 0 && Object.values((sg.j.seen || {})['n:t2:n1'] || {}).some((v) => v.via === 'phone'), JSON.stringify([sm.j, b1 && b1.viewed, sg.j])); }
   const dn = await api('planMyDayDone', { core, t: 't1' });
   ok('Today', 'Today: ✓ done', dn.status === 200 && dn.j.ok, JSON.stringify(dn.j));
   const ga = await api('guideAsk', { q: 'How do I make a task bold?', tours: [] });

@@ -72,6 +72,7 @@ export function need(action) {
   else if (/^(sql[A-Z]|data[A-Z]|stores$|rebuildIndex$|log$|aiPing$)/.test(a)) mod = 'data';
   else mod = 'users';   // anything not listed: administrators only
   if (a === 'planQuoteInfo') mod = 'projects';
+  if (a === 'planMyDaySeen') return { mod: 'projects', level: 'view' };   // 👁 marking something you were sent as viewed: looking, not changing the plan
   return { mod, level: READ.test(a) && !/^(planQuote|quoteStart)$/.test(a) ? 'view' : 'edit' };
 }
 // reads other modules need to work (the plan page shows subbies, stock, people and the job's quote / invoice)
