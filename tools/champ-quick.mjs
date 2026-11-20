@@ -68,7 +68,8 @@ try {
     // my name with a middle name, and my own note that @mentions me that way (as people write it in the register)
     { id: 't3', phase: 'ph1', name: 'Mobilise', dur: 3, pred: [], res: [mid], lead: mid, pct: 0, status: 'todo', stickies: [{ id: 'n2', c: 'R', text: '@' + mid + ' to look into this urgently', by: myN + ' (' + myN.split(' ')[0] + ')', at: Date.now(), done: false, due: d0(1) },
       { id: 'n3', c: 'G', text: 'My own reminder, no mention', by: myN, at: Date.now(), done: false },
-      { id: 'n4', c: 'G', text: '#Blocker supplier has not confirmed @' + myN + ' #waiting', by: 'Bob Builder', at: Date.now(), done: false, due: d0(5), linked: 'risk:r1' }] }] } });
+      { id: 'n4', c: 'G', text: '#Blocker supplier has not confirmed @' + myN + ' #waiting', by: 'Bob Builder', at: Date.now(), done: false, due: d0(2), linked: 'risk:r1' },
+      { id: 'n5', c: 'R', text: '@' + myN + ' review the contract #decision', by: 'Bob Builder', at: Date.now(), done: false, due: d0(21) }] }] } });
   ok('Projects', 'a plan is saved', sv.status === 200 && sv.j.plan && sv.j.plan.rev >= 1, JSON.stringify(sv.j).slice(0, 160));
   const pg = await api('planGet', { core });
   ok('Projects', 'the plan reads back, with the sticky note', pg.status === 200 && pg.j.plan && pg.j.plan.tasks.length === 5 && pg.j.plan.tasks.find((t) => t.id === 't2').stickies.length === 1);
@@ -83,6 +84,7 @@ try {
   ok('Today', 'a task where I am the board owner (Kanban / Scrum) is mine too', (td.j.todo || []).some((x) => x.core === core && x.t === 't5'));
   const n4 = (td.j.attention || []).find((x) => x.nid === 'n4'), pn4 = pg.j.plan.tasks.find((t) => t.id === 't3').stickies.find((x) => x.id === 'n4');
   ok('Today', '#tags: a #blocker note (any case) comes first with its tags, the blockers count is the #blocker notes, the tag counts are given, and a copied-to-register link is kept', n4 && (td.j.attention || [])[0].nid === 'n4' && n4.tags.join() === 'blocker,waiting' && n4.rag === 'red' && n4.urgency === 'Blocker' && cc.blockers === 1 && cc.tags.blocker === 1 && cc.tags.waiting === 1 && cc.now >= 1 && pn4 && pn4.linked === 'risk:r1', JSON.stringify({ first: (td.j.attention || [])[0] && td.j.attention[0].nid, n4: n4 && n4.tags, cc, linked: pn4 && pn4.linked }));
+  ok('Today', 'the work week only: a note due in three weeks is not listed but counted as later, and the week end is given', !(td.j.attention || []).some((x) => x.nid === 'n5') && td.j.laterNotes >= 1 && /^\d{4}-\d{2}-\d{2}$/.test(td.j.weekEnd || '') && !(td.j.todo || []).some((x) => x.due > td.j.weekEnd && x.when !== 'overdue'), JSON.stringify({ laterNotes: td.j.laterNotes, weekEnd: td.j.weekEnd, later: td.j.later }));
   const dn = await api('planMyDayDone', { core, t: 't1' });
   ok('Today', 'Today: ✓ done', dn.status === 200 && dn.j.ok, JSON.stringify(dn.j));
   const ga = await api('guideAsk', { q: 'How do I make a task bold?', tours: [] });
