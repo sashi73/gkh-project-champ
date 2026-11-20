@@ -197,4 +197,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 186 | 1.0.186| 2026-11-20 23:44| vault| `032b30a` | 🔒 Finance vault: Program → Project → Contracts / Billing / Invoices / Documents; opens for the super user, CEO, CFO and the program directo |
 | 187 | 1.0.187| 2026-11-20 23:47| brief2| `edca87c` | 🎙 CEO briefing in the CEO's order: how we are faring, concerned / happy about, recommended turnaround or winning strategy, focus, cash flow |
 | 188 | 1.0.188| 2026-11-20 23:52| ask2| `2d1519c` | 🧭 Ask Champ on the CEO view answers project questions (customer, project manager, owner/sponsor, program director, stakeholders, dates, sta |
-| 189 | 1.0.189 | 2026-11-20 23:54 | champ-rag | _this commit_ | _see git log_ |
+| 189 | 1.0.189| 2026-11-20 23:54| champ-rag| `fcd38ad` | 🔎 Ask Champ on the CEO view: plain Champ again (no 'strategy adviser'), in control of the whole project environment: RAG over every project |
+| 190 | 1.0.190 | 2026-11-20 23:56 | read-all | _this commit_ | _see git log_ |
