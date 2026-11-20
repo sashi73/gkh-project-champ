@@ -46,7 +46,7 @@ export async function myDay(ctx, opts) {
     try { P.schedule(plan); } catch { continue; }
     const core = plan.core || '', proj = plan.name || 'Project', names = namesFor(ctx, plan), all = !!(plan.emergency || plan.weekends);
     if (!names.size) continue;
-    const soon = P.addWork(today, 1, all), ahead = P.addWork(today, 4, all), link = '#plan/' + encodeURIComponent(core) + '/schedule';
+    const soon = P.addWork(today, 1, all), ahead = P.addWork(P.nextWork(today, all), 4, all), link = '#plan/' + encodeURIComponent(core) + '/schedule';
     const add = (row) => { if (row.due && row.due > ahead) { later++; return; }const g = urgency(row.priority, row.due, today, soon); todo.push({ ...row, core, project: proj, link, urgency: g.u, lv: g.lv, rag: rag(row.due, today, soon) }); };   // due in the next week, or overdue
     for (const t of plan.tasks) {
       const tname = String(t.name || '').replace(/^[✓◆\s]+/, ''), onTask = (t.res || []).some((r) => isMe(names, r)) || isMe(names, t.lead) || isMe(names, ownerName(plan, t));
@@ -81,7 +81,7 @@ export async function myDay(ctx, opts) {
   const both = todo.concat(att), soon1 = P.addWork(today, 1, false), tom = new Date(Date.parse(today + 'T00:00:00Z') + 864e5).toISOString().slice(0, 10);
   const nextDue = tom > soon1 ? tom : soon1;
   both.forEach((x) => { x.when = !x.due ? '' : x.due < today ? 'overdue' : x.due === today ? 'today' : x.due <= nextDue ? 'tomorrow' : ''; });
-  return { today, name: ctx.name || '', todo: todo.slice(0, 100), attention: att.slice(0, 100), later, laterNotes, weekEnd: P.addWork(today, 4, false),
+  return { today, name: ctx.name || '', todo: todo.slice(0, 100), attention: att.slice(0, 100), later, laterNotes, weekEnd: P.addWork(P.nextWork(today, false), 4, false),
     counts: { overdue: both.filter((x) => x.when === 'overdue').length, dueToday: both.filter((x) => x.when === 'today').length, dueSoon: both.filter((x) => x.when === 'today' || x.when === 'tomorrow').length,
       now: both.filter((x) => x.when === 'overdue' || x.when === 'today' || (x.tags || []).includes('blocker')).length,
       blockers: att.filter((x) => (x.tags || []).includes('blocker')).length, notes: att.length, lateBlockers: att.filter((x) => x.late).length,

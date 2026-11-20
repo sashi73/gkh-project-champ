@@ -176,4 +176,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 165 | 1.0.165| 2026-11-20 01:13| today-open| `c49aaea` | Today → Open: fix 'Cannot set properties of null (setting innerHTML)' (#27) |
 | 166 | 1.0.166| 2026-11-20 02:02| postgres| `e016d87` | Data: Postgres behind one switch (CHAMP_DB), faster loading, and an owner-only move between Blobs and Postgres |
 | 167 | 1.0.167| 2026-11-20 02:14| postgres| `93bbccf` | Data: Postgres behind one switch (CHAMP_DB), faster loading, owner-only move (#28) |
-| 168 | 1.0.168 | 2026-11-20 11:01 | today-week | _this commit_ | _see git log_ |
+| 168 | 1.0.168| 2026-11-20 11:01| today-week| `d515f2a` | Today: one work week at a time, and no ✓ Done / ✓ Resolved (open it and deal with it there) |
+| 169 | 1.0.169 | 2026-11-20 11:08 | today-week | _this commit_ | _see git log_ |
