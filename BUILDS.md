@@ -194,4 +194,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 183 | 1.0.183| 2026-11-20 23:24| ceo2| `2612f04` | 👔 CEO view: a legend for the program health counts (and hover text); revenue says 'not tracked yet' instead of $0 when no quotes or invoice |
 | 184 | 1.0.184| 2026-11-20 23:30| finance| `eb79780` | 💵 Finance: milestone billing (contract value + each milestone's share; a done milestone is ready to invoice; raise it once), every invoice  |
 | 185 | 1.0.185| 2026-11-20 23:36| brief| `ed7c9e4` | 🎙 Champ's CEO briefing (overview, concerns, quick wins, cash view, strategy and road ahead; verdict by rules: turnaround / steady and stren |
-| 186 | 1.0.186 | 2026-11-20 23:44 | vault | _this commit_ | _see git log_ |
+| 186 | 1.0.186| 2026-11-20 23:44| vault| `032b30a` | 🔒 Finance vault: Program → Project → Contracts / Billing / Invoices / Documents; opens for the super user, CEO, CFO and the program directo |
+| 187 | 1.0.187 | 2026-11-20 23:47 | brief2 | _this commit_ | _see git log_ |

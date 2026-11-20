@@ -434,12 +434,12 @@
     return top >= 3 ? best : null;
   }
   var HOW = /\b(how|where|show me|guide me|walk me|can i|cara|bagaimana|di mana|tunjuk)\b|எப்படி|எங்கே|如何|怎么|どうやって|어떻게|چگونه|كيف|कैसे|ทำอย่างไร/i;
-  // 🧭 on the CEO view Champ is a strategy adviser (Drucker, Porter): questions go to the CEO screen's own adviser (admin-ceo.js)
+  // 🧭 on the CEO view Champ is a strategy adviser (the ideas of Drucker and Porter, never named to the user): questions go to the CEO screen's own adviser (admin-ceo.js)
   var stratOn = function () { return /^#ceo(\/|$)/.test(location.hash) && !!M.ceoAsk; };
   function stratMode() {
     var p = $('#cgPanel'); if (!p) return; var on = stratOn(), b = p.querySelector('.cgp-h b'); if (b) b.textContent = on ? '🧭 Strategy adviser' : 'Champ';
     p.classList.toggle('cgp-strat', on); var q = $('#cgQ'); if (q) q.placeholder = on ? 'Ask a strategy question about the portfolio…' : 'Ask me anything…';
-    if (on && !p.getAttribute('data-strat')) { p.setAttribute('data-strat', '1'); tr(['I am in strategy-adviser mode while you are on the CEO view, thinking like Peter Drucker and Michael Porter with your portfolio\'s figures. Ask me where to focus, what to stop, how to fix the cash, or which programs to back.']).then(function (x) { say('bot', x[0]); }); }
+    if (on && !p.getAttribute('data-strat')) { p.setAttribute('data-strat', '1'); tr(['I am your strategy adviser while you are on the CEO view, working from your portfolio\'s own figures. Ask me where to focus, what to stop, how to fix the cash, or which programs to back.']).then(function (x) { say('bot', x[0]); }); }
     if (!on) p.removeAttribute('data-strat');
   }
   window.addEventListener('hashchange', stratMode);
