@@ -122,7 +122,24 @@ try {
   // 3. the website chat
   const ch = await fetch(`${BASE}/.netlify/functions/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'How do I add a sticky note?' }], lang: 'en', where: 'site' }) });
   ok('Chat', 'the website chat answers', ch.status === 200, String(ch.status));
-} catch (e) {
+  // ---------- 👔 the CEO view ----------
+  { const qd = await api('docCreate', { type: 'quote', core, fields: { items: [{ desc: 'Works', qty: 1, price: 50000, gst: true }] } });
+    await api('docStatus', { id: qd.j.doc.id, status: 'accepted' });
+    const iv = await api('docCreate', { type: 'invoice', core, fields: { items: [{ desc: 'Stage 1', qty: 1, price: 20000, gst: true }] } });
+    await api('docStatus', { id: iv.j.doc.id, status: 'sent' }); await api('payAdd', { id: iv.j.doc.id, amount: 11000 });
+    const cv = await api('planCeoGet', {}), r = cv.j.rows && cv.j.rows.find((x) => x.core === core);
+    ok('CEO', 'the CEO view: every project with health, and the money: contract from the accepted quote, invoiced, received and still owed (before tax), profit = contract − forecast cost',
+      cv.status === 200 && r && ['red', 'amber', 'green', 'grey'].includes(r.health) && r.contract === 50000 && r.invoiced === 20000 && r.received === 10000 && r.owed === 10000 && r.profit === Math.round((50000 - r.eac) * 100) / 100 && cv.j.all.n >= 1 && cv.j.flow.length === 13 && Array.isArray(cv.j.byProgram),
+      JSON.stringify(r && [r.health, r.contract, r.invoiced, r.received, r.owed, r.profit, r.eac]) + ' ' + cv.status);
+    const c1 = await api('userCreate', { user: { email: 'ceo1@example.com', name: 'Chief One', password: 'Ceopass2026x', role: 'CEO' } });
+    const c2 = await api('userCreate', { user: { email: 'ceo2@example.com', name: 'Chief Two', password: 'Ceopass2026x', role: 'CEO' } });
+    ok('CEO', 'a company has one CEO: a second one is refused, naming the first', c1.status === 200 && c1.j.user.role === 'CEO' && c2.status === 400 && /Chief One is already the CEO/.test(c2.j.error || ''), c1.status + ' ' + c2.status + ' ' + (c2.j.error || ''));
+    const keep = cookie; cookie = '';
+    const lc = await api('login', { username: 'ceo1@example.com', password: 'Ceopass2026x' }), me = await api('me'), cg = await api('planCeoGet', {}), sv = await api('planSave', { core, plan: { name: 'x', tasks: [] } }), pp = await api('pplList');
+    cookie = keep;
+    ok('CEO', 'the CEO signs in: sees the CEO view, cannot change a plan, and sees people\'s names and roles only (no phone, email or rates)', lc.status === 200 && me.j.role === 'CEO' && cg.status === 200 && sv.status === 403 && pp.status === 200 && (pp.j.people || []).every((x) => !('phone' in x) && !('email' in x) && !('rate' in x)), [lc.status, me.j.role, cg.status, sv.status, pp.status, JSON.stringify((pp.j.people || [])[0])].join(' '));
+  }
+  } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {
   srv.kill(); llm.close(); await blobs.stop().catch(() => {});

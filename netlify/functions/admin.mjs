@@ -246,6 +246,10 @@ async function handle(req, context) {
         return out(200, { ...pl, hols: WCAL.holidays(cc, pl.st, y0, y1), from: y0, to: y1 }); }   // the years actually loaded
       // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
+      case 'planCeoGet': {   // 👔 the CEO view: the CEO, the super user, project directors and managers
+        if (ctx.scope || !(ctx.owner || ['CEO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
+        const CEO = await import('../lib/ceo.mjs'); return out(200, await CEO.ceoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10)));
+      }
       case 'planSeenGet': return out(200, await seenGet(ctx, String(body.core || '')));
       case 'planMyDaySeen': { const r = await seenMark(ctx, body); if (r.error) return bad(r.error, r.code || 400); return out(200, r); }
       case 'planMyDayDone': { const r = await myDayDone(ctx, body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Today: ${body.nid ? 'note resolved' : 'done'} on ${String(body.core || '').slice(0, 40)}`).catch(() => {}); return out(200, r); }

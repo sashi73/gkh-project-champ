@@ -362,7 +362,10 @@ export async function pplPost(action, body, { who, by, audit, unlogin, ctx }) {
     case 'pplMeCvGet': { const r = await cvGet(await mine(ctx && ctx.who)); return r.error ? out(r.code || 400, r) : out(200, r); }
     case 'pplCvUpload': { const p = await get(str(body.id, 10)); if (!p) return out(404, { error: 'Person not found' }); const r = await cvPut(p, body, by); if (r.error) return out(400, r); await log(`Resume uploaded: ${p.id} ${p.name}`); return out(200, r); }
     case 'pplCvGet': { const r = await cvGet(await get(str(body.id, 10))); return r.error ? out(r.code || 400, r) : out(200, r); }
-    case 'pplList': return out(200, await list());
+    case 'pplList': {   // 👔 the CEO (no People access; the plan pages still list who is who) gets names and roles only: no phone, email, rates or credentials
+      const L = await list(); if (!ctx || ctx.role !== 'CEO') return out(200, L);
+      return out(200, { ...L, people: (L.people || []).map((x) => ({ id: x.id, name: x.name, role: x.role, trade: x.trade, group: x.group, type: x.type, status: x.status })) });
+    }
     case 'pplGet': {
       const p = await get(str(body.id, 10)); if (!p) return out(404, { error: 'Person not found' });
       const a = (await assignments(p.id))[p.id];
