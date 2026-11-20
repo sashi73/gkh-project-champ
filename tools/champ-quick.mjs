@@ -9,6 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
 import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
 
 const SITE = path.resolve(process.argv[2] || '.'), PORT = 8913, BASE = `http://127.0.0.1:${PORT}`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -91,6 +92,23 @@ try {
   ok('Champ', 'Ask Champ answers', ga.status === 200 && typeof ga.j.answer === 'string', JSON.stringify(ga.j).slice(0, 160));
   const ppl = await api('pplMe');
   ok('People', 'My profile', ppl.status === 200, String(ppl.status));
+
+  // 4. 📍 Location: the weekend and public holidays of a place, and the schedule that follows them
+  const ked = await api('planHolidaysGet', { cc: 'MY', st: '02', place: 'Alor Setar, Kedah, Malaysia', from: 2026, to: 2027 });
+  ok('Calendar', 'Kedah: weekend Friday–Saturday and its 2026–27 public holidays', ked.status === 200 && ked.j.wk.join() === '5,6' && ked.j.hols.length >= 30 && ked.j.hols.some((h) => h.d === '2026-02-17'), JSON.stringify({ wk: ked.j.wk, n: (ked.j.hols || []).length }));
+  const ir = await api('planHolidaysGet', { cc: 'IR', st: '', from: 2026, to: 2026 }), sa = await api('planHolidaysGet', { cc: 'SA', st: '', from: 2026, to: 2026 }), kl = await api('planHolidaysGet', { cc: 'MY', st: '14', from: 2026, to: 2026 });
+  ok('Calendar', 'weekends by place: Tehran Thu–Fri, Jeddah Fri–Sat, Kuala Lumpur Sat–Sun', ir.j.wkName === 'Thu–Fri' && sa.j.wkName === 'Fri–Sat' && kl.j.wkName === 'Sat–Sun', [ir.j.wkName, sa.j.wkName, kl.j.wkName].join(' '));
+  const pk = await api('planPlacesGet', { q: 'Ked' });
+  ok('Calendar', 'place search: "Ked" finds Kedah, Malaysia (weekend Fri–Sat)', pk.status === 200 && (pk.j.places || []).some((x) => /Kedah, Malaysia/.test(x.place) && x.wkName === 'Fri–Sat'), JSON.stringify(pk.j.places || pk.j).slice(0, 200));
+  const PL = await import(pathToFileURL(path.join(SITE, 'netlify/lib/plan.mjs')).href);
+  const kp = { cal: { cc: 'MY', st: '02', wk: [5, 6], hols: [{ d: '2026-11-24', n: 'Test holiday' }, { d: '2026-11-25', n: 'Worked', work: true }] } }, A = PL.allDays(kp);
+  // Thursday 19 Nov 2026 + 3 working days in Kedah: Sun 22, Mon 23, (Tue 24 holiday) Wed 25 → Wed 25
+  ok('Calendar', 'the schedule follows the place: Kedah skips Fri–Sat and its holiday, works a holiday marked as worked; a plan without a location is Mon–Fri as before',
+    PL.addWork('2026-11-19', 3, A) === '2026-11-25' && PL.addWork('2026-11-19', 3, false) === '2026-11-24' && PL.allDays({}) === false && PL.allDays({ weekends: true }) === true && PL.isWork('2026-11-25', A) && !PL.isWork('2026-11-24', A) && !PL.isWork('2026-11-20', A) && PL.isWork('2026-11-22', A),
+    [PL.addWork('2026-11-19', 3, A), PL.addWork('2026-11-19', 3, false)].join(' '));
+  const sv2 = await api('planSave', { core, plan: Object.assign(pg.j.plan, { cal: { place: 'Alor Setar, Kedah, Malaysia', cc: 'MY', st: '02', wk: [5, 6], hols: [{ d: '2026-12-01', n: 'Test' }], y0: 2026, y1: 2027 } }), rev: (await api('planGet', { core })).j.plan.rev });
+  const back = (await api('planGet', { core })).j.plan.cal;
+  ok('Calendar', 'the location is kept with the plan', sv2.status === 200 && back && back.place === 'Alor Setar, Kedah, Malaysia' && back.wk.join() === '5,6' && back.hols.length === 1, JSON.stringify(back).slice(0, 160));
 
   // 3. the website chat
   const ch = await fetch(`${BASE}/.netlify/functions/chat`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'How do I add a sticky note?' }], lang: 'en', where: 'site' }) });

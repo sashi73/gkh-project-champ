@@ -19,13 +19,39 @@ const str = (s, max = 300) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000
 const ymdOk = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) ? String(s) : '';
 const int = (n, lo, hi, d = lo) => { const v = Math.round(Number(n)); return Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d; };
 
+// 📍 the work calendar a plan keeps: where, its weekend, and its public holidays (each can be marked as worked)
+function calClean(c) {
+  if (!c || typeof c !== 'object' || !/^[A-Z]{2}$/.test(String(c.cc || ''))) return undefined;
+  const wk = [...new Set((Array.isArray(c.wk) ? c.wk : []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6))].slice(0, 3);
+  const seen = new Set(), hols = (Array.isArray(c.hols) ? c.hols : []).filter((h) => h && /^\d{4}-\d{2}-\d{2}$/.test(String(h.d || '')) && !seen.has(h.d) && seen.add(h.d)).slice(0, 400)
+    .map((h) => ({ d: h.d, n: String(h.n || 'Holiday').slice(0, 80), ...(h.work ? { work: true } : {}), ...(h.own ? { own: true } : {}) })).sort((a, b) => a.d.localeCompare(b.d));
+  return { place: String(c.place || '').slice(0, 120), cc: c.cc, st: String(c.st || '').replace(/[^A-Za-z0-9]/g, '').slice(0, 6), wk, hols, y0: Number(c.y0) || 0, y1: Number(c.y1) || 0 };
+}
+
 // ---------- working days ----------
 // Normal jobs: Monday to Friday. Emergency jobs (v34): every day counts, Saturday and Sunday included.
 // Each helper takes "all" = true to count weekends; allDays(plan) says which a plan uses.
 const toD = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(Date.UTC(y, m - 1, d)); };
 const toS = (d) => d.toISOString().slice(0, 10);
-const off = (d, all) => !all && [0, 6].includes(d.getUTCDay());   // a day off?
-export const allDays = (plan) => !!(plan && (plan.emergency || plan.weekends));   // v40: "Weekends (Sat, Sun) allowed"
+// "all" is: false (Mon–Fri), true (every day), or a work calendar { wk: [weekend days, 0 Sun … 6 Sat], hol: Set of holiday dates } (📍 Location)
+const off = (d, all) => { if (all === true) return false; if (all && typeof all === 'object') return all.wk.includes(d.getUTCDay()) || all.hol.has(toS(d)); return [0, 6].includes(d.getUTCDay()); };   // a day off?
+// the plan's calendar: emergency = every day; "Weekends allowed" = every day but the location's public holidays; a location = its weekend and holidays
+export function allDays(plan) {
+  if (!plan) return false; const c = plan.cal, every = !!(plan.emergency || plan.weekends);
+  if (!c || !Array.isArray(c.wk)) return every;
+  if (plan.emergency) return true;
+  const hol = new Set((c.hols || []).filter((h) => !h.work).map((h) => h.d));
+  if (!every && !hol.size && c.wk.length === 2 && c.wk.includes(0) && c.wk.includes(6)) return false;   // the same as Mon–Fri
+  return { wk: every ? [] : c.wk.slice(), hol };
+}
+// how the plan counts days, in words (for the AI and the documents)
+export function daysAre(plan) {
+  const A = allDays(plan), D = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  if (A === true) return 'calendar days, weekends included (' + (plan.emergency ? 'emergency job' : 'weekend work allowed') + ')';
+  if (!A) return 'working days, Monday to Friday';
+  const off = A.wk.map((d) => D[d]).join(' and ');
+  return 'working days' + (plan.cal && plan.cal.place ? ' in ' + plan.cal.place : '') + (off ? ' (weekend: ' + off + ')' : ' (every day of the week)') + (A.hol.size ? ', public holidays excluded' : '');
+}
 export const isWork = (s, all = false) => !off(toD(s), all);
 export function nextWork(s, all = false) { let d = toD(s); while (off(d, all)) d = new Date(d.getTime() + 86400000); return toS(d); }
 export function prevWork(s, all = false) { let d = new Date(toD(s).getTime() - 86400000); while (off(d, all)) d = new Date(d.getTime() - 86400000); return toS(d); }
@@ -181,7 +207,7 @@ function clean(p, core) {
   for (const t of tasks) t.pred = t.pred.filter((x) => tIds.has(x) && x !== t.id);
   const c = p.charter || {};
   const res = {
-    core, name: str(p.name, 120) || 'Project plan', start: ymdOk(p.start) || new Date().toISOString().slice(0, 10), workStart: ymdOk(p.workStart), finishBy: ymdOk(p.finishBy), emergency: false, weekends: !!p.weekends, coolOff: int(p.coolOff, 0, 10, 3), estAuto: str(p.estAuto, 30),
+    core, name: str(p.name, 120) || 'Project plan', start: ymdOk(p.start) || new Date().toISOString().slice(0, 10), workStart: ymdOk(p.workStart), finishBy: ymdOk(p.finishBy), emergency: false, weekends: !!p.weekends, cal: calClean(p.cal), coolOff: int(p.coolOff, 0, 10, 3), estAuto: str(p.estAuto, 30),
     charter: { objective: str(c.objective, 1500), inScope: str(c.inScope, 3000), outScope: str(c.outScope, 2000), deliverables: str(c.deliverables, 2000),
       acceptance: str(c.acceptance, 2000), assumptions: str(c.assumptions, 2000), notes: str(c.notes, 3000), background: str(c.background, 3000), budget: r2(c.budget), customer: str(c.customer, 120), manager: str(c.manager, 80),
       // v73: the charter document: its version and status
@@ -513,7 +539,7 @@ export async function costEstimate({ core, ids, note, target: tgt }, by) {
     (target ? 'Benchmark for the whole project: about $' + Math.round(target).toLocaleString('en-AU') + (bench ? ' (' + bench.basis + ')' : '') + '; other tasks already cost $' + Math.round(known).toLocaleString('en-AU') + '. Size the lump sums so the total is close to it. ' : '') +
     'JSON only: {"costs":[{"id":"","p":1,"q":0,"u":"h","r":0,"b":""}],"caveat":"one sentence: the biggest uncertainty in these numbers"}';
   const user = { project: privateOut(str(plan.name, 120), job), work: privateOut(str(job.service, 120), job), location: str(job.suburb, 60), description: privateOut(jobScope(job), 1500),
-    objective: privateOut(str((plan.charter || {}).objective, 600), job), days_are: all ? 'calendar days' : 'working days (Mon to Fri)',
+    objective: privateOut(str((plan.charter || {}).objective, 600), job), days_are: all ? 'calendar days' : daysAre(plan),
     tasks: list.map((t) => ({ id: t.id, name: scrubTask(t.name, job), days: t.dur, people: (t.res || []).length || undefined, trades: (t.res || []).slice(0, 4).map((x) => scrubTask(x, job)), steps: (t.subs || []).slice(0, 8).map((x) => scrubTask(x.name, job)) })) };
   let o = null, used = 0, today, why = '';
   if (llmSetup()) {
@@ -817,7 +843,7 @@ export async function fitPlanAi({ core, finishBy }, by) {
     '(2) CRASH: shorten a task\'s days by adding crew or longer hours, and give extra_cost (ex tax, in $) for the extra labour or overtime, 0 if none. ' +
     'Work on critical tasks (crit=true) first: changing tasks that are not critical does not move the finish. NEVER change tasks with locked=true (milestones, approvals and council/certifier/engineer/strata, ordering, lead times and deliveries, curing/drying/setting times, inspections and tests, work already started). ' +
     'Never make a task longer, never shorten a task below half its days, and keep the work order safe and sensible (for example waterproofing must cure and pass its flood test before tiling). ' +
-    'Days are ' + (A ? 'calendar days, Saturday and Sunday included (' + (plan.emergency ? 'emergency job' : 'weekend work allowed') + ')' : 'working days, Monday to Friday') + '. If it truly cannot fit, do the best you can and set can_fit false with realistic_extra_days (days still late). ' +
+    'Days are ' + daysAre(plan) + '. If it truly cannot fit, do the best you can and set can_fit false with realistic_extra_days (days still late). ' +
     'JSON only: {"changes":[{"id":"","d":0,"after":[""],"why":"short reason","extra_cost":0}],"can_fit":true,"realistic_extra_days":0,"summary":"two short sentences","risks":[["title","cause",3,3,"Mitigate","action"]],"tips":[""]}. ' +
     'List only the tasks you change; leave out "d" if the days stay the same and "after" if the links stay the same.';
   const user = { plan: scrubTask(str(plan.name, 120), job), emergency: !!plan.emergency, weekends_allowed: !!plan.weekends, start: R.start, current_finish: R.finish, finish_by: fb, days_late: late,
@@ -852,7 +878,7 @@ export async function fitPlanAi({ core, finishBy }, by) {
   const R2 = rollup(q, today);
   // weekdays only and still late: what would allowing weekends (Sat, Sun) on top of these changes give?
   let weekend = null;
-  if (R2.finish > fb && !A) { const w = JSON.parse(JSON.stringify(q)); w.weekends = true; const Rw = rollup(w, today); weekend = { finish: Rw.finish, fits: Rw.finish <= fb, stillLate: Rw.finish > fb ? workBetween(fb, Rw.finish, true) - 1 : 0 }; }
+  if (R2.finish > fb && A !== true && !plan.weekends) { const w = JSON.parse(JSON.stringify(q)); w.weekends = true; const Rw = rollup(w, today); weekend = { finish: Rw.finish, fits: Rw.finish <= fb, stillLate: Rw.finish > fb ? workBetween(fb, Rw.finish, true) - 1 : 0 }; }
   const num = Object.fromEntries(q.tasks.map((t, i) => [t.id, i + 1]));
   for (const c of changes) { c.num = num[c.id]; c.afterFromN = c.afterFrom.map((x) => num[x]).filter(Boolean); c.afterToN = c.afterTo.map((x) => num[x]).filter(Boolean); }
   const risks = (Array.isArray(o.risks) ? o.risks : []).slice(0, 5).map((r) => Array.isArray(r) ? { title: str(r[0], 160), cause: str(r[1], 300), p: int(r[2], 1, 5, 3), i: int(r[3], 1, 5, 3), response: RESP.includes(r[4]) ? r[4] : 'Mitigate', action: str(r[5], 300) } : null).filter((r) => r && r.title);

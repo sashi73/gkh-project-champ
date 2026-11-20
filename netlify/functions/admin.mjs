@@ -17,6 +17,7 @@ import { acctGet, acctPost } from '../lib/admin-acct.mjs';
 import { sqlPost } from '../lib/admin-sql.mjs';
 import { planPost, get as getPlan, setModule, forgetModules } from '../lib/plan.mjs';
 import { myDay, myDayDone } from '../lib/myday.mjs';
+import * as WCAL from '../lib/workcal.mjs';
 import { invPost } from '../lib/inventory.mjs';
 import { custPost } from '../lib/admin-cust.mjs';
 import { planQuotePost } from '../lib/plan-quote.mjs';
@@ -226,6 +227,11 @@ async function handle(req, context) {
     switch (action) {
       case 'me': return out(200, { build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.scope || null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
 
+      // 📍 Location: search a place (countries and states offline, towns from OpenStreetMap), and its weekend and public holidays
+      case 'planPlacesGet': return out(200, { places: await WCAL.places(clean(body.q, 60)) });
+      case 'planHolidaysGet': { const cc = clean(body.cc, 2).toUpperCase(), st = clean(body.st, 6), pl = WCAL.placeOf(cc, st, clean(body.place, 120));
+        if (!WCAL.countryName(cc)) return bad('Pick a place from the list.');
+        return out(200, { ...pl, hols: WCAL.holidays(cc, pl.st, body.from, body.to), from: +body.from || 0, to: +body.to || 0 }); }
       // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
       case 'planMyDayDone': { const r = await myDayDone(ctx, body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Today: ${body.nid ? 'note resolved' : 'done'} on ${String(body.core || '').slice(0, 40)}`).catch(() => {}); return out(200, r); }
