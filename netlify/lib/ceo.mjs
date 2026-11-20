@@ -38,6 +38,8 @@ export async function ceoView(day) {
     const x = R(q.core), ex = (q.totals && q.totals.ex) || 0;
     if (q.status === 'accepted' || q.invoiceId) x.contract += ex; else x.quoted = Math.max(x.quoted, ex);
   }
+  // 💵 no accepted quote: the contract value typed in on the Finance screen (billing:<core>)
+  for (const k of await kv.keys('billing:').catch(() => [])) { const b = await kv.get(k).catch(() => null), core = k.slice(8); if (b && b.contract > 0 && !(rev[core] && rev[core].contract)) R(core).contract = Number(b.contract) || 0; }
   for (const inv of docs.invoices) {
     if (inv.status === 'void' || inv.status === 'draft') continue;
     const ex = (inv.totals && inv.totals.ex) || 0, inc = (inv.totals && inv.totals.inc) || 0, exOf = (v) => (inc ? v * ex / inc : 0);

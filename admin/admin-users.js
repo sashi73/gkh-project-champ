@@ -14,6 +14,7 @@
   var MODS = [['projects', 'Projects', 'Programs, projects, plans, Gantt, Board, costing, risks, change control, Ask AI'], ['people', 'People', 'The team register, credentials, calendar and workload (only the project manager adds people)'], ['crm', 'Enquiries & visitors', 'Enquiries and website visitors'],
     ['data', 'Ask AI & reports', 'Ask AI, SQL wizard and reports (the activity log is the super user\'s)'], ['users', 'Users & access', 'This page: project managers and directors add contractors and project personnel; only the super user makes managers and upgrades people']];
   var KIND = {
+    CFO: { ic: '💵', cls: 'ceo', about: 'One per company. Runs billing: contract values, milestone invoices and payments received, across every project (read-only on plans). Starts on the Finance screen.' },
     CEO: { ic: '👔', cls: 'ceo', about: 'One per company. Sees every project and the money (health, budget, spend, revenue, profit), read-only, and starts on the CEO view. No people\'s personal detail and no admin screens.' },
     'Project manager': { ic: '🧭', cls: 'pm', about: 'Runs projects: every project, People, Ask AI & reports, and Users & access (adds contractors and project personnel). No customers, activity log or builds.' },
     'Project director': { ic: '🎯', cls: 'pm', about: 'Runs projects: every project, People, Ask AI & reports, and Users & access (adds contractors and project personnel). No customers, activity log or builds.' },
@@ -24,7 +25,7 @@
   var isSuper = function () { return !!(M.me || {}).owner; };
   var isTeam = function () { return !!(S.data && S.data.team); };   // a project manager or director: adds and looks after contractors and project personnel
   var canTouch = function (u) { return isSuper() || (isTeam() && u.kind === 'email' && (u.role === 'Contractor' || u.role === 'Project personnel') && u.id !== (M.me || {}).uid); };
-  var pickRoles = function () { return isSuper() ? ['CEO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'] : ['Contractor', 'Project personnel']; };
+  var pickRoles = function () { return isSuper() ? ['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'] : ['Contractor', 'Project personnel']; };
   var when = function (t) { return t ? new Date(t).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never'; };
   var roleMods = function (r) { var x = (S.data.roles || []).filter(function (y) { return y.name === r; })[0]; return Object.assign({}, x && x.mods); };
   var lv = function (v) { return '<span class="us-lv ' + (v || 'none') + '" title="' + esc(LVI[v || 'none']) + '">' + (v === 'edit' ? '✎' : v === 'view' ? '👁' : '–') + '</span>'; };
@@ -34,7 +35,7 @@
   function page() { return load().then(draw); }
   function projText(u) {
     if (u.kind === 'google' && !u.upgraded) return 'All (view only)';
-    if (u.role === 'CEO' || u.role === 'Project manager' || u.role === 'Project director' || u.projAll || u.kind === 'person') return 'All projects';
+    if (u.role === 'CEO' || u.role === 'CFO' || u.role === 'Project manager' || u.role === 'Project director' || u.projAll || u.kind === 'person') return 'All projects';
     var L = (u.projects || []).map(function (c) { var p = S.plans.filter(function (x) { return x.core === c; })[0]; return p ? p.name : c; });
     return L.length ? L.slice(0, 3).join(', ') + (L.length > 3 ? ' +' + (L.length - 3) : '') : '<span class="bad">None yet</span>';
   }
@@ -49,7 +50,7 @@
     var count = function (r) { return U.filter(function (u) { return u.kind === 'google' && !u.upgraded ? r === 'g' : u.role === r; }).length; };
     V().innerHTML = '<div class="row us-head"><div><h2 style="margin:0">🔐 Users &amp; access</h2><p class="muted" style="margin:2px 0 0;font-size:13px">' + (isSuper() ? 'You are the <b>super user</b>: you make each login with the person\'s email and a password you choose, set what they can use, and upgrade people (⬆).' : isTeam() ? 'You can add <b>contractors</b> and <b>project personnel</b> and look after their logins. Only the super user makes project managers and directors, and upgrades people.' : 'Who can sign in and what each person can use. Only the super user can change it.') + '</p></div><span class="sp"></span>' +
         (isSuper() || isTeam() ? '<button class="btn btn-gold" id="usNew" type="button">＋ New user</button>' : '<span class="us-role us-r-pm">View only</span>') + '</div>' +
-      '<div class="us-kpis">' + [['⭐', 'Super user', 1], ['👔', 'CEO', count('CEO')], ['🧭', 'Project managers', count('Project manager')], ['🎯', 'Project directors', count('Project director')], ['🛠', 'Contractors', count('Contractor')], ['👥', 'Project personnel', count('Project personnel')], ['G', 'Google (view only)', count('g')]].map(function (k) { return '<div class="us-kpi"><span>' + k[0] + '</span><b>' + k[2] + '</b><small>' + k[1] + '</small></div>'; }).join('') + '</div>' +
+      '<div class="us-kpis">' + [['⭐', 'Super user', 1], ['👔', 'CEO', count('CEO')], ['💵', 'CFO', count('CFO')], ['🧭', 'Project managers', count('Project manager')], ['🎯', 'Project directors', count('Project director')], ['🛠', 'Contractors', count('Contractor')], ['👥', 'Project personnel', count('Project personnel')], ['G', 'Google (view only)', count('g')]].map(function (k) { return '<div class="us-kpi"><span>' + k[0] + '</span><b>' + k[2] + '</b><small>' + k[1] + '</small></div>'; }).join('') + '</div>' +
       '<div class="card"><div class="table-wrap"><table class="sc-table us-table"><thead><tr><th>Person</th><th>Role</th><th>Projects</th>' + MODS.map(function (m) { return '<th class="us-m" title="' + esc(m[1] + ': ' + m[2]) + '">' + esc(m[1]) + '</th>'; }).join('') + '<th>Last sign-in</th><th></th></tr></thead><tbody>' +
         '<tr class="us-owner"><td><b>' + esc(d.superName || 'Super user') + '</b><br><small class="muted">' + (me.owner ? esc(me.user) + ' · ' : '') + 'the Netlify login (ADMIN_USERNAME)</small></td><td><span class="us-role owner">⭐ Super user</span></td><td>All projects</td>' + MODS.map(function () { return '<td class="us-m">' + lv('edit') + '</td>'; }).join('') + '<td class="muted">–</td><td></td></tr>' +
         U.map(function (u) {
@@ -61,7 +62,7 @@
         '</tbody></table></div><p class="muted" style="font-size:12.5px;margin:10px 0 0">✎ Edit · 👁 View · – No access (hidden from their menu). Changing someone\'s permissions, switching them off or setting a new password signs them out straight away.</p></div>' +
       '<div class="card" style="margin-top:14px"><h2>Who gets what</h2><div class="us-kinds">' +
         '<div class="us-k"><b>⭐ Super user (' + esc(d.superName || '') + ')</b><span>The username and password set in Netlify. Everything, always: makes any login, sets passwords and permissions, upgrades people, and alone sees customers, the activity log and builds. Nobody can lock it out.</span></div>' +
-        ['CEO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].map(function (r) { var m = roleMods(r); return '<div class="us-k"><b>' + KIND[r].ic + ' ' + esc(r) + '</b><span>' + esc(KIND[r].about) + '</span><div class="us-k-m">' + MODS.map(function (x) { return '<i>' + lv(m[x[0]]) + ' ' + esc(x[1]) + '</i>'; }).join('') + '</div></div>'; }).join('') +
+        ['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].map(function (r) { var m = roleMods(r); return '<div class="us-k"><b>' + KIND[r].ic + ' ' + esc(r) + '</b><span>' + esc(KIND[r].about) + '</span><div class="us-k-m">' + MODS.map(function (x) { return '<i>' + lv(m[x[0]]) + ' ' + esc(x[1]) + '</i>'; }).join('') + '</div></div>'; }).join('') +
         '<div class="us-k"><b>G Google sign-in</b><span>Anyone who signs in with Google gets <b>view only</b> on everything (never Users &amp; access). The super user can switch each one off, or <b>⬆ upgrade</b> them to a role: they keep signing in with Google.</span></div></div></div>';
     var n = $('#usNew'); if (n) n.onclick = function () { newUser(); };
     V().querySelectorAll('tr[data-uid]').forEach(function (tr) {
@@ -122,7 +123,7 @@
 
   // ---------- ⚙ permissions: role, modules, projects, on/off ----------
   function perms(u, isNew) {
-    var role = KIND[u.role] ? u.role : 'Custom', mods = Object.assign({}, u.mods), all = u.role === 'CEO' || u.role === 'Project manager' || u.role === 'Project director' || !!u.projAll || u.kind === 'person', mine = (u.projects || []).slice();
+    var role = KIND[u.role] ? u.role : 'Custom', mods = Object.assign({}, u.mods), all = u.role === 'CEO' || u.role === 'CFO' || u.role === 'Project manager' || u.role === 'Project director' || !!u.projAll || u.kind === 'person', mine = (u.projects || []).slice();
     var matrix = function () { return MODS.map(function (m) { return '<tr><td><b>' + esc(m[1]) + '</b><br><small class="muted">' + esc(m[2]) + '</small></td>' + ['none', 'view', 'edit'].map(function (v) { var off = m[0] === 'users' && v === 'edit'; return '<td class="us-m"><label class="us-pick"><input type="radio" name="um_' + m[0] + '" value="' + v + '"' + (mods[m[0]] === v ? ' checked' : '') + (off ? ' disabled title="Only the super user changes Users & access"' : '') + '> ' + LVI[v] + '</label></td>'; }).join('') + '</tr>'; }).join(''); };
     var projs = function () { return S.plans.length ? S.plans.map(function (p) { return '<label><input type="checkbox" value="' + esc(p.core) + '"' + (mine.indexOf(p.core) >= 0 ? ' checked' : '') + '> <span><b>' + esc(p.name) + '</b><br><small class="muted">' + esc(p.ref || p.core) + '</small></span></label>'; }).join('') : '<div class="empty">No projects yet.</div>'; };
     M.modal('<h2>⚙ ' + esc(u.name) + '</h2>' + (isNew ? steps(3) + '<p class="ok" style="margin:0 0 8px">✓ The login for <b>' + esc(u.username) + '</b> is made. Now set what they can use.</p>' : '<p class="muted" style="margin:-4px 0 10px">' + esc(u.username) + '</p>') +
@@ -134,7 +135,7 @@
       '<div class="actions"><button class="btn" data-close type="button">' + (isNew ? 'Later' : 'Cancel') + '</button><button class="btn btn-gold" id="pmSave" type="button">Save permissions</button></div>');
     $('#modal .modal-card').classList.add('sc-wide');
     var wire = function () { document.querySelectorAll('#pmMx input[type=radio]').forEach(function (r) { r.onchange = function () { mods[r.name.slice(3)] = r.value; role = 'Custom'; var c = document.querySelector('[name=pmRole][value="Custom"]'); if (c) c.checked = true; }; }); };
-    var pmLock = function () { var pm = role === 'CEO' || role === 'Project manager' || role === 'Project director', a = $('#pmAll'); if (pm) a.checked = true; a.disabled = pm; $('#pmProjs').hidden = a.checked; };
+    var pmLock = function () { var pm = role === 'CEO' || role === 'CFO' || role === 'Project manager' || role === 'Project director', a = $('#pmAll'); if (pm) a.checked = true; a.disabled = pm; $('#pmProjs').hidden = a.checked; };
     document.querySelectorAll('[name=pmRole]').forEach(function (r) { r.onchange = function () { role = r.value; if (role !== 'Custom') { mods = roleMods(role); $('#pmMx').innerHTML = matrix(); wire(); if (role === 'Contractor') $('#pmAll').checked = false; } pmLock(); }; });
     $('#pmAll').onchange = function () { $('#pmProjs').hidden = this.checked; };
     wire(); pmLock();
@@ -172,7 +173,7 @@
   // ⬆ the super user upgrades a Google sign-in to a role (they keep signing in with Google), or takes them back to view only
   function upgrade(u) {
     var cur = u.upgraded ? u.role : 'view', mine = (u.projects || []).slice();
-    var opts = [['view', 'G', 'View only (Google)', 'View on everything, never Users & access']].concat(['CEO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].map(function (r) { return [r, KIND[r].ic, r, KIND[r].about]; }));
+    var opts = [['view', 'G', 'View only (Google)', 'View on everything, never Users & access']].concat(['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].map(function (r) { return [r, KIND[r].ic, r, KIND[r].about]; }));
     M.modal('<h2>⬆ Upgrade ' + esc(u.name) + '</h2><p class="muted" style="margin:-4px 0 10px">' + esc(u.username) + ' signs in with Google. Give them a role: they keep signing in with Google and get that role\'s access straight away (they are signed out once so it takes effect).</p>' +
       '<div class="us-rpick" id="upR">' + opts.map(function (o) { return '<label class="us-rcard"><input type="radio" name="upRole" value="' + esc(o[0]) + '"' + (cur === o[0] ? ' checked' : '') + '><span><b>' + o[1] + ' ' + esc(o[2]) + '</b><small>' + esc(o[3]) + '</small></span></label>'; }).join('') + '</div>' +
       '<div id="upP" hidden style="margin-top:10px"><b>Projects</b><label class="us-chk" style="margin:6px 0"><input type="checkbox" id="upAll"' + (u.projAll ? ' checked' : '') + '> <span><b>All projects</b></span></label><div class="us-projs" id="upProjs">' + S.plans.map(function (p) { return '<label><input type="checkbox" value="' + esc(p.core) + '"' + (mine.indexOf(p.core) >= 0 ? ' checked' : '') + '> <span><b>' + esc(p.name) + '</b></span></label>'; }).join('') + '</div></div>' +

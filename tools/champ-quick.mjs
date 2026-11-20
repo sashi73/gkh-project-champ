@@ -139,6 +139,25 @@ try {
     cookie = keep;
     ok('CEO', 'the CEO signs in: sees the CEO view, cannot change a plan, and sees people\'s names and roles only (no phone, email or rates)', lc.status === 200 && me.j.role === 'CEO' && cg.status === 200 && sv.status === 403 && pp.status === 200 && (pp.j.people || []).every((x) => !('phone' in x) && !('email' in x) && !('rate' in x)), [lc.status, me.j.role, cg.status, sv.status, pp.status, JSON.stringify((pp.j.people || [])[0])].join(' '));
   }
+    // ---------- 💵 milestone billing, Finance and the CFO ----------
+  { const np = await api('planNewProject', { name: 'Billing test', client: 'Northside Health', program: 'Digital health' }), bc = np.j.core;
+    await api('planSave', { core: bc, plan: { name: 'Billing test', start: '2026-10-01', phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+      { id: 'k1', phase: 'ph1', name: 'Design', dur: 5, pred: [], res: [], pct: 100, status: 'done' }, { id: 'm1', phase: 'ph1', name: 'Design signed off', dur: 0, pred: ['k1'], res: [], pct: 100, status: 'done' },
+      { id: 'k2', phase: 'ph1', name: 'Build', dur: 10, pred: ['m1'], res: [], pct: 0, status: 'todo' }, { id: 'm2', phase: 'ph1', name: 'Handover', dur: 0, pred: ['k2'], res: [], pct: 0, status: 'todo' }] } });
+    const over = await api('acctBillSave', { core: bc, contract: 100000, ms: { m1: 70, m2: 60 } }), sv = await api('acctBillSave', { core: bc, contract: 100000, ms: { m1: 40, m2: 60 } });
+    const f1 = await api('acctFinanceGet', {}), rd = (f1.j.ready || []).find((r) => r.core === bc);
+    const r1 = await api('acctBillRaise', { core: bc, tid: 'm1' }), r2 = await api('acctBillRaise', { core: bc, tid: 'm1' }), r3 = await api('acctBillRaise', { core: bc, tid: 'm2' });
+    await api('payAdd', { id: r1.j.id, amount: 22000 });
+    const f2 = await api('acctFinanceGet', {}), iv = (f2.j.invoices || []).find((i) => i.id === r1.j.id), pr = (f2.j.projects || []).find((x) => x.core === bc), cv = await api('planCeoGet', {}), cr = cv.j.rows.find((x) => x.core === bc);
+    ok('Finance', '💵 milestone billing: shares over 100% refused; a done milestone is ready to invoice; raising it bills its share once (not twice, not before it is done); a payment shows as received and owed; the CEO view picks it up',
+      over.status === 400 && sv.status === 200 && rd && rd.tid === 'm1' && rd.amount === 40000 && r1.status === 200 && r2.status === 400 && r3.status === 400 && iv && iv.inc === 44000 && iv.paid === 22000 && iv.balance === 22000 && !(f2.j.ready || []).some((r) => r.core === bc) && pr && pr.invoiced === 40000 && pr.received === 20000 && cr && cr.contract === 100000 && cr.invoiced === 40000,
+      JSON.stringify([over.status, sv.status, rd, r1.status, r2.status, r3.status, iv, pr, cr && [cr.contract, cr.invoiced]]));
+    const c1 = await api('userCreate', { user: { email: 'cfo1@example.com', name: 'Money One', password: 'Cfopass2026x', role: 'CFO' } }), c2 = await api('userCreate', { user: { email: 'cfo2@example.com', name: 'Money Two', password: 'Cfopass2026x', role: 'CFO' } });
+    const keep = cookie; cookie = '';
+    const lc = await api('login', { username: 'cfo1@example.com', password: 'Cfopass2026x' }), fg = await api('acctFinanceGet', {}), ps = await api('planSave', { core: bc, plan: { name: 'x', tasks: [] } });
+    cookie = keep;
+    ok('Finance', 'one CFO per company; the CFO sees Finance and cannot change a plan', c1.status === 200 && c2.status === 400 && /Money One is already the CFO/.test(c2.j.error || '') && lc.status === 200 && fg.status === 200 && ps.status === 403, [c1.status, c2.status, c2.j.error, lc.status, fg.status, ps.status].join(' '));
+  }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

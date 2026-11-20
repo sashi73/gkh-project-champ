@@ -191,4 +191,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 180 | 1.0.180| 2026-11-20 14:58| remind| `6bdbd5a` | 📱 ⏰ Remind me on the phone: any Today item into Apple Calendar / the phone calendar (calendar file with an alert) or Google Calendar, at a  |
 | 181 | 1.0.181| 2026-11-20 15:39| speed| `af36df0` | Speed: the console's scripts and styles are cached by the browser (they carry a version), instead of no-store on every load; the console pag |
 | 182 | 1.0.182| 2026-11-20 22:44| ceo| `d8fee94` | 👔 CEO view (Persona, stage 1): one CEO per company in Users & access; the CEO lands on how every project is doing (worst first, why, SPI/CP |
-| 183 | 1.0.183 | 2026-11-20 23:24 | ceo2 | _this commit_ | _see git log_ |
+| 183 | 1.0.183| 2026-11-20 23:24| ceo2| `2612f04` | 👔 CEO view: a legend for the program health counts (and hover text); revenue says 'not tracked yet' instead of $0 when no quotes or invoice |
+| 184 | 1.0.184 | 2026-11-20 23:30 | finance | _this commit_ | _see git log_ |

@@ -37,6 +37,8 @@ export const ROLES = {
   // (they add contractors and project personnel); no customers (enquiries, visitors), and only the super user sees the activity log and builds
   // 👔 the CEO (one per company): sees every project and the money, read-only; no people's personal detail, no admin screens
   CEO: { ...all('none'), projects: 'view', accounts: 'view', data: 'view' },
+  // 💵 the CFO (one per company): billing, invoices and payments (edit), every project read-only, Ask AI
+  CFO: { ...all('none'), projects: 'view', accounts: 'edit', data: 'view' },
   'Project director': { ...all('edit'), crm: 'none' },
   'Project manager': { ...all('edit'), crm: 'none' },
   Contractor: { ...all('none'), projects: 'edit' },
@@ -49,11 +51,11 @@ export const ROLES = {
   'Sub-contractor': { ...all('none'), projects: 'edit' },   // v91: a subbie: only their own project(s), nothing else
   Custom: null };
 export const ROLE_KEYS = Object.keys(ROLES);
-export const PICK_ROLES = ['CEO', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
+export const PICK_ROLES = ['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
 export const TEAM_ROLES = ['Contractor', 'Project personnel'];   // what a project director or manager may make and look after   // the project manager is the super user   // what the super user picks from
-const ALL_PROJECTS = (u) => u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.projAll === true;
+const ALL_PROJECTS = (u) => u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.role === 'CFO' || u.projAll === true;
 // 👔 a company has one CEO: giving the role to someone else is refused until the current CEO has another role
-async function ceoTaken(exceptId) { const c = (await list()).find((x) => x.role === 'CEO' && x.id !== exceptId && x.active !== false); return c ? (c.name || c.username) + ' is already the CEO. A company has one CEO: give ' + (c.name || c.username) + ' another role first.' : ''; }
+async function ceoTaken(exceptId, role = 'CEO') { const c = (await list()).find((x) => x.role === role && x.id !== exceptId && x.active !== false); return c ? (c.name || c.username) + ' is already the ' + role + '. A company has one ' + role + ': give ' + (c.name || c.username) + ' another role first.' : ''; }   // the CEO and the CFO: one each
 export const OWNER_MODS = all('edit');
 
 // which module (and level) an action needs. null = any signed-in user (me, logout, own password).
@@ -208,9 +210,9 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       const role = str(body.role, 40);
       if (role === 'view') { Object.assign(u, { upgraded: false, role: 'Read only', mods: { ...GOOGLE_MODS }, projAll: false, projects: [] }); }
       else {
-        if (!['CEO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
-        if (role === 'CEO') { const t = await ceoTaken(u.id); if (t) return out(400, { error: t }); }
-        const projAll = role === 'Project manager' || role === 'Project director' || role === 'CEO' ? true : body.projAll === true;
+        if (!['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
+        if (role === 'CEO' || role === 'CFO') { const t = await ceoTaken(u.id, role); if (t) return out(400, { error: t }); }
+        const projAll = role === 'Project manager' || role === 'Project director' || role === 'CEO' || role === 'CFO' ? true : body.projAll === true;
         Object.assign(u, { upgraded: true, role, mods: cleanMods(ROLES[role], role), projAll, projects: projAll ? [] : await projectList(body.projects, project) });
       }
       u.ver = (u.ver || 0) + 1; u.updated = Date.now(); u.upgradedBy = ctx.who; await put(u);
@@ -223,9 +225,9 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       if ((await list()).some((x) => x.username === email || (x.email || '').toLowerCase() === email)) return out(400, { error: email + ' already has a login.' });
       const bad = pwProblem(f.password); if (bad) return out(400, { error: bad });
       const role = (ctx.owner ? PICK_ROLES : TEAM_ROLES).includes(f.role) && f.role !== 'Custom' ? f.role : 'Project personnel';
-      if (role === 'CEO') { const t = await ceoTaken(''); if (t) return out(400, { error: t }); }
+      if (role === 'CEO' || role === 'CFO') { const t = await ceoTaken('', role); if (t) return out(400, { error: t }); }
       const n = await kv.update('user-seq', (x) => ({ n: ((x && x.n) || 0) + 1 }), () => ({ n: 0 }));
-      const u = { id: 'U-' + String(n.n).padStart(3, '0'), kind: 'email', personId: '', name, email, username: email, role, mods: cleanMods(ROLES[role], role), projects: [], projAll: role === 'Project personnel' || role === 'Project manager' || role === 'Project director' || role === 'CEO',
+      const u = { id: 'U-' + String(n.n).padStart(3, '0'), kind: 'email', personId: '', name, email, username: email, role, mods: cleanMods(ROLES[role], role), projects: [], projAll: role === 'Project personnel' || role === 'Project manager' || role === 'Project director' || role === 'CEO' || role === 'CFO',
         active: true, mustChange: f.mustChange === true, ver: 1, created: Date.now(), by: ctx.who, ...hashPw(f.password) };
       await put(u); await log(`Login made: ${email} (${name}), ${role}`);
       if (addPerson) { try { await addPerson(u); } catch (e) { console.error('People record for the new login failed:', e.message); } }
@@ -255,8 +257,8 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       if (old && old.kind !== 'google') {   // permissions: role, modules, projects, on/off
         const role = PICK_ROLES.includes(f.role) ? f.role : old.role;
         const mods = cleanMods(role === 'Custom' ? f.mods : ROLES[role], role);
-        if (role === 'CEO' && old.role !== 'CEO') { const t = await ceoTaken(old.id); if (t) return out(400, { error: t }); }
-        const projAll = role === 'Project manager' || role === 'Project director' || role === 'CEO' ? true : f.projAll === true;
+        if ((role === 'CEO' || role === 'CFO') && old.role !== role) { const t = await ceoTaken(old.id, role); if (t) return out(400, { error: t }); }
+        const projAll = role === 'Project manager' || role === 'Project director' || role === 'CEO' || role === 'CFO' ? true : f.projAll === true;
         const projects = projAll ? [] : await projectList(f.projects, project);
         const u = { ...old, kind: 'email', subId: '', name: str(f.name, 100) || old.name, role, mods, projAll, projects, active: f.active !== false, by: ctx.who, updated: Date.now() };
         if (old.active !== u.active || old.role !== u.role || JSON.stringify(old.mods) !== JSON.stringify(u.mods) || !!old.projAll !== projAll || JSON.stringify(old.projects || []) !== JSON.stringify(projects) || old.kind !== 'email') u.ver = (old.ver || 0) + 1;   // signs them out so it takes effect now
