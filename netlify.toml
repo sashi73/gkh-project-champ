@@ -113,9 +113,57 @@
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(self), microphone=(self), geolocation=(), payment=(), usb=()"
 
-# The admin console is never indexed or cached (added v21)
+# The admin console is never indexed. Its page is never cached (it shows who is signed in);
+# its scripts, styles and libraries are cached (see "Speed" below).
 [[headers]]
   for = "/admin/*"
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
+[[headers]]
+  for = "/admin/"
+  [headers.values]
     Cache-Control = "no-store"
+[[headers]]
+  for = "/admin/index.html"
+  [headers.values]
+    Cache-Control = "no-store"
+
+# Speed: scripts and styles are loaded with a version (?v=123), so the browser keeps them for a year and asks again only
+# when the version changes. RULE: change a .js or .css file -> bump its ?v= wherever it is loaded (admin/index.html,
+# the site pages, admin-help.js / champ-guide.js for assets/help/articles.js). Pictures and fonts: kept a week.
+[[headers]]
+  for = "/admin/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/admin/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/admin/vendor/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/assets/help/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+[[headers]]
+  for = "/assets/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+[[headers]]
+  for = "/assets/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+[[headers]]
+  for = "/assets/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
