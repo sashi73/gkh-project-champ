@@ -9,7 +9,7 @@
 <style>html,body{background:#0A0A0A;color:#EDEAE3;margin:0}body{visibility:hidden}</style>
 <script>setTimeout(function(){if(document.body)document.body.style.visibility='visible'},2500)</script>
 <link rel="stylesheet" href="assets/style.css?v=42">
-<link rel="stylesheet" href="assets/champ-site.css?v=11">
+<link rel="stylesheet" href="assets/champ-site.css?v=12">
 <link rel="stylesheet" href="assets/champ-scripts.css?v=1">
 <link rel="stylesheet" href="assets/champ-theme.css?v=13">
 <script src="assets/champ-theme.js?v=10"></script>
@@ -61,12 +61,13 @@
     <img class="logo gkh-globe" src="assets/gkh-globe.webp" alt="Global Knowledge House" width="104" height="104">
     <h1>Project Champ</h1>
     <p class="tag">GKH · AI-Powered Project Management</p>
+    <p class="c-free-login" id="freeNote" hidden>✓ <b>Free to view</b>: sign in with Google below. No payment, no credit card required.</p>
     <label>Username<input name="username" autocomplete="username" required autofocus></label>
     <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
     <label id="loginProj" hidden>Project code <small style="font-weight:400;color:#8A857A">(contractors: the code you were given)</small><input name="project" autocomplete="off"></label>
     <p class="msg" id="loginMsg" role="alert"></p>
     <button class="btn btn-gold btn-block" type="submit"><span>Sign in</span></button>
-    <div id="gsiBox" hidden><p class="or">or</p><div class="gsi" id="gsiBtn"></div><p class="note">Google sign-in gives view-only access until an administrator upgrades it.</p></div>
+    <div id="gsiBox" hidden><p class="or">or</p><div class="gsi" id="gsiBtn"></div><p class="note">✓ <b>Free to view:</b> sign in with Google to explore Project Champ in view-only mode. No payment, no credit card required. An administrator can upgrade your access later.</p></div>
     <a class="back" href="index.html">← Back to Project Champ</a>
   </form>
 </section>
@@ -100,7 +101,7 @@
         api('loginGoogle', { credential: r.credential }).then(go).catch(function (e) { msg.textContent = e.message; });
       } });
       google.accounts.id.renderButton($('#gsiBtn'), { theme: 'filled_black', size: 'large', text: 'signin_with', shape: 'pill', width: 300 });
-      $('#gsiBox').hidden = false;
+      $('#gsiBox').hidden = false; var fn = $('#freeNote'); if (fn) fn.hidden = false;
     };
     document.head.appendChild(s);
   }).catch(function () {});
