@@ -90,6 +90,9 @@ try {
     ok('Today', '📞 a note raised by someone else carries their number from the stakeholders; my own note and a task I manage have none', a1 && a1.call && a1.call.tel === '+61400111222' && a2 && !a2.call && t1 && !t1.call, JSON.stringify([a1 && a1.call, a2 && a2.call, t1 && t1.call]));
     const sm = await api('planMyDaySeen', { core, t: 't2', nid: 'n1', via: 'phone' }), td2 = await api('planMyDayGet'), b1 = (td2.j.attention || []).find((x) => x.nid === 'n1'), sg = await api('planSeenGet', { core });
     ok('Today', '👁 marked as viewed on the phone: Today shows it viewed, and the project knows who viewed it on a phone', sm.status === 200 && b1 && b1.viewed > 0 && Object.values((sg.j.seen || {})['n:t2:n1'] || {}).some((v) => v.via === 'phone'), JSON.stringify([sm.j, b1 && b1.viewed, sg.j])); }
+  { const r = await fetch(`${BASE}/.netlify/functions/admin?action=ics&start=20261123T220000Z&title=${encodeURIComponent('⏰ Task: Design, review; sign')}&desc=Quick%20check&link=${encodeURIComponent('/admin/#plan/' + core + '/schedule')}`, { headers: { cookie } }), tx = await r.text();
+    const r2 = await fetch(`${BASE}/.netlify/functions/admin?action=ics&start=20261123T220000Z`);
+    ok('Today', '⏰ Remind me: a calendar file with the time, an alert, the escaped title and a link back (signed in only)', r.status === 200 && /text\/calendar/.test(r.headers.get('content-type')) && tx.includes('DTSTART:20261123T220000Z') && tx.includes('BEGIN:VALARM') && tx.includes('Design\\, review\\; sign') && tx.includes('#plan/') && r2.status === 401, r.status + ' ' + tx.slice(0, 300)); }
   const dn = await api('planMyDayDone', { core, t: 't1' });
   ok('Today', 'Today: ✓ done', dn.status === 200 && dn.j.ok, JSON.stringify(dn.j));
   const ga = await api('guideAsk', { q: 'How do I make a task bold?', tours: [] });
