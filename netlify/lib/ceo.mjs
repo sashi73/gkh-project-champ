@@ -222,10 +222,11 @@ export async function ask(day, q, history) {
     'For a STRATEGY question (what should we do, where to focus, how to fix, which to back or stop): answer (2-3 sentences, the direct answer and your recommendation), options (2-3, each {option, upside, downside}), decision (one sentence, in plain business terms), measures (2-3 things to track, each under 10 words). ' +
     'say: the answer in 1-3 spoken sentences, under 70 words. No markdown. ' +
     'JSON only: {"answer":"","options":[{"option":"","upside":"","downside":""}],"decision":"","measures":[""],"say":""}';
-  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Champ data: ' + JSON.stringify(facts).slice(0, 60000) }];
-  for (const h of (Array.isArray(history) ? history : []).slice(-4)) { if (h && h.q && h.a) { msgs.push({ role: 'user', content: String(h.q).slice(0, 400) }); msgs.push({ role: 'assistant', content: String(h.a).slice(0, 800) }); } }
-  msgs.push({ role: 'user', content: String(q).slice(0, 600) });
-  const r = await AI.llmJson(msgs, { maxTokens: 1100, timeoutMs: 90000, temperature: 0.3 });
+  // the conversation so far goes in as notes (not as earlier assistant turns, which made the AI answer in plain words and break the JSON)
+  const H = (Array.isArray(history) ? history : []).slice(-4).filter((h) => h && h.q && h.a).map((h, i) => (i + 1) + '. Q: ' + String(h.q).slice(0, 300) + '\n   A: ' + String(h.a).slice(0, 700)).join('\n');
+  const msgs = [{ role: 'system', content: sys }, { role: 'user', content: 'Champ data: ' + JSON.stringify(facts).slice(0, 60000) },
+    { role: 'user', content: (H ? 'Our conversation so far (use it to understand follow-up questions such as "which of those", "the three you mentioned"):\n' + H + '\n\n' : '') + 'Question: ' + String(q).slice(0, 600) + '\n\nReply with the JSON object only.' }];
+  const r = await AI.llmJson(msgs, { maxTokens: 1400, timeoutMs: 90000, temperature: 0.3, textOk: 'answer' });
   const d = r && r.data; if (!d || !d.answer) return { error: 'Champ could not answer just now. Ask again in a moment.' };
   const S = (x, n) => String(x || '').slice(0, n);
   await AI.usage(true, r.used || 0).catch(() => {});

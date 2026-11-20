@@ -29,7 +29,8 @@ const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += 
     : /talking with the CEO on the CEO view/.test(sys) ? (/who is/i.test(JSON.stringify(j.messages.slice(-1))) ? '__FACT__' : { answer: 'Focus on the few programs that earn.', options: [{ option: 'Focus', upside: 'Margin', downside: 'Less growth' }], decision: 'Focus, as Drucker would.', measures: ['Margin by program'], say: 'Focus.' })
     : { tour: '', how: false, answer: 'Quick check answer.', help: '' };
   const pd = /projects_detail/.test(JSON.stringify(j.messages || [])) && /plan_items/.test(JSON.stringify(j.messages || [])) && /customer\\?":\\?"Northside Health/.test(JSON.stringify(j.messages || [])) && /project_manager/.test(JSON.stringify(j.messages || []));
-  const content = ans === '__FACT__' ? 'Here is the answer: ' + JSON.stringify({ answer: pd ? 'The customer is Northside Health.' : 'I do not have that.', options: [], decision: '', measures: [], say: 'Northside Health.' }) + ' Hope that helps.' : json ? JSON.stringify(ans) : 'Quick check answer.';
+  const followUp = /Our conversation so far/.test(JSON.stringify(j.messages || [])) && /which of those/i.test(JSON.stringify(j.messages || []));
+  const content = followUp ? 'Of those, Thu Duc Logistics Hub and Penang Medical Centre Extension are doing worst.' : ans === '__FACT__' ? 'Here is the answer: ' + JSON.stringify({ answer: pd ? 'The customer is Northside Health.' : 'I do not have that.', options: [], decision: '', measures: [], say: 'Northside Health.' }) + ' Hope that helps.' : json ? JSON.stringify(ans) : 'Quick check answer.';
   s.end(JSON.stringify({ choices: [{ message: { content } }], usage: { total_tokens: 50 } })); }); }).listen(0);
 await sleep(50);
 const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
@@ -177,6 +178,8 @@ try {
     const a = await bg({ mode: 'ceoAsk', q: 'Where should we focus next quarter?', history: [] });
     const fq = await bg({ mode: 'ceoAsk', q: 'Who is the customer for billing test?', history: [] });
     ok('CEO', '🧭 a project question on the CEO view gets a straight answer from the project facts (customer, project manager...), even with words around the AI\'s JSON', fq.status === 'done' && fq.answer && /Northside Health/.test(fq.answer.answer), JSON.stringify(fq).slice(0, 300));
+    const fu = await bg({ mode: 'ceoAsk', q: 'Which of those are doing worst?', history: [{ q: 'Overview of Lotus Asia Pacific?', a: 'Three projects: Thu Duc, Penang, Parramatta.' }] });
+    ok('CEO', '🧭 a follow-up question ("which of those") works, even when the AI answers in plain words instead of JSON', fu.status === 'done' && fu.answer && /Thu Duc/.test(fu.answer.answer), JSON.stringify(fu).slice(0, 300));
     ok('CEO', '🧭 Ask Champ on the CEO view: a strategy decision report (answer, options, decision, measures)', a.status === 'done' && a.answer && a.answer.answer && a.answer.decision && a.answer.options.length, JSON.stringify(a).slice(0, 300)); }
     // ---------- 🔒 the Finance vault ----------
   { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };

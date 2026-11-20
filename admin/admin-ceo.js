@@ -105,7 +105,7 @@
       .catch(function (e) { b.disabled = false; b.textContent = '🎙 Get Champ\'s briefing'; fail(e); });
   }
   var HIST = [];
-  M.ceoAsk = function (q) { return bgJob({ mode: 'ceoAsk', q: q, history: HIST.slice(-4) }).then(function (x) { var a = x.answer || {}; HIST.push({ q: q, a: (a.answer || '') + ' Decision: ' + (a.decision || '') }); return a; }); };
+  M.ceoAsk = function (q) { return bgJob({ mode: 'ceoAsk', q: q, history: HIST.slice(-4) }).then(function (x) { var a = x.answer || {}; HIST.push({ q: q, a: (a.answer || '') + (a.options && a.options.length ? ' Options: ' + a.options.map(function (o) { return o.option; }).join('; ') : '') + (a.decision ? ' Decision: ' + a.decision : '') }); return a; }); };
   // ▶ read it out: Champ's voice (Azure), part by part; the browser's own voice if Azure is not there
   var TT = { on: false, n: 0, a: null };
   function stopRead() { TT.n++; TT.on = false; if (TT.a) { try { TT.a.pause(); } catch (e) {} TT.a = null; } if (window.ChampVoice) window.ChampVoice.stop(); var b = document.getElementById('ceoRead'); if (b) b.textContent = '▶ Read it out'; }
