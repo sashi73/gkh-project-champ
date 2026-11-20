@@ -25,6 +25,17 @@
   // a day off in the Gantt: the plan's weekend days and public holidays ('' = a work day)
   function dayOff(p, s) { var A = calOf(p); if (A === true) return ''; var w = toD(s).getUTCDay();
     if (A && typeof A === 'object') { if (A.hol[s]) return 'hol'; return A.wk.indexOf(w) >= 0 ? 'we' : ''; } return w === 0 || w === 6 ? 'we' : ''; }
+  // a date typed on a day off is refused (not moved) unless that box is ticked: says which box, briefly
+  function offNo(p, v, el) {
+    if (!v || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return false; var k = dayOff(p, v); if (!k) return false;
+    var A = calOf(p), wd = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][toD(v).getUTCDay()];
+    toast(k === 'hol' ? '⛔ ' + dmy(v) + ' is a public holiday (' + ((A && A.hol && A.hol[v]) || 'Public holiday') + '). Not a work day: tick 📅 Public holidays allowed first.'
+      : '⛔ ' + wd + ' ' + dmy(v) + ' is a weekend day' + (p.cal ? ' here (' + wkName(p.cal.wk) + ')' : '') + '. Not a work day: tick 📅 Weekends allowed first.', true);
+    if (el) setTimeout(function () { var key = el.id ? '#' + el.id : ['k', 'sk', 'qk'].map(function (a) { return el.getAttribute('data-' + a) ? '[data-' + a + '="' + el.getAttribute('data-' + a) + '"]' : ''; }).join(''), tr = el.id ? null : el.closest('tr'), sel = tr ? ['qid', 'sid', 'tid'].map(function (a) { var x = tr.getAttribute('data-' + a); return x ? 'tr[data-' + a + '="' + x + '"] ' : ''; }).filter(Boolean)[0] || '' : '';
+      var n = key ? document.querySelector(sel + key) : null, box = n && ((n.parentNode && n.parentNode.querySelector('.dtext')) || n);
+      if (box) { box.classList.add('dayno'); setTimeout(function () { box.classList.remove('dayno'); }, 2000); } }, 30);
+    return true;
+  }
   function nextWork(s) { var d = toD(s); while (!wk(d)) d = new Date(d.getTime() + 864e5); return toS(d); }
   function addWork(s, n) { var d = toD(s); while (n > 0) { d = new Date(d.getTime() + 864e5); if (wk(d)) n--; } return toS(d); }
   function workBetween(a, b) { if (!a || !b || b < a) return 0; var n = 0, d = toD(a), e = toD(b); while (d <= e) { if (wk(d)) n++; d = new Date(d.getTime() + 864e5); } return n; }
@@ -1862,7 +1873,7 @@
     document.querySelectorAll('#gLeft tr.gsel').forEach(function (x) { x.classList.remove('gsel'); });
     var tr = gRowOf(S.gsel), o = tr && gObjOf(p, S.gsel); if (!o) S.gsel = null; else tr.classList.add('gsel');
     var lab = $('#gtSel'); if (!lab) return; var s = S.gsel, lv = !s ? 0 : s.q ? 3 : s.s ? 2 : 1;
-    lab.textContent = s ? 'Selected: level ' + ['', '1', '1.1', '1.1.1'][lv] + ' · ' + o.name : 'Click a row to select it';
+    lab.className = 'gtsel ' + (s ? 'on' : 'none'); lab.textContent = s ? 'Selected: level ' + ['', '1', '1.1', '1.1.1'][lv] + ' · ' + o.name : 'Click a row to select it';
     var dis = function (a, off) { var b = document.querySelector('.gtool [data-gt="' + a + '"]'); if (b) b.disabled = !!off; };
     ['addS', 'in', 'out', 'b', 'i', 'u', 'clr', 'rem', 'del'].forEach(function (a) { dis(a, !s); }); dis('addQ', lv < 2 && !(lv === 1 && (o.subs || []).length)); dis('out', lv < 2); dis('in', lv === 3);
     var f = (o && o.fmt) || {}; ['b', 'i', 'u'].forEach(function (k) { var b = document.querySelector('.gtool [data-gt="' + k + '"]'); if (b) b.classList.toggle('on', !!f[k]); });
@@ -2229,8 +2240,8 @@
     if ($('#depAi')) $('#depAi').onclick = depsDialog;
     if ($('#depUndo')) $('#depUndo').onclick = function () { var u = S.depUndo; if (!u || u.core !== S.core) return; S.plan.tasks.forEach(function (t) { if (u.pred[t.id]) t.pred = u.pred[t.id].slice(); }); S.depUndo = null; dirty('dependencies put back'); render(); toast('↶ The links are back as they were'); };
     if (S.links) setTimeout(drawLinks, 60);
-    $('#pStart').onchange = function () { if (this.value && p.finishBy && this.value > p.finishBy) { toast('The project can\'t start after your Finish by date (' + dmy(p.finishBy) + '). Move Finish by later first, or clear it.', true); render(); return; } if (this.value) { var f0 = rollup(p, today()).finish; p.start = this.value; dirty(); render(); afterDates(f0, 'the project start changed'); } };
-    $('#pWork').onchange = function () { setWorkStart(this.value); };
+    $('#pStart').onchange = function () { if (offNo(p, this.value, this)) { render(); return; } if (this.value && p.finishBy && this.value > p.finishBy) { toast('The project can\'t start after your Finish by date (' + dmy(p.finishBy) + '). Move Finish by later first, or clear it.', true); render(); return; } if (this.value) { var f0 = rollup(p, today()).finish; p.start = this.value; dirty(); render(); afterDates(f0, 'the project start changed'); } };
+    $('#pWork').onchange = function () { if (offNo(p, this.value, this)) { render(); return; } setWorkStart(this.value); };
     $('#pFinishBy').onchange = function () { var first = p.workStart && p.workStart > p.start ? p.workStart : p.start; if (this.value && this.value < first) { toast('Finish by can\'t be before the ' + (first === p.start ? 'project starts' : 'work starts') + ' (' + dmy(first) + ').', true); render(); return; } p.finishBy = this.value || ''; S.fitUndo = null; dirty('finish by ' + (p.finishBy || 'cleared')); render(); afterDates('', 'Finish by changed'); };
     calWire(p);
     $('#pWeek').onchange = function () { var f0 = rollup(p, today()).finish; p.weekends = this.checked; dirty(p.weekends ? 'weekends allowed' : 'weekdays only'); render(); var Rw = rollup(p, today()); toast((p.weekends ? '📅 Weekends are work days now' : '📅 Weekends are days off again' + (p.cal ? ' (' + wkName(p.cal.wk) + ')' : ' (Mon–Fri)')) + ': the plan is re-worked and finishes ' + dmy(Rw.finish) + (f0 && f0 !== Rw.finish ? ' (was ' + dmy(f0) + ')' : '')); afterDates(f0, 'weekend work changed'); };
@@ -2252,6 +2263,7 @@
         else if (k === 'dur') { t.dur = Math.max(0, Math.min(365, Math.round(+el.value || 0))); if (fitSubs(t)) toast(t.dur === 0 ? 'A milestone has no sub-tasks, so they were removed' : 'Sub-tasks were shortened to fit inside the task\'s ' + t.dur + ' day' + (t.dur === 1 ? '' : 's')); derive(t); }
         else if (k === 'snet') {
           var v = el.value || '';
+          if (offNo(p, v, el)) { render(); return; }
           if (!v) { var was = t.fixed; t.snet = ''; t.fixed = false; if (was) toast('Start date cleared: it follows "After #" again'); }
           else {
             var R0 = rollup(p, today()), ps = nextWork(p.start || today()), said = [], warn = false;
@@ -2347,6 +2359,7 @@
         else if (k === 'dur') { var want = Math.max(1, Math.round(+el.value || 1)); sb.dur = want; fitSubs(t); if (sb.dur < want) toast('Kept inside the task: at most ' + sb.dur + ' day' + (sb.dur === 1 ? '' : 's') + ' from its start'); }
         else if (k === 'start') {
           var v = el.value || t.es;
+          if (offNo(p, el.value, el)) { render(); return; }
           if (v < t.es || v > t.ef) toast('Sub-tasks stay inside the task (' + pretty(t.es) + ' – ' + pretty(t.ef) + ')', true);
           v = v < t.es ? t.es : v > t.ef ? t.ef : v; v = nextWork(v); if (v > t.ef) v = t.ef;
           sb.off = Math.max(0, workBetween(t.es, v) - 1); fitSubs(t);
@@ -2369,6 +2382,7 @@
         else if (k === 'dur') { var want = Math.max(1, Math.round(+el.value || 1)); q.dur = want; fitSteps(sb); if (q.dur < want) toast('Kept inside the story: at most ' + pl(q.dur, 'day') + ' from its start'); }
         else if (k === 'start') {
           var d = subDates(t, sb), v = el.value || d.es;
+          if (offNo(p, el.value, el)) { render(); return; }
           if (v < d.es || v > d.ef) toast('Steps stay inside the story (' + pretty(d.es) + ' – ' + pretty(d.ef) + ')', true);
           v = v < d.es ? d.es : v > d.ef ? d.ef : v; v = nextWork(v); if (v > d.ef) v = d.ef;
           q.off = Math.max(0, workBetween(d.es, v) - 1); fitSteps(sb);
