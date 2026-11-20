@@ -81,9 +81,16 @@ export async function finance(today) {
   const cash = Object.fromEntries(months.map((k) => [k, { invoiced: 0, received: 0 }]));
   for (const i of docs.invoices) { if (i.status === 'void' || i.status === 'draft') continue; const k = (i.issued || '').slice(0, 7); if (cash[k]) cash[k].invoiced += i.totals.inc; for (const p of i.payments || []) { const q = (p.date || '').slice(0, 7); if (cash[q]) cash[q].received += p.amount; } }
   const ready = projects.flatMap((p) => p.ready.map((r) => ({ core: p.core, project: p.name, ...r })));
+  // 💧 cash still to come in (before tax): unpaid invoices on their due date (late ones: next month), and milestones not yet billed, 30 days after they fall due
+  const plus = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10), nextMonth = plus(today.slice(0, 8) + '01', 32).slice(0, 7);
+  const expected = [];
+  for (const i of docs.invoices) { if (i.status === 'void' || i.status === 'draft') continue; const inc = i.totals.inc, bal = inc - Math.min(inc, i.paid || 0); if (bal < 0.5) continue;
+    const m = i.due && i.due >= today ? i.due.slice(0, 7) : nextMonth; expected.push({ month: m, amount: r2(inc ? bal * i.totals.ex / inc : 0), what: 'invoice ' + i.id, core: i.core || '', late: !!(i.due && i.due < today) }); }
+  for (const p of projects) for (const m of p.milestones) if (!m.invoice && m.amount > 0) expected.push({ month: plus(m.due && m.due > today ? m.due : today, 30).slice(0, 7), amount: m.amount, what: 'milestone ' + m.name, core: p.core, late: false });
+  const unscheduled = r2(projects.reduce((a, p) => a + Math.max(0, p.contract * (100 - p.planned) / 100 - (p.planned ? 0 : p.invoiced)), 0));
   return { today, totals: { contract: sum(projects, 'contract'), invoicedInc: sum(live, 'inc'), received: sum(live, 'paid'), owed: sum(live, 'balance'), overdue: r2(live.filter((i) => i.late > 0).reduce((a, i) => a + i.balance, 0)),
     overdueN: live.filter((i) => i.late > 0).length, ready: r2(ready.reduce((a, r) => a + r.amount, 0)), readyN: ready.length, drafts: invoices.filter((i) => i.status === 'draft').length },
-    aging, cash: months.map((k) => ({ month: k, invoiced: r2(cash[k].invoiced), received: r2(cash[k].received) })), ready, invoices,
+    expected, unscheduled, aging, cash: months.map((k) => ({ month: k, invoiced: r2(cash[k].invoiced), received: r2(cash[k].received) })), ready, invoices,
     projects: projects.filter((p) => p.contract || p.invoiced || p.milestones.length).map((p) => ({ core: p.core, name: p.name, contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length,
       next: (p.milestones.find((x) => !x.invoice && x.pct > 0) || {}).name || '' })), methods: ACC.PAY_METHODS };
 }

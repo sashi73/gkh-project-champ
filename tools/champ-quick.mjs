@@ -24,7 +24,11 @@ const ctxB64 = Buffer.from(JSON.stringify({ siteID: 'champ', token: 'tok', edgeU
 const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += d)); q.on('end', () => {
   const j = JSON.parse(b || '{}'), json = j.response_format && j.response_format.type === 'json_object';
   s.setHeader('Content-Type', 'application/json');
-  s.end(JSON.stringify({ choices: [{ message: { content: json ? JSON.stringify({ tour: '', how: false, answer: 'Quick check answer.', help: '' }) : 'Quick check answer.' } }], usage: { total_tokens: 50 } })); }); }).listen(0);
+  const sys = ((j.messages || []).find((m) => m.role === 'system') || {}).content || '';
+  const ans = /briefing the CEO/.test(sys) ? { headline: 'Steady the portfolio.', overview: 'Quick check overview.', concerns: [{ title: 'Harbour bridge overspend', detail: 'Over budget.' }], quick_wins: [{ title: 'Bill the done milestone', detail: 'Raise it.' }], strategy: [{ title: 'Focus', detail: 'Back the winners.' }], road_ahead: 'Better if followed.', cash_view: 'Cash dips then recovers.', plan: [{ when: 'Next 2 weeks', what: 'Stabilise.' }], say: 'Quick check briefing.' }
+    : /strategy-adviser mode/.test(sys) ? { answer: 'Focus on the few programs that earn.', options: [{ option: 'Focus', upside: 'Margin', downside: 'Less growth' }], decision: 'Focus, as Drucker would.', measures: ['Margin by program'], say: 'Focus.' }
+    : { tour: '', how: false, answer: 'Quick check answer.', help: '' };
+  s.end(JSON.stringify({ choices: [{ message: { content: json ? JSON.stringify(ans) : 'Quick check answer.' } }], usage: { total_tokens: 50 } })); }); }).listen(0);
 await sleep(50);
 const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
   OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
@@ -158,6 +162,18 @@ try {
     cookie = keep;
     ok('Finance', 'one CFO per company; the CFO sees Finance and cannot change a plan', c1.status === 200 && c2.status === 400 && /Money One is already the CFO/.test(c2.j.error || '') && lc.status === 200 && fg.status === 200 && ps.status === 403, [c1.status, c2.status, c2.j.error, lc.status, fg.status, ps.status].join(' '));
   }
+    // ---------- 🎙 Champ's CEO briefing, 💧 the cash crystal ball, 🧭 the strategy adviser ----------
+  { const bg = async (body) => { const id = 'qc' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); body.id = id;
+      await fetch(`${BASE}/.netlify/functions/planai-background`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1', cookie }, body: JSON.stringify(body) });
+      for (let i = 0; i < 40; i++) { const r = await api('planAiStatus', { id }); if (r.j.status === 'done' || r.j.status === 'error') return r.j; await sleep(250); } return {}; };
+    const cv = await api('planCeoGet', {}), C = cv.j.cash;
+    ok('CEO', '💧 the cash crystal ball: 19 months (6 back, 12 ahead) and the quarters, money in and cost out, the running position, a health word, the low point and where it ends',
+      C && C.months.length === 19 && C.quarters.length >= 6 && ['red', 'amber', 'green'].includes(C.health) && C.low && C.end && C.months.every((m) => typeof m.in === 'number' && typeof m.out === 'number') && C.months[18].position === C.end.position, JSON.stringify(C && { h: C.health, low: C.low, end: C.end, q: C.quarters.length }));
+    const b = await bg({ mode: 'ceoBrief' }), cv2 = await api('planCeoGet', {});
+    ok('CEO', '🎙 Champ\'s briefing: written in the background with a fixed verdict, concerns, quick wins, strategy, the cash view and a script to read out; kept for the CEO view',
+      b.status === 'done' && b.brief && ['turnaround', 'steady', 'keep'].includes(b.brief.verdict) && b.brief.concerns.length && b.brief.quick_wins.length && b.brief.cash_view && b.brief.say && cv2.j.brief && cv2.j.brief.at === b.brief.at, JSON.stringify(b).slice(0, 300));
+    const a = await bg({ mode: 'ceoAsk', q: 'Where should we focus next quarter?', history: [] });
+    ok('CEO', '🧭 Ask Champ on the CEO view: a strategy decision report (answer, options, decision, measures)', a.status === 'done' && a.answer && a.answer.answer && a.answer.decision && a.answer.options.length, JSON.stringify(a).slice(0, 300)); }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

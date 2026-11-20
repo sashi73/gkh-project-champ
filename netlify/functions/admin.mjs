@@ -253,7 +253,7 @@ async function handle(req, context) {
       case 'acctBillRaise': { if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('Finance is for the CFO, the CEO and project directors and managers.', 403); const B = await import('../lib/billing.mjs'); const r = await B.raise(String(body.core || '').slice(0, 40), String(body.tid || '').slice(0, 24), by, new Date().toISOString().slice(0, 10)); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `${r.id} raised for a milestone on ${body.core}`); return out(200, r); }
       case 'planCeoGet': {   // 👔 the CEO view: the CEO, the super user, project directors and managers
         if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
-        const CEO = await import('../lib/ceo.mjs'); return out(200, await CEO.ceoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10)));
+        const CEO = await import('../lib/ceo.mjs'), last = await kv.get('ceo-brief').catch(() => null); return out(200, { ...(await CEO.ceoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10))), brief: last || null });
       }
       case 'planSeenGet': return out(200, await seenGet(ctx, String(body.core || '')));
       case 'planMyDaySeen': { const r = await seenMark(ctx, body); if (r.error) return bad(r.error, r.code || 400); return out(200, r); }
