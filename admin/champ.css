@@ -856,3 +856,27 @@ tr.g-flash td{animation:gflash 2.2s ease}
 .holadd input:not([type=date]){min-width:0;flex:1 1 180px}
 .holadd input[type=date]{flex:0 0 auto;width:auto;max-width:170px}
 .calhol.worked{opacity:.6}
+/* the calendar row: one tidy line of matching chips (weekends, location, weekend days, public holidays) */
+.qgate .qrow{gap:6px!important;row-gap:6px!important}
+.qgate .calbar{margin-left:0;gap:6px;flex-wrap:wrap}
+.qgate .qchk,.qgate .calbar .btn{height:28px;box-sizing:border-box;display:inline-flex;align-items:center;gap:5px;padding:0 10px!important;font-size:12px!important;font-weight:700;line-height:1;white-space:nowrap;border:1px solid #E6D49A;border-radius:999px;background:#fff;color:#4A3A00;margin:0}
+.qgate .qchk{cursor:pointer;user-select:none}
+.qgate .qchk input[type=checkbox]{margin:0;width:14px;height:14px;accent-color:#B45309}
+.qgate .qchk:has(input:checked){background:#FDE68A;border-color:#D4A017;color:#3D2E00}
+.qgate .calbar .btn:hover,.qgate .qchk:hover{border-color:#B45309}
+.qgate .calbar .btn b{font-weight:800}
+.gfull .qgate{flex:0 1 auto!important;padding:5px 8px!important;border-radius:999px}
+.gfull .qgate .qrow,.gfull .qgate .calbar{flex-wrap:nowrap}
+@media (max-width:1500px){.gfull .qgate .qrow,.gfull .qgate .calbar{flex-wrap:wrap}}
+/* "Click a row to select it": hard to miss, then a clear "Selected" chip */
+.gtsel{font-size:13px!important;font-weight:800;color:#92400E!important;padding:5px 2px 0!important}
+.gtsel.none::before{content:'👆 ';}
+.gtsel.none{animation:gtpulse 1.6s ease-in-out 3}
+.gtsel.on{color:#14532D!important}
+.gtsel.on::before{content:'✔ ';}
+@keyframes gtpulse{50%{color:#D97706;text-shadow:0 0 6px rgba(217,119,6,.35)}}
+table.gt tr.gsel>td{background:#FFFBEB!important;box-shadow:inset 0 2px 0 #D4A017,inset 0 -2px 0 #D4A017}
+table.gt tr.gsel>td:first-child{box-shadow:inset 5px 0 0 #D4A017,inset 0 2px 0 #D4A017,inset 0 -2px 0 #D4A017}
+/* a day off typed into a date: the box flashes red */
+input.dayno{animation:dayno .9s ease 2;border-color:#DC2626!important}
+@keyframes dayno{50%{background:#FEE2E2}}
