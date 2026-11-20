@@ -448,7 +448,12 @@
       if (wait) wait.remove(); var d = say('bot', ''); lastBot = a.say || a.answer;
       d.innerHTML = '<div class="cgp-rep"><p>' + esc(a.answer) + '</p>' + (a.options && a.options.length ? '<b>Options</b><ol>' + a.options.map(function (o) { return '<li><b>' + esc(o.option) + '</b><br><span class="up">▲ ' + esc(o.upside) + '</span><br><span class="dn">▼ ' + esc(o.downside) + '</span></li>'; }).join('') + '</ol>' : '') +
         (a.decision ? '<b>Decision</b><p>' + esc(a.decision) + '</p>' : '') + (a.measures && a.measures.length ? '<b>Track</b><ul>' + a.measures.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
-      var L = $('#cgLog'); if (L) L.scrollTop = L.scrollHeight; speak(a.say || a.answer);
+      var L = $('#cgLog'); if (L) L.scrollTop = L.scrollHeight;
+      // 🔊 the whole answer, read out in the order it is on screen, so the CEO gets the full picture by ear
+      var dot = function (t) { t = String(t || '').trim(); return t && !/[.!?]$/.test(t) ? t + '.' : t; }, ord = ['First', 'Second', 'Third'];
+      var full = [dot(a.answer)].concat((a.options || []).length ? ['There are ' + a.options.length + ' options.'] : [], (a.options || []).map(function (o, i) { return (ord[i] || 'Next') + ' option: ' + dot(o.option) + ' The upside: ' + dot(o.upside) + ' The downside: ' + dot(o.downside); }),
+        a.decision ? ['My decision: ' + dot(a.decision)] : [], (a.measures || []).length ? ['What to track: ' + dot(a.measures.join('; '))] : []).join(' ');
+      lastBot = full; speak(full);
     }).catch(function (e) { if (wait) wait.remove(); say('bot', (e && e.message) || 'I could not answer just now. Ask again in a moment.'); });
   }
   function ask(q) {
