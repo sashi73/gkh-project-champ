@@ -40,7 +40,7 @@ export function allDays(plan) {
   if (!plan) return false; const c = plan.cal, every = !!(plan.emergency || plan.weekends);
   if (!c || !Array.isArray(c.wk)) return every;
   if (plan.emergency) return true;
-  const hol = new Set((c.hols || []).filter((h) => !h.work).map((h) => h.d));
+  const hol = new Set(plan.holidaysOk ? [] : (c.hols || []).filter((h) => !h.work).map((h) => h.d));   // "Public holidays allowed": the team works them
   if (!every && !hol.size && c.wk.length === 2 && c.wk.includes(0) && c.wk.includes(6)) return false;   // the same as Mon–Fri
   return { wk: every ? [] : c.wk.slice(), hol };
 }
@@ -207,7 +207,7 @@ function clean(p, core) {
   for (const t of tasks) t.pred = t.pred.filter((x) => tIds.has(x) && x !== t.id);
   const c = p.charter || {};
   const res = {
-    core, name: str(p.name, 120) || 'Project plan', start: ymdOk(p.start) || new Date().toISOString().slice(0, 10), workStart: ymdOk(p.workStart), finishBy: ymdOk(p.finishBy), emergency: false, weekends: !!p.weekends, cal: calClean(p.cal), coolOff: int(p.coolOff, 0, 10, 3), estAuto: str(p.estAuto, 30),
+    core, name: str(p.name, 120) || 'Project plan', start: ymdOk(p.start) || new Date().toISOString().slice(0, 10), workStart: ymdOk(p.workStart), finishBy: ymdOk(p.finishBy), emergency: false, weekends: !!p.weekends, holidaysOk: !!p.holidaysOk, cal: calClean(p.cal), coolOff: int(p.coolOff, 0, 10, 3), estAuto: str(p.estAuto, 30),
     charter: { objective: str(c.objective, 1500), inScope: str(c.inScope, 3000), outScope: str(c.outScope, 2000), deliverables: str(c.deliverables, 2000),
       acceptance: str(c.acceptance, 2000), assumptions: str(c.assumptions, 2000), notes: str(c.notes, 3000), background: str(c.background, 3000), budget: r2(c.budget), customer: str(c.customer, 120), manager: str(c.manager, 80),
       // v73: the charter document: its version and status

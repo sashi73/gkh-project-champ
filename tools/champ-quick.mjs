@@ -106,6 +106,8 @@ try {
   ok('Calendar', 'the schedule follows the place: Kedah skips Fri–Sat and its holiday, works a holiday marked as worked; a plan without a location is Mon–Fri as before',
     PL.addWork('2026-11-19', 3, A) === '2026-11-25' && PL.addWork('2026-11-19', 3, false) === '2026-11-24' && PL.allDays({}) === false && PL.allDays({ weekends: true }) === true && PL.isWork('2026-11-25', A) && !PL.isWork('2026-11-24', A) && !PL.isWork('2026-11-20', A) && PL.isWork('2026-11-22', A),
     [PL.addWork('2026-11-19', 3, A), PL.addWork('2026-11-19', 3, false)].join(' '));
+  const A2 = PL.allDays(Object.assign({ holidaysOk: true }, kp));
+  ok('Calendar', '"Public holidays allowed": a holiday is a work day again, the weekend still off', PL.isWork('2026-11-24', A2) && !PL.isWork('2026-11-20', A2) && PL.addWork('2026-11-19', 3, A2) === '2026-11-24', PL.addWork('2026-11-19', 3, A2));
   const sv2 = await api('planSave', { core, plan: Object.assign(pg.j.plan, { cal: { place: 'Alor Setar, Kedah, Malaysia', cc: 'MY', st: '02', wk: [5, 6], hols: [{ d: '2026-12-01', n: 'Test' }], y0: 2026, y1: 2027 } }), rev: (await api('planGet', { core })).j.plan.rev });
   const back = (await api('planGet', { core })).j.plan.cal;
   ok('Calendar', 'the location is kept with the plan', sv2.status === 200 && back && back.place === 'Alor Setar, Kedah, Malaysia' && back.wk.join() === '5,6' && back.hols.length === 1, JSON.stringify(back).slice(0, 160));
