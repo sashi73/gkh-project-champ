@@ -111,7 +111,8 @@ export async function raise(core, tid, by, today) {
 
 // the Finance screen: every project's billing, every invoice with its age, cash in by month
 export async function finance(today, cores) {
-  const [plans0, docs0, keys] = await Promise.all([P.list(), ACC.allDocs(), kv.keys('billing:').catch(() => [])]);
+  const [plans0, docs0, keys, jobs0] = await Promise.all([P.list(), ACC.allDocs(), kv.keys('billing:').catch(() => []), J.all().catch(() => [])]);
+  const jobOf = Object.fromEntries(jobs0.map((j) => [j.core, j]));   // 🔎 each project's program, client and reference, for searching on Finance
   const plans = cores ? plans0.filter((p) => cores.has(p.core)) : plans0, inP = (c) => !cores || cores.has(c);
   const docs = cores ? { ...docs0, quotes: docs0.quotes.filter((q) => inP(q.core)), invoices: docs0.invoices.filter((i) => inP(i.core)), expenses: [] } : docs0;
   const bills = Object.fromEntries((await Promise.all(keys.map(async (k) => [k.slice(8), await kv.get(k)]))).filter((x) => x[1]));
@@ -142,7 +143,7 @@ export async function finance(today, cores) {
     unbilled: r2(projects.reduce((a, p) => a + p.stand.unbilled, 0)), projectsN: projects.length, invoicedInc: sum(live, 'inc'), received: sum(live, 'paid'), owed: sum(live, 'balance'), overdue: r2(live.filter((i) => i.late > 0).reduce((a, i) => a + i.balance, 0)),
     overdueN: live.filter((i) => i.late > 0).length, ready: r2(ready.reduce((a, r) => a + r.amount, 0)), readyN: ready.length, drafts: invoices.filter((i) => i.status === 'draft').length },
     coming, scoped: !!cores, expected, unscheduled, aging, cash: months.map((k) => ({ month: k, invoiced: r2(cash[k].invoiced), received: r2(cash[k].received) })), ready, invoices,
-    projects: projects.slice().sort((a, b) => tone[a.stand.status.tone] - tone[b.stand.status.tone] || b.stand.unbilled - a.stand.unbilled).map((p) => ({ core: p.core, stand: p.stand, name: p.name, contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length,
+    projects: projects.slice().sort((a, b) => tone[a.stand.status.tone] - tone[b.stand.status.tone] || b.stand.unbilled - a.stand.unbilled).map((p) => ({ core: p.core, stand: p.stand, name: p.name, program: (jobOf[p.core] || {}).program || '', client: (jobOf[p.core] || {}).name || '', ref: jobOf[p.core] ? J.refFor(jobOf[p.core]) : '', contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length,
       next: (p.milestones.find((x) => !x.invoice && x.pct > 0) || {}).name || '' })), methods: ACC.PAY_METHODS };
 }
 
