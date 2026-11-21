@@ -1102,3 +1102,6 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .fin-panel .ceo-ts{grid-template-columns:repeat(4,minmax(0,1fr))}@media (max-width:760px){.fin-panel .ceo-ts{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .fin-form label{justify-content:flex-end}.fin-form input,.fin-form select,.fin-form textarea{width:100%;box-sizing:border-box}
 .fin-pos{color:#1d7a43}
+/* 🗄 Project archive */
+.ar-q{min-width:260px;padding:8px 12px;border:1px solid var(--line,#D6D1C4);border-radius:999px;font:inherit}
+.ar-sig{font-family:"Segoe Script","Brush Script MT","Lucida Handwriting",cursive;font-size:16px;color:#1d3f8a}

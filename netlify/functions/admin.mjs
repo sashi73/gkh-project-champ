@@ -49,6 +49,8 @@ async function googleVerify(cred) {
   if (allow.length && !allow.some((a) => (a.startsWith('@') ? email.endsWith(a) : email === a))) return { error: 'This Google account is not allowed on this site. Ask GKH for access.', code: 403 };
   return { email, name: String(t.name || '').slice(0, 100) };
 }
+// 🧾 the archived-projects audit register: every archive, bring-back and permanent delete, kept for good (even when the project is gone)
+const logArchive = (ev) => kv.update('archive-register', (x) => ({ list: [...((x && x.list) || []), ev].slice(-5000) }), () => ({ list: [] }));
 const projectOf = async (code) => { const j = await J.find(code); return j && (await getPlan(j.core)) ? { core: j.core, ref: J.refFor(j), name: j.name } : null; };
 import { bomPost } from '../lib/bom.mjs';
 import { prlPost } from '../lib/payroll.mjs';
@@ -414,12 +416,53 @@ async function handle(req, context) {
       }
 
       // ---------- GKH Project Champ: delete a project completely (plan, record, phase pin, BOM setting) ----------
+      // 🗄 the project archive: a project is taken out of every list (signed), kept whole, and can be brought back
+      case 'planArchiveList': case 'planProjectArchive': case 'planProjectRestore': {
+        const canArch = !ctx.scope && (ctx.owner || ['CEO', 'Site administrator'].includes(ctx.role));
+        if (!canArch) return bad('Only the super user, the CEO and the site administrator can use the project archive.', 403);
+        if (action === 'planArchiveList') {
+          // 🧾 the audit register: every archive and bring-back ever signed, also for projects since brought back
+          const register = (((await kv.get('archive-register')) || {}).list || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+          const jobs = (await J.all(true)).filter((j) => j.archived), plans = await kv.getMany(jobs.map((j) => 'archive-plan:' + j.core)).catch(() => []), full = await kv.getMany(jobs.map((j) => 'job:' + j.core)).catch(() => []);
+          return out(200, { canDelete: !!ctx.owner, register, list: jobs.map((j, i) => { const p = plans[i] || null, f = full[i] || j, a = f.archived || {}, ts = (p && p.tasks) || [];
+            return { core: j.core, ref: J.refFor(j), name: (p && p.name) || j.service || j.core, client: j.name || '', program: j.program || '', created: j.created, archived: { at: a.at, by: a.by, role: a.role, sig: a.sig, reason: a.reason },
+              planned: !!p, tasks: ts.length, pct: ts.length ? Math.round(ts.reduce((x, t) => x + (Number(t.pct) || 0), 0) / ts.length) : 0, budget: ((p && p.charter) || {}).budget || 0 }; }).sort((a, b) => (b.archived.at || 0) - (a.archived.at || 0)) });
+        }
+        const core = clean(body.core, 40), job = await J.find(core);
+        if (!job) return out(404, { error: 'Project not found' });
+        if (action === 'planProjectArchive') {
+          if (job.archived) return bad('That project is archived already.');
+          const sig = clean(body.sig, 80), reason = clean(body.reason, 600), nm = clean(body.by, 80) || by;
+          if (reason.length < 5) return bad('Say why the project is being archived.');
+          if (!sig) return bad('Sign it: type your full name.');
+          const p = await kv.get('plan:' + job.core);
+          if (p) { await kv.set('archive-plan:' + job.core, p); await kv.del('plan:' + job.core); }
+          const ev = { what: 'Archived', at: Date.now(), by: nm, role: ctx.owner ? 'Super user' : ctx.role, sig, reason, user: who, project: (p && p.name) || job.service || job.core, pct: p && (p.tasks || []).length ? Math.round(p.tasks.reduce((x, t) => x + (Number(t.pct) || 0), 0) / p.tasks.length) : null };
+          await J.update(job.core, { archived: { at: ev.at, by: nm, role: ev.role, sig, reason, user: who } });
+          await logArchive({ ...ev, core: job.core, ref: J.refFor(job), client: job.name || '', program: job.program || '' });
+          await A.audit(who, `${J.refFor(job)}: project archived by ${nm} ("${(p && p.name) || job.service || job.core}")${reason ? ': ' + reason : ''}`);
+          return out(200, { ok: true });
+        }
+        if (!job.archived) return bad('That project is not archived.');
+        const rsig = clean(body.sig, 80), rwhy = clean(body.reason, 600), rnm = clean(body.by, 80) || by;
+        if (rwhy.length < 5) return bad('Say why the project is being brought back.');
+        if (!rsig) return bad('Sign it: type your full name.');
+        if (await kv.get('plan:' + job.core)) return bad('A plan for that project exists already: it cannot be brought back over it.', 409);
+        const p = await kv.get('archive-plan:' + job.core); if (p) { await kv.set('plan:' + job.core, p); await kv.del('archive-plan:' + job.core); }
+        await J.update(job.core, { archived: null });
+        await logArchive({ what: 'Brought back', at: Date.now(), by: rnm, role: ctx.owner ? 'Super user' : ctx.role, sig: rsig, reason: rwhy, user: who, project: (p && p.name) || job.service || job.core, core: job.core, ref: J.refFor(job), client: job.name || '', program: job.program || '' });
+        await A.audit(who, `${J.refFor(job)}: project brought back from the archive by ${rnm}: ${rwhy}`);
+        return out(200, { ok: true });
+      }
       case 'planProjectDelete': {
         if (ctx.scope) return bad('Sub-contractor logins cannot delete projects.', 403);
         if (!ctx.owner && !(ctx.mods && ctx.mods.projects === 'edit')) return bad('You need edit access to Projects to delete one.', 403);
         const pcore = clean(body.core, 40), job = await J.find(pcore);
         if (!job) return out(404, { error: 'Project not found' });
-        const plan = await getPlan(job.core).catch(() => null);
+        const plan = await getPlan(job.core).catch(() => null), arch = job.archived ? await kv.get('archive-plan:' + job.core).catch(() => null) : null;
+        // 🔒 a planned project more than a week old is archived, not deleted: only the super user can still delete it
+        if ((plan || arch) && Date.now() - (job.created || 0) > 7 * 864e5 && !ctx.owner) return bad('This project was planned more than a week ago, so it can\'t be deleted. Archive it instead (the super user, the CEO or the site administrator can), or ask the super user.', 403);
+        if (arch) { await kv.del('archive-plan:' + job.core).catch(() => {}); await logArchive({ what: 'Deleted for good', at: Date.now(), by, role: 'Super user', sig: '', reason: clean(body.reason, 600), user: who, project: arch.name || job.service || job.core, core: job.core, ref: J.refFor(job), client: job.name || '', program: job.program || '' }); }
         if (plan) await planPost('planDelete', { core: job.core }, { who, by, audit: null }).catch(() => {});
         await J.removeJob(job.core);
         for (const k of ['champ-phases']) await kv.update(k, (cur) => { const m = { ...((cur && cur.map) || {}) }; delete m[job.core]; return { map: m }; }, () => ({ map: {} })).catch(() => {});

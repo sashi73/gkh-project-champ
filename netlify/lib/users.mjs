@@ -39,6 +39,8 @@ export const ROLES = {
   CEO: { ...all('none'), projects: 'view', accounts: 'view', data: 'view' },
   // 💵 the CFO (one per company): billing, invoices and payments (edit), every project read-only, Ask AI
   CFO: { ...all('none'), projects: 'view', accounts: 'edit', data: 'view' },
+  // 🗄 the site administrator (to be defined further): sees every project, and can archive projects (with the super user and the CEO)
+  'Site administrator': { ...all('none'), projects: 'view', data: 'view' },
   'Project director': { ...all('edit'), crm: 'none', accounts: 'none' },
   'Project manager': { ...all('edit'), crm: 'none', accounts: 'none' },
   Contractor: { ...all('none'), projects: 'edit' },
@@ -51,9 +53,9 @@ export const ROLES = {
   'Sub-contractor': { ...all('none'), projects: 'edit' },   // v91: a subbie: only their own project(s), nothing else
   Custom: null };
 export const ROLE_KEYS = Object.keys(ROLES);
-export const PICK_ROLES = ['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
+export const PICK_ROLES = ['CEO', 'CFO', 'Site administrator', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
 export const TEAM_ROLES = ['Contractor', 'Project personnel'];   // what a project director or manager may make and look after   // the project manager is the super user   // what the super user picks from
-const ALL_PROJECTS = (u) => u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.role === 'CFO' || u.projAll === true;
+const ALL_PROJECTS = (u) => u.role === 'Site administrator' || u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.role === 'CFO' || u.projAll === true;
 // 👔 a company has one CEO: giving the role to someone else is refused until the current CEO has another role
 async function ceoTaken(exceptId, role = 'CEO') { const c = (await list()).find((x) => x.role === role && x.id !== exceptId && x.active !== false); return c ? (c.name || c.username) + ' is already the ' + role + '. A company has one ' + role + ': give ' + (c.name || c.username) + ' another role first.' : ''; }   // the CEO and the CFO: one each
 export const OWNER_MODS = all('edit');
@@ -63,6 +65,7 @@ const READ = /^(dashboard|jobs|job|reminders|report|stores|dataList|dataGet|log|
 export function need(action) {
   const a = String(action || '');
   if (/^vault[A-Z]/.test(a)) return null;
+  if (a === 'planArchiveList' || a === 'planProjectArchive' || a === 'planProjectRestore') return null;   // 🗄 the project archive: admin.mjs checks (super user, CEO, site administrator)
   if (a === 'acctFinanceGet' || a === 'acctBillGet' || a === 'acctBillAlerts' || a === 'acctVoRaise' || a === 'acctVoDecide') return null;   // 💵 billing: billing.mjs checks (CEO, CFO, the program's director, the project's manager)   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
   if (['me', 'logout', 'login', 'userPassword', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk'].includes(a)) return null;   // My profile: anyone signed in, their own record
   let mod;
@@ -215,7 +218,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       const role = str(body.role, 40);
       if (role === 'view') { Object.assign(u, { upgraded: false, role: 'Read only', mods: { ...GOOGLE_MODS }, projAll: false, projects: [] }); }
       else {
-        if (!['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
+        if (!['CEO', 'CFO', 'Site administrator', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
         if (role === 'CEO' || role === 'CFO') { const t = await ceoTaken(u.id, role); if (t) return out(400, { error: t }); }
         const projAll = role === 'Project manager' || role === 'Project director' || role === 'CEO' || role === 'CFO' ? true : body.projAll === true;
         Object.assign(u, { upgraded: true, role, mods: cleanMods(ROLES[role], role), projAll, projects: projAll ? [] : await projectList(body.projects, project) });

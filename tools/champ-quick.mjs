@@ -256,6 +256,20 @@ try {
       u1.status === 200 && u1.j.doc.folder === 'deliverables' && cur && cur.folder === 'deliverables' && cur.dtype === 'final' && cur.status === 'Final' && cur.version === 2 && st.status === 200 && dl.status === 200 &&
       h.status === 200 && h.j.versions.length === 2 && h.j.versions[0].note === 'Client comments from the workshop' && h.j.versions[0].by && h.j.log.some((e) => e.act === 'download' && e.version === 2) && h.j.log.filter((e) => e.act === 'upload').length === 2 && (L.j.folders || []).some((f) => f.key === 'deliverables'),
       JSON.stringify([u1.j.doc && u1.j.doc.folder, cur && [cur.folder, cur.dtype, cur.status, cur.version], h.j]).slice(0, 500)); }
+  { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };
+    const a = await api('planNewProject', { name: 'Archive test', client: 'Acme', program: 'Digital health' }), ac = a.j.core;
+    await api('planSave', { core: ac, plan: { name: 'Archive test', start: '2026-10-01', phases: [{ id: 'ph1', name: 'Work' }], tasks: [{ id: 'k1', phase: 'ph1', name: 'Design', dur: 5, pred: [], res: [], qty: 2, rate: 500, pct: 40, status: 'doing' }] } });
+    const ar0 = await api('planProjectArchive', { core: ac, sig: 'Sashi', reason: '' }), pmA = await as('pm1@example.com', 'Vaultpass2026x', () => api('planProjectArchive', { core: ac, sig: 'Pat', reason: 'Not needed any more' }));
+    const sa = await api('userCreate', { user: { email: 'site1@example.com', name: 'Sam Site', password: 'Sitepass2026x', role: 'Site administrator' } });
+    const ceoA = await as('ceo1@example.com', 'Ceopass2026x', () => api('planProjectArchive', { core: ac, by: 'Chief One', sig: 'Chief One', reason: 'Cancelled by the client' }));
+    const inList = async () => ((await api('planList', { today: '2026-11-21' })).j.plans || []).some((x) => x.core === ac);
+    const gone = !(await inList()), arl = await as('site1@example.com', 'Sitepass2026x', () => api('planArchiveList', {})), hit = (arl.j.list || []).find((x) => x.core === ac) || {}, pmL = await as('pm1@example.com', 'Vaultpass2026x', () => api('planArchiveList', {}));
+    const back0 = await api('planProjectRestore', { core: ac, sig: 'x', reason: '' }); const back = await as('site1@example.com', 'Sitepass2026x', () => api('planProjectRestore', { core: ac, by: 'Sam Site', reason: 'Client restarted the work', sig: 'Sam Site' })), again = await inList();
+    const fresh = await api('planNewProject', { name: 'Fresh delete', client: 'Acme', program: 'Digital health' }), pmDel = await as('pm1@example.com', 'Vaultpass2026x', () => api('planProjectDelete', { core: fresh.j.core }));
+    ok('Projects', '🗄 archive: needs a reason and a signature; only the super user, CEO or site administrator; leaves every list, is kept in the Project archive and comes back whole; a planned project in its first week can still be deleted',
+      ar0.status === 400 && pmA.status === 403 && sa.status === 200 && ceoA.status === 200 && gone && arl.status === 200 && hit.archived && hit.archived.reason === 'Cancelled by the client' && hit.planned && pmL.status === 403 && back0.status === 400 && back.status === 200 && again && pmDel.status === 200 && ((await api('planArchiveList', {})).j.register || []).filter((e) => e.core === ac).map((e) => e.what).sort().join() === 'Archived,Brought back',
+      JSON.stringify([ar0.status, pmA.status, sa.status, sa.j.error, ceoA.status, ceoA.j.error, gone, arl.status, hit, pmL.status, back.status, again, pmDel.status, pmDel.j.error]));
+  }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

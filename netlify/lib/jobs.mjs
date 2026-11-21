@@ -37,7 +37,7 @@ export function parseRef(input) {
 
 async function index() { return (await kv.get('index')) || { jobs: {} }; }
 export const summary = (j) => ({ core: j.core, ref: refFor(j), stage: j.stage, name: j.name, phone: j.phone, suburb: j.suburb, service: j.service, program: j.program || '', source: j.source || '',
-  created: j.created, updated: j.updated, quote: j.quote || null, invoice: j.invoice || null,
+  created: j.created, updated: j.updated, archived: j.archived ? { at: j.archived.at, by: j.archived.by } : null, quote: j.quote || null, invoice: j.invoice || null,
   called_at: j.called_at || null, quoted_at: j.quoted_at || null, won_at: j.won_at || null, completed_at: j.completed_at || null,
   invoiced_at: j.invoiced_at || null, paid_at: j.paid_at || null, lost_at: j.lost_at || null });
 
@@ -54,7 +54,7 @@ export async function search(text) {
   const q = String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
   const digits = q.replace(/\D/g, '');
   const idx = await index();
-  return Object.values(idx.jobs).filter((j) =>
+  return Object.values(idx.jobs).filter((j) => !j.archived).filter((j) =>
     (j.name || '').toLowerCase().includes(q) || (j.suburb || '').toLowerCase().includes(q) || (j.service || '').toLowerCase().includes(q) ||
     (digits.length >= 4 && (j.phone || '').replace(/\D/g, '').includes(digits))
   ).sort((a, b) => b.created - a.created).slice(0, 15);
@@ -62,9 +62,10 @@ export async function search(text) {
 
 export async function list(stages = OPEN) {
   const idx = await index();
-  return Object.values(idx.jobs).filter((j) => stages.includes(j.stage)).sort((a, b) => a.created - b.created);
+  return Object.values(idx.jobs).filter((j) => !j.archived && stages.includes(j.stage)).sort((a, b) => a.created - b.created);
 }
-export async function all() { return Object.values((await index()).jobs).sort((a, b) => a.created - b.created); }
+// 🗄 archived projects are out of every list (portfolio, CEO view, finance, programs, reports); all(true) includes them
+export async function all(withArchived = false) { return Object.values((await index()).jobs).filter((j) => withArchived || !j.archived).sort((a, b) => a.created - b.created); }
 
 // put a job's summary in the index (the list the console and bot read). If many changes arrive at once
 // and it still can't be saved, leave a "pending" note; the 5-minute scheduled job adds it later (healIndex).
