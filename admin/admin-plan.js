@@ -829,7 +829,7 @@
       '<span class="sp"></span>' + (g.id ? '<a class="btn btn-sm" href="#programs/' + esc(g.id) + '" title="Open the program: roadmap and dependencies">🔗 Program →</a>' : '') + '</div></td></tr>';
   }
   // 🔒 a planned project can be deleted in its first week (edit access to Projects); after that by no one, the super user too: it is archived
-  function canDelProj() { var me = M.me || {}; if (me.scope) return false; if (!me.owner && (me.mods || {}).projects !== 'edit') return false; return !(S.job && S.job.created && Date.now() - S.job.created > 7 * 864e5); }
+  function canDelProj() { var me = M.me || {}; if (me.scope) return false; if (!me.owner && (me.mods || {}).projects !== 'edit') return false; var st = S.plan && /^\d{4}-\d\d-\d\d$/.test(S.plan.start || '') ? Date.parse(S.plan.start + 'T00:00:00Z') : Date.now(), born = Math.min((S.job && S.job.created) || Date.now(), st); return !(Date.now() - born > 7 * 864e5); }
   function projects(args) {
     if (args && args[0] === 'new') return newProjectForm();
     return api('planList', { today: today() }).then(function (d) {
