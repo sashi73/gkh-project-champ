@@ -218,4 +218,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 207 | 1.0.207| 2026-11-21 15:27| nodelete| `23b1c6d` | 🔒 A planned project over a week old can't be deleted by anyone (super user too): archive it; for now the super user can delete from the Arc |
 | 208 | 1.0.208| 2026-11-21 16:07| agefix| `d8e16aa` | 🔒 Project age for deleting = the earlier of the record's creation and the project start date (a project started in April can't be deleted,  |
 | 209 | 1.0.209| 2026-11-21 16:23| profitfix| `1ed2626` | 💹 Money audit: one set of numbers everywhere (#70) |
-| 210 | 1.0.210 | 2026-11-21 16:27 | finsearch | _this commit_ | _see git log_ |
+| 210 | 1.0.210| 2026-11-21 16:27| finsearch| `88ebf1e` | 🔎 Finance: search projects by name, client, reference or program; filter by program and by status (click the counts) (#71) |
+| 211 | 1.0.211 | 2026-11-21 16:40 | ctype | _this commit_ | _see git log_ |

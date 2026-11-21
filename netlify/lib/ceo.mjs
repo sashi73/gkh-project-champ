@@ -64,7 +64,8 @@ export async function ceoView(day) {
     // 📝 approved variation orders add to a confirmed contract value (as on Finance)
     const vo = p ? r2((p.changes || []).filter((ch) => ch.vo && (ch.status === 'Approved' || ch.status === 'Implemented')).reduce((a, ch) => a + Number(ch.vo || 0), 0)) : 0;
     if (x.contract > 0 && vo) x.contract = r2(x.contract + vo);
-    const price = x.contract || x.quoted, profit = price ? r2(price - eac) : null;
+    // 💹 profit by the contract type, the same calculation as Finance (plan.mjs profitAt)
+    const price = x.contract || x.quoted, PF = price && MO ? P.profitAt(MO, price, eac) : null, profit = price ? (PF ? PF.profit : r2(price - eac)) : null;
     if (p) for (const t of p.tasks || []) spread(t, P.taskCost(t), (k, v) => addF(k, 'planned', v));
     const was = old && old.map[c.core], trend = !was ? '' : RANK[health] < RANK[was[0]] ? 'up' : RANK[health] > RANK[was[0]] ? 'down'
       : c.SPI != null && was[1] != null && c.SPI - was[1] >= 0.03 ? 'up' : c.SPI != null && was[1] != null && was[1] - c.SPI >= 0.03 ? 'down' : 'flat';
@@ -72,7 +73,7 @@ export async function ceoView(day) {
       pct: c.pct || 0, SPI: c.SPI, CPI: c.CPI, finish: c.finish || '', forecast: PG.forecastFinish(c) || c.finish || '', baseline: n.baseline_finish || '', slip: n.slip_days || 0, late: c.late || 0,
       highRisks: c.highRisks || 0, openIssues: c.openIssues || 0, budget, spent: r2(c.AC), earned: r2(c.EV), evIn: r2(c.EVin || 0), acIn: r2(c.ACin || 0), eac, vac: r2(budget - eac), over: n.over_pct || 0,
       contract: r2(x.contract), quoted: x.contract ? 0 : r2(x.quoted), invoiced: r2(x.invoiced), received: r2(x.received), owed: r2(x.owed), overdue: r2(x.overdue),
-      profit, margin: price && profit != null ? Math.round(profit / price * 1000) / 10 : null, trend, closed: c.phase === 'close' });
+      profit, margin: price && profit != null ? Math.round(profit / price * 1000) / 10 : null, ctype: MO ? MO.ctype : 'fixed', clientSaves: PF ? PF.clientSaves : 0, trend, closed: c.phase === 'close' });
   }
   rows.sort((a, b) => RANK[b.health] - RANK[a.health] || (a.SPI == null) - (b.SPI == null) || (a.SPI || 9) - (b.SPI || 9) || a.name.localeCompare(b.name));
 
@@ -115,11 +116,11 @@ async function factsOf(day) {
     definitions: { budget: 'per project: the approved (charter) budget, or else base cost + contingency + management reserve; ex tax',
       forecast_cost_at_completion: 'EAC = spent so far + the work still to do at the current cost efficiency (CPI); for finished work it is what was spent',
       budget_minus_forecast: 'positive = forecast to finish under budget; negative = forecast to finish over budget by that amount',
-      forecast_profit_or_loss: 'contract value minus forecast cost, ONLY for projects that have a contract value or an open quote; it is not the whole portfolio. Negative = a loss',
+      forecast_profit_or_loss: 'by each project\'s contract type, ONLY for projects that have a contract value or an open quote (it is not the whole portfolio); negative = a loss. Fixed price: contract value minus forecast cost (unused contingency and reserve are profit). Cost-plus: the fee (margin %) on the actual cost (the client keeps what is not spent). Target cost / GMP: the fee plus our share of any saving, less our share of any overrun (GMP: the client never pays above the contract value)',
       CPI: 'earned value / actual cost, from the costs actually entered; under 1 = over budget', SPI: 'earned value / planned value; under 1 = behind schedule' },
     finance: F ? { ready_to_invoice: F.totals.ready, ready_milestones: F.totals.readyN, overdue_invoices: F.totals.overdueN, owed_by_age: F.aging } : null,
     programs: V.byProgram.slice(0, 12).map((p) => ({ program: p.name, projects: p.n, red: p.red, amber: p.amber, green: p.green, budget: p.budget, forecast_cost: p.eac, budget_minus_forecast: p.vac, profit_or_loss_on_priced_projects: p.profit, margin_pct: p.margin })),
-    worst_projects: V.rows.filter((r) => !r.closed && r.health !== 'green').slice(0, 12).map((r) => ({ project: r.name, program: r.program, health: r.health, why: r.why, done_pct: r.pct, SPI: r.SPI, CPI: r.CPI, days_late: r.slip, budget: r.budget, forecast_cost: r.eac, budget_minus_forecast: r.vac, profit_or_loss: r.profit, trend: r.trend || 'n/a' })),
+    worst_projects: V.rows.filter((r) => !r.closed && r.health !== 'green').slice(0, 12).map((r) => ({ project: r.name, program: r.program, health: r.health, why: r.why, done_pct: r.pct, SPI: r.SPI, CPI: r.CPI, days_late: r.slip, budget: r.budget, forecast_cost: r.eac, budget_minus_forecast: r.vac, contract_type: r.ctype, profit_or_loss: r.profit, trend: r.trend || 'n/a' })),
     healthy_projects: V.rows.filter((r) => !r.closed && r.health === 'green').slice(0, 8).map((r) => r.name), biggest_overspends: V.overspends,
     cash: V.cash ? { health: V.cash.word, next_6_months_in: V.cash.in6, next_6_months_out: V.cash.out6, cover_in_over_out: V.cash.cover6, lowest_point: V.cash.low, end_of_horizon: V.cash.end, late_money_expected: V.cash.lateIn, contract_not_yet_on_a_milestone: V.cash.unscheduled,
       quarters: V.cash.quarters.map((q) => ({ quarter: q.quarter, in: q.in, out: q.out, net: q.net, position_at_end: q.position, actual: q.actual })) } : null };
