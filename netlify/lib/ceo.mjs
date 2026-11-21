@@ -59,14 +59,18 @@ export async function ceoView(day) {
   for (const c of cards) {
     const p = byCore[c.core], h = p ? (() => { try { return W.check(p, day); } catch (e) { return null; } })() : null, n = (h && h.n) || {};
     const health = P.healthOf(c), why = h && (h.reasons || []).find((r) => r.lvl === health) || (h && (h.reasons || [])[0]) || null;
-    const budget = r2(n.budget || c.BAC), eac = r2(n.EAC || c.BAC), x = rev[c.core] || { contract: 0, quoted: 0, invoiced: 0, received: 0, owed: 0, overdue: 0 };
+    // 💰 the same money as Finance (plan.mjs moneyOf): budget = the approved (charter) budget, or else base + contingency + reserve; forecast cost = EAC
+    const MO = p ? P.moneyOf(p, c) : null, budget = MO ? (MO.approved || MO.budget) : r2(c.BAC), eac = MO ? MO.eac : r2(c.BAC), x = rev[c.core] || { contract: 0, quoted: 0, invoiced: 0, received: 0, owed: 0, overdue: 0 };
+    // 📝 approved variation orders add to a confirmed contract value (as on Finance)
+    const vo = p ? r2((p.changes || []).filter((ch) => ch.vo && (ch.status === 'Approved' || ch.status === 'Implemented')).reduce((a, ch) => a + Number(ch.vo || 0), 0)) : 0;
+    if (x.contract > 0 && vo) x.contract = r2(x.contract + vo);
     const price = x.contract || x.quoted, profit = price ? r2(price - eac) : null;
     if (p) for (const t of p.tasks || []) spread(t, P.taskCost(t), (k, v) => addF(k, 'planned', v));
     const was = old && old.map[c.core], trend = !was ? '' : RANK[health] < RANK[was[0]] ? 'up' : RANK[health] > RANK[was[0]] ? 'down'
       : c.SPI != null && was[1] != null && c.SPI - was[1] >= 0.03 ? 'up' : c.SPI != null && was[1] != null && was[1] - c.SPI >= 0.03 ? 'down' : 'flat';
     rows.push({ core: c.core, ref: c.ref, name: c.name, program: c.program || '', programKey: c.programKey || '', client: c.client || '', phase: P.PHASES[c.phase] || c.phase, health, why: why ? why.text : '',
       pct: c.pct || 0, SPI: c.SPI, CPI: c.CPI, finish: c.finish || '', forecast: PG.forecastFinish(c) || c.finish || '', baseline: n.baseline_finish || '', slip: n.slip_days || 0, late: c.late || 0,
-      highRisks: c.highRisks || 0, openIssues: c.openIssues || 0, budget, spent: r2(c.AC), earned: r2(c.EV), eac, vac: r2(budget - eac), over: n.over_pct || 0,
+      highRisks: c.highRisks || 0, openIssues: c.openIssues || 0, budget, spent: r2(c.AC), earned: r2(c.EV), evIn: r2(c.EVin || 0), acIn: r2(c.ACin || 0), eac, vac: r2(budget - eac), over: n.over_pct || 0,
       contract: r2(x.contract), quoted: x.contract ? 0 : r2(x.quoted), invoiced: r2(x.invoiced), received: r2(x.received), owed: r2(x.owed), overdue: r2(x.overdue),
       profit, margin: price && profit != null ? Math.round(profit / price * 1000) / 10 : null, trend, closed: c.phase === 'close' });
   }
@@ -74,11 +78,11 @@ export async function ceoView(day) {
 
   const live = rows.filter((r) => !r.closed), sum = (L, f) => r2(L.reduce((a, r) => a + (Number(r[f]) || 0), 0));
   const totals = (L) => { const budget = sum(L, 'budget'), eac = sum(L, 'eac'), price = r2(L.reduce((a, r) => a + (r.contract || r.quoted), 0)), priced = L.filter((r) => r.contract || r.quoted), pp = r2(priced.reduce((a, r) => a + (r.profit || 0), 0)), pr = r2(priced.reduce((a, r) => a + (r.contract || r.quoted), 0));
-    const ev = sum(L, 'earned'), ac = sum(L, 'spent'), pvL = L.filter((r) => r.SPI != null);
+    const ev = sum(L, 'earned'), ac = sum(L, 'spent'), evIn = sum(L, 'evIn'), acIn = sum(L, 'acIn'), pvL = L.filter((r) => r.SPI != null);
     return { n: L.length, red: L.filter((r) => r.health === 'red').length, amber: L.filter((r) => r.health === 'amber').length, green: L.filter((r) => r.health === 'green').length, grey: L.filter((r) => r.health === 'grey').length,
-      budget, spent: ac, earned: ev, eac, vac: r2(budget - eac), CPI: ac > 0 ? r2(ev / ac) : null, SPI: pvL.length ? r2(pvL.reduce((a, r) => a + r.SPI * r.budget, 0) / Math.max(1, pvL.reduce((a, r) => a + r.budget, 0))) : null,
+      budget, spent: ac, earned: ev, eac, vac: r2(budget - eac), CPI: acIn > 0 ? r2(evIn / acIn) : null,   // as each project's CPI: from the costs actually entered SPI: pvL.length ? r2(pvL.reduce((a, r) => a + r.SPI * r.budget, 0) / Math.max(1, pvL.reduce((a, r) => a + r.budget, 0))) : null,
       contract: sum(L, 'contract'), quoted: sum(L, 'quoted'), price, invoiced: sum(L, 'invoiced'), received: sum(L, 'received'), owed: sum(L, 'owed'), overdue: sum(L, 'overdue'),
-      profit: pr ? pp : null, margin: pr ? Math.round(pp / pr * 1000) / 10 : null, unpriced: L.filter((r) => !(r.contract || r.quoted) && r.budget > 0).length }; };
+      profit: pr ? pp : null, margin: pr ? Math.round(pp / pr * 1000) / 10 : null, priced: priced.length, unpriced: L.filter((r) => !(r.contract || r.quoted) && r.budget > 0).length }; };
   const progs = {}; for (const r of live) (progs[r.program || 'No program'] = progs[r.program || 'No program'] || []).push(r);
   const byProgram = Object.entries(progs).map(([name, L]) => ({ name, key: L[0].programKey, ...totals(L) })).sort((a, b) => (b.red * 10 + b.amber) - (a.red * 10 + a.amber) || b.budget - a.budget);
 
@@ -105,10 +109,17 @@ async function factsOf(day) {
   const B = await import('./billing.mjs');
   const V = await ceoView(day), F = await B.finance(day).catch(() => null), verdict = verdictOf(V), A = V.all;
   const facts = { date: day, verdict, totals: { projects: A.n, in_trouble: A.red, at_risk: A.amber, on_track: A.green, no_plan: A.grey, SPI: A.SPI, CPI: A.CPI, budget: A.budget, spent: A.spent, earned_value: A.earned,
-      forecast_at_completion: A.eac, forecast_over_under: A.vac, contract_value: A.contract || A.price, invoiced_ex_tax: A.invoiced, received_ex_tax: A.received, owed_ex_tax: A.owed, overdue_ex_tax: A.overdue, forecast_profit: A.profit, margin_pct: A.margin, unpriced_projects: A.unpriced },
+      forecast_cost_at_completion: A.eac, budget_minus_forecast: A.vac, contract_value: A.contract || A.price, invoiced_ex_tax: A.invoiced, received_ex_tax: A.received, owed_ex_tax: A.owed, overdue_ex_tax: A.overdue,
+      forecast_profit_or_loss_on_priced_projects_only: A.profit, priced_projects: A.priced, margin_pct_on_priced_projects: A.margin, unpriced_projects: A.unpriced },
+    // 📖 what the numbers mean, so the briefing never misreads them
+    definitions: { budget: 'per project: the approved (charter) budget, or else base cost + contingency + management reserve; ex tax',
+      forecast_cost_at_completion: 'EAC = spent so far + the work still to do at the current cost efficiency (CPI); for finished work it is what was spent',
+      budget_minus_forecast: 'positive = forecast to finish under budget; negative = forecast to finish over budget by that amount',
+      forecast_profit_or_loss: 'contract value minus forecast cost, ONLY for projects that have a contract value or an open quote; it is not the whole portfolio. Negative = a loss',
+      CPI: 'earned value / actual cost, from the costs actually entered; under 1 = over budget', SPI: 'earned value / planned value; under 1 = behind schedule' },
     finance: F ? { ready_to_invoice: F.totals.ready, ready_milestones: F.totals.readyN, overdue_invoices: F.totals.overdueN, owed_by_age: F.aging } : null,
-    programs: V.byProgram.slice(0, 12).map((p) => ({ program: p.name, projects: p.n, red: p.red, amber: p.amber, green: p.green, budget: p.budget, forecast: p.eac, over_under: p.vac, profit: p.profit, margin: p.margin })),
-    worst_projects: V.rows.filter((r) => !r.closed && r.health !== 'green').slice(0, 12).map((r) => ({ project: r.name, program: r.program, health: r.health, why: r.why, done_pct: r.pct, SPI: r.SPI, CPI: r.CPI, days_late: r.slip, over_under: r.vac, profit: r.profit, trend: r.trend || 'n/a' })),
+    programs: V.byProgram.slice(0, 12).map((p) => ({ program: p.name, projects: p.n, red: p.red, amber: p.amber, green: p.green, budget: p.budget, forecast_cost: p.eac, budget_minus_forecast: p.vac, profit_or_loss_on_priced_projects: p.profit, margin_pct: p.margin })),
+    worst_projects: V.rows.filter((r) => !r.closed && r.health !== 'green').slice(0, 12).map((r) => ({ project: r.name, program: r.program, health: r.health, why: r.why, done_pct: r.pct, SPI: r.SPI, CPI: r.CPI, days_late: r.slip, budget: r.budget, forecast_cost: r.eac, budget_minus_forecast: r.vac, profit_or_loss: r.profit, trend: r.trend || 'n/a' })),
     healthy_projects: V.rows.filter((r) => !r.closed && r.health === 'green').slice(0, 8).map((r) => r.name), biggest_overspends: V.overspends,
     cash: V.cash ? { health: V.cash.word, next_6_months_in: V.cash.in6, next_6_months_out: V.cash.out6, cover_in_over_out: V.cash.cover6, lowest_point: V.cash.low, end_of_horizon: V.cash.end, late_money_expected: V.cash.lateIn, contract_not_yet_on_a_milestone: V.cash.unscheduled,
       quarters: V.cash.quarters.map((q) => ({ quarter: q.quarter, in: q.in, out: q.out, net: q.net, position_at_end: q.position, actual: q.actual })) } : null };
@@ -119,7 +130,7 @@ export async function brief(day, by) {
   await AI.checkLimit();
   const { facts, verdict } = await factsOf(day);
   const strat = verdict === 'turnaround' ? 'turnaround strategy' : verdict === 'keep' ? 'winning strategy' : 'strategy to steady and strengthen';
-  const sys = 'You are Champ, briefing the CEO on the project portfolio. Be objective and specific: every point rests on the figures given (money in $, rounded, e.g. $1.2M; name the programs and projects). No generic advice, no management jargon and no names of authors or theories. ' +
+  const sys = 'You are Champ, briefing the CEO on the project portfolio. Be objective and specific: every point rests on the figures given (money in $, rounded, e.g. $1.2M; name the programs and projects). No generic advice, no management jargon and no names of authors or theories. Read every figure by its meaning in "definitions": profit or loss covers only the priced projects (say so), a negative profit is a loss (say "a loss of $X", never "negative profit"), and budget_minus_forecast below zero means over budget. ' +
     'Use sound strategic thinking (focus scarce resources on what earns, stop what no longer earns its keep, manage by exception, protect margin and cash, know where advantage comes from) but do not name it. ' +
     `The verdict is fixed: ${verdict.toUpperCase()}. turnaround = the portfolio is in trouble: recommend a firm, time-boxed turnaround strategy. steady = mixed: steady the weak spots and build on what works. keep = healthy: recommend the winning strategy to keep it so and grow. Do not soften or change the verdict. ` +
     'Write, in this order: ' +
@@ -153,7 +164,16 @@ export async function cashFlow(day, plans, docs) {
   const [y, m] = day.split('-').map(Number), cur = day.slice(0, 7), M = [];
   for (let i = -6; i <= 12; i++) M.push(new Date(Date.UTC(y, m - 1 + i, 1)).toISOString().slice(0, 7));
   const row = Object.fromEntries(M.map((k) => [k, { in: 0, out: 0 }]));
-  for (const p of plans) { try { P.schedule(p); } catch (e) { continue; } for (const t of p.tasks || []) spread(t, P.taskCost(t), (k, v) => { if (row[k]) row[k].out += v; }); }
+  // 💸 money out, consistent with each project's forecast cost (EAC): the work done is spread over the task's days up to today,
+  //   at what it actually cost; the work still to do over its days from today (an overdue task's remaining work lands this month), at the
+  //   project's own cost efficiency. Spent + still to do = the forecast cost (EAC).
+  const yday = new Date(Date.parse(day + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+  for (const p of plans) { let R = null; try { R = P.rollup(JSON.parse(JSON.stringify(p)), day); P.schedule(p); } catch (e) { continue; }
+    const k = R && R.CPIx ? 1 / R.CPIx : 1;
+    for (const t of p.tasks || []) { if (!t.es || !t.ef) continue; const c = P.taskCost(t), f = Math.min(100, Number(t.pct) || 0) / 100, done = c * f, left = c - done;
+      const spent = Number(t.actual) > 0 ? Number(t.actual) : done;   // what the work done cost: the actual entered, else its cost (as the EVM)
+      if (spent > 0.004) spread(t.es < day ? { ...t, ef: t.ef < day ? t.ef : yday } : { ...t, es: day, ef: day }, spent, (mo, v) => { if (row[mo]) row[mo].out += v; });
+      if (left > 0.004) spread(t.ef >= day ? { ...t, es: t.es > day ? t.es : day } : { ...t, es: day, ef: day }, left * k, (mo, v) => { if (row[mo]) row[mo].out += v; }); } }
   for (const i of docs.invoices) { if (i.status === 'void' || i.status === 'draft') continue; const inc = i.totals.inc, ex = i.totals.ex;
     for (const pay of i.payments || []) { const k = (pay.date || '').slice(0, 7); if (row[k] && k <= cur) row[k].in += inc ? pay.amount * ex / inc : 0; } }
   for (const e of F.expected || []) if (row[e.month] && e.month >= cur) row[e.month].in += e.amount;
@@ -211,7 +231,7 @@ export async function ask(day, q, history) {
   const { facts, verdict, V } = await factsOf(day);
   facts.projects_detail = await projectFacts(day, V).catch(() => []);
   facts.search = await rag(q).catch(() => ({ documents: [], plan_items: [] }));
-  const sys = 'You are Champ, the AI inside GKH Project Champ, talking with the CEO on the CEO view. You are in control of the whole project environment: every program and project, its people, schedule, risks, issues, changes, sticky notes, documents and money. ' +
+  const sys = 'You are Champ, the AI inside GKH Project Champ, talking with the CEO on the CEO view. You are in control of the whole project environment: every program and project, its people, schedule, risks, issues, changes, sticky notes, documents and money. Read every money figure by its meaning in "definitions": profit or loss covers only priced projects, a negative profit is a loss (say "a loss of $X"), and budget_minus_forecast below zero means over budget. ' +
     'Answer anything about it from the data given: projects_detail (who is who and the key facts of each project), search (what Champ found in the documents and plans for this question: quote the document and page or the task, risk or note it came from), and the portfolio figures. ' +
     'Match projects and people by name even when the user spells them loosely. If the data does not hold the answer, say exactly what is missing in Champ and where to add it. Never invent names, numbers or dates. ' +
     'On top of that you think like a seasoned executive and strategist. Reason with these ideas when a question is about direction, priorities or money, but never name authors or theories: ' +

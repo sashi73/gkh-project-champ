@@ -119,6 +119,15 @@ export function schedule(plan) {
   }
   return plan;
 }
+// 💰 one place for a project's money, so Finance, the CEO view, the briefing and reports always agree.
+//   base = every task's cost + BOM lines not linked to a task (as the Costing tab); budget = base + contingency + management reserve;
+//   forecast = the EVM forecast cost (EAC) + the unlinked BOM lines; approved = the charter's signed-off budget (0 when none)
+export function moneyOf(plan, R) {
+  const cfg = plan.budgetCfg || {}, pc = (k, d) => (cfg[k] == null || isNaN(+cfg[k]) ? d : +cfg[k]), cont = pc('cont', 10), res = pc('res', 5), margin = pc('margin', 0), gst = pc('gst', 10);
+  const loose = r2(Number(plan.bomLoose) || 0), base = r2(R.BAC + loose), contA = r2(base * cont / 100), resA = r2(base * res / 100), budget = r2(base + contA + resA);
+  return { cont, res, margin, gst, loose, base, contA, resA, budget, price: r2(budget * (1 + margin / 100)), approved: Number((plan.charter || {}).budget) || 0,
+    eac: r2((R.EAC != null ? R.EAC : R.BAC) + loose), spent: r2(R.AC), earned: r2(R.EV), complete: !!R.complete };
+}
 export function rollup(plan, today) {
   schedule(plan);
   const tasks = plan.tasks;
@@ -137,8 +146,12 @@ export function rollup(plan, today) {
   const late = tasks.filter((t) => (t.pct || 0) < 100 && t.ef && t.ef < today).length;
   const durW = tasks.reduce((a, t) => a + Math.max(1, t.dur), 0);
   const pct = tasks.length ? Math.round(tasks.reduce((a, t) => a + Math.max(1, t.dur) * (t.pct || 0), 0) / durW) : 0;
-  const CPI = ACin > 0 ? r2(EVin / ACin) : null, SPI = PV > 0 ? r2(EV / PV) : null;
-  return { BAC, PV, EV, AC, ACin, ACest, CPI, SPI, EAC: CPI ? r2(BAC / CPI) : null, VAC: CPI ? r2(BAC - BAC / CPI) : null, start: begin, finish, done, total: tasks.length, late, pct,
+  // 📐 CPI is shown to 2 decimals, but the forecast uses the exact ratio (a rounded CPI moves a $2.6M forecast by ~$10K).
+  //    Forecast cost (EAC) = spent so far + the work still to do at today's cost efficiency: AC + (BAC − EV) ÷ CPI.
+  //    It equals BAC ÷ CPI when every task has its actual cost, and it is exactly what was spent once all the work is done.
+  const CPIx = ACin > 0 && EVin > 0 ? EVin / ACin : null, CPI = ACin > 0 ? r2(EVin / ACin) : null, SPI = PV > 0 ? r2(EV / PV) : null;
+  const EAC = CPIx ? r2(AC + Math.max(0, BAC - EV) / CPIx) : null;
+  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
     openRisks: (plan.risks || []).filter((r) => r.status !== 'Closed').length, highRisks: (plan.risks || []).filter((r) => r.status !== 'Closed' && r.p * r.i >= 12).length,
     openIssues: (plan.issues || []).filter((x) => x.status !== 'Resolved').length };
 }

@@ -224,7 +224,9 @@
     var ACest = r2(T.reduce(function (a, t) { return a + (has(t) ? 0 : cost(t) * (t.pct || 0) / 100); }, 0)), AC = r2(ACin + ACest);
     var durW = T.reduce(function (a, t) { return a + Math.max(1, t.dur); }, 0) || 1;
     var CPI = ACin > 0 ? r2(EVin / ACin) : null, SPI = PV > 0 ? r2(EV / PV) : null;   // CPI from real (entered) costs only
-    return { BAC: BAC, PV: PV, EV: EV, AC: AC, ACin: ACin, ACest: ACest, CPI: CPI, SPI: SPI, EAC: CPI ? r2(BAC / CPI) : null,
+    // 📐 as the server (plan.mjs): the forecast uses the exact CPI, and is spent so far + the work left at today's cost efficiency (= what was spent once it is all done)
+    var CPIx = ACin > 0 && EVin > 0 ? EVin / ACin : null, EAC = CPIx ? r2(AC + Math.max(0, BAC - EV) / CPIx) : null;
+    return { BAC: BAC, PV: PV, EV: EV, AC: AC, ACin: ACin, ACest: ACest, CPI: CPI, CPIx: CPIx, SPI: SPI, EAC: EAC,
       start: T.reduce(function (m, t) { return !m || (t.es && t.es < m) ? t.es : m; }, ''), finish: T.reduce(function (m, t) { return t.ef > m ? t.ef : m; }, ''),
       done: T.filter(function (t) { return t.pct >= 100; }).length, total: T.length, late: T.filter(function (t) { return t.pct < 100 && t.ef && t.ef < day; }),
       pct: T.length ? Math.round(T.reduce(function (a, t) { return a + Math.max(1, t.dur) * (t.pct || 0); }, 0) / durW) : 0 };
@@ -2679,7 +2681,7 @@
     header(ov, 11, ['Earned value (time & cost)', 'Value', 'What it means']);
     var ev = [['Budget at completion (BAC)', R.BAC, 'Total planned cost', money$], ['Planned value (PV)', R.PV, 'Work that should be done by today', money$], ['Earned value (EV)', R.EV, 'Work actually done (cost × % complete)', money$],
       ['Actual cost (AC)', R.AC, 'Money spent so far', money$], ['Schedule performance (SPI = EV ÷ PV)', R.SPI, R.SPI == null ? '' : R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule', '0.00'],
-      ['Cost performance (CPI = EV ÷ AC)', R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget', '0.00'], ['Forecast final cost (EAC = BAC ÷ CPI)', R.EAC, '', money$]];
+      ['Cost performance (CPI = EV ÷ AC)', R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget', '0.00'], ['Forecast final cost (EAC = AC + (BAC − EV) ÷ CPI)', R.EAC, '', money$]];
     ev.forEach(function (e, i) { var r = ov.getRow(12 + i); r.values = [e[0], e[1] == null ? '–' : e[1], e[2]]; r.getCell(2).numFmt = e[3]; r.eachCell(function (c) { c.border = box; }); });
     var rr = 20;
     ov.getCell(rr, 1).value = 'Project start'; ov.getCell(rr, 2).value = D(R.start); ov.getCell(rr, 2).numFmt = dateF;
@@ -6832,7 +6834,7 @@
       var fin = W2.reduce(function (m, t) { var d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish, bf = (p.baseline && p.baseline.finish) || R.finish;
       var pl = Math.max(1, workBetween(p.start, bf)), ac = Math.max(1, workBetween(p.start, fin)), ti = Math.round(pl / ac * 100) / 100, late = Math.round((toD(fin) - toD(bf)) / 864e5);
       return [['🏁 Time index (finished: planned ÷ actual duration)', ti.toFixed(2), late > 0 ? 'finished ' + late + ' days late (' + ac + ' working days against ' + pl + ' planned)' : 'finished on time']]; })()).concat([
-      ['Cost performance (CPI = EV ÷ AC)', R.CPI == null ? '—' : R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget'], ['Forecast final cost (EAC = BAC ÷ CPI)', R.EAC == null ? '—' : money(R.EAC), '']]);
+      ['Cost performance (CPI = EV ÷ AC)', R.CPI == null ? '—' : R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget'], ['Forecast final cost (EAC = AC + (BAC − EV) ÷ CPI)', R.EAC == null ? '—' : money(R.EAC), '']]);
     $('#planBody').innerHTML = setupSteps(p, R) + estBanner(p) + '<div class="grid two"><div class="grid" style="align-content:start">' +
       '<div class="card"><h2>Time & cost (earned value)</h2><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
         (S.expensesEx ? '<p class="muted" style="margin:10px 0 0">Expenses recorded for this job in Accounts: <b>' + money(S.expensesEx) + '</b> ex GST.</p>' : '') +

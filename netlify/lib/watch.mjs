@@ -3,7 +3,7 @@
 // explained to a client. Then Champ, as an agent, writes a short brief: what is wrong, why, and what it would do next.
 // The rules cost nothing; the brief is one AI call, kept (watch:<core>) until the project's numbers change, at most once a day.
 import * as kv from './kv.mjs';
-import { rollup, taskCost, workBetween, allDays } from './plan.mjs';
+import { rollup, taskCost, workBetween, allDays, moneyOf } from './plan.mjs';
 import { llmJson, usage, checkLimit, llmSetup, sydToday } from './ai.mjs';
 import * as KB from './kb.mjs';
 
@@ -20,7 +20,8 @@ export function check(plan, today = sydToday()) {
   const R = rollup(plan, today), c = plan.charter || {}, b = plan.baseline || null;
   const work = plan.tasks.filter((t) => t.dur > 0);
   if (work.length && plan.tasks.every((t) => (t.pct || 0) >= 100)) return closeOut(plan, R, c, b, today);   // every task and milestone done
-  const budget = Number(c.budget) || 0, EAC = R.EAC != null ? R.EAC : R.BAC;
+  // 💰 the same money as Finance and the CEO view: the approved (charter) budget, or else base + contingency + reserve; EAC includes unlinked BOM lines
+  const MO = moneyOf(plan, R), budget = MO.approved || MO.budget, EAC = MO.eac, budgetWord = MO.approved ? 'the approved budget' : 'the project budget (base + contingency + reserve)';
   const slip = b && b.finish && R.finish ? days(b.finish, R.finish) : 0;
   const late = plan.tasks.filter((t) => (t.pct || 0) < 100 && t.ef && t.ef < today && t.dur > 0).sort((x, y) => (x.ef < y.ef ? -1 : 1));
   const lateMs = plan.tasks.filter((t) => (t.pct || 0) < 100 && t.ef && t.ef < today && t.dur === 0);
@@ -35,8 +36,8 @@ export function check(plan, today = sydToday()) {
   else if (R.CPI != null && R.CPI < 1) add('amber', 'cpi', `Slightly over budget: CPI ${R.CPI.toFixed(2)}.`);
   if (slip > 21) add('red', 'slip', `Finish has moved ${slip} days past the baseline (${b.finish} → ${R.finish}).`);
   else if (slip > 0) add('amber', 'slip', `Finish is ${slip} days past the baseline (${b.finish} → ${R.finish}).`);
-  if (over != null && over > 10) add('red', 'eac', `Forecast cost ${money(EAC)} is ${Math.round(over)}% over the approved budget of ${money(budget)}.`);
-  else if (over != null && over > 0) add('amber', 'eac', `Forecast cost ${money(EAC)} is ${over.toFixed(1)}% over the approved budget of ${money(budget)}.`);
+  if (over != null && over > 10) add('red', 'eac', `Forecast cost ${money(EAC)} is ${Math.round(over)}% over ${budgetWord} of ${money(budget)}.`);
+  else if (over != null && over > 0) add('amber', 'eac', `Forecast cost ${money(EAC)} is ${over.toFixed(1)}% over ${budgetWord} of ${money(budget)}.`);
   if (late.length >= 3) add('red', 'late', `${late.length} tasks are past their finish date and not done.`);
   else if (late.length) add('amber', 'late', `${late.length} task${late.length > 1 ? 's are' : ' is'} past its finish date and not done.`);
   if (lateMs.length) add(lateMs.length >= 2 ? 'red' : 'amber', 'ms', `${lateMs.length} milestone${lateMs.length > 1 ? 's' : ''} missed: ${lateMs.map((t) => t.name).slice(0, 2).join('; ')}.`);
@@ -61,18 +62,18 @@ export function check(plan, today = sydToday()) {
 function closeOut(plan, R, c, b, today) {
   // the actual finish: when the work was really done (doneAt), else its scheduled finish; days on the project's own calendar
   const A = allDays(plan), fin = plan.tasks.filter((t) => t.dur > 0).reduce((m, t) => { const d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish;
-  const budget = Number(c.budget) || 0, AC = R.AC, start = plan.start || R.start, baseFin = (b && b.finish) || R.finish;   // no baseline: the scheduled finish is the plan
+  const MO = moneyOf(plan, R), budget = MO.approved || MO.budget, budgetWord = MO.approved ? 'an approved budget' : 'a project budget (base + contingency + reserve)', AC = R.AC, start = plan.start || R.start, baseFin = (b && b.finish) || R.finish;   // no baseline: the scheduled finish is the plan
   const planned = Math.max(1, workBetween(start, baseFin, A)), actual = Math.max(1, workBetween(start, fin, A)), slip = days(baseFin, fin);
   const SPIt = r2(planned / actual), lateBy = Math.max(0, actual - planned), latePct = r2(lateBy / planned * 100);
-  const over = budget ? r2((AC - budget) / budget * 100) : (R.CPI ? r2((1 / R.CPI - 1) * 100) : 0);
+  const over = budget ? r2((AC - budget) / budget * 100) : 0;
   const onTime = lateBy <= Math.max(5, planned * 0.05), inBudget = over <= 0;
   const verdict = onTime && inBudget ? 'success' : latePct <= 15 && over <= 10 ? 'partial' : 'failed', V = VERDICT[verdict];
   const reasons = [], add = (lvl, k, text) => reasons.push({ lvl, k, text });
   const mo = (d) => (d >= 45 ? `about ${Math.round(d / 30.4 * 2) / 2} months` : `${d} days`);
   if (onTime) add('green', 'time', `Finished on time: ${actual} working days against ${planned} planned (time index ${SPIt.toFixed(2)}).`);
   else add(latePct > 15 ? 'red' : 'amber', 'time', `Finished ${mo(slip)} late (${fin} against the baseline ${baseFin}): ${actual} working days against ${planned} planned, ${Math.round(latePct)}% longer (time index ${SPIt.toFixed(2)}).`);
-  if (inBudget) add('green', 'cost', `Within budget: final cost ${money(AC)}${budget ? ` against an approved budget of ${money(budget)}` : ''} (CPI ${R.CPI != null ? R.CPI.toFixed(2) : '-'}).`);
-  else add(over > 10 ? 'red' : 'amber', 'cost', `Over budget: final cost ${money(AC)}${budget ? ` against an approved budget of ${money(budget)}, ${Math.round(over)}% over` : ''} (CPI ${R.CPI != null ? R.CPI.toFixed(2) : '-'}: every $1 bought ${Math.round((R.CPI || 0) * 100)}c of the planned work).`);
+  if (inBudget) add('green', 'cost', `Within budget: final cost ${money(AC)}${budget ? ` against ${budgetWord} of ${money(budget)}` : ''} (CPI ${R.CPI != null ? R.CPI.toFixed(2) : '-'}).`);
+  else add(over > 10 ? 'red' : 'amber', 'cost', `Over budget: final cost ${money(AC)}${budget ? ` against ${budgetWord} of ${money(budget)}, ${Math.round(over)}% over` : ''} (CPI ${R.CPI != null ? R.CPI.toFixed(2) : '-'}: every $1 bought ${Math.round((R.CPI || 0) * 100)}c of the planned work).`);
   const openR = (plan.risks || []).filter((x) => x.status !== 'Closed' && x.title).length, openI = (plan.issues || []).filter((x) => x.status !== 'Resolved' && x.title).length;
   if (openR || openI) add('amber', 'close', `${openR ? openR + ' risk' + (openR > 1 ? 's' : '') : ''}${openR && openI ? ' and ' : ''}${openI ? openI + ' issue' + (openI > 1 ? 's' : '') : ''} still open: close them or hand them to operations.`);
   reasons.sort((x, y) => ({ red: 0, amber: 1, green: 2, grey: 3 }[x.lvl] - { red: 0, amber: 1, green: 2, grey: 3 }[y.lvl]));
