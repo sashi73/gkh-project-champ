@@ -66,7 +66,7 @@
   // (the same figures as the CEO view and Finance: forecast_profit, cost_vs_budget, delayed_days come from there)
   var PJ = "LEFT JOIN projects p ON p.job = t.job";
   var T = [
-    { g: 'Quick numbers', n: 'Portfolio scorecard', d: 'The key numbers across every project', sql: "SELECT 'Projects' AS measure, COUNT(*) AS figure FROM projects WHERE has_plan = true\nUNION ALL SELECT 'At risk', COUNT(*) FROM projects WHERE health = 'At risk'\nUNION ALL SELECT 'Delayed more than 10 days', COUNT(*) FROM projects WHERE delayed_days > 10\nUNION ALL SELECT 'Over budget (forecast)', COUNT(*) FROM projects WHERE cost_vs_budget < 0\nUNION ALL SELECT 'Billed (invoices raised)', COUNT(*) FROM projects WHERE billed = true\nUNION ALL SELECT 'Past their billing dates', COUNT(*) FROM projects WHERE billing_overdue_days > 0\nUNION ALL SELECT 'Forecast profit ($)', ROUND(SUM(IFNULL(forecast_profit, 0))) FROM projects\nUNION ALL SELECT 'Late tasks', SUM(late_tasks) FROM projects\nUNION ALL SELECT 'High risks', SUM(high_risks) FROM projects\nUNION ALL SELECT 'Open issues', SUM(open_issues) FROM projects", c: null },
+    { g: 'Quick numbers', n: 'Portfolio scorecard', d: 'The key numbers across every project', sql: "SELECT 'Projects' AS measure, COUNT(*) AS figure FROM projects WHERE has_plan = true\nUNION ALL SELECT 'At risk' AS measure, COUNT(*) AS figure FROM projects WHERE health = 'At risk'\nUNION ALL SELECT 'Delayed more than 10 days' AS measure, COUNT(*) AS figure FROM projects WHERE delayed_days > 10\nUNION ALL SELECT 'Over budget (forecast)' AS measure, COUNT(*) AS figure FROM projects WHERE cost_vs_budget < 0\nUNION ALL SELECT 'Billed (invoices raised)' AS measure, COUNT(*) AS figure FROM projects WHERE billed = true\nUNION ALL SELECT 'Past their billing dates' AS measure, COUNT(*) AS figure FROM projects WHERE billing_overdue_days > 0\nUNION ALL SELECT 'Forecast profit ($)' AS measure, ROUND(SUM(IFNULL(forecast_profit, 0))) AS figure FROM projects\nUNION ALL SELECT 'Late tasks' AS measure, SUM(late_tasks) AS figure FROM projects\nUNION ALL SELECT 'High risks' AS measure, SUM(high_risks) AS figure FROM projects\nUNION ALL SELECT 'Open issues' AS measure, SUM(open_issues) AS figure FROM projects", c: null },
     { g: 'Quick numbers', n: 'Tasks due this period', d: 'Tasks finishing in the chosen period, by project', sql: "SELECT p.project_name, t.task, t.lead, t.finish, t.pct_complete, t.status\nFROM plan_tasks t " + PJ + "\nWHERE t.finish BETWEEN '{FROM}' AND '{TO}'\nORDER BY t.finish", c: null, p: true },
     { g: 'Quick numbers', n: 'Milestones due this period', d: 'Milestones falling in the chosen period', sql: "SELECT p.project_name, t.task AS milestone, t.finish, t.done\nFROM plan_tasks t " + PJ + "\nWHERE t.days = 0 AND t.finish BETWEEN '{FROM}' AND '{TO}'\nORDER BY t.finish", c: null, p: true },
     { g: 'Quick numbers', n: 'Change decisions this period', d: 'Change requests approved, rejected or deferred', sql: "SELECT project, cr, title, decision, approved_by, decided, days, cost\nFROM change_records\nWHERE decided BETWEEN '{FROM}' AND '{TO}'\nORDER BY decided DESC", c: null, p: true },
@@ -187,8 +187,22 @@
     var pr = period(), sql = t.p ? t.sql.replace(/\{FROM\}/g, pr.from).replace(/\{TO\}/g, pr.to) : t.sql;
     S.title = t.p ? t.n + ' (' + (pr.key === 'custom' ? prettyRange(pr) : pr.name) + ')' : t.n;
     try { run(sql); } catch (e) { return fail(e); }
-    if (t.c) { S.chart = { type: t.c[0], x: isIdCol(t.c[1]) && nameCol(S.cols) ? nameCol(S.cols) : t.c[1], y: t.c[2].slice() }; S.view = 'chart'; } else { S.view = 'table'; autoChart(); }
-    S.tab = 'editor'; draw();
+    if (t.c && S.rows.length > 1) { S.chart = { type: t.c[0], x: isIdCol(t.c[1]) && nameCol(S.cols) ? nameCol(S.cols) : t.c[1], y: t.c[2].slice() }; S.view = 'chart'; } else { S.view = 'table'; autoChart(); }
+    // ✨ shown the AI query way: the answer in words on top, the table or chart below, the query folded away (no AI tokens used)
+    var a = { q: S.title, at: Date.now(), tokens: 0, sql: S.sql, title: S.title, note: t.d || '', view: S.view, chart: JSON.parse(JSON.stringify(S.chart)), tpl: true };
+    if (S.rows.length === 1 && S.cols.length === 1) { var v = S.rows[0][S.cols[0]]; a.single = typeof v === 'number' ? v.toLocaleString('en-AU', { maximumFractionDigits: 2 }) : String(v == null ? '' : v); }
+    a.answer = tplAnswer(t);
+    S.askLog.push(a); if (S.askLog.length > 20) S.askLog.shift();
+    S.tab = 'ask'; draw(); results(); showAnswer(a);
+  }
+  // the answer in words for a report: a count and the first names, or a measure / figure list read out
+  function tplAnswer(t) {
+    var n = S.rows.length, fmt = function (v) { return typeof v === 'number' ? v.toLocaleString('en-AU', { maximumFractionDigits: 2 }) : String(v == null ? '' : v); };
+    if (!n) return 'Nothing to show: no project matches this report right now.';
+    if (n === 1 && S.cols.length === 1) return S.title + ': ' + fmt(S.rows[0][S.cols[0]]) + '.';
+    if (S.cols[0] === 'measure' && S.cols[1] === 'figure') return S.rows.map(function (r) { var v = Object.keys(r).map(function (k) { return r[k]; }); return v[0] + ': ' + fmt(v[1]); }).join(' · ') + '.';
+    var nm = nameCol(S.cols) || S.cols[0], names = S.rows.slice(0, 5).map(function (r) { return fmt(r[nm]); }).filter(Boolean);
+    return n + ' row' + (n === 1 ? '' : 's') + (names.length ? ': ' + names.join(', ') + (n > 5 ? ' and ' + (n - 5) + ' more' : '') : '') + '. See the ' + (S.view === 'chart' ? 'chart' : 'table') + ' below.';
   }
 
 
@@ -248,7 +262,7 @@
     if (a.single != null) big = '<div class="ask-big">' + esc(a.single) + '</div>';
     O.innerHTML = '<div class="ask-ans' + (a.error ? ' err' : '') + '"><div class="ask-q">“' + esc(a.q) + '”</div>' + big +
       '<div class="ask-a">' + (a.answer ? esc(a.answer) : '<span class="ask-think">Working out the answer…</span>') + '</div>' +
-      (a.note ? '<div class="muted" style="font-size:12.5px;margin-top:6px">How I read it: ' + esc(a.note) + '</div>' : '') +
+      (a.note ? '<div class="muted" style="font-size:12.5px;margin-top:6px">' + (a.tpl ? 'About this report: ' : 'How I read it: ') + esc(a.note) + '</div>' : '') +
       (a.tokens ? '<div class="muted" style="font-size:12px;margin-top:4px">This question used about ' + a.tokens.toLocaleString('en-AU') + ' tokens.</div>' : '') +
       (a.sql ? '<details class="ask-sql"><summary>Show the query</summary><pre class="json" style="max-height:220px">' + esc(a.sql) + '</pre><button class="btn btn-sm" type="button" id="askEdit">Open in SQL editor</button></details>' : '') + '</div>';
     var ed = $('#askEdit'); if (ed) ed.onclick = function () { S.sql = a.sql; S.title = a.title || 'Query results'; S.tab = 'editor'; draw(); };

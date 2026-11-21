@@ -224,11 +224,11 @@ export async function tables() {
   const CEOV = await (await import('./ceo.mjs')).ceoView(d10(now)).catch(() => null), ceoBy = Object.fromEntries((((CEOV && (CEOV.view || CEOV)) || {}).rows || []).map((r) => [r.core, r]));
   const dd = (a, b) => (a && b ? Math.round((Date.parse(b) - Date.parse(a)) / 864e5) : null);
   // 💵 billing as Finance shows it: what has been invoiced (ex GST), how much of the contract, paid, owed, and the milestones done but not billed yet
-  const FIN = await (await import('./billing.mjs')).finance(d10(now), null).catch(() => null), finBy = Object.fromEntries(((FIN && FIN.projects) || []).map((x) => [x.core, x]));
+  const FIN = await (await import('./billing.mjs')).finance(d10(now), null).catch((e) => { console.error('AI query billing: ' + e.message); return null; }), finBy = Object.fromEntries(((FIN && FIN.projects) || []).map((x) => [x.core, x]));
   const invN = {}, invOver = {}; for (const iv of ((FIN && FIN.invoices) || [])) if (iv && iv.core && iv.status !== 'draft') { invN[iv.core] = (invN[iv.core] || 0) + 1;
     if (iv.late > 0 && iv.balance > 0.005) { const o = invOver[iv.core] = invOver[iv.core] || { n: 0, amt: 0, days: 0 }; o.n++; o.amt += iv.balance; o.days = Math.max(o.days, iv.late); } }
-  // ⏰ billing dates passed: milestones (done or not) whose billing date has gone by without an invoice
-  const msPast = {}; for (const m of ((FIN && FIN.coming) || [])) if (m && m.core && m.days != null && m.days < 0) { const o = msPast[m.core] = msPast[m.core] || { n: 0, days: 0, amt: 0 }; o.n++; o.days = Math.max(o.days, -m.days); o.amt += m.amount || 0; }
+  // ⏰ billing dates passed: milestones whose agreed (baseline) billing date has gone by without an invoice, done or not
+  const msPast = {}; for (const x of ((FIN && FIN.projects) || [])) if (x.past && x.past.n) msPast[x.core] = { n: x.past.n, days: x.past.days, amt: x.past.amount };
   const bill2 = (c) => { const f = finBy[c.core]; if (!f) return { billed: false, invoices_count: 0, invoiced: 0, billed_pct: 0, received: 0, owed: 0, milestones_done_not_billed: 0, not_billed_value: 0, billing_status: 'no billing (internal or no plan)', milestones_past_billing_date: 0, billing_overdue_days: 0, unbilled_past_due_value: 0, invoices_overdue_count: 0, invoices_overdue_amount: 0, oldest_invoice_overdue_days: 0 };
     return { billed: (f.invoiced || 0) > 0.004, invoices_count: invN[c.core] || 0, invoiced: r2(f.invoiced || 0), billed_pct: (f.stand && f.stand.billedPct) || 0, received: r2(f.received || 0), owed: r2(f.owed || 0),
       milestones_done_not_billed: f.readyN || 0, not_billed_value: r2((f.stand && f.stand.unbilled) || 0), billing_status: (f.stand && f.stand.status && f.stand.status.text) || '',
