@@ -238,6 +238,9 @@
 
   /* ---------------- the board: swimlanes on a timeline, arrows for links ---------------- */
   var LINK = null;   // link mode: { from }
+  // 💻 the board fits the window: drawn again when the window (or the menu beside it) changes width
+  var LAST = null, rsT = 0;
+  window.addEventListener('resize', function () { clearTimeout(rsT); rsT = setTimeout(function () { if (LAST && LAST.host.isConnected && Math.abs((LAST.host.clientWidth || 0) - LAST.w) > 24) board(LAST.host, LAST.opts); }, 200); });
   function board(host, opts) {
     opts = opts || {};
     var lanes = [], inLane = {};
@@ -258,8 +261,10 @@
     var T = today(), ds = [T];
     lanes.forEach(function (l) { l.list.forEach(function (c) { if (c.start) ds.push(c.start); if (c.finish) ds.push(c.finish); if (c.forecast) ds.push(c.forecast); }); });
     ds.sort(); var a = t2ms(ds[0]) - 10 * DAY, b = t2ms(ds[ds.length - 1]) + 21 * DAY;
-    var days = Math.max(60, Math.round((b - a) / DAY)), LBL = 220, ROW = 44, LANE = 34;
-    var avail = Math.max(400, (host.clientWidth || 900) - LBL - 4), px = Math.max(3, Math.min(40, avail / days)), W = LBL + Math.round(days * px);
+    // 💻 fits the screen: the names column narrows on a laptop and the timeline squeezes to the width (down to under a pixel a day), so
+    //    the whole board shows without scrolling sideways; only a very long programme scrolls
+    var hw = host.clientWidth || 900, days = Math.max(60, Math.round((b - a) / DAY)), LBL = hw < 760 ? 140 : hw < 1100 ? 180 : 220, ROW = hw < 1100 ? 38 : 44, LANE = hw < 1100 ? 30 : 34;
+    var avail = Math.max(300, hw - LBL - 4), px = Math.max(0.6, Math.min(40, avail / days)), W = LBL + Math.floor(days * px);
     var X = function (s) { return LBL + Math.round((t2ms(s) - a) / DAY * px); };
     var y = 26, rows = [], pos = {};
     lanes.forEach(function (l) {
@@ -267,23 +272,24 @@
       l.list.forEach(function (c) {
         var has = !!(c.start && (c.finish || c.forecast)), x1 = has ? X(c.start) : X(T), x2 = has ? Math.max(x1 + 6, X(c.finish || c.forecast)) : x1 + 70, xf = has && c.forecast && c.forecast > (c.finish || '') ? X(c.forecast) : x2;
         pos[c.core] = { x1: x1, x2: x2, xf: Math.max(x2, xf), y: y + ROW / 2, has: has };
-        rows.push({ c: c, y: y, lane: l.p }); y += ROW;
+        rows.push({ c: c, y: y, lane: l.p }); y += ROW;   // (bars sit (ROW − 26) / 2 from the row top)
       });
       y += 6;
     });
     var H = y + 8;
     // months along the top
     var grid = '', m = new Date(a); m.setUTCDate(1); m.setUTCMonth(m.getUTCMonth() + 1);
-    while (m.getTime() < b) { var xm = LBL + Math.round((m.getTime() - a) / DAY * px); grid += '<i class="db-m" style="left:' + xm + 'px"></i><span class="db-ml" style="left:' + (xm + 4) + 'px">' + MON[m.getUTCMonth()] + (m.getUTCMonth() === 0 ? ' ' + m.getUTCFullYear() : '') + '</span>'; m.setUTCMonth(m.getUTCMonth() + 1); }
+    var every = px * 30 >= 34 ? 1 : px * 30 * 3 >= 40 ? 3 : 6, mi = 0;   // month labels thin out to quarters or half-years when the months are narrow
+    while (m.getTime() < b) { if (mi++ % every && !(m.getUTCMonth() === 0)) { m.setUTCMonth(m.getUTCMonth() + 1); continue; } var xm = LBL + Math.round((m.getTime() - a) / DAY * px); grid += '<i class="db-m" style="left:' + xm + 'px"></i><span class="db-ml" style="left:' + (xm + 4) + 'px">' + MON[m.getUTCMonth()] + (m.getUTCMonth() === 0 ? ' ' + m.getUTCFullYear() : '') + '</span>'; m.setUTCMonth(m.getUTCMonth() + 1); }
     var html = '<div class="db-wrap"><div class="db" style="width:' + W + 'px;height:' + H + 'px;--lbl:' + LBL + 'px">' + grid +
       '<i class="db-today" style="left:' + X(T) + 'px" title="Today ' + pretty(T) + '"><span>Today</span></i>';
     rows.forEach(function (r) {
       if (!r.c) { html += '<div class="db-lane" style="top:' + r.y + 'px;--pg:' + esc(r.lane.color || '#C9A227') + '"><a href="#programs/' + esc(r.lane.id) + '">🗂 ' + esc(r.lane.name) + '</a></div>'; return; }
       var c = r.c, P = pos[c.core], dim = opts.program && c.program !== opts.program;
       html += '<div class="db-row' + (dim ? ' db-ext' : '') + '" style="top:' + r.y + 'px;height:' + ROW + 'px"><div class="db-name" title="' + esc(c.name) + '">' + rag(c.health) + '<a href="#plan/' + esc(c.core) + '">' + esc(c.name) + '</a></div></div>' +
-        (P.has ? '<div class="db-bar db-' + esc(c.health) + '" data-core="' + esc(c.core) + '" style="left:' + P.x1 + 'px;top:' + (r.y + 9) + 'px;width:' + (P.x2 - P.x1) + 'px" title="' + esc(c.name + ': ' + pretty(c.start) + ' → ' + pretty(c.finish) + (c.forecast && c.forecast > c.finish ? ' (forecast ' + pretty(c.forecast) + ')' : '') + ' · ' + c.pct + '% done') + '"><u style="width:' + (c.pct || 0) + '%"></u><span>' + esc(c.name) + '</span></div>' +
-          (P.xf > P.x2 + 2 ? '<div class="db-slip" style="left:' + P.x2 + 'px;top:' + (r.y + 9) + 'px;width:' + (P.xf - P.x2) + 'px" title="Forecast to finish ' + pretty(c.forecast) + '"></div>' : '')
-          : '<div class="db-bar db-none" data-core="' + esc(c.core) + '" style="left:' + P.x1 + 'px;top:' + (r.y + 9) + 'px;width:70px" title="' + esc(c.name) + ': no schedule yet"><span>no schedule</span></div>');
+        (P.has ? '<div class="db-bar db-' + esc(c.health) + '" data-core="' + esc(c.core) + '" style="left:' + P.x1 + 'px;top:' + (r.y + (ROW - 26) / 2) + 'px;width:' + (P.x2 - P.x1) + 'px" title="' + esc(c.name + ': ' + pretty(c.start) + ' → ' + pretty(c.finish) + (c.forecast && c.forecast > c.finish ? ' (forecast ' + pretty(c.forecast) + ')' : '') + ' · ' + c.pct + '% done') + '"><u style="width:' + (c.pct || 0) + '%"></u><span>' + esc(c.name) + '</span></div>' +
+          (P.xf > P.x2 + 2 ? '<div class="db-slip" style="left:' + P.x2 + 'px;top:' + (r.y + (ROW - 26) / 2) + 'px;width:' + (P.xf - P.x2) + 'px" title="Forecast to finish ' + pretty(c.forecast) + '"></div>' : '')
+          : '<div class="db-bar db-none" data-core="' + esc(c.core) + '" style="left:' + P.x1 + 'px;top:' + (r.y + (ROW - 26) / 2) + 'px;width:70px" title="' + esc(c.name) + ': no schedule yet"><span>no schedule</span></div>');
     });
     // arrows
     var svg = '<svg class="db-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><defs>' + Object.keys(DS).map(function (k) { return '<marker id="dbA-' + k + '" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="' + DS[k][1] + '"/></marker>'; }).join('') + '</defs>';
@@ -301,7 +307,7 @@
     html += svg + '</div></div>' +
       '<div class="db-legend"><span><i class="db-bar-k"></i>Planned (fill = % done)</span><span><i class="db-slip-k"></i>Forecast slip</span>' + Object.keys(DS).map(function (k) { return '<span><i style="background:' + DS[k][1] + '"></i>' + DS[k][0] + '</span>'; }).join('') + '<span><b>Bold arrows</b> cross programs</span>' +
       (canEdit() ? '<span class="sp"></span><span class="muted">Tip: click a bar to link it to another project</span>' : '') + '</div>';
-    host.innerHTML = html;
+    host.innerHTML = html; LAST = { host: host, opts: opts, w: hw };
     host.querySelectorAll('[data-dep]').forEach(function (g) { g.addEventListener('click', function (e) { var d = deps.filter(function (x) { return x.id === g.getAttribute('data-dep'); })[0]; if (d) depMenu(d, e.clientX, e.clientY); }); });
     host.querySelectorAll('.db-bar').forEach(function (bar) {
       bar.addEventListener('click', function (e) {
