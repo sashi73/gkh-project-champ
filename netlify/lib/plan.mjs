@@ -291,7 +291,7 @@ function clean(p, core) {
     bomBase: p.bomBase && typeof p.bomBase === 'object' ? { v: int(p.bomBase.v, 0, 999, 0), at: Number(p.bomBase.at) || 0, total: r2(p.bomBase.total), byTask: Object.fromEntries(Object.entries(p.bomBase.byTask || {}).slice(0, 600).filter(([k]) => /^[\w-]{1,30}$/.test(k)).map(([k, v]) => [k, r2(v)])) } : undefined,
     bomRevs: Array.isArray(p.bomRevs) && p.bomRevs.length ? p.bomRevs.slice(-60).map((x) => ({ v: int(x.v, 0, 999, 0), at: Number(x.at) || 0, by: str(x.by, 80), total: r2(x.total), delta: r2(x.delta), pct: Number(x.pct) || 0, n: int(x.n, 0, 999, 0), syn: str(x.syn, 1500),
       top: (Array.isArray(x.top) ? x.top : []).slice(0, 6).map((c) => ({ name: str(c.name, 160), kind: str(c.kind, 30), oldQty: Number(c.oldQty) || 0, newQty: Number(c.newQty) || 0, oldPrice: r2(c.oldPrice), newPrice: r2(c.newPrice), delta: r2(c.delta) })) })) : undefined,
-    baseRevs: Array.isArray(p.baseRevs) && p.baseRevs.length ? p.baseRevs.slice(-100).map((x) => ({ v: int(x.v, 0, 9999, 0), at: Number(x.at) || 0, by: str(x.by, 120), why: str(x.why, 1000), cr: str(x.cr, 20), direct: !!x.direct, rollback: x.rollback != null ? int(x.rollback, 0, 9999, 0) : undefined, finish: ymdOk(x.finish), BAC: r2(x.BAC), dFinish: int(x.dFinish, -99999, 99999, 0), dBAC: r2(x.dBAC) })) : undefined,
+    baseRevs: Array.isArray(p.baseRevs) && p.baseRevs.length ? p.baseRevs.slice(-100).map((x) => ({ v: int(x.v, 0, 9999, 0), at: Number(x.at) || 0, by: str(x.by, 120), why: str(x.why, 1000), cr: str(x.cr, 20), direct: !!x.direct, rollback: x.rollback != null ? int(x.rollback, 0, 9999, 0) : undefined, finish: ymdOk(x.finish), BAC: r2(x.BAC), dFinish: int(x.dFinish, -99999, 99999, 0), dBAC: r2(x.dBAC), files: ['pending', 'ok', 'failed'].includes(x.files) ? x.files : undefined, filesErr: str(x.filesErr, 300) || undefined })) : undefined,
     lessons: (Array.isArray(p.lessons) ? p.lessons : []).slice(0, 200).map((l) => (l && typeof l === 'object' ? { id: uid(l.id, 'l'), title: str(l.title, 200), category: str(l.category, 40), phase: str(l.phase, 80),
       impact: l.impact === 'positive' ? 'positive' : 'negative', what: str(l.what, 1500), cause: str(l.cause, 800), rec: str(l.rec, 800), status: ['Draft', 'Agreed'].includes(l.status) ? l.status : 'Draft',
       reuse: l.reuse !== false, source: l.source === 'ai' ? 'ai' : l.source === 'library' ? 'library' : 'manual', from: str(l.from, 120), by: str(l.by, 80), at: Number(l.at) || Date.now() } : null)).filter((l) => l && (l.title || l.what)),
@@ -1186,6 +1186,10 @@ export async function planPost(action, body, { who, by, audit }) {
   }
   // 📌 one baseline version (to roll back to), and ✨ the AI's analysis of the baseline history
   if (action === 'planBaseGet') { const BV = await import('./baserev.mjs'), sn = await BV.snapshot(core, body.v); return sn ? out(200, { snap: sn }) : out(404, { error: 'That baseline version was not found.' }); }
+  if (action === 'planBaseFiles') {   // 📄 make the files of the baseline versions that do not have them yet (safe to run again)
+    const plan = await get(core); if (!plan) return out(404, { error: 'No plan' });
+    try { const BV = await import('./baserev.mjs'); return out(200, await BV.files(core, plan, by, (fn) => kv.update('plan:' + core, (cur) => (cur ? fn(cur) : cur), null))); }
+    catch (e) { return out(500, { error: e.message }); } }
   if (action === 'planBaseAnalyse') {
     const plan = await get(core); if (!plan) return out(404, { error: 'No plan' });
     try { const BV = await import('./baserev.mjs'); return out(200, await BV.analyse(core, plan, rollup(plan, String(body.today || '').match(/^\d{4}-\d\d-\d\d$/) ? body.today : new Date().toISOString().slice(0, 10)))); }
@@ -1193,7 +1197,9 @@ export async function planPost(action, body, { who, by, audit }) {
   if (action === 'planGet') {
     const job = await J.find(core);
     if (!job) return out(404, { error: 'Job not found' });
-    const [remsAll, idx, plan, champ] = await Promise.all([J.reminders(), kv.get('acct-index').catch(() => null), get(job.core), kv.get('champ-opts').catch(() => null)]);
+    let [remsAll, idx, plan, champ] = await Promise.all([J.reminders(), kv.get('acct-index').catch(() => null), get(job.core), kv.get('champ-opts').catch(() => null)]);
+    // 📌 self-healing audit trail: a baseline that was set but not yet recorded as a version (an interrupted save) is recorded now
+    if (plan && plan.baseline) try { const BV = await import('./baserev.mjs'), bv = await BV.check(job.core, plan, by, save); if (bv) plan = bv.plan; } catch (e) { console.error('Baseline version (read): ' + e.message); }
     const rems = remsAll.filter((r) => r.core === job.core).map((r) => ({ ...r, when: whenText(r.at) }));
     let costs = 0;
     try { costs = r2(Object.values((idx && idx.expenses) || {}).filter((e) => e.core === job.core).reduce((a, e) => a + (e.inc - e.gst), 0)); } catch {}
