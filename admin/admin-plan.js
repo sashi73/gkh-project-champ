@@ -714,7 +714,8 @@
         if (S.core !== core) return;
         if (M.watchCheck) setTimeout(function () { M.watchCheck(true); }, 300);   // 🩺 Champ's colour follows the change
         S.rev = r.plan.rev; plan.rev = r.plan.rev;
-        if (r.baseRev) { plan.baseRevs = r.plan.baseRevs; toast('📌 Baseline v' + r.baseRev.v + ' filed in Project documents (PowerPoint and spreadsheet)'); }
+        if (r.baseRev) { plan.baseRevs = r.plan.baseRevs; S.dms = null; toast('📌 Baseline v' + r.baseRev.v + ' recorded: its PowerPoint and spreadsheet are being filed in Project documents'); baseFiles(); }
+        if (r.bomRev) S.dms = null;
         if (r.bomRev) {   // 🧱 a new BOM version: take the server's baseline, revision list, lesson and the note into the plan on screen
           plan.bomBase = r.plan.bomBase; plan.bomRevs = r.plan.bomRevs; plan.lessons = r.plan.lessons;
           (r.plan.tasks || []).forEach(function (st) { var t = plan.tasks.filter(function (x) { return x.id === st.id; })[0]; if (!t) return; (st.stickies || []).forEach(function (n) { if (/^bom:v/.test(n.linked || '') && !(t.stickies || []).some(function (m) { return m.id === n.id; })) (t.stickies = t.stickies || []).push(n); }); });
@@ -2228,6 +2229,8 @@
       '</div><div class="pviews">' +
       '<div class="tabs" style="margin:0" title="Which columns to show"><button class="tab' + (S.cols === 's' ? ' on' : '') + '" data-cols="s">📅 Dates</button><button class="tab' + (S.cols === 'c' ? ' on' : '') + '" data-cols="c">$ Costs</button><button class="tab' + (S.cols === 'a' ? ' on' : '') + '" data-cols="a">All columns</button></div>' +
       '<div class="tabs" style="margin:0"><button class="tab' + (S.zoom === 'day' ? ' on' : '') + '" data-zoom="day">Days</button><button class="tab' + (S.zoom === 'week' ? ' on' : '') + '" data-zoom="week">Weeks</button><button class="tab' + (S.links ? ' on' : '') + '" data-links title="Show the dependency arrows between the bars">🔗 Links</button>' + (gGap > 7 ? '<button class="tab' + (gFit ? ' on' : '') + '" data-gfit type="button" title="' + (gFit ? 'The chart starts at the plan (' + esc(dmy(R.start)) + ', ' + gGap + ' days from today). Click to show from today.' : 'Hide the ' + gGap + ' empty days before the plan starts (' + esc(dmy(R.start)) + ')') + '">⇥ Fit to the plan</button>' : '') + '</div>' +
+      (p.baseline ? (function () { var bv = (p.baseRevs || []).slice(-1)[0], bb = p.baseline, late = R.finish && bb.finish ? (R.finish > bb.finish ? workBetween(bb.finish, R.finish) - 1 : R.finish < bb.finish ? -(workBetween(R.finish, bb.finish) - 1) : 0) : 0;
+        return '<div class="tabs" style="margin:0"><button type="button" class="tab gbase-chip' + (late > 0 ? ' late' : '') + '" data-gbasev title="' + esc('The baseline the plan is measured against (the grey bars under each task). Click for every version, roll back and the AI analysis.') + '">📌 Baseline' + (bv ? ' <b>v' + bv.v + '</b>' : '') + ' · ' + esc(bomStamp(bb.at)) + (bb.cr || (bv && bv.cr) ? ' · ' + esc(bb.cr || bv.cr) : '') + ' · finish ' + esc(dmy(bb.finish)) + (late ? ' <span>(' + (late > 0 ? late + ' working days late' : -late + ' days early') + ')</span>' : ' <span>(on baseline)</span>') + '</button></div>'; })() : '') +
       '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button></div></div></div>' +
       (S.recAc ? '<div class="rec-bar"><span>💲 <b>Recording progress and actual costs' + (S.recAc.ms ? ': up to ' + esc(S.recAc.ms) : '') + '.</b> For each task, type its <b>Actual $</b> so far, in full (labour, subcontractors, hire and its materials), and check its <b>%</b> done. A BOM / BOQ row takes its actual cost from the BOM (click it to open the BOM / BOQ). Each entry is logged with who and when.</span><button class="btn btn-sm btn-gold" type="button" id="recDone">✓ Done</button></div>' : '') +
       '<div class="gsplit" id="gSplit"><div class="gpane gleft" id="gLeft"' + (S.split ? ' style="flex:0 0 ' + S.split + 'px;max-width:none"' : '') + '><table class="gt v-' + S.cols + (S.recAc ? ' v-r' : '') + '"><thead><tr><th>#</th><th title="Done">✓</th><th style="min-width:160px">Task <button type="button" class="gfz-chip" id="gFreezeBtn" title="Freeze columns (like Excel) and column widths">❄ ' + esc(gfzName()) + '</button></th><th style="min-width:136px">Resources <span class="muted" style="text-transform:none;letter-spacing:0">(★ lead)</span></th><th>Days</th><th>Start</th><th>Finish</th><th>After #</th><th title="Labour: people × hours (or days) each. Materials: quantity">People × Qty</th><th>Unit</th><th>Unit $</th><th>Cost</th><th>Actual $</th><th>Status</th><th>%</th><th></th></tr></thead><tbody>';
@@ -2413,6 +2416,7 @@
     // sub-tasks
     B.querySelectorAll('[data-tog]').forEach(function (b) { b.onclick = function () { var t = task(b); S.closed[t.id] = !S.closed[t.id]; render(); }; });
     B.querySelectorAll('[data-bomver]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); bomVersions(); }; });
+    B.querySelectorAll('[data-gbasev]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); baseVersions(); }; });
     B.querySelectorAll('[data-bomact]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); location.hash = '#plan/' + S.core + '/bom'; }; });   // 🧱 straight to the BOM / BOQ (prices change there and in Order status)
     B.querySelectorAll('[data-addsub]').forEach(function (b) {
       b.onclick = function () {
@@ -5225,7 +5229,7 @@
           cr: { id: c.id, num: c.num, title: c.title, desc: c.desc, reason: c.reason, source: c.source, raisedBy: c.raisedBy, raisedAt: c.raisedAt, status: c.status, decision: c.decision, effect: c.effect || null, implementedAt: c.implementedAt || 0, direct: !!c.direct } });
       });
     }).then(function (d) {
-      if (S.core === core) { c.recorded = d.record.at; c.recKey = d.record.key; S.crRecs = null; dirty(crNo(c) + ' record kept'); if (S.tab === 'change' && $('#planBody') && location.hash.indexOf('#plan/' + core) === 0) changeTab(); }
+      if (S.core === core) { c.recorded = d.record.at; c.recKey = d.record.key; S.crRecs = null; S.dms = null; dirty(crNo(c) + ' record kept'); if (S.tab === 'change' && $('#planBody') && location.hash.indexOf('#plan/' + core) === 0) changeTab(); }
       if (!quiet) toast('📁 ' + crNo(c) + ' kept on record with the signed PDF');
       return d.record;
     }).catch(function (e) { if (!quiet) toast('The decision is saved in the plan, but the PDF record could not be kept: ' + (e.message || e) + '. Open Change control to try again.', true); return null; })
@@ -5370,6 +5374,15 @@
       '<div class="actions"><button class="btn btn-gold" type="button" id="bwGo">' + (ccOff() ? '✓ Commit the baseline' : '🔁 Send to change control') + '</button><button class="btn" type="button" data-close>Cancel</button></div>');
     $('#bwGo').onclick = function () { var w = $('#bwWhy').value.trim(); if (w.length < 5) { toast('Say why: it goes on the audit trail', true); $('#bwWhy').focus(); return; } M.closeModal(); go(w); };
   }
+  // 📄 the baseline versions' files are made in their own step (so a slow PowerPoint never holds up a save); it runs until all are filed
+  function baseFiles(n) {
+    var core = S.core, p = S.plan; if (!p || !(p.baseRevs || []).some(function (x) { return x.files !== 'ok'; }) || S.baseFilesBusy) return;
+    S.baseFilesBusy = true;
+    api('planBaseFiles', { core: core }).then(function (d) { S.baseFilesBusy = false; if (S.core !== core) return;
+      (d.results || []).forEach(function (x) { (p.baseRevs || []).forEach(function (y) { if (y.v === x.v) { y.files = x.ok ? 'ok' : 'failed'; y.filesErr = x.err || undefined; } }); if (x.ok) toast('📄 Baseline v' + x.v + ' filed in Project documents (PowerPoint and spreadsheet)'); else toast('Baseline v' + x.v + ': the files could not be made (' + x.err + '). Open 📌 Baselines to try again.', true); });
+      if ((d.results || []).length) { S.dms = null; if (S.tab === 'docs') docsTab(); }
+      if (d.left && (n || 0) < 10) baseFiles((n || 0) + 1); }, function () { S.baseFilesBusy = false; });
+  }
   function baseRollback(v, by, why, cr) {
     var core = S.core; return api('planBaseGet', { core: core, v: v }).then(function (d) { if (S.core !== core || !d.snap) return; var x = d.snap, p = S.plan;
       p.baseline = { at: Date.now(), finish: x.finish, BAC: x.BAC, tasks: x.tasks, by: by, why: 'Roll back to v' + v + (why ? ': ' + why : ''), cr: cr || '', direct: !cr, rollback: v };
@@ -5381,15 +5394,17 @@
       (L.length ? '<div class="tblwrap" style="max-height:48vh;overflow:auto"><table class="tbl"><thead><tr><th>Version</th><th>Set</th><th>By</th><th>Finish</th><th class="num">Budget</th><th>Change from the one before</th><th>Why</th><th>Approval</th><th></th></tr></thead><tbody>' +
         L.map(function (x, i) { return '<tr><td class="nowrap"><b>v' + x.v + '</b>' + (i === 0 ? ' <small class="good">current</small>' : '') + (x.rollback != null ? '<br><small class="muted">roll back to v' + x.rollback + '</small>' : '') + '</td><td class="nowrap">' + esc(bomStamp(x.at)) + '</td><td>' + esc(x.by || '') + '</td><td class="nowrap">' + esc(dmy(x.finish)) + '</td><td class="num">' + money(x.BAC) + '</td>' +
           '<td class="nowrap">' + (x.v ? '<span class="' + (x.dFinish > 0 ? 'bad' : x.dFinish < 0 ? 'good' : '') + '">' + (x.dFinish > 0 ? '+' : '') + x.dFinish + ' days</span> · <span class="' + (x.dBAC > 0 ? 'bad' : x.dBAC < 0 ? 'good' : '') + '">' + (x.dBAC > 0 ? '+' : '') + money(x.dBAC) + '</span>' : '<span class="muted">first</span>') + '</td>' +
-          '<td style="font-size:12.5px;min-width:180px">' + esc(x.why || '') + '</td><td class="nowrap">' + esc(x.cr || (x.direct ? 'direct (change control off)' : x.v === 0 ? '' : '')) + '</td><td>' + (i > 0 ? '<button class="btn btn-sm" type="button" data-bback="' + x.v + '">↶ Roll back to v' + x.v + '</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+          '<td style="font-size:12.5px;min-width:180px">' + esc(x.why || '') + (x.files === 'ok' ? '<br><small class="good">📄 PowerPoint and spreadsheet filed</small>' : x.files === 'failed' ? '<br><small class="bad">⚠ files not made' + (x.filesErr ? ': ' + esc(x.filesErr) : '') + '</small>' : '<br><small class="muted">📄 files being made…</small>') + '</td><td class="nowrap">' + esc(x.cr || (x.direct ? 'direct (change control off)' : x.v === 0 ? '' : '')) + '</td><td>' + (i > 0 ? '<button class="btn btn-sm" type="button" data-bback="' + x.v + '">↶ Roll back to v' + x.v + '</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
         : '<p>The baseline is recorded as v0 the next time the plan is saved.</p>') +
-      '<div id="baAi"></div><div class="actions"><button class="btn btn-gold" type="button" id="baAiGo"' + (L.length ? '' : ' disabled') + '>✨ Analyse the baseline history with AI</button><a class="btn" href="#plan/' + esc(S.core) + '/docs" data-close>📁 The files in Project documents</a><button class="btn" type="button" data-close>Close</button></div>');
+      '<div id="baAi"></div><div class="actions">' + ((p.baseRevs || []).some(function (x) { return x.files !== 'ok'; }) ? '<button class="btn" type="button" id="baFiles">📄 Make the missing files</button>' : '') + '<button class="btn btn-gold" type="button" id="baAiGo"' + (L.length ? '' : ' disabled') + '>✨ Analyse the baseline history with AI</button><a class="btn" href="#plan/' + esc(S.core) + '/docs" data-close>📁 The files in Project documents</a><button class="btn" type="button" data-close>Close</button></div>');
     var box = document.getElementById('modalBody');
     box.querySelectorAll('[data-bback]').forEach(function (bt) { bt.onclick = function () { var v = +bt.getAttribute('data-bback');
       M.closeModal(); baseWhy('Roll back to baseline v' + v, ccOff() ? 'Change control is off: the roll back is committed straight, and kept as the next baseline version.' : 'A roll back goes to the change control board like any re-baseline; once approved it becomes the next baseline version (the history is never rewritten).', function (why) {
         if (ccOff()) return baseRollback(v, bomMe(), why, '');
         var x = (p.baseRevs || []).filter(function (y) { return y.v === v; })[0] || {}, cb = crNew({ title: 'Roll back the baseline to v' + v + ': finish ' + dmy((p.baseline || {}).finish) + ' → ' + dmy(x.finish) + ', budget ' + money((p.baseline || {}).BAC || 0) + ' → ' + money(x.BAC || 0), desc: 'Make baseline v' + v + ' (set ' + bomStamp(x.at || 0) + ') the performance baseline again.', reason: why, source: 'manual', srcTitle: '📌 Baselines', raisedBy: bomMe(), priority: 'High' });
         cb.kind = 'baseline'; cb.base = { rollback: v }; dirty('Baseline roll back sent to change control: ' + crNo(cb)); toast('🔁 Sent to Change control as ' + crNo(cb)); location.hash = '#plan/' + S.core + '/change'; }); }; });
+    var bf = box.querySelector('#baFiles'); if (bf) bf.onclick = function () { M.closeModal(); toast('📄 Making the baseline files…'); baseFiles(); };
+    baseFiles();
     var ai = box.querySelector('#baAiGo'); if (ai) ai.onclick = function () { ai.disabled = true; ai.textContent = '✨ Analysing…'; var out = box.querySelector('#baAi');
       api('planBaseAnalyse', { core: S.core, today: today() }).then(function (d) { var a = d.analysis || {}, li = function (h, L2) { return L2 && L2.length ? '<b>' + h + '</b><ul style="margin:4px 0 8px 18px">' + L2.map(function (x) { return '<li>' + esc(String(x)) + '</li>'; }).join('') + '</ul>' : ''; };
         out.innerHTML = '<div class="cr-eval" style="margin:10px 0"><b>✨ AI analysis: what re-baselining has done to this project</b>' + (a.totals ? '<p style="margin:6px 0"><b>' + (a.totals.rebaselines != null ? a.totals.rebaselines + ' re-baseline' + (a.totals.rebaselines === 1 ? '' : 's') : '') + '</b>' + (a.totals.finish_moved_days != null ? ' · finish moved ' + a.totals.finish_moved_days + ' days' : '') + (a.totals.budget_moved != null ? ' · budget moved ' + money(a.totals.budget_moved) : '') + '</p>' : '') +
@@ -6748,6 +6763,7 @@
     var core = S.core, D = S.dms;
     if (!D || D.core !== core) {
       $('#planBody').innerHTML = '<div class="empty">Loading the project documents…</div>';
+      baseFiles();
       api('intelDmsList', { core: core }).then(function (d) { S.dms = { core: core, d: d, folder: (S.dms && S.dms.core === core && S.dms.folder) || 'all', old: false, q: '' }; if (S.tab === 'docs' && S.core === core) docsTab(); }).catch(fail);
       return;
     }

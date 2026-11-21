@@ -63,27 +63,46 @@ export async function pptx(plan, job, v, s, prev, R) {
   return Buffer.from(await p.write({ outputType: 'nodebuffer' }));
 }
 
-// after a plan is saved: a baseline that is new (or replaced) becomes the next version. Returns the saved plan, or null.
+// after a plan is saved (or read): a baseline that is new (or replaced) becomes the next version. This part is quick (a snapshot and the
+// list on the plan) so it can never be lost to a slow request; the files are made by files() below, which can be run again until done.
 export async function check(core, plan, by, save) {
   const B = plan && plan.baseline; if (!B || !B.at) return null;
   const H = (await kv.get('baserev:' + core).catch(() => null)) || { list: [] }, last = H.list[H.list.length - 1] || null;
   if (last && last.at === B.at) return null;
-  const v = last ? last.v + 1 : 0, prev = last, job = await J.find(core).catch(() => null);
-  const snap = { v, at: B.at, by: B.by || by, why: B.why || (v === 0 ? 'The first baseline' : ''), cr: B.cr || '', direct: !!B.direct, rollback: B.rollback != null ? B.rollback : undefined, finish: B.finish, BAC: r2(B.BAC), tasks: B.tasks || {} };
+  const v = last ? last.v + 1 : 0, prev = last;
+  const snap = { v, at: B.at, by: B.by || by, why: B.why || (v === 0 ? 'The first baseline' : ''), cr: B.cr || '', direct: !!B.direct, rollback: B.rollback != null ? B.rollback : undefined, finish: B.finish, BAC: r2(B.BAC), tasks: B.tasks || {}, files: null };
   if (plan.baselineSuspect && Math.abs(plan.baselineSuspect - B.at) < 120000) snap.why = 'Replaced automatically by an order change (a fault, since fixed)';
-  const R = rows(plan, snap, prev), docs = { csv: H.csv || '', ppt: H.ppt || '' }, note = 'Baseline v' + v + ': finish ' + dmy(snap.finish) + ', budget ' + $(snap.BAC) + (prev ? ' (' + (days(prev.finish, snap.finish) >= 0 ? '+' : '') + days(prev.finish, snap.finish) + ' days, ' + (snap.BAC - prev.BAC >= 0 ? '+' : '') + $(snap.BAC - prev.BAC) + ' from v' + prev.v + ')' : '') + (snap.why ? '. Why: ' + snap.why : '');
-  try { const I = await import('./plan-intel.mjs'), text = csv(plan, job, v, snap, prev, R);
-    const a = await I.upload(core, { name: 'Baseline.csv', title: 'Project baseline v' + v + ' (spreadsheet)', type: 'text/csv', text, file: Buffer.from('﻿' + text).toString('base64'), size: text.length, folder: 'plans', status: 'Approved', replaces: docs.csv || undefined, vnote: note, version: v, kind: 'Baseline', tags: ['Baseline', 'v' + v, 'CSV'] }, by);
-    if (a && a.doc) docs.csv = a.doc.id;
-    try { const buf = await pptx(plan, job, v, snap, prev, R);
-      const b = await I.upload(core, { name: 'Baseline.pptx', title: 'Project baseline v' + v + ' (PowerPoint)', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', text: text.slice(0, 20000), file: buf.toString('base64'), size: buf.length, folder: 'plans', status: 'Approved', replaces: docs.ppt || undefined, vnote: note, version: v, kind: 'Baseline', tags: ['Baseline', 'v' + v, 'PowerPoint'] }, by);
-      if (b && b.doc) docs.ppt = b.doc.id; } catch (e) { console.error('Baseline PowerPoint: ' + e.message); }
-  } catch (e) { console.error('Baseline files: ' + e.message); }
-  await kv.update('baserev:' + core, (x) => ({ csv: docs.csv, ppt: docs.ppt, list: [...((x && x.list) || []), snap].slice(-100) }), () => ({ list: [] }));
+  let added = false;
+  await kv.update('baserev:' + core, (x) => { const L = (x && x.list) || []; if (L.some((y) => y.at === snap.at)) return x; added = true; return { ...(x || {}), list: [...L, snap].slice(-100) }; }, () => ({ list: [] }));
+  if (!added) return null;
   const p = JSON.parse(JSON.stringify(plan));
-  p.baseRevs = [...(p.baseRevs || []), { v, at: snap.at, by: snap.by, why: snap.why, cr: snap.cr, direct: snap.direct, rollback: snap.rollback, finish: snap.finish, BAC: snap.BAC, dFinish: prev ? days(prev.finish, snap.finish) : 0, dBAC: prev ? r2(snap.BAC - prev.BAC) : 0 }].slice(-100);
+  p.baseRevs = [...(p.baseRevs || []).filter((x) => x.v !== v), { v, at: snap.at, by: snap.by, why: snap.why, cr: snap.cr, direct: snap.direct, rollback: snap.rollback, finish: snap.finish, BAC: snap.BAC, dFinish: prev ? days(prev.finish, snap.finish) : 0, dBAC: prev ? r2(snap.BAC - prev.BAC) : 0, files: 'pending' }].slice(-100);
   const r = await save(core, p, plan.rev, by);
-  return r && !r.conflict ? { plan: r.plan, info: { v, note } } : null;
+  return r && !r.conflict ? { plan: r.plan, info: { v, note: 'Baseline v' + v + ': finish ' + dmy(snap.finish) + ', budget ' + $(snap.BAC) } } : null;
+}
+// 📄 the files for every version that does not have them yet (a spreadsheet and a PowerPoint deck in Project documents, one version each).
+//    Safe to run again: a version is only marked done once both files are in; a failure is kept on the version so it shows.
+export async function files(core, plan, by, setPlan) {
+  const H = (await kv.get('baserev:' + core).catch(() => null)) || { list: [] }, todo = H.list.filter((x) => !x.files || !x.files.csv || !x.files.ppt);
+  if (!todo.length) return { done: 0 };
+  const job = await J.find(core).catch(() => null), I = await import('./plan-intel.mjs'), out = [];
+  let lastCsv = H.csv || '', lastPpt = H.ppt || '';
+  for (const snap of todo.slice(0, 2)) {   // two at a time, so a request stays quick; the rest on the next call
+    const prev = H.list.find((x) => x.v === snap.v - 1) || null, R = rows(plan, snap, prev), f = { ...(snap.files || {}) }, errs = [];
+    const note = 'Baseline v' + snap.v + ': finish ' + dmy(snap.finish) + ', budget ' + $(snap.BAC) + (prev ? ' (' + (days(prev.finish, snap.finish) >= 0 ? '+' : '') + days(prev.finish, snap.finish) + ' days, ' + (snap.BAC - prev.BAC >= 0 ? '+' : '') + $(snap.BAC - prev.BAC) + ' from v' + prev.v + ')' : '') + (snap.cr ? '. Approved through ' + snap.cr : snap.direct ? '. Committed straight (change control off)' : '') + (snap.why ? '. Why: ' + snap.why : '');
+    const text = csv(plan, job, snap.v, snap, prev, R);
+    if (!f.csv) try { const a = await I.upload(core, { name: 'Baseline.csv', title: 'Project baseline v' + snap.v + ' (spreadsheet)', type: 'text/csv', text, file: Buffer.from('\ufeff' + text).toString('base64'), size: text.length, folder: 'plans', status: 'Approved', replaces: lastCsv || undefined, vnote: note, version: snap.v, kind: 'Baseline', tags: ['Baseline', 'v' + snap.v, 'CSV'].concat(snap.cr ? [snap.cr] : []) }, by);
+      if (a && a.doc) { f.csv = a.doc.id; lastCsv = a.doc.id; } else errs.push('spreadsheet: ' + ((a && a.error) || 'not saved')); } catch (e) { errs.push('spreadsheet: ' + e.message); }
+    if (!f.ppt) try { const buf = await pptx(plan, job, snap.v, snap, prev, R);
+      const b = await I.upload(core, { name: 'Baseline.pptx', title: 'Project baseline v' + snap.v + ' (PowerPoint)', type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', text: text.slice(0, 20000), file: buf.toString('base64'), size: buf.length, folder: 'plans', status: 'Approved', replaces: lastPpt || undefined, vnote: note, version: snap.v, kind: 'Baseline', tags: ['Baseline', 'v' + snap.v, 'PowerPoint'].concat(snap.cr ? [snap.cr] : []) }, by);
+      if (b && b.doc) { f.ppt = b.doc.id; lastPpt = b.doc.id; } else errs.push('PowerPoint: ' + ((b && b.error) || 'not saved')); } catch (e) { errs.push('PowerPoint: ' + e.message); }
+    f.err = errs.join('; ') || undefined; f.at = Date.now();
+    await kv.update('baserev:' + core, (x) => ({ ...(x || {}), csv: lastCsv, ppt: lastPpt, list: ((x && x.list) || []).map((y) => (y.v === snap.v ? { ...y, files: f } : y)) }), () => ({ list: [] }));
+    out.push({ v: snap.v, ok: !!(f.csv && f.ppt), err: f.err || '' });
+    if (errs.length) console.error('Baseline v' + snap.v + ' files: ' + f.err);
+  }
+  if (setPlan) await setPlan((p) => { p.baseRevs = (p.baseRevs || []).map((x) => { const o = out.find((y) => y.v === x.v); return o ? { ...x, files: o.ok ? 'ok' : 'failed', filesErr: o.err || undefined } : x; }); return p; });
+  return { done: out.length, left: Math.max(0, todo.length - out.length), results: out };
 }
 export async function snapshot(core, v) { const H = (await kv.get('baserev:' + core).catch(() => null)) || { list: [] }; return H.list.find((x) => x.v === Number(v)) || null; }
 
