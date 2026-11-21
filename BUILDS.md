@@ -233,4 +233,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 222 | 1.0.222| 2026-11-21 18:56| bomgantt| `604b562` | Gantt: BOM milestone shows its version (vN, date and time, total, change), markers on the chart and a BOM versions list (#83) |
 | 223 | 1.0.223| 2026-11-21 19:32| bomall| `7f6c870` | BOM: tick (or untick) every line shown in one go from the ✓ header (#84) |
 | 224 | 1.0.224| 2026-11-21 19:48| smallscreen| `a8e548a` | Fit small laptops: compact layout under 800px high or 1400px wide, Gantt sized to the screen, drag-to-resize Gantt height, dates & calendar  |
-| 225 | 1.0.225 | 2026-11-21 19:51 | depfit | _this commit_ | _see git log_ |
+| 225 | 1.0.225| 2026-11-21 19:51| depfit| `6bedd25` | Dependency board fits laptops: timeline squeezes to the width, narrower names column, names stay above bars, redrawn on resize (#86) |
+| 226 | 1.0.226 | 2026-11-21 19:52 | tdyfade | _this commit_ | _see git log_ |

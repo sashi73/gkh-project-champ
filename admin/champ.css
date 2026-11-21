@@ -1235,3 +1235,18 @@ body.gh-dragging{cursor:row-resize;user-select:none}body.gh-dragging .gpane{poin
 body.is-short .db-wrap{max-height:max(280px,calc(100vh - 150px))!important}
 body.is-short .db-name{padding:0 6px 0 10px;font-size:12px}
 body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
+
+/* 🎯 Today: appears and disappears with a quick, smooth fade (no unrolling, flying rows or fly-out); only the red "now" signals still pulse */
+.tdy{animation:tdyFadeIn .18s ease-out both!important}
+.tdy .tdy-stage{animation:tdyZoomIn .18s cubic-bezier(.2,.8,.3,1) both!important}
+.tdy .tdy-rod,.tdy .tdy-rod-b,.tdy .tdy-stage .tdy-box,.tdy .tdy-stage .tdy-box::after,.tdy .tdy-h,.tdy .tdy-flow,.tdy section h3,.tdy .tdy-f,.tdy .tdy-tip,.tdy .tdy-none,.tdy .tdy-flow span,.tdy .tdy-t tbody tr,.tdy .tdy-t tbody tr.tdy-red td:first-child{animation:none!important}
+.tdy .tdy-t tbody tr.tdy-today{animation:tdyRowGlow 1.6s ease-in-out infinite!important}
+.tdy .tdy-flow .tdy-blink{animation:tdyPillBlink 1.2s ease-in-out infinite!important}
+.tdy .tdy-now{animation:tdyBlink 1s steps(2,jump-none) infinite!important}
+.tdy.tdy-out{animation:tdyFadeOut .15s ease-in both!important}
+.tdy.tdy-out .tdy-stage{animation:tdyZoomOut .15s ease-in both!important}
+@keyframes tdyFadeIn{from{opacity:0}}
+@keyframes tdyFadeOut{to{opacity:0}}
+@keyframes tdyZoomIn{from{opacity:0;transform:translateY(6px) scale(.985)}}
+@keyframes tdyZoomOut{to{opacity:0;transform:scale(.985)}}
+@media (prefers-reduced-motion:reduce){.tdy,.tdy .tdy-stage,.tdy.tdy-out,.tdy.tdy-out .tdy-stage{animation:none!important}}
