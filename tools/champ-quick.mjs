@@ -358,6 +358,16 @@ try {
       ar0.status === 400 && pmA.status === 403 && sa.status === 200 && ceoA.status === 200 && gone && arl.status === 200 && hit.archived && hit.archived.reason === 'Cancelled by the client' && hit.planned && pmL.status === 403 && back0.status === 400 && back.status === 200 && again && pmDel.status === 200 && ((await api('planArchiveList', {})).j.register || []).filter((e) => e.core === ac).map((e) => e.what).sort().join() === 'Archived,Brought back',
       JSON.stringify([ar0.status, pmA.status, sa.status, sa.j.error, ceoA.status, ceoA.j.error, gone, arl.status, hit, pmL.status, back.status, again, pmDel.status, pmDel.j.error]));
   }
+    // 🔎 one set of figures: for EVERY project, the plan, the CEO view and Finance (billing and the finance list) agree on
+    //    % complete, budget, forecast cost, CPI, SPI and profit
+    { const cv = (await api('planCeoGet', {})).j, rows = ((cv.view || cv).rows || []).filter((r) => !r.closed), fl = (await api('acctFinanceGet', {})).j.projects || [], bad = [];
+      for (const r of rows) {
+        const B = (await api('acctBillGet', { core: r.core })).j.bill; if (!B || !B.money) continue; const m = B.money, f = fl.find((x) => x.core === r.core);
+        const want = [['% complete', r.pct, B.stand && B.stand.workPct], ['budget', r.budget, m.approved || m.budget], ['forecast', r.eac, m.eac], ['CPI', r.CPI, m.CPI], ['SPI', r.SPI, m.SPI],
+          ['profit', r.internal ? null : r.profit, r.internal ? null : m.profit], ['finance list % complete', f ? f.stand.workPct : B.stand.workPct, B.stand.workPct], ['finance list not billed', f ? f.stand.unbilled : B.stand.unbilled, B.stand.unbilled]];
+        for (const [k, a, b] of want) if (!(a == null && b == null) && !(typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) < 0.011)) bad.push(r.name + ': ' + k + ' CEO ' + a + ' / Finance ' + b);
+      }
+      ok('Consistency', '🔎 every project (' + rows.length + '): the plan, the CEO view and Finance show the same % complete, budget, forecast cost, CPI, SPI and profit', rows.length > 5 && !bad.length, bad.slice(0, 12).join(' | ')); }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {
