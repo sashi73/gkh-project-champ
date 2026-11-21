@@ -216,13 +216,15 @@
   var cost = function (t) { return r2(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) + matCost(t) + (Number(t.bomx) || 0)); };   // v93: + BOM materials not in stock
   // 👷🧱 a task's cost as labour and services vs materials, and what the work done cost each way (the same rules as the server, plan.mjs actualSplit)
   var taskSplit = function (p, t) { var own = r2(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0)), lab = catOf(p, t) === 'Materials' ? 0 : own; return { lab: lab, mat: r2(cost(t) - lab) }; };
-  var actualSplit = function (p, t) {   // 🧱 the BOM is held at its baselined price (as the server): the actual over the materials is labour and services
-    var sp = taskSplit(p, t), lab = sp.lab, mat = sp.mat, f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0, evL = lab * f, evM = mat * f;
-    if (!(act > 0)) return { has: false, lab: lab, mat: mat, evL: evL, evM: evM, acL: evL, acM: evM, bomDiff: 0 };
-    if (lab <= 0.004) return { has: true, lab: lab, mat: mat, evL: 0, evM: evM, acL: 0, acM: evM, bomDiff: act - evM };
-    if (act < evM) return { has: true, lab: lab, mat: mat, evL: evL, evM: evM, acL: 0, acM: evM, bomDiff: act - evM };
-    return { has: true, lab: lab, mat: mat, evL: evL, evM: evM, acL: act - evM, acM: evM, bomDiff: 0 };
+  var actualSplit = function (p, t) {   // 🧱 as the server: materials earned at the BOM v0 baseline, spent at the current BOM revision; the rest of the actual is labour and services
+    var sp = taskSplit(p, t), lab = sp.lab, mat = sp.mat, B = p.bomBase && p.bomBase.byTask, base = B && B[t.id] != null ? Number(B[t.id]) : mat;
+    var f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0, evL = lab * f, evM = mat * f, evMb = base * f;
+    if (!(act > 0)) return { has: false, lab: lab, mat: mat, base: base, evL: evL, evM: evM, evMb: evMb, acL: evL, acM: evM, bomDiff: 0 };
+    if (lab <= 0.004) return { has: true, lab: lab, mat: mat, base: base, evL: 0, evM: evM, evMb: evMb, acL: 0, acM: evM, bomDiff: act - evM };
+    if (act < evM) return { has: true, lab: lab, mat: mat, base: base, evL: evL, evM: evM, evMb: evMb, acL: 0, acM: evM, bomDiff: act - evM };
+    return { has: true, lab: lab, mat: mat, base: base, evL: evL, evM: evM, evMb: evMb, acL: act - evM, acM: evM, bomDiff: 0 };
   };
+
 
   function rollup(p, day) {
     schedule(p);
@@ -234,10 +236,11 @@
     var ACest = r2(T.reduce(function (a, t) { return a + (has(t) ? 0 : cost(t) * (t.pct || 0) / 100); }, 0)), AC = r2(ACin + ACest);
     var durW = T.reduce(function (a, t) { return a + Math.max(1, t.dur); }, 0) || 1;
     // 👷 as the server: CPI and SPI measure the labour and services; the BOM is held at its baselined price; forecast = spent + labour left ÷ CPI + materials left at the BOM price
-    var Sx = { bL: 0, bM: 0, eL: 0, eM: 0, pL: 0, eLi: 0, aLi: 0, diff: 0, nDiff: 0, nProg: 0, nAct: 0 };
-    T.forEach(function (t) { var x = actualSplit(p, t); Sx.bL += x.lab; Sx.bM += x.mat; Sx.eL += x.evL; Sx.eM += x.evM; Sx.pL += x.lab * frac(t); if (x.lab > 0.004 && x.evL > 0.004) { Sx.nProg++; if (x.has) Sx.nAct++; } if (x.has) { Sx.eLi += x.evL; Sx.aLi += x.acL; if (Math.abs(x.bomDiff) >= 0.5) { Sx.diff += x.bomDiff; Sx.nDiff++; } } });
-    var kL = Sx.aLi > 0 && Sx.eLi > 0 ? Sx.eLi / Sx.aLi : null, CPIx = kL, CPI = kL ? r2(kL) : ACin > 0 ? 1 : null, SPI = Sx.pL > 0 ? r2(Sx.eL / Sx.pL) : PV > 0 ? r2(EV / PV) : null;
-    var split = { lab: { bac: r2(Sx.bL), ev: r2(Sx.eL), pv: r2(Sx.pL), evIn: r2(Sx.eLi), acIn: r2(Sx.aLi), CPI: kL ? r2(kL) : null, cover: Sx.eL > 0 ? Math.round(Sx.eLi / Sx.eL * 100) : null, nAct: Sx.nAct, nProg: Sx.nProg }, mat: { bac: r2(Sx.bM), ev: r2(Sx.eM) }, bomDiff: r2(Sx.diff), bomDiffTasks: Sx.nDiff };
+    var Sx = { bL: 0, bM: 0, bMb: 0, eL: 0, eM: 0, eMb: 0, pL: 0, eLi: 0, aLi: 0, diff: 0, nDiff: 0, nProg: 0, nAct: 0 };
+    T.forEach(function (t) { var x = actualSplit(p, t); Sx.bL += x.lab; Sx.bM += x.mat; Sx.bMb += x.base; Sx.eL += x.evL; Sx.eM += x.evM; Sx.eMb += x.evMb; Sx.pL += x.lab * frac(t); if (x.lab > 0.004 && x.evL > 0.004) { Sx.nProg++; if (x.has) Sx.nAct++; } if (x.has) { Sx.eLi += x.evL; Sx.aLi += x.acL; if (Math.abs(x.bomDiff) >= 0.5) { Sx.diff += x.bomDiff; Sx.nDiff++; } } });
+    var kL = Sx.aLi > 0 && Sx.eLi > 0 ? Sx.eLi / Sx.aLi : null, kM = Sx.eM > 0.004 ? Sx.eMb / Sx.eM : null, cE = Sx.eLi + (Sx.eM > 0.004 ? Sx.eMb : 0), cA = Sx.aLi + (Sx.eM > 0.004 ? Sx.eM : 0);
+    var CPIx = cA > 0 && cE > 0 ? cE / cA : null, CPI = CPIx ? r2(CPIx) : ACin > 0 ? 1 : null, SPI = Sx.pL > 0 ? r2(Sx.eL / Sx.pL) : PV > 0 ? r2(EV / PV) : null;
+    var split = { lab: { bac: r2(Sx.bL), ev: r2(Sx.eL), pv: r2(Sx.pL), evIn: r2(Sx.eLi), acIn: r2(Sx.aLi), CPI: kL ? r2(kL) : null, cover: Sx.eL > 0 ? Math.round(Sx.eLi / Sx.eL * 100) : null, nAct: Sx.nAct, nProg: Sx.nProg }, mat: { bac: r2(Sx.bM), base: r2(Sx.bMb), ev: r2(Sx.eMb), ac: r2(Sx.eM), CPI: kM ? r2(kM) : null, rev: p.bomRevs && p.bomRevs.length ? p.bomRevs[p.bomRevs.length - 1].v : null }, bomDiff: r2(Sx.diff), bomDiffTasks: Sx.nDiff };
     var EAC = ACin > 0 ? r2(AC + Math.max(0, Sx.bL - Sx.eL) / (kL || 1) + Math.max(0, Sx.bM - Sx.eM)) : null;
     return { BAC: BAC, PV: PV, EV: EV, AC: AC, ACin: ACin, ACest: ACest, CPI: CPI, CPIx: CPIx, SPI: SPI, EAC: EAC, split: split,
       start: T.reduce(function (m, t) { return !m || (t.es && t.es < m) ? t.es : m; }, ''), finish: T.reduce(function (m, t) { return t.ef > m ? t.ef : m; }, ''),
@@ -707,6 +710,11 @@
         if (S.core !== core) return;
         if (M.watchCheck) setTimeout(function () { M.watchCheck(true); }, 300);   // 🩺 Champ's colour follows the change
         S.rev = r.plan.rev; plan.rev = r.plan.rev;
+        if (r.bomRev) {   // 🧱 a new BOM version: take the server's baseline, revision list, lesson and the note into the plan on screen
+          plan.bomBase = r.plan.bomBase; plan.bomRevs = r.plan.bomRevs; plan.lessons = r.plan.lessons;
+          (r.plan.tasks || []).forEach(function (st) { var t = plan.tasks.filter(function (x) { return x.id === st.id; })[0]; if (!t) return; (st.stickies || []).forEach(function (n) { if (/^bom:v/.test(n.linked || '') && !(t.stickies || []).some(function (m) { return m.id === n.id; })) (t.stickies = t.stickies || []).push(n); }); });
+          toast('🧱 BOM v' + r.bomRev.v + ' saved to Project documents' + (r.bomRev.v ? ': materials ' + (r.bomRev.delta >= 0 ? '+' : '') + money(r.bomRev.delta) + '; the summary went to the project manager, CFO and CEO' : ' (the materials baseline)'));
+          if (S.tab === 'overview' || S.tab === 'bom') setTimeout(render, 50); }
         if (plan.tasks.some(function (t) { return matsOf(t).length; })) loadInv().then(function () { if (S.plan === plan && (S.tab === 'schedule' || S.tab === 'overview' || S.tab === 'bom') && !S.timer && !document.activeElement.closest('#planBody')) render(); });
         if (r.low && r.low.length && M.inv) M.inv.prompt(r.low);
         var el = $('#planSave'); if (el && !S.timer) el.textContent = 'Saved ✓';
@@ -6932,17 +6940,18 @@
     var ti = null; if (done) { var W2 = p.tasks.filter(function (t) { return t.dur > 0; }), fin = W2.reduce(function (m, t) { var d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish, bf = (p.baseline && p.baseline.finish) || R.finish;
       ti = Math.round(Math.max(1, workBetween(p.start, bf)) / Math.max(1, workBetween(p.start, fin)) * 100) / 100; }
     var c = function (x) { return x == null ? '<span class="muted">no actual yet</span>' : '<b style="color:' + (x < 1 ? '#B42318' : '#1D7A43') + '">' + x.toFixed(2) + '</b>'; };
-    var why = ['🧱 The BOM is priced and baselined: its materials count at the BOM price and never move CPI. A material price change is a BOM change: record it in the BOM, sign it off and re-baseline (it changes the budget, not CPI).'];
+    var why = ['🧱 Materials are budgeted at the BOM v0 baseline and cost at the current BOM revision' + (S2.mat.rev != null ? ' (v' + S2.mat.rev + ')' : '') + ': a recorded price or quantity change moves the actual cost, the costing and CPI.' + (S2.mat.CPI != null && S2.mat.CPI < 0.995 ? ' Materials cost ' + Math.round((1 / S2.mat.CPI - 1) * 1000) / 10 + '% more than the baseline on the work done.' : '')];
+    (p.bomRevs || []).slice(-3).reverse().forEach(function (r) { if (r.v > 0) why.push('🧾 BOM v' + r.v + ' (' + pretty(new Date(r.at).toISOString().slice(0, 10)) + '): ' + r.syn); });
     if (S2.bomDiff && Math.abs(S2.bomDiff) >= 0.5) why.push('⚠ ' + money(S2.bomDiff) + ' was spent on ' + S2.bomDiffTasks + ' materials-only task' + (S2.bomDiffTasks === 1 ? '' : 's') + ' ' + (S2.bomDiff > 0 ? 'above' : 'below') + ' the BOM price and is not yet recorded as a BOM change: record it in the BOM and re-baseline.');
     if (p.baseline && p.baseline.BAC && Math.abs(R.BAC - p.baseline.BAC) >= 0.5) why.push('📌 Since the baseline the base cost has changed by ' + (R.BAC > p.baseline.BAC ? '+' : '') + money(R.BAC - p.baseline.BAC) + ': recorded BOM and scope changes, a budget change rather than an overrun.');
     if (S2.lab.CPI != null && S2.lab.CPI < 0.97) why.push('👷 Labour and services cost ' + Math.round((1 / S2.lab.CPI - 1) * 100) + '% more than the work done was worth' + (ti != null && ti < 0.95 ? ': the project took ' + Math.round((1 / ti - 1) * 100) + '% longer than planned (time index ' + ti.toFixed(2) + '), and time-paid costs (people, supervision, hire) rise with every extra day, the likely cause.' : ': more hours, higher rates, or rework.'));
     else if (S2.lab.CPI != null) why.push('👷 Labour and services are on or under budget.');
     var O = p.tasks.map(function (t, i) { var x = actualSplit(p, t); if (!x.has) return null; return { t: t, n: i + 1, x: x, over: (Number(t.actual) || 0) - x.evL - x.evM }; }).filter(function (r) { return r && Math.abs(r.over) >= 0.5; }).sort(function (a, b) { return b.over - a.over; }).slice(0, 8);
     var cv = S2.lab, evid = cv.cover != null ? '<p class="cpi-ev' + (cv.cover < 60 ? ' low' : '') + '">📏 <b>Evidence:</b> measured from the actual costs recorded on ' + cv.nAct + ' of ' + cv.nProg + ' task' + (cv.nProg === 1 ? '' : 's') + ' with labour work done, covering ' + cv.cover + '% of the labour work done' + (cv.cover < 100 ? '; the rest is assumed on budget until its cost is recorded' : '') + '.' + (cv.cover < 60 ? ' <b>Too little to rely on: record the actual costs.</b>' : '') + '</p>' : '';
-    return '<div class="card cpi-card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">🔎 Why CPI is ' + R.CPI.toFixed(2) + '</h2>' + btn + '</div>' + evid + '<p class="muted" style="margin:6px 0 8px">CPI = the value of the labour and services work done ÷ what it cost, from the tasks with an actual cost recorded. The BOM is held at its baselined price.' + (done ? ' The project is finished: its schedule is judged by the <b>time index ' + (ti != null ? ti.toFixed(2) : '–') + '</b> (planned ÷ actual duration), not SPI, which always ends at 1.00.' : '') + '</p>' +
+    return '<div class="card cpi-card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0">🔎 Why CPI is ' + R.CPI.toFixed(2) + '</h2>' + btn + '</div>' + evid + '<p class="muted" style="margin:6px 0 8px">CPI = the value of the work done ÷ what it cost: labour and services from the tasks with an actual cost recorded, materials from the BOM (earned at the v0 baseline, spent at the current revision).' + (done ? ' The project is finished: its schedule is judged by the <b>time index ' + (ti != null ? ti.toFixed(2) : '–') + '</b> (planned ÷ actual duration), not SPI, which always ends at 1.00.' : '') + '</p>' +
       '<div class="table-wrap"><table><thead><tr><th></th><th class="num">Budget</th><th class="num">Earned</th><th class="num">Spent</th><th class="num">Over (+) / under</th><th class="num">CPI</th></tr></thead><tbody>' +
       '<tr><td>👷 Labour and services</td><td class="num">' + money(S2.lab.bac) + '</td><td class="num">' + money(S2.lab.evIn) + '</td><td class="num">' + money(S2.lab.acIn) + '</td><td class="num">' + money(S2.lab.acIn - S2.lab.evIn) + '</td><td class="num">' + c(S2.lab.CPI) + '</td></tr>' +
-      '<tr><td>🧱 Materials (BOM)</td><td class="num">' + money(S2.mat.bac) + '</td><td class="num">' + money(S2.mat.ev) + '</td><td class="num">' + money(S2.mat.ev) + '</td><td class="num">' + (S2.bomDiff ? money(S2.bomDiff) + ' ⚠' : money(0)) + '</td><td class="num"><span class="muted">at BOM price</span></td></tr></tbody></table></div>' +
+      '<tr><td>🧱 Materials (BOM v0 → v' + (S2.mat.rev != null ? S2.mat.rev : 0) + ')</td><td class="num">' + money(S2.mat.base) + '</td><td class="num">' + money(S2.mat.ev) + '</td><td class="num">' + money(S2.mat.ac) + '</td><td class="num">' + money(S2.mat.ac - S2.mat.ev) + (S2.bomDiff ? '<br><small style="color:#9a5b00">' + money(S2.bomDiff) + ' ⚠ unrecorded</small>' : '') + '</td><td class="num">' + c(S2.mat.CPI) + '</td></tr></tbody></table></div>' +
       '<ul class="cpi-why">' + why.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>' +
       (O.length ? '<h3 style="margin:12px 0 6px;font-size:14px">Where it went: the tasks furthest over</h3><div class="table-wrap"><table><thead><tr><th>Task</th><th class="num">Labour budget</th><th class="num">Materials (BOM)</th><th class="num">Earned</th><th class="num">Spent</th><th class="num">Labour over</th><th class="num">BOM difference</th></tr></thead><tbody>' +
         O.map(function (r) { return '<tr><td>#' + r.n + ' ' + esc(r.t.name) + '</td><td class="num">' + money(r.x.lab) + '</td><td class="num">' + money(r.x.mat) + '</td><td class="num">' + money(r.x.evL + r.x.evM) + '</td><td class="num">' + money(Number(r.t.actual) || 0) + '</td>' +
