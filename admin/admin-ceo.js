@@ -37,7 +37,7 @@
     if (!L.length) return '<tr><td colspan="9" class="muted" style="text-align:center;padding:18px">No projects here.</td></tr>';
     return L.map(function (r) {
       var over = r.vac < -0.5 ? '<b class="ceo-neg">' + money(r.vac) + '</b><small>' + (r.over ? Math.round(r.over) + '% over' : 'over') + '</small>' : r.budget ? '<span class="ceo-pos">' + (r.vac > 0.5 ? money(r.vac) + ' under' : 'on budget') + '</span>' : '<span class="muted">–</span>';
-      var prof = r.profit == null ? '<span class="muted" title="No quote yet">no price</span>' : '<b class="' + (r.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + plw(r.profit) + '</b><small>' + r.margin + '%' + (r.quoted ? ' · quoted' : '') + (r.ctype && r.ctype !== 'fixed' ? ' · ' + ({ cost: 'cost-plus', target: 'target cost', gmp: 'GMP' })[r.ctype] : '') + '</small>';
+      var prof = r.internal ? '<span class="muted">🏢 internal</span><small class="' + (r.vac < -0.5 ? 'ceo-neg' : 'ceo-pos') + '">' + (r.vac < -0.5 ? 'over budget' : 'within budget') + '</small>' : r.profit == null ? '<span class="muted" title="No quote yet">no price</span>' : '<b class="' + (r.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + plw(r.profit) + '</b><small>' + r.margin + '%' + (r.quoted ? ' · quoted' : '') + (r.ctype && r.ctype !== 'fixed' ? ' · ' + ({ cost: 'cost-plus', target: 'target cost', gmp: 'GMP' })[r.ctype] : '') + '</small>';
       return '<tr data-core="' + esc(r.core) + '" class="h-' + r.health + '"><td class="ceo-dot"><i class="' + r.health + '"></i>' + TR[r.trend || ''] + '</td>' +
         '<td><b>' + esc(r.name) + '</b><small>' + esc([r.program, r.client].filter(Boolean).join(' · ')) + '</small>' + (r.why && r.health !== 'green' ? '<small class="ceo-why">' + esc(r.why) + '</small>' : '') + '</td>' +
         '<td class="hide-sm"><small>' + esc(r.phase || '') + '</small></td>' +
@@ -67,7 +67,7 @@
     var r = '<div class="ceo-ts">' + tile('Contract value', money(A.contract), A.quoted ? '+ ' + money(A.quoted) + ' quoted, not yet accepted' : 'accepted quotes') +
       tile('Invoiced', money(A.invoiced), A.price ? Math.round(A.invoiced / A.price * 100) + '% of the price' : '') + tile('Received', money(A.received), A.invoiced ? Math.round(A.received / A.invoiced * 100) + '% of invoiced' : '') +
       tile('Still owed', money(A.owed), A.overdue ? '<b class="ceo-neg">' + money(A.overdue) + ' overdue</b>' : 'none overdue', A.overdue ? 'neg' : '') +
-      tile('Forecast profit or loss', A.profit == null ? '–' : plw(A.profit), A.margin == null ? 'no prices yet' : A.margin + '% of the contract value' + (A.unpriced ? ' · priced projects only: ' + A.unpriced + ' project' + (A.unpriced === 1 ? '' : 's') + ' not priced yet' : ''), A.profit != null && A.profit < 0 ? 'neg' : 'pos') + '</div>';
+      tile('Forecast profit or loss', A.profit == null ? '–' : plw(A.profit), A.margin == null ? 'no prices yet' : A.margin + '% of the contract value' + (A.unpriced ? ' · priced projects only: ' + A.unpriced + ' project' + (A.unpriced === 1 ? '' : 's') + ' not priced yet' : '') + (A.internal ? ' · ' + A.internal + ' internal project' + (A.internal === 1 ? '' : 's') + ' (no profit, judged on budget)' : ''), A.profit != null && A.profit < 0 ? 'neg' : 'pos') + '</div>';
     return '<h4 class="ceo-sub">Cost</h4>' + c + '<h4 class="ceo-sub">Revenue and profit</h4>' + r;
   }
   function pill(c, n, w) { return n ? '<span class="ceo-pill ' + c + '" title="' + n + ' project' + (n === 1 ? '' : 's') + ' ' + w + '">' + n + '</span>' : ''; }

@@ -123,7 +123,9 @@ export function schedule(plan) {
 //   base = every task's cost + BOM lines not linked to a task (as the Costing tab); budget = base + contingency + management reserve;
 //   forecast = the EVM forecast cost (EAC) + the unlinked BOM lines; approved = the charter's signed-off budget (0 when none)
 // 📜 the contract type decides who keeps what (set on the Costing tab; fixed price unless the project manager picks another)
-export const CTYPES = { fixed: 'Fixed price (lump sum)', cost: 'Cost-plus (cost reimbursable)', target: 'Target cost (shared savings and overruns)', gmp: 'Guaranteed maximum price (GMP), shared savings' };
+export const CTYPES = { fixed: 'Fixed price (lump sum)', cost: 'Cost-plus (cost reimbursable)', target: 'Target cost (shared savings and overruns)', gmp: 'Guaranteed maximum price (GMP), shared savings', internal: 'Internal (no billing)' };
+// 🏢 an internal project (a department's own, e.g. the company retreat): no client, contract, invoices, GST or profit; only the budget result
+export const isInternal = (MO) => !!MO && MO.ctype === 'internal';
 // 💹 revenue and profit at a given final cost, for the contract type. C = the contract value (the client price, + approved variations).
 //   fixed:  the client pays C whatever it costs: profit = C − cost (unused contingency and reserve are profit)
 //   cost:   the client pays the actual cost + the fee (margin %): profit = cost × margin %; what is not spent is never billed (the client keeps it)
@@ -145,7 +147,7 @@ export function moneyOf(plan, R) {
   const cfg = plan.budgetCfg || {}, pc = (k, d) => (cfg[k] == null || isNaN(+cfg[k]) ? d : +cfg[k]), cont = pc('cont', 10), res = pc('res', 5), margin = pc('margin', 0), gst = pc('gst', 10);
   const ctype = CTYPES[cfg.ctype] ? cfg.ctype : 'fixed', gain = pc('gain', 50), pain = pc('pain', 50);
   const loose = r2(Number(plan.bomLoose) || 0), base = r2(R.BAC + loose), contA = r2(base * cont / 100), resA = r2(base * res / 100), budget = r2(base + contA + resA);
-  return { cont, res, margin, gst, ctype, ctypeName: CTYPES[ctype], gain, pain, loose, base, contA, resA, budget, price: r2(budget * (1 + margin / 100)), approved: Number((plan.charter || {}).budget) || 0,
+  return { cont, res, margin: ctype === 'internal' ? 0 : margin, gst: ctype === 'internal' ? 0 : gst, ctype, ctypeName: CTYPES[ctype], gain, pain, loose, base, contA, resA, budget, price: ctype === 'internal' ? 0 : r2(budget * (1 + margin / 100)), approved: Number((plan.charter || {}).budget) || 0,
     eac: r2((R.EAC != null ? R.EAC : R.BAC) + loose), spent: r2(R.AC), earned: r2(R.EV), complete: !!R.complete };
 }
 export function rollup(plan, today) {
