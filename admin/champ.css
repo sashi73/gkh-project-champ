@@ -1227,3 +1227,11 @@ body.gh-dragging{cursor:row-resize;user-select:none}body.gh-dragging .gpane{poin
   body.is-short .gtool .gtfind{flex:none;width:150px;height:28px}
   body.is-short .gtool #gtSel{display:none!important}
 }
+
+/* 💻 Dependency board on a laptop: the names stay on top of the bars and arrows when you scroll sideways; the board is as tall as the screen allows */
+.db-name{z-index:8!important;box-shadow:6px 0 8px -6px rgba(0,0,0,.18)!important}
+.db-lane a{background:var(--card,#fff);padding-right:8px;border-radius:4px;z-index:8}
+.db-wrap{max-height:max(320px,calc(100vh - 230px))!important}
+body.is-short .db-wrap{max-height:max(280px,calc(100vh - 150px))!important}
+body.is-short .db-name{padding:0 6px 0 10px;font-size:12px}
+body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
