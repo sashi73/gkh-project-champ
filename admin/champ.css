@@ -1250,3 +1250,7 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 @keyframes tdyZoomIn{from{opacity:0;transform:translateY(6px) scale(.985)}}
 @keyframes tdyZoomOut{to{opacity:0;transform:scale(.985)}}
 @media (prefers-reduced-motion:reduce){.tdy,.tdy .tdy-stage,.tdy.tdy-out,.tdy.tdy-out .tdy-stage{animation:none!important}}
+
+/* 💻 the layout switch in the header */
+.ct-fit{white-space:nowrap}
+@media (max-width:700px){.ct-fit{display:none!important}}
