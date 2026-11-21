@@ -249,4 +249,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 238 | 1.0.238| 2026-11-22 01:58| bomact| `491f2b9` | BOM-only rows: actual cost is the BOM / BOQ (× % done), one plain line; typed figures no longer used (#99) |
 | 239 | 1.0.239| 2026-11-22 02:02| scrollfix| `fc05664` | Gantt scrolling: panes stay in step under touch-pad momentum and crossing the divider; the chart follows the bars only once scrolling has st |
 | 240 | 1.0.240| 2026-11-22 02:17| fincons| `03832dd` | One set of figures: billing's work done is the plan's % complete, not billed = milestones done; the CEO view shows Finance's profit on the e |
-| 241 | 1.0.241 | 2026-11-22 02:19 | bomgo | _this commit_ | _see git log_ |
+| 241 | 1.0.241| 2026-11-22 02:19| bomgo| `8d943d1` | Gantt: the BOM row's Actual $ opens the BOM / BOQ directly (no price pop-up) (#102) |
+| 242 | 1.0.242 | 2026-11-22 02:26 | consist | _this commit_ | _see git log_ |

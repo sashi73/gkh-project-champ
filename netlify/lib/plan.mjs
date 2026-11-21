@@ -153,6 +153,7 @@ export function moneyOf(plan, R) {
 export function rollup(plan, today) {
   schedule(plan);
   const tasks = plan.tasks;
+  bomActuals(plan);   // 🧱 every figure everywhere (plan, CEO, CFO) reads a BOM-only task's actual cost from the BOM, saved or not
   const A = allDays(plan), frac = (t) => (!t.es ? 0 : today < t.es ? 0 : today >= t.ef ? 1 : workBetween(t.es, today, A) / Math.max(1, workBetween(t.es, t.ef, A)));
   const cost = taskCost;
   const BAC = r2(tasks.reduce((a, t) => a + cost(t), 0));
@@ -364,6 +365,8 @@ function crClean(c) {
 export function matsOf(t) { return Array.isArray(t.mats) && t.mats.length ? t.mats : t.item ? [{ item: t.item, qty: Number(t.qty) || 0, price: Number(t.rate) || 0, legacy: true }] : []; }
 // 👷 labour (hours, days, weeks, shifts) is people × quantity per person × rate; materials and lots are quantity × rate
 export const LABU = /^(h|hr|hrs|hours?|d|days?|wk|weeks?|shifts?)$/i;
+// 🧱 a task that is only BOM materials (no labour, no stock): its actual cost is the BOM (current version) × % done, never a typed figure
+export function bomActuals(plan) { for (const t of plan.tasks || []) if (Number(t.bomx) > 0 && !(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) > 0.004) && !(t.mats || []).length) t.actual = r2(Number(t.bomx) * Math.min(100, Number(t.pct) || 0) / 100); }
 export function crewOf(t) { return LABU.test(String(t.unit || '').trim()) ? Math.max(1, Math.min(500, Math.round(Number(t.crew) || 0)) || 1) : 1; }
 // 👷🧱 a task's cost in two parts: labour (people × quantity × rate) and materials (its material lines and BOM items)
 //    The task's own quantity × rate goes by its Costing category (as the Costing tab): Materials counts as materials, anything else
