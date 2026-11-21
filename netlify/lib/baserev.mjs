@@ -19,7 +19,7 @@ export function rows(plan, base, prev) {
     .filter((r) => r.es || r.ef || r.cost);
 }
 function csv(plan, job, v, s, prev, R) {
-  const head = [['Project baseline'], ['Project', plan.name], ['Reference', job ? J.refFor(job) : plan.core], ['Version', 'v' + v + (v === 0 ? ' (the first baseline)' : '')], ['Set', when(s.at) + ' (Sydney)'], ['By', s.by || ''],
+  const head = [['Project Baseline v' + v], ['Project', plan.name], ['Reference', job ? J.refFor(job) : plan.core], ['Version', 'v' + v + (v === 0 ? ' (the first baseline)' : '')], ['Set', when(s.at) + ' (Sydney)'], ['By', s.by || ''],
     ['Why', s.why || ''], ['Change request', s.cr || (s.direct ? 'Committed straight (change control off)' : '')], ['Finish', dmy(s.finish)], ['Budget (BAC)', $(s.BAC)],
     ...(prev ? [['Change from v' + prev.v, 'finish ' + (days(prev.finish, s.finish) >= 0 ? '+' : '') + days(prev.finish, s.finish) + ' days, budget ' + (s.BAC - prev.BAC >= 0 ? '+' : '') + $(s.BAC - prev.BAC)]] : []), []];
   const body = [['#', 'Task', 'Baseline start', 'Baseline finish', 'Baseline cost', ...(prev ? ['Previous start', 'Previous finish', 'Previous cost', 'Finish moved (days)'] : [])]]
@@ -31,12 +31,12 @@ const pdfSafe = (s) => String(s ?? '').replace(/²/g, '2').replace(/³/g, '3').r
 export async function pdf(plan, job, v, s, prev, R) {
   const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib'), LOGO = (await import('./logo-png.mjs')).default;
   const doc = await PDFDocument.create(), W = 841.89, H = 595.28, M = 32, INK = rgb(0.08, 0.08, 0.08), GREY = rgb(0.42, 0.41, 0.38), GOLD = rgb(0.79, 0.64, 0.15), PALE = rgb(0.985, 0.97, 0.92), RED = rgb(0.7, 0.14, 0.1), GRN = rgb(0.02, 0.46, 0.28), AMB = rgb(0.85, 0.47, 0.02);
-  doc.setTitle(pdfSafe('Project baseline v' + v + ' - ' + plan.name)); doc.setAuthor('GKH Project Champ'); doc.setCreator('GKH Project Champ');
+  doc.setTitle(pdfSafe('Project Baseline v' + v + ' - ' + plan.name)); doc.setAuthor('GKH Project Champ'); doc.setCreator('GKH Project Champ');
   const reg = await doc.embedFont(StandardFonts.Helvetica), bold = await doc.embedFont(StandardFonts.HelveticaBold), logo = await doc.embedPng(Buffer.from(LOGO, 'base64')), ref = job ? J.refFor(job) : plan.core;
   let page, y, pn = 0;
   const tx = (t, x, yy, o = {}) => { const f = o.bold ? bold : reg, z = o.size || 8.5; let q = pdfSafe(t); if (o.max) while (q.length > 1 && f.widthOfTextAtSize(q, z) > o.max) q = q.slice(0, -2) + '.'; const w = f.widthOfTextAtSize(q, z); page.drawText(q, { x: o.align === 'right' ? x - w : x, y: yy, size: z, font: f, color: o.color || INK }); };
   const newPage = () => { page = doc.addPage([W, H]); pn++; y = H - M;
-    page.drawImage(logo, { x: M, y: y - 26, width: 26, height: 26 }); tx('Project baseline  v' + v + (v === 0 ? ' (the first baseline)' : ''), M + 34, y - 10, { bold: true, size: 14 });
+    page.drawImage(logo, { x: M, y: y - 26, width: 26, height: 26 }); tx('Project Baseline v' + v + (v === 0 ? '  (the first baseline)' : ''), M + 34, y - 10, { bold: true, size: 14 });
     tx(plan.name + '  -  ' + ref + '  -  set ' + when(s.at) + ' (Sydney)', M + 34, y - 24, { size: 9, color: GREY }); tx('Page ' + pn, W - M, y - 10, { align: 'right', size: 8, color: GREY });
     page.drawLine({ start: { x: M, y: y - 32 }, end: { x: W - M, y: y - 32 }, thickness: 1.2, color: GOLD }); y -= 48; };
   newPage();
@@ -103,10 +103,10 @@ export async function files(core, plan, by, setPlan) {
     const prev = H.list.find((x) => x.v === snap.v - 1) || null, R = rows(plan, snap, prev), f = { ...(snap.files || {}) }, errs = [];
     const note = 'Baseline v' + snap.v + ': finish ' + dmy(snap.finish) + ', budget ' + $(snap.BAC) + (prev ? ' (' + (days(prev.finish, snap.finish) >= 0 ? '+' : '') + days(prev.finish, snap.finish) + ' days, ' + (snap.BAC - prev.BAC >= 0 ? '+' : '') + $(snap.BAC - prev.BAC) + ' from v' + prev.v + ')' : '') + (snap.cr ? '. Approved through ' + snap.cr : snap.direct ? '. Committed straight (change control off)' : '') + (snap.why ? '. Why: ' + snap.why : '');
     const text = csv(plan, job, snap.v, snap, prev, R);
-    if (!f.csv) try { const a = await I.upload(core, { name: 'Baseline.csv', title: 'Project baseline v' + snap.v + ' (spreadsheet)', type: 'text/csv', text, file: Buffer.from('\ufeff' + text).toString('base64'), size: text.length, folder: 'plans', status: 'Approved', replaces: lastCsv || undefined, vnote: note, version: snap.v, kind: 'Baseline', tags: ['Baseline', 'v' + snap.v, 'CSV'].concat(snap.cr ? [snap.cr] : []) }, by);
+    if (!f.csv) try { const a = await I.upload(core, { name: 'Project Baseline v' + snap.v + '.csv', title: 'Project Baseline v' + snap.v + ' (spreadsheet)', type: 'text/csv', text, file: Buffer.from('\ufeff' + text).toString('base64'), size: text.length, folder: 'plans', status: 'Approved', vnote: note, version: snap.v, kind: 'Baseline', tags: ['Baseline', 'v' + snap.v, 'CSV'].concat(snap.cr ? [snap.cr] : []) }, by);
       if (a && a.doc) { f.csv = a.doc.id; lastCsv = a.doc.id; } else errs.push('spreadsheet: ' + ((a && a.error) || 'not saved')); } catch (e) { errs.push('spreadsheet: ' + e.message); }
     if (!f.pdf) try { const buf = await pdf(plan, job, snap.v, snap, prev, R);
-      const b = await I.upload(core, { name: 'Baseline.pdf', title: 'Project baseline v' + snap.v + ' (PDF)', type: 'application/pdf', text: text.slice(0, 20000), file: buf.toString('base64'), size: buf.length, folder: 'plans', status: 'Approved', replaces: lastPdf || undefined, vnote: note, version: snap.v, kind: 'Baseline', tags: ['Baseline', 'v' + snap.v, 'PDF'].concat(snap.cr ? [snap.cr] : []) }, by);
+      const b = await I.upload(core, { name: 'Project Baseline v' + snap.v + '.pdf', title: 'Project Baseline v' + snap.v + ' (PDF)', type: 'application/pdf', text: text.slice(0, 20000), file: buf.toString('base64'), size: buf.length, folder: 'plans', status: 'Approved', vnote: note, version: snap.v, kind: 'Baseline', tags: ['Baseline', 'v' + snap.v, 'PDF'].concat(snap.cr ? [snap.cr] : []) }, by);
       if (b && b.doc) { f.pdf = b.doc.id; lastPdf = b.doc.id; } else errs.push('PDF: ' + ((b && b.error) || 'not saved')); } catch (e) { errs.push('PDF: ' + e.message); }
     f.err = errs.join('; ') || undefined; f.at = Date.now();
     await kv.update('baserev:' + core, (x) => ({ ...(x || {}), csv: lastCsv, pdf: lastPdf, list: ((x && x.list) || []).map((y) => (y.v === snap.v ? { ...y, files: f } : y)) }), () => ({ list: [] }));
