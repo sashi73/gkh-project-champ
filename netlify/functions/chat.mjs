@@ -54,7 +54,7 @@ export default async (req, context) => {
       const HC = await import('../../assets/help/articles.js'), h = HC.search(lastQ, 1)[0], a = h && HC.byId(h.id), sec = a && a.subs.filter((x) => x.id === h.sub)[0];
       // only what fits: the budget stays BUDGET with the shortest answer (300) and the question itself
       const free = BUDGET - 300 - tokensOf(SYSTEM(lang, where) + who(body?.name)) - tokensOf(lastQ) - 12;
-      if (sec && free > 40) helpCtx = ('\nHELP (gkhpmo.com/help, ' + a.t + ' > ' + sec.h + '): ' + sec.st.join(' ')).slice(0, free * 3);
+      if (sec && free > 40) helpCtx = ('\nHELP (the console\'s ❓ Help, ' + a.t + ' > ' + sec.h + '): ' + sec.st.join(' ')).slice(0, free * 3);
     }
   } catch (e) { console.error('Champ help context: ' + e.message); }
   const sys = SYSTEM(lang, where) + who(body?.name) + helpCtx;
