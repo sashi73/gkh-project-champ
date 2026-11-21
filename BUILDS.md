@@ -264,4 +264,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 253 | 1.0.253| 2026-11-22 04:03| aibill| `0e1156c` | AI query: billed / invoiced projects and projects past their billing dates (as Finance shows); Billed projects and Past their billing dates  |
 | 254 | 1.0.254| 2026-11-22 04:09| aiview| `d1449b8` | Reports open in the AI query view (answer in words, chart/table below, query folded); billing date = the agreed (baseline) milestone date so |
 | 255 | 1.0.255| 2026-11-22 09:51| aipm| `be8b85e` | AI query: project_manager and project_sponsor on projects (as the CEO view); every report fills the question box with its plain question (#1 |
-| 256 | 1.0.256 | 2026-11-22 10:10 | bimin | _this commit_ | _see git log_ |
+| 256 | 1.0.256| 2026-11-22 10:10| bimin| `062860d` | BIM and construction files in Start from a document (IFC take-off, TimeLiner, MS Project XML, clash reports, DXF; Revit/Navisworks/AutoCAD k |
+| 257 | 1.0.257 | 2026-11-22 10:43 | bimsample | _this commit_ | _see git log_ |
