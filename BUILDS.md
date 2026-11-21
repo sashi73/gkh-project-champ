@@ -243,4 +243,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 232 | 1.0.232| 2026-11-22 01:30| evmfix| `1bb2ae8` | EVM panel shows what SPI and CPI are made of; money typed above the BOM price counts in CPI (#93) |
 | 233 | 1.0.233| 2026-11-22 01:36| orders| `6b8e6fa` | Order status replaces Things to order: status per order, price and lead-time changes re-baseline the BOM and the Gantt (critical path) throu |
 | 234 | 1.0.234| 2026-11-22 01:40| colbtn| `e3911f2` | Gantt view bar: 👁 Hide columns (with a hidden count), WBS at the far right; recording bar wording for BOM rows (#95) |
-| 235 | 1.0.235 | 2026-11-22 01:49 | ccorder | _this commit_ | _see git log_ |
+| 235 | 1.0.235| 2026-11-22 01:49| ccorder| `e3b0681` | Overview: top risks and open issues on the left, redesigned; order price and lead-time changes go straight to change control with a scope, t |
+| 236 | 1.0.236 | 2026-11-22 01:51 | ordstrike | _this commit_ | _see git log_ |

@@ -1322,3 +1322,13 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 .cr-eval-g textarea[data-bev="quality"]:placeholder-shown{border-color:#C9A227;background:#fffaf0}
 @media (max-width:760px){.cr-eval-g{grid-template-columns:1fr}}
 .ord-cc{margin-top:5px;padding:4px 8px;border-radius:8px;background:#FFF4E0;color:#9a5b00;font-size:12px;font-weight:600}.ord-cc a{color:#9a5b00;text-decoration:underline}
+
+/* 📦 the order name is struck off once it is ordered, in the style of where it stands; Not ordered stays plain */
+.ord-row .ord-name{text-decoration:none!important;opacity:1!important}
+.ord-row.os-ordered .ord-name{text-decoration:line-through!important;text-decoration-color:#6b6656!important;text-decoration-thickness:2px!important;color:#6b6656}
+.ord-row.os-confirmed .ord-name{text-decoration:line-through!important;text-decoration-color:#1849A9!important;text-decoration-thickness:2px!important;color:#1849A9}
+.ord-row.os-intransit .ord-name{text-decoration:line-through dashed!important;text-decoration-color:#6941C6!important;text-decoration-thickness:2px!important;color:#6941C6}
+.ord-row.os-delivered .ord-name{text-decoration:line-through double!important;text-decoration-color:#067647!important;color:#067647;opacity:.85!important}
+.ord-row.os-delayed .ord-name{text-decoration:line-through wavy!important;text-decoration-color:#B42318!important;text-decoration-thickness:1.5px!important;color:#B42318}
+.ord-row.os-notordered .ord-name{color:inherit}
+.ord-st.st-intransit{background:#F4EBFF!important;color:#6941C6!important}.ord-st.st-ordered{background:#F2F1EC;color:#5b5547}
