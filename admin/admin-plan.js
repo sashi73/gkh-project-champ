@@ -229,7 +229,9 @@
   function rollup(p, day) {
     (p.tasks || []).forEach(function (t) { if (Number(t.bomx) > 0 && !(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) > 0.004) && !(t.mats || []).length) t.actual = r2(Number(t.bomx) * Math.min(100, Number(t.pct) || 0) / 100); });   // 🧱 as the server: a BOM-only task's actual is the BOM
     schedule(p);
-    var T = p.tasks, frac = function (t) { return !t.es ? 0 : day < t.es ? 0 : day >= t.ef ? 1 : workBetween(t.es, day) / Math.max(1, workBetween(t.es, t.ef)); };
+    // 📌 v244: planned value follows the BASELINE dates (as PMI): moving tasks never moves SPI; only an approved re-baseline does
+    var BT = p.baseline && p.baseline.tasks || {}, pes = function (t) { return (BT[t.id] && BT[t.id].es) || t.es; }, pef = function (t) { return (BT[t.id] && BT[t.id].ef) || t.ef; };
+    var T = p.tasks, frac = function (t) { var a = pes(t), b = pef(t); return !a ? 0 : day < a ? 0 : day >= b ? 1 : workBetween(a, day) / Math.max(1, workBetween(a, b)); };
     var BAC = r2(T.reduce(function (a, t) { return a + cost(t); }, 0)), PV = r2(T.reduce(function (a, t) { return a + cost(t) * frac(t); }, 0));
     var EV = r2(T.reduce(function (a, t) { return a + cost(t) * (t.pct || 0) / 100; }, 0));
     // spent so far: what was entered in $ Actual; a task with progress but no actual entered counts at its cost × % complete (as planned), so the cost moves with the work
@@ -935,7 +937,7 @@
       if (!d.plan) return chooser();
       S.plan = normalise(d.plan); S.rev = d.plan.rev; S.chain = null; S.away = false; S.bench = d.bench || null; S.isTest = !!d.test;
       loadChain();
-      return loadInv().then(function () { if (seq === planSeq && planHere(core, d.job)) { render(); estAuto(); } });
+      return loadInv().then(function () { if (seq === planSeq && planHere(core, d.job)) { render(); estAuto(); try { if (!(M.me && M.me.scope) && ordRepair()) render(); } catch (e) { if (window.console) console.warn('ordRepair', e); } } });
     });
   }
   // dates written in plain words: "starts tomorrow and ends in one day", "start Monday, takes 3 days", "start 5/11, finish by 12/11", "done by Friday"
@@ -1559,7 +1561,7 @@
     V().innerHTML = (sub ? '<div class="plan-subbie">👷 Signed in as a sub-contractor (' + esc(M.me.name || M.me.user) + ') for project <b>' + esc(S.job.ref) + '</b>. ' + ((M.me.mods || {}).projects === 'edit' ? 'You can update this project.' : 'View only.') + '</div>' : '') +
       '<div class="row plan-head" style="margin-bottom:12px">' + (sub ? '' : '<a class="btn btn-sm" href="#job/' + esc(S.core) + '">← ' + esc(S.job.ref) + '</a>') +
       '<h2 style="font-size:21px">' + esc(p.name) + '</h2><span class="muted">' + esc(S.job.name + (S.job.title ? ': ' + S.job.title : '')) + '</span><span class="sp"></span>' +
-      (sub ? '' : '<span class="mod-wrap"><button type="button" class="btn btn-sm mod-btn" id="modBtn" aria-haspopup="true" aria-expanded="false" title="Switch optional modules on or off for this project">⚙ Modules <small>' + ['bom', 'swms'].filter(function (m) { return (S.mods || {})[m] !== false; }).map(function (m) { return m.toUpperCase(); }).join(' · ') + '</small></button></span>') + '<span class="muted" id="planSave" style="font-size:13px">' + (S.timer || S.busy ? 'Saving…' : 'Saved ✓') + '</span><button class="btn btn-sm btn-gold" id="planQuote"' + hide + ' title="Work out the costing for this project: cost by phase and category (with the signed-off BOM), contingency, reserve and cash flow">💰 Costing</button><button class="btn btn-sm" id="planBase" title="Freeze today\'s dates and costs to compare against">📌 ' + (p.baseline ? 'Re-set baseline' : 'Set baseline') + '</button><button class="btn btn-sm" id="planWide" title="Hide the menu and use the whole screen">⛶ ' + (document.body.classList.contains('plan-wide') ? 'Normal view' : 'Wide view') + '</button><button class="btn btn-sm" id="planXls" title="Download the whole plan as an Excel workbook">⬇ Excel</button><button class="btn btn-sm" id="planCsv" title="Export the Gantt chart (tasks, dates, links) as CSV, Microsoft Project XML, Excel or calendar, for Microsoft Project, Primavera, Smartsheet, Asana, Monday.com and others">⬇ Gantt export</button><button class="btn btn-sm" onclick="window.print()">🖨 Print</button>' + (M.canArchive && M.canArchive() ? '<button class="btn btn-sm" id="planArch" title="Take this project out of the portfolio into the Archived projects vault (signed, with a reason)">🗄 Archive</button>' : '') + (canDelProj() ? '<button class="btn btn-sm btn-danger" id="planDel"' + hide + ' title="Delete this project and everything in it">🗑 Delete project</button>' : '') + '</div>' +
+      (sub ? '' : '<span class="mod-wrap"><button type="button" class="btn btn-sm mod-btn" id="modBtn" aria-haspopup="true" aria-expanded="false" title="Switch optional modules on or off for this project">⚙ Modules <small>' + ['bom', 'swms'].filter(function (m) { return (S.mods || {})[m] !== false; }).map(function (m) { return m.toUpperCase(); }).join(' · ') + '</small></button></span>') + '<span class="muted" id="planSave" style="font-size:13px">' + (S.timer || S.busy ? 'Saving…' : 'Saved ✓') + '</span><button class="btn btn-sm btn-gold" id="planQuote"' + hide + ' title="Work out the costing for this project: cost by phase and category (with the signed-off BOM), contingency, reserve and cash flow">💰 Costing</button><button class="btn btn-sm" id="planBase" title="Freeze today\'s dates and costs to compare against">📌 ' + (p.baseline ? 'Re-set baseline' : 'Set baseline') + '</button>' + ((p.baselineHist || []).length ? '<button class="btn btn-sm" id="planBaseUndo" type="button" title="Put back the baseline from before the last re-set">↶ Previous baseline</button>' : '') + '<button class="btn btn-sm" id="planWide" title="Hide the menu and use the whole screen">⛶ ' + (document.body.classList.contains('plan-wide') ? 'Normal view' : 'Wide view') + '</button><button class="btn btn-sm" id="planXls" title="Download the whole plan as an Excel workbook">⬇ Excel</button><button class="btn btn-sm" id="planCsv" title="Export the Gantt chart (tasks, dates, links) as CSV, Microsoft Project XML, Excel or calendar, for Microsoft Project, Primavera, Smartsheet, Asana, Monday.com and others">⬇ Gantt export</button><button class="btn btn-sm" onclick="window.print()">🖨 Print</button>' + (M.canArchive && M.canArchive() ? '<button class="btn btn-sm" id="planArch" title="Take this project out of the portfolio into the Archived projects vault (signed, with a reason)">🗄 Archive</button>' : '') + (canDelProj() ? '<button class="btn btn-sm btn-danger" id="planDel"' + hide + ' title="Delete this project and everything in it">🗑 Delete project</button>' : '') + '</div>' +
       '<div id="planChain"></div>' +
       '<div class="grid pkpis">' +
         mini('Scope', R.pct + '% complete', R.done + ' of ' + R.total + ' tasks done', rag(R.total ? R.pct / Math.max(1, timePct(R)) : null, 0.95, 0.8)) +
@@ -1614,10 +1616,17 @@
       });
     };
     $('#planBase').onclick = function () {
+      if (!ccOff()) { var R4 = rollup(p, today()), cb = crNew({ title: 'Re-baseline: finish ' + dmy((p.baseline || {}).finish || R4.finish) + ' → ' + dmy(R4.finish) + ', budget ' + money((p.baseline || {}).BAC || R4.BAC) + ' → ' + money(R4.BAC), desc: 'Make the plan as it stands today the new performance baseline (dates and costs). SPI, the slip and the variance are then measured against it.', reason: '', source: 'manual', srcTitle: '📌 Re-set baseline', raisedBy: bomMe(), priority: 'High' }); cb.kind = 'baseline'; dirty('Re-baseline sent to change control: ' + crNo(cb)); toast('📌 A new baseline goes through 🔁 Change control: ' + crNo(cb) + ' raised. Once approved and signed, the plan as it stands then becomes the baseline.'); location.hash = '#plan/' + S.core + '/change'; return; }
       M.confirmBox(p.baseline ? 'Re-set the baseline?' : 'Set the baseline?', 'Saves today\'s planned dates and costs so you can see later how far the job moved (PMI baseline). ' + (p.baseline ? 'The old baseline from ' + M.day(p.baseline.at) + ' is replaced.' : ''), 'Set baseline').then(function (ok) {
         if (!ok) return; schedule(p); var tasks = {}; p.tasks.forEach(function (t) { tasks[t.id] = { es: t.es, ef: t.ef, cost: cost(t) }; });
-        p.baseline = { at: Date.now(), finish: R.finish, BAC: R.BAC, tasks: tasks }; saveNow('baseline set'); toast('Baseline set'); render();
+        if (p.baseline) p.baselineHist = [p.baseline].concat(p.baselineHist || []).slice(0, 5);   // v244: the previous baseline is kept, and can be restored
+        p.baseline = { at: Date.now(), finish: R.finish, BAC: R.BAC, tasks: tasks, by: bomMe() }; saveNow('baseline set'); toast('Baseline set'); render();
       });
+    };
+    if ($('#planBaseUndo')) $('#planBaseUndo').onclick = function () {
+      var h = (p.baselineHist || [])[0]; if (!h) return;
+      M.confirmBox('Restore the previous baseline?', 'Puts back the baseline from ' + M.day(h.at) + ' (finish ' + dmy(h.finish) + ', budget ' + money(h.BAC) + '). The current one (' + (p.baseline ? M.day(p.baseline.at) + ', finish ' + dmy(p.baseline.finish) : 'none') + ') is kept too, so you can switch back.', 'Restore').then(function (ok) {
+        if (!ok) return; var cur = p.baseline; p.baseline = h; p.baselineHist = (cur ? [cur] : []).concat(p.baselineHist.slice(1)).slice(0, 5); saveNow('baseline restored'); toast('Previous baseline restored'); render(); });
     };
     ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
   }
@@ -5331,7 +5340,7 @@
   function bomCrHtml0(c) {
     var x = c.bom || {}, b = S.plan.bom || {}, L = b.lines || [];
     if (x.action === 'order') { var ln = L.filter(function (y) { return y.id === x.line; })[0] || { name: '?' };
-      return '<div class="cr-bom"><b>📦 Order change: ' + esc(ln.name) + '</b><p>' + esc(c.desc) + '</p><p class="muted">Approved: the BOM / BOQ line takes the new price and lead time (a new BOM version is filed)' + (x.snetDate ? ', the 🧱 milestone moves to ' + esc(dmy(x.snetDate)) + (x.crit ? ', and the Gantt is re-baselined (finish ' + esc(dmy(x.from)) + ' → ' + esc(dmy(x.to)) + ')' : '') : '') + '. Rejected: nothing changes.</p></div>'; }
+      return '<div class="cr-bom"><b>📦 Order change: ' + esc(ln.name) + '</b><p>' + esc(c.desc) + '</p><p class="muted">Approved: the BOM / BOQ line takes the new price and lead time (a new BOM version is filed)' + (x.snetDate ? ', the 🧱 milestone moves to ' + esc(dmy(x.snetDate)) + (x.crit ? ', and the finish moves ' + esc(dmy(x.from)) + ' → ' + esc(dmy(x.to)) + ' (the baseline is not changed)' : '') : '') + '. Rejected: nothing changes.</p></div>'; }
     if (x.action === 'signoff') return '<div class="cr-bom"><b>🧱 BOM / BOQ sign-off</b><p>' + esc(L.length + ' lines, ' + money(c.estCost) + ' ex GST, signed off by ' + (b.signedBy || '') + (b.signedRole ? ', ' + b.signedRole : '')) + '.</p><p class="muted">Approved: it goes into the 💰 Costing and the Gantt as the materials baseline (BOM v0), filed as BOM-BOQ.pdf and BOM-BOQ.csv in Project documents. Rejected: the BOM is reopened for changes.</p><p><a class="btn btn-sm" href="#plan/' + esc(S.core) + '/bom">Open the BOM / BOQ</a></p></div>';
     var rows = Object.keys(x.prices || {}).map(function (id) { var l = L.filter(function (y) { return y.id === id; })[0] || { name: id, qty: 0 }; var np = x.prices[id], op = Number(l.price) || 0; return '<tr><td>' + esc(l.name) + '</td><td class="num">' + esc(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="num">' + money(op) + '</td><td class="num"><b>' + money(np) + '</b></td><td class="num ' + (np > op ? 'bad' : 'good') + '">' + (np > op ? '+' : '') + money((np - op) * (Number(l.qty) || 0)) + '</td></tr>'; }).join('');
     return '<div class="cr-bom"><b>🧱 BOM / BOQ price change</b> <span class="muted">' + money(x.from) + ' → ' + money(x.to) + '</span><div class="tblwrap"><table class="tbl"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price now</th><th class="num">Proposed</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="muted">Approved: the prices go into the BOM, a new BOM / BOQ version is recorded (BOM-BOQ.pdf and BOM-BOQ.csv in Project documents), and the actual cost, the costing and CPI change. Rejected: nothing changes.</p></div>';
@@ -6006,11 +6015,17 @@
       c.status = outcome; crLog(c, outcome + ' by ' + by + ' (' + role + ')' + (c.decision.note ? ': ' + c.decision.note : ''));
       var msg = crNo(c) + ' ' + outcome.toLowerCase();
       if (c.kind === 'bom') return bomCrDecide(c, ok, msg);
+      if (c.kind === 'baseline') {   // 📌 an approved re-baseline: the plan as it stands now becomes the baseline (the old one is kept, restorable)
+        if (!ok) return msg; var bp2 = S.plan; schedule(bp2); var R5 = rollup(bp2, today()), bt2 = {}; bp2.tasks.forEach(function (t) { bt2[t.id] = { es: t.es, ef: t.ef, cost: cost(t) }; });
+        if (bp2.baseline) bp2.baselineHist = [bp2.baseline].concat(bp2.baselineHist || []).slice(0, 5);
+        bp2.baseline = { at: Date.now(), finish: R5.finish, BAC: R5.BAC, tasks: bt2, by: by + ' (' + crNo(c) + ')' }; c.status = 'Implemented'; c.implementedAt = Date.now(); crLog(c, 'New baseline: finish ' + dmy(R5.finish) + ', budget ' + money(R5.BAC));
+        return crNo(c) + ' approved: the new baseline is set (finish ' + dmy(R5.finish) + ', budget ' + money(R5.BAC) + ')'; }
       if (ok && c.items && n) {
         var R0 = rollup(S.plan, today()), k = impactApply(S.plan, c.items, pk, { tag: ' (' + crNo(c) + ')' }), R1 = rollup(S.plan, today());
         if (c.items.replan && c.items.replan.rebaseline) {   // an approved re-plan is the new performance baseline (PMBOK)
           var bp = S.plan; schedule(bp); var bt = {}; bp.tasks.forEach(function (t) { bt[t.id] = { es: t.es, ef: t.ef, cost: cost(t) }; });
           c.prevBaseline = bp.baseline ? { at: bp.baseline.at, finish: bp.baseline.finish, BAC: bp.baseline.BAC } : null;
+          if (bp.baseline) bp.baselineHist = [bp.baseline].concat(bp.baselineHist || []).slice(0, 5);
           bp.baseline = { at: Date.now(), finish: R1.finish, BAC: R1.BAC, tasks: bt }; crLog(c, 'New baseline set: finish ' + dmy(R1.finish) + ', budget ' + money(R1.BAC));
         }
         c.status = 'Implemented'; c.implementedAt = Date.now(); crLog(c, 'Added to the plan and registers: ' + pl(k, 'change') + '. Finish ' + dmy(R0.finish) + ' → ' + dmy(R1.finish) + ', budget ' + money(R0.BAC) + ' → ' + money(R1.BAC));
@@ -7041,7 +7056,10 @@
       ['Cost performance (CPI)', R.CPI == null ? '—' : Number(R.CPI).toFixed(2), R.CPI == null ? 'no actual costs typed yet' : (R.CPI >= 1 ? 'on or under budget' : 'over budget') + ': = EV ÷ AC of the work with costs recorded = ' + money(R.cpiEV) + ' ÷ ' + money(R.cpiAC) + ' = ' + rat(R.cpiEV, R.cpiAC) +
         ' (labour and services ' + money(SPX.lab.evIn || 0) + ' ÷ ' + money(SPX.lab.acIn || 0) + '; materials at the BOM v0 baseline ' + money(SPX.mat.ev || 0) + ' ÷ at the current BOM ' + money(SPX.mat.ac || 0) + (bd ? ' + ' + money(bd) + ' spent above the BOM' : '') + ').' +
         (R.ACest > 0.004 ? ' Work with no actual yet (' + money(R.ACest) + ') is left out, not guessed.' : '') + (bd ? ' Record the ' + money(bd) + ' as a BOM / BOQ price change (in the BOM / BOQ or Order status) so the BOM shows it too.' : '') + ' All the work as it stands: ' + money(R.EV) + ' ÷ ' + money(R.AC) + ' = ' + rat(R.EV, R.AC) + '.'], ['Forecast final cost (EAC)', R.EAC == null ? '—' : money(R.EAC + LZ), R.EAC == null ? '' : p.tasks.every(function (t) { return (t.pct || 0) >= 100; }) ? 'all the work is done: what was spent' : '= spent ' + money(R.AC) + ' + labour and services left ' + money(Math.max(0, (SPX.lab.bac || 0) - (SPX.lab.ev || 0))) + ' ÷ their CPI ' + (SPX.lab.CPI != null ? Number(SPX.lab.CPI).toFixed(2) : '1.00') + ' + materials left at the current BOM price ' + money(Math.max(0, (SPX.mat.bac || 0) - (SPX.mat.ac || 0)))]]);
-    $('#planBody').innerHTML = setupSteps(p, R) + estBanner(p) + '<div class="grid two"><div class="grid" style="align-content:start">' +
+    var bsus = p.baselineSuspect ? '<div class="card" style="border:1px solid #f1b4b4;background:#fff7f6;margin-bottom:12px"><b class="bad">⚠ The baseline was replaced automatically</b> on ' + esc(M.day(p.baselineSuspect)) + ' by an order change. That was a fault, now fixed: Champ never re-baselines by itself (a new baseline goes through 🔁 Change control). The plan is repaired (the done 🧱 milestone is back), but the baseline still shows finish ' + esc(dmy((p.baseline || {}).finish)) + ', which is not the one that was agreed.' +
+      '<div class="row" style="gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap"><label style="display:flex;gap:6px;align-items:center">Agreed baseline finish <input type="date" id="bsDate" value="' + esc(p.baselineFix || '') + '" style="width:auto"></label><button class="btn btn-sm btn-gold" type="button" id="bsSet">↶ Put the agreed baseline back</button><button class="btn btn-sm" type="button" id="bsKeep">Keep it as it is</button></div>' +
+      '<small class="muted">The baseline\'s task dates come from the plan as it stands, scaled to finish on that date: approximate, as the original task dates were not kept. The budget stays ' + money((p.baseline || {}).BAC || 0) + '.</small></div>' : '';
+    $('#planBody').innerHTML = bsus + setupSteps(p, R) + estBanner(p) + '<div class="grid two"><div class="grid" style="align-content:start">' +
       '<div class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><h2 style="margin:0">Time & cost (earned value)</h2>' + (canCost() ? '<button class="btn btn-sm btn-gold" type="button" data-costin>💲 Record actual costs</button>' : '') + '</div><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
         (S.expensesEx ? '<p class="muted" style="margin:10px 0 0">Expenses recorded for this job in Accounts: <b>' + money(S.expensesEx) + '</b> ex GST.</p>' : '') +
         (p.baseline ? '<p class="muted" style="margin:6px 0 0">Baseline set ' + esc(M.day(p.baseline.at)) + ': finish ' + esc(prettyY(p.baseline.finish)) + ', budget ' + money(p.baseline.BAC) + '. Now: finish ' + esc(prettyY(R.finish)) + ' (' + esc(varDays(p.baseline.finish, R.finish)) + ').</p>' : '<p class="muted" style="margin:6px 0 0">Tip: press “Set baseline” once the plan is agreed, so you can track slippage.</p>') + '</div>' +
@@ -7054,6 +7072,14 @@
       (S.reminders.length ? '<div class="card"><h2>Reminders for this job</h2><div class="list">' + S.reminders.map(function (r) { return '<div class="item"><div><b>' + esc(r.when) + '</b><br><small>' + esc(r.text) + '</small></div></div>'; }).join('') + '</div></div>' : '') +
       '</div></div>';
     ordWire($('#planBody'));
+    if ($('#bsSet')) $('#bsSet').onclick = function () {   // the agreed finish back: today's plan dates scaled from the start to that finish (approximate per task)
+      var F = $('#bsDate').value; if (!/^\d{4}-\d\d-\d\d$/.test(F)) { toast('Pick the agreed baseline finish date', true); return; }
+      schedule(p); var R3 = rollup(p, today()), st = p.start || R3.start, D = function (x) { return toD(x).getTime(); }, k = (D(F) - D(st)) / Math.max(1, D(R3.finish) - D(st)), sc = function (x) { return toS(new Date(D(st) + Math.round((D(x) - D(st)) * k / 864e5) * 864e5)); };
+      var tk = {}; p.tasks.forEach(function (t) { tk[t.id] = { es: t.es ? sc(t.es) : '', ef: t.ef ? sc(t.ef) : '', cost: cost(t) }; });
+      if (p.baseline) p.baselineHist = [p.baseline].concat(p.baselineHist || []).slice(0, 5);
+      p.baseline = { at: p.baselineSuspect ? p.baselineSuspect - 1 : Date.now(), finish: F, BAC: (p.baseline && p.baseline.BAC) || R3.BAC, tasks: tk, by: bomMe() + ' (agreed baseline put back after the fault)' }; delete p.baselineSuspect;
+      saveNow('agreed baseline put back: finish ' + dmy(F)); toast('📌 Baseline finish ' + dmy(F) + ' put back'); render(); };
+    if ($('#bsKeep')) $('#bsKeep').onclick = function () { delete p.baselineSuspect; dirty('baseline kept'); render(); };
     estWire($('#planBody'));
     $('#planBody').querySelectorAll('[data-costin]').forEach(function (b) { b.onclick = function () { recordActuals(''); }; });
   }
@@ -7088,7 +7114,7 @@
   }
   function schedLag(p, R, today0) {
     if (!R || !p.tasks.length || p.tasks.every(function (t) { return (t.pct || 0) >= 100; })) return null;
-    var T = p.tasks.filter(function (t) { return t.es && t.ef; }), useLab = R.split && R.split.lab.bac > 0.004, w = function (t) { return useLab ? taskSplit(p, t).lab : cost(t); }, ev = useLab ? R.split.lab.ev : R.EV;
+    var BT = p.baseline && p.baseline.tasks || {}, T = p.tasks.filter(function (t) { return t.es && t.ef; }).map(function (t) { var b = BT[t.id]; return { t: t, es: (b && b.es) || t.es, ef: (b && b.ef) || t.ef }; }), useLab = R.split && R.split.lab.bac > 0.004, w = function (x) { return useLab ? taskSplit(p, x.t).lab : cost(x.t); }, ev = useLab ? R.split.lab.ev : R.EV;
     var fr = function (t, d) { return d < t.es ? 0 : d >= t.ef ? 1 : workBetween(t.es, d) / Math.max(1, workBetween(t.es, t.ef)); };
     var pvAt = function (d) { return T.reduce(function (a, t) { return a + w(t) * fr(t, d); }, 0); }, pvNow = pvAt(today0); if (!(pvNow > 0.5)) return null;
     var at = function (b, n) { return toS(new Date(toD(b).getTime() + n * 864e5)); }, days = function (a, b) { return Math.round((toD(b) - toD(a)) / 864e5); };
@@ -7159,7 +7185,7 @@
     var eta = function (l) { var o = l.orderedAt ? new Date(l.orderedAt).toISOString().slice(0, 10) : t0; return addDays(o, Number(l.lead) || 0); };
     var rows = L.slice().sort(function (a, c) { return (a.ordered - c.ordered) || String(by(a)).localeCompare(String(by(c))); });
     return '<div class="card ord"><div class="card-h"><h2>📦 Order status: what is ordered and where it stands</h2><span class="sp"></span><small class="muted">' + done + ' of ' + L.length + ' ordered · ' + dlv + ' delivered' + (bad ? ' · <b class="bad">' + bad + ' delayed</b>' : '') + '</small></div>' +
-      '<p class="muted" style="margin:-4px 0 8px;font-size:12.5px">From the BOM / BOQ' + (need ? ': needed by ' + esc(prettyY(need)) + ' (the 🧱 milestone)' : '') + '. Keep each order up to date. If the supplier\'s <b>price</b> or <b>lead time</b> changes, type it in and press 💾: Champ works out the effect on the BOM total and the Gantt (it moves the finish only if the delivery is late for work on the critical path) and re-baselines both' + (ccOff() ? '' : ', through 🔁 Change control') + '.</p><div class="ord-list">' +
+      '<p class="muted" style="margin:-4px 0 8px;font-size:12.5px">From the BOM / BOQ' + (need ? ': needed by ' + esc(prettyY(need)) + ' (the 🧱 milestone)' : '') + '. Keep each order up to date. If the supplier\'s <b>price</b> or <b>lead time</b> changes, type it in and press 💾: Champ works out the effect on the BOM total and the Gantt (it moves the finish only if the delivery is late for work on the critical path) and the Gantt' + (ccOff() ? '' : ', through 🔁 Change control') + '. Materials already delivered never move the schedule, and the baseline is only ever changed by you (📌 Re-set baseline).</p><div class="ord-list">' +
       rows.map(function (l) { var d = by(l), st = ordSt(l), late = !l.ordered && d && d < t0, soon = !l.ordered && d && !late && d <= addDays(t0, 7), e = l.ordered ? eta(l) : '', eLate = e && need && e > need && st !== 'Delivered';
         return '<div class="ord-row os-' + esc(st.replace(/\s/g, '').toLowerCase()) + (st === 'Delivered' ? ' done' : '') + (st === 'Delayed' || eLate ? ' warnrow' : '') + '" data-ol="' + esc(l.id) + '"><label class="ord-ck" title="' + (l.ordered ? 'Ordered' + (l.orderedBy ? ' by ' + esc(l.orderedBy) : '') : 'Tick when it is ordered') + '"><input type="checkbox" data-ord' + (l.ordered ? ' checked' : '') + '></label>' +
           '<div class="ord-main"><div class="ord-top"><b class="ord-name" title="' + esc(st) + '">' + esc(l.name) + '</b><select data-ost class="ord-st st-' + esc(st.replace(/\s/g, '').toLowerCase()) + '">' + ORD_ST.map(function (x) { return '<option' + (x === st ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
@@ -7171,27 +7197,31 @@
   }
   // the effect of a new price or lead time for one BOM line: BOM total, delivery against the need date, and the finish (critical path)
   function ordImpact(l, price, lead) {
+    // v244: a lead time is counted from the ORIGINAL order date; materials already delivered, or whose 🧱 milestone is done, never move
+    //   the schedule (they are already on site); finished or started work is never moved; and nothing here ever re-baselines
     var p = S.plan, ms = bomMs(), t0 = today(), o = l.orderedAt ? new Date(l.orderedAt).toISOString().slice(0, 10) : t0, q = Number(l.qty) || 0;
     var R0 = rollup(p, t0), e0 = addDays(o, Number(l.lead) || 0), e1 = addDays(o, lead), need = ms && ms.es ? ms.es : '';
-    var r = { dCost: r2((price - (Number(l.price) || 0)) * q), e0: e0, e1: e1, need: need, msId: ms ? ms.id : '', snet: '', days: 0, f0: R0.finish, f1: R0.finish, crit: false };
-    if (ms && need && e1 > need) {   // late for the materials milestone: it moves to the delivery date; the finish moves only if it is critical
-      r.snet = nextWork(e1); var c = JSON.parse(JSON.stringify(p)), cm = c.tasks.filter(function (t) { return t.id === ms.id; })[0];
-      if (!cm.snet || r.snet > cm.snet) cm.snet = r.snet; schedule(c); var R1 = rollup(c, t0); r.f1 = R1.finish;
-      r.days = r.f1 > r.f0 ? workBetween(r.f0, r.f1) - 1 : 0; r.crit = r.days > 0; rollup(p, t0);
+    var onSite = ordSt(l) === 'Delivered' || (ms && (ms.pct || 0) >= 100);
+    var r = { dCost: r2((price - (Number(l.price) || 0)) * q), e0: e0, e1: e1, need: need, msId: ms ? ms.id : '', snet: '', days: 0, f0: R0.finish, f1: R0.finish, crit: false, onSite: onSite };
+    if (ms && need && e1 > need && !onSite) {   // late for the materials milestone: it moves to the delivery date; the finish moves only if it is critical
+      var c = JSON.parse(JSON.stringify(p)), cm = c.tasks.filter(function (t) { return t.id === ms.id; })[0], snet = nextWork(e1);
+      if (!cm.snet || snet > cm.snet) cm.snet = snet; schedule(c);
+      var moved = c.tasks.filter(function (t) { var o2 = p.tasks.filter(function (x) { return x.id === t.id; })[0]; return o2 && (o2.pct || 0) > 0 && t.es !== o2.es; });
+      if (!moved.length) { r.snet = snet; var R1 = rollup(c, t0); r.f1 = R1.finish; r.days = r.f1 > r.f0 ? workBetween(r.f0, r.f1) - 1 : 0; r.crit = r.days > 0; }
+      else r.blocked = moved.length;   // it would move work that has started or is done: the schedule is left alone, and it is flagged instead
+      rollup(p, t0);
     }
     return r;
   }
+
   function ordApply(lineId, price, lead, im, by, why) {   // the change itself: the BOM line, the Gantt (and a new baseline when the finish moves)
     var p = S.plan, l = ((p.bom || {}).lines || []).filter(function (x) { return x.id === lineId; })[0]; if (!l) return '';
     var was = [Number(l.price) || 0, Number(l.lead) || 0]; l.price = price; l.lead = lead;
     var out = l.name + ': ' + (was[0] !== price ? money(was[0]) + ' → ' + money(price) + ' each' : '') + (was[0] !== price && was[1] !== lead ? ', ' : '') + (was[1] !== lead ? 'lead time ' + was[1] + ' → ' + lead + ' days' : '');
-    if (im && im.snet && im.msId) { var ms = p.tasks.filter(function (t) { return t.id === im.msId; })[0]; if (ms && (!ms.snet || im.snet > ms.snet)) { ms.snet = im.snet; out += '; 🧱 milestone moved to ' + dmy(im.snet); } }
+    if (im && im.snet && im.msId) { var ms = p.tasks.filter(function (t) { return t.id === im.msId; })[0]; if (ms && (ms.pct || 0) < 100 && (!ms.snet || im.snet > ms.snet)) { ms.snet = im.snet; ms.snetWhy = 'order'; out += '; 🧱 milestone moved to ' + dmy(im.snet); } }
     var t = p.tasks.filter(function (x) { return x.id === l.task; })[0]; if (t && bomOnly(t)) { var amt = r2(bomLinesOf(t).reduce(function (a, y) { return a + (Number(y.qty) || 0) * (Number(y.price) || 0); }, 0)); t.actual = r2(amt * Math.min(100, t.pct || 0) / 100) || ''; }
     bomSync(); schedule(p);
-    if (im && im.crit) {   // the finish moved: the Gantt is re-baselined (the BOM is re-baselined by its new version on save)
-      var R1 = rollup(p, today()), bt = {}; p.tasks.forEach(function (x) { bt[x.id] = { es: x.es, ef: x.ef, cost: cost(x) }; });
-      p.baseline = { at: Date.now(), finish: R1.finish, BAC: R1.BAC, tasks: bt }; out += '; Gantt re-baselined: finish ' + dmy(im.f0) + ' → ' + dmy(im.f1);
-    }
+    if (im && im.crit) out += '; finish ' + dmy(im.f0) + ' → ' + dmy(im.f1) + ' (the baseline is not changed: the slip shows against it)';
     bomLog('Order change by ' + by + ': ' + out + (why ? ' (' + why + ')' : '')); return out;
   }
   function ordChange(l, price, lead, note) {
@@ -7200,9 +7230,9 @@
       '<div class="tblwrap"><table class="tbl"><tbody>' +
       (im.dCost ? '<tr><td>Unit price</td><td class="num">' + money(l.price) + ' → <b>' + money(price) + '</b></td><td class="num ' + (im.dCost > 0 ? 'bad' : 'good') + '">' + (im.dCost > 0 ? '+' : '') + money(im.dCost) + ' on the BOM / BOQ</td></tr>' : '') +
       ((Number(l.lead) || 0) !== lead ? '<tr><td>Lead time</td><td class="num">' + (l.lead || 0) + ' → <b>' + lead + ' days</b></td><td class="num">due on site ' + esc(dmy(im.e0)) + ' → <b>' + esc(dmy(im.e1)) + '</b></td></tr>' : '') +
-      (im.need ? '<tr><td>Needed by</td><td class="num">' + esc(dmy(im.need)) + ' (🧱 milestone)</td><td class="num">' + (im.snet ? '<b class="bad">' + pl(workBetween(im.need, im.e1) - 1, 'working day') + ' late</b>' : '<span class="good">in time</span>') + '</td></tr>' : '') +
+      (im.onSite ? '<tr><td>Schedule</td><td class="num" colspan="2"><span class="good">No effect: the materials are already on site</span></td></tr>' : '') + (im.need && !im.onSite ? '<tr><td>Needed by</td><td class="num">' + esc(dmy(im.need)) + ' (🧱 milestone)</td><td class="num">' + (im.snet ? '<b class="bad">' + pl(workBetween(im.need, im.e1) - 1, 'working day') + ' late</b>' : '<span class="good">in time</span>') + '</td></tr>' : '') +
       '<tr><td>Project finish</td><td class="num">' + esc(dmy(im.f0)) + (im.crit ? ' → <b class="bad">' + esc(dmy(im.f1)) + '</b>' : '') + '</td><td class="num">' + (im.crit ? '<b class="bad">+' + pl(im.days, 'working day') + ': on the critical path</b>' : im.snet ? 'no change: the delay fits in the slack (not on the critical path)' : 'no change') + '</td></tr></tbody></table></div>' +
-      '<p class="muted">' + (im.dCost ? 'The BOM / BOQ gets a new version (PDF and spreadsheet in Project documents), and the actual cost, the costing and CPI follow. ' : '') + (im.snet ? 'The 🧱 materials milestone moves to the delivery date' + (im.crit ? ', the tasks after it move, and the Gantt is re-baselined.' : '; the tasks with slack absorb it.') : '') + '</p>' +
+      '<p class="muted">' + (im.dCost ? 'The BOM / BOQ gets a new version (PDF and spreadsheet in Project documents), and the actual cost, the costing and CPI follow. ' : '') + (im.snet ? 'The 🧱 materials milestone moves to the delivery date' + (im.crit ? ' and the tasks after it move: the Gantt shows the slip against the baseline (the baseline is not changed).' : '; the tasks with slack absorb it.') : '') + '</p>' +
       '<label style="display:block">Why <span class="bad">*</span><input id="ocWhy" value="' + esc(note || '') + '" placeholder="e.g. supplier quote 22 Nov: price up, delivery pushed back" style="width:100%"></label>' +
       '<div class="actions"><button class="btn btn-gold" type="button" id="ocGo">' + (cc ? '🔁 Send to change control' : '✓ Apply and re-baseline') + '</button><button class="btn" type="button" data-close>Cancel</button></div>');
     $('#ocGo').onclick = function () {
@@ -7216,18 +7246,28 @@
   function ordToCr(l, price, lead, why) {   // 🔁 a supplier's new price or lead time: a change request, with its impact worked out and the evaluation started
     var im = ordImpact(l, price, lead), R0 = rollup(S.plan, today());
     var c = bomCr('order', 'Order change: ' + l.name + (im.dCost ? ' ' + (im.dCost > 0 ? '+' : '') + money(im.dCost) : '') + (im.crit ? ', finish +' + pl(im.days, 'day') : (Number(l.lead) || 0) !== lead ? ', lead time ' + (l.lead || 0) + ' → ' + lead + ' days' : ''),
-      l.name + ': ' + (im.dCost ? 'unit price ' + money(l.price) + ' → ' + money(price) + ' (' + (im.dCost > 0 ? '+' : '') + money(im.dCost) + ')' : '') + ((Number(l.lead) || 0) !== lead ? (im.dCost ? '; ' : '') + 'lead time ' + (l.lead || 0) + ' → ' + lead + ' days, due on site ' + dmy(im.e1) : '') + (im.snet ? '; the 🧱 milestone moves to ' + dmy(im.snet) + (im.crit ? ' and the finish moves ' + dmy(im.f0) + ' → ' + dmy(im.f1) + ' (critical path): the Gantt is re-baselined' : ' (slack absorbs it)') : ''), why, im.dCost,
+      l.name + ': ' + (im.dCost ? 'unit price ' + money(l.price) + ' → ' + money(price) + ' (' + (im.dCost > 0 ? '+' : '') + money(im.dCost) + ')' : '') + ((Number(l.lead) || 0) !== lead ? (im.dCost ? '; ' : '') + 'lead time ' + (l.lead || 0) + ' → ' + lead + ' days, due on site ' + dmy(im.e1) : '') + (im.snet ? '; the 🧱 milestone moves to ' + dmy(im.snet) + (im.crit ? ' and the finish moves ' + dmy(im.f0) + ' → ' + dmy(im.f1) + ' (critical path); the baseline is not changed' : ' (slack absorbs it)') : ''), why, im.dCost,
       { line: l.id, price: price, lead: lead, snetTask: im.snet ? im.msId : '', snetDate: im.snet || '', crit: !!im.crit, from: im.f0, to: im.f1 });
     c.estDays = im.days;
     c.eval = { scope: 'No change to scope: the same item (' + l.name + ') and quantity (' + q3c(l.qty) + ' ' + (l.unit || '') + ').',
-      time: im.snet ? (im.crit ? 'Delivery ' + dmy(im.e1) + ' is after the materials are needed (' + dmy(im.need) + '): the 🧱 milestone moves to ' + dmy(im.snet) + ' and, being on the critical path, the finish moves ' + dmy(im.f0) + ' → ' + dmy(im.f1) + ' (+' + pl(im.days, 'working day') + ').' : 'Delivery ' + dmy(im.e1) + ' is after the materials are needed (' + dmy(im.need) + '), but the slack absorbs it: the finish stays ' + dmy(im.f0) + '.') : 'No effect: delivery ' + dmy(im.e1) + ' is in time' + (im.need ? ' (needed ' + dmy(im.need) + ')' : '') + '.',
+      time: im.onSite ? 'No effect on the schedule: the materials are already on site (delivered, or the 🧱 milestone is done).' : im.blocked ? 'Delivery ' + dmy(im.e1) + ' is after the materials were needed (' + dmy(im.need) + '), but moving the 🧱 milestone would move work that has started or is done, so the schedule is left alone: check it with the site team.' : im.snet ? (im.crit ? 'Delivery ' + dmy(im.e1) + ' is after the materials are needed (' + dmy(im.need) + '): the 🧱 milestone moves to ' + dmy(im.snet) + ' and, being on the critical path, the finish moves ' + dmy(im.f0) + ' → ' + dmy(im.f1) + ' (+' + pl(im.days, 'working day') + ').' : 'Delivery ' + dmy(im.e1) + ' is after the materials are needed (' + dmy(im.need) + '), but the slack absorbs it: the finish stays ' + dmy(im.f0) + '.') : 'No effect: delivery ' + dmy(im.e1) + ' is in time' + (im.need ? ' (needed ' + dmy(im.need) + ')' : '') + '.',
       cost: im.dCost ? (im.dCost > 0 ? '+' : '') + money(im.dCost) + ' on the BOM / BOQ: budget ' + money(R0.BAC) + ' → ' + money(R0.BAC + im.dCost) + '. It becomes the materials actual cost (a new BOM version) and moves CPI.' : 'No change to the price.', quality: '' };
     return c;
   }
+  // 🩹 v244 repair: a 🧱 milestone that was already done but was moved by an order change (the fault before build 244) goes back
+  function ordRepair() {
+    var p = S.plan, b = p.bom, ms = bomMs(); if (!b || !ms || (ms.pct || 0) < 100 || !ms.snet) return false;
+    var hit = ms.snetWhy === 'order' || (b.log || []).some(function (x) { return /milestone moved to /.test(x.what || '') && (x.what || '').indexOf(dmy(ms.snet)) >= 0; });
+    if (!hit) return false; var was = ms.snet; delete ms.snet; delete ms.snetWhy; ms.fixed = false;
+    var rb = (b.log || []).filter(function (x) { return /re-baselined/.test(x.what || ''); }).slice(-1)[0];
+    bomLog('Repaired: the 🧱 milestone was already done, so the order change should not have moved it (it had been moved to ' + dmy(was) + ').'); schedule(p); dirty('Repair: done 🧱 milestone put back');
+    if (rb && p.baseline && Math.abs((p.baseline.at || 0) - rb.at) < 120000) p.baselineSuspect = rb.at;   // the baseline was replaced by that same order change
+    return true;
+  }
   function ordWire(box) {
     if (!box) return; var line = function (el) { var id = el.closest('[data-ol]').getAttribute('data-ol'); return ((S.plan.bom || {}).lines || []).filter(function (l) { return l.id === id; })[0]; };
-    box.querySelectorAll('[data-ord]').forEach(function (c) { c.onchange = function () { var l = line(c); if (!l) return; l.ordered = c.checked; l.orderedBy = c.checked ? bomMe() : ''; l.orderedAt = c.checked ? Date.now() : 0; if (c.checked && ordSt(l) === 'Not ordered') l.ordStatus = 'Ordered'; if (!c.checked) l.ordStatus = 'Not ordered'; dirty((c.checked ? 'ordered: ' : 'not ordered: ') + l.name); setTimeout(render, 0); }; });
-    box.querySelectorAll('[data-ost]').forEach(function (sl) { sl.onchange = function () { var l = line(sl); if (!l) return; l.ordStatus = sl.value; if (sl.value !== 'Not ordered' && !l.ordered) { l.ordered = true; l.orderedBy = bomMe(); l.orderedAt = Date.now(); } if (sl.value === 'Not ordered') { l.ordered = false; l.orderedAt = 0; } l.ordStatusAt = Date.now(); dirty('order ' + sl.value.toLowerCase() + ': ' + l.name); setTimeout(render, 0); }; });
+    box.querySelectorAll('[data-ord]').forEach(function (c) { c.onchange = function () { var l = line(c); if (!l) return; l.ordered = c.checked; if (c.checked) { l.orderedBy = l.orderedBy || bomMe(); l.orderedAt = l.orderedAt || Date.now(); }   /* v244: the first order date is kept when it is unticked and ticked again */ if (c.checked && ordSt(l) === 'Not ordered') l.ordStatus = 'Ordered'; if (!c.checked) l.ordStatus = 'Not ordered'; dirty((c.checked ? 'ordered: ' : 'not ordered: ') + l.name); setTimeout(render, 0); }; });
+    box.querySelectorAll('[data-ost]').forEach(function (sl) { sl.onchange = function () { var l = line(sl); if (!l) return; l.ordStatus = sl.value; if (sl.value !== 'Not ordered' && !l.ordered) { l.ordered = true; l.orderedBy = l.orderedBy || bomMe(); l.orderedAt = l.orderedAt || Date.now(); } if (sl.value === 'Not ordered') { l.ordered = false; } l.ordStatusAt = Date.now(); dirty('order ' + sl.value.toLowerCase() + ': ' + l.name); setTimeout(render, 0); }; });
     var num = function (v) { return Number(String(v).replace(/[$,\s]/g, '')) || 0; };
     var save = function (el) { var row = el.closest('[data-ol]'), l = line(el), inp = row.querySelector('[data-onote]'), v = inp.value.trim(); if (!l) return;
       var price = Math.round(num(row.querySelector('[data-oprice]').value) * 100) / 100, lead = Math.max(0, Math.round(num(row.querySelector('[data-olead]').value)));
