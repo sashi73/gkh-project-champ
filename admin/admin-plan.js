@@ -3013,9 +3013,13 @@
     gColCss(); gColHandles(L, sync);
     sync(); gFreeze();
     if (window.ResizeObserver) { if (S.ro) S.ro.disconnect(); S.ro = new ResizeObserver(function () { window.requestAnimationFrame(sync); }); S.ro.observe(L.querySelector('table')); }
-    var lock = false;
-    L.addEventListener('scroll', function () { if (lock) { lock = false; return; } lock = true; Rt.scrollTop = L.scrollTop; });
-    Rt.addEventListener('scroll', function () { if (lock) { lock = false; return; } lock = true; L.scrollTop = Rt.scrollTop; });
+    // the two panes scroll together: the pane you are using leads (wheel, touch, scroll bar, keys), the other follows.
+    //   (v228: the old on/off lock lost every other scroll event with a mouse wheel or a touch pad, so the chart fought back)
+    var lead = null, follow = function (from, to) { if (lead && lead !== from) return; if (Math.abs(to.scrollTop - from.scrollTop) > 0.5) to.scrollTop = from.scrollTop; };
+    [L, Rt].forEach(function (el) { ['wheel', 'pointerdown', 'touchstart', 'keydown', 'focusin', 'mouseenter'].forEach(function (ev) { el.addEventListener(ev, function () { lead = el; }, { passive: true }); }); });
+    L.addEventListener('scroll', function () { follow(L, Rt); }, { passive: true });
+    Rt.addEventListener('scroll', function () { follow(Rt, L); }, { passive: true });
+    box.gScrollTo = function (y) { lead = null; L.scrollTop = y; Rt.scrollTop = y; };   // for the ▲ ▼ rail
     if (S.scrollX != null && S.scrollCore === S.core) Rt.scrollLeft = S.scrollX; else { Rt.scrollLeft = Math.max(0, todayX - 140); S.scrollCore = S.core; }
     Rt.addEventListener('scroll', function () { S.scrollX = Rt.scrollLeft; });
     bar.addEventListener('pointerdown', function (e) {

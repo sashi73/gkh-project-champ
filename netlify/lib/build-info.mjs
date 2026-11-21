@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 228,
+  "build": 229,
   "commit": "",
-  "branch": "fit2",
+  "branch": "fitzoom",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-21 20:02",
+  "builtAt": "2026-11-21 20:12",
   "site": ""
 };

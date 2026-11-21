@@ -25,8 +25,42 @@
     var auto = Math.max(300, window.innerHeight - topH() - rowH - 30);
     var h = mine > 0 ? Math.max(220, Math.min(mine, 4000)) : short ? auto : 0;
     if (h) { g.style.setProperty('--gH', h + 'px'); g.classList.add('gh-on'); } else { g.style.removeProperty('--gH'); g.classList.remove('gh-on'); }
-    handle(g); opts(g);
+    handle(g); opts(g); rail(g);
   }
+  // ⇅ the rail beside the Gantt chart: ⤒ top, ▲ up a page, a slider for the rows, ▼ down a page, ⤓ end (for touch screens and touch pads)
+  function rail(g) {
+    if (g.querySelector('.g-rail')) return; var L = document.getElementById('gLeft'); if (!L) return;
+    var r = document.createElement('div'); r.className = 'g-rail';
+    r.innerHTML = '<button type="button" data-r="top" title="First row">⤒</button><button type="button" data-r="up" title="Up a page (Page Up)">▲</button>' +
+      '<input type="range" min="0" max="1000" value="0" aria-label="Scroll the rows" title="Drag to scroll the rows"><button type="button" data-r="dn" title="Down a page (Page Down)">▼</button><button type="button" data-r="end" title="Last row">⤓</button>';
+    g.appendChild(r);
+    var rg = r.querySelector('input'), max = function () { return Math.max(0, L.scrollHeight - L.clientHeight); };
+    var go = function (y) { y = Math.max(0, Math.min(max(), y)); if (g.gScrollTo) g.gScrollTo(y); else L.scrollTop = y; show(); };
+    var show = function () { var m = max(); rg.disabled = !m; rg.value = m ? Math.round(L.scrollTop / m * 1000) : 0; r.classList.toggle('none', !m); };
+    rg.addEventListener('input', function () { go(rg.value / 1000 * max()); });
+    r.querySelectorAll('[data-r]').forEach(function (bt) { bt.onclick = function () { var k = bt.getAttribute('data-r'), pg = L.clientHeight * 0.85; go(k === 'top' ? 0 : k === 'end' ? max() : L.scrollTop + (k === 'dn' ? pg : -pg)); }; });
+    L.addEventListener('scroll', show, { passive: true }); setTimeout(show, 50);
+  }
+  // ⌨ like Excel: ↑ ↓ (and Enter) move to the cell above or below in the grid; the text is selected so you can type over it
+  document.addEventListener('keydown', function (e) {
+    if ((e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
+    var t = e.target, L = document.getElementById('gLeft'); if (!L || !L.contains(t) || !/^(INPUT|SELECT)$/.test(t.tagName)) return;
+    if (!t.hasAttribute('data-k') || t.type === 'date' || t.type === 'checkbox' || (t.tagName === 'SELECT' && e.key !== 'Enter')) return;   // only the grid's own cells (not the people picker or the # box)
+    var td = t.closest('td'), tr = td && td.closest('tr'); if (!tr || !tr.parentNode || tr.parentNode.tagName !== 'TBODY') return;
+    var rows = Array.prototype.slice.call(tr.parentNode.children), ci = td.cellIndex, i = rows.indexOf(tr), dir = e.key === 'ArrowUp' || (e.key === 'Enter' && e.shiftKey) ? -1 : 1;
+    var pick = function (row) { var c = row && row.cells[ci]; if (!c) return null; var x = c.querySelector('input:not([type=checkbox]):not([disabled]),select:not([disabled])'); return x && x.offsetParent ? x : null; };
+    for (var j = i + dir; j >= 0 && j < rows.length; j += dir) {
+      var nx = pick(rows[j]); if (!nx) continue;
+      e.preventDefault(); var idx = j;
+      var land = function (el) { el.focus({ preventScroll: false }); try { if (el.select && el.type !== 'number') el.select(); else if (el.select) el.select(); } catch (x) {} el.scrollIntoView({ block: 'nearest' }); };
+      land(nx);
+      [40, 160].forEach(function (ms) { setTimeout(function () {   // the cell you left may redraw the grid: find the same cell again
+        var a = document.activeElement, L2 = document.getElementById('gLeft'); if (!L2 || (a && L2.contains(a) && a !== document.body && a.isConnected)) return;
+        var tb = L2.querySelector('tbody'), row = tb && tb.children[idx], el = pick(row); if (el) land(el); }, ms); });
+      return;
+    }
+  }, true);
+  
   // on a small laptop the project dates, the weekends and the location fold behind one button, so the chart gets the room
   function opts(g) {
     var row = document.querySelector('#gCard .pviews') || g.parentNode.querySelector('.pviews'); if (!row || row.querySelector('.gopt-btn')) return;
@@ -64,14 +98,37 @@
       var h = location.hash; if (h !== lastHash) { lastHash = h; setTimeout(function () { bring(false); }, 120); }
     });
   }).observe(document.getElementById('view') || document.body, { childList: true, subtree: true });
-  // 💻 the layout switch in the header: Auto (fits the window) or Compact (always)
-  var MODES = { auto: ['🖥 Auto', 'Layout: Auto. Compact on a small laptop window (under 800 px high or 1400 px wide), full on a big monitor. Click for Compact.'], compact: ['💻 Compact', 'Layout: always Compact. Click for Auto.'] };
+  // 💻 the layout switch in the header: a small panel with Auto or Compact, the screen scale it found (Windows display scaling
+  //    × the browser's zoom) and the window size, and how to make everything smaller with the browser's zoom (a web page cannot
+  //    change Windows scaling or the browser's zoom itself; the browser keeps the zoom you pick for Champ)
+  var scale = function () { return Math.round((window.devicePixelRatio || 1) * 100); };
+  var mode = function () { return get('champFitMode') === 'compact' ? 'compact' : 'auto'; };
+  var suggest = function () { var w = window.innerWidth, h = window.innerHeight, z = Math.min(1, w / 1440, h / 800); return z >= 0.97 ? 100 : z >= 0.86 ? 90 : z >= 0.76 ? 80 : z >= 0.7 ? 75 : 67; };
+  function panel(bt) {
+    var old = document.getElementById('champFitPop'); if (old) { old.remove(); return; }
+    var sg = suggest(), steps = { 90: 'once', 80: 'twice', 75: '3 times', 67: '4 times' }[sg];
+    var p = document.createElement('div'); p.id = 'champFitPop'; p.className = 'fit-pop';
+    p.innerHTML = '<button type="button" class="fit-x" aria-label="Close">✕</button><b>💻 Screen fit</b>' +
+      '<div class="fit-seg"><button type="button" data-m="auto" class="' + (mode() === 'auto' ? 'on' : '') + '">🖥 Auto</button><button type="button" data-m="compact" class="' + (mode() === 'compact' ? 'on' : '') + '">💻 Compact</button></div>' +
+      '<small>' + (mode() === 'auto' ? 'Auto: compact on a small window, full on a big monitor. Now: <b>' + (short ? 'compact' : 'full') + '</b>.' : 'Compact: the slim layout on every screen.') + '</small>' +
+      '<div class="fit-info">Screen scale found: <b>' + scale() + '%</b> · window <b>' + window.innerWidth + ' × ' + window.innerHeight + '</b></div>' +
+      '<div class="fit-tip"><b>Make everything smaller (like your monitor):</b> hold <kbd>Ctrl</kbd> and press <kbd>−</kbd>' + (sg < 100 ? ' <b>' + steps + '</b> (about ' + sg + '% for this screen)' : '') + '. <kbd>Ctrl</kbd> <kbd>0</kbd> goes back to 100%. The browser remembers it for Champ, and Champ fits itself to the new size.' +
+      '<br><span class="muted">Or in Windows: Settings → Display → Scale: 125% or 110%.</span></div>';
+    document.body.appendChild(p);
+    var r = bt.getBoundingClientRect(); p.style.top = (r.bottom + 6) + 'px'; p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.right - p.offsetWidth)) + 'px';
+    p.querySelector('.fit-x').onclick = function () { p.remove(); };
+    p.querySelectorAll('[data-m]').forEach(function (x) { x.onclick = function () { put('champFitMode', x.getAttribute('data-m') === 'compact' ? 'compact' : null); detect(); lab(bt); p.remove(); panel(bt); }; });
+  }
+  function lab(bt) { bt.textContent = (short ? '💻 ' : '🖥 ') + (mode() === 'compact' ? 'Compact' : 'Auto'); bt.title = 'Screen fit: ' + (mode() === 'compact' ? 'always compact' : 'Auto (now ' + (short ? 'compact' : 'full') + ')') + ' · scale ' + scale() + '% · window ' + window.innerWidth + ' × ' + window.innerHeight; }
   function switcher() {
     var ctl = window.ChampCtl && window.ChampCtl(); if (!ctl) return false; if (document.getElementById('champFitBtn')) return true;
     var bt = document.createElement('button'); bt.type = 'button'; bt.id = 'champFitBtn'; bt.className = 'ct-lang ct-fit';
-    var lab = function () { var m = get('champFitMode') === 'compact' ? MODES.compact : MODES.auto; bt.textContent = m[0]; bt.title = m[1] + ' (this window: ' + window.innerWidth + ' × ' + window.innerHeight + ')'; bt.setAttribute('aria-label', m[1]); };
-    bt.onclick = function () { var m = get('champFitMode') === 'compact' ? 'compact' : 'auto', nx = m === 'compact' ? 'auto' : 'compact'; put('champFitMode', nx === 'auto' ? null : nx); lab(); detect(); };
-    bt.onmouseenter = lab; lab(); ctl.insertBefore(bt, ctl.firstChild); return true;
+    bt.onclick = function () { panel(bt); }; bt.onmouseenter = function () { lab(bt); }; lab(bt); ctl.insertBefore(bt, ctl.firstChild);
+    window.addEventListener('resize', function () { lab(bt); });
+    // once per scale: on a small, scaled-up screen, say how to fit more on it
+    setTimeout(function () { var key = 'champFitHint' + scale() + 'x' + Math.round(window.innerHeight / 50);
+      if (short && scale() >= 115 && suggest() < 100 && !get(key) && !document.getElementById('tdy')) { put(key, '1'); lab(bt); panel(bt); } }, 1500);
+    return true;
   }
   (function tries(k) { if (!switcher() && k < 40) setTimeout(function () { tries(k + 1); }, 250); })(0);
   window.addEventListener('resize', detect);
