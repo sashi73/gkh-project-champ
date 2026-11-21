@@ -84,6 +84,7 @@
     var finOk = !!(me.owner || me.role === 'CEO' || me.role === 'CFO') && !me.scope;   // 💵 Finance: the CEO, the CFO and the super user; 🔒 the vault: they, program directors and project managers (to file)
     Array.prototype.forEach.call(document.querySelectorAll('[data-fin]'), function (a) { a.hidden = !finOk; });
     if (!me.scope && window.MBS && MBS.finBadge) setTimeout(function () { MBS.finBadge(true); }, 1500);   // 💵 Finance also shows for program directors and project managers with billing to see, with its red count
+    Array.prototype.forEach.call(document.querySelectorAll('[data-archive]'), function (a) { a.hidden = !(!me.scope && (me.owner || me.role === 'CEO' || me.role === 'Site administrator')); });   // 🗄 the project archive
     Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['Project manager', 'Project director'].indexOf(me.role) >= 0 && !me.scope)); });
     document.body.classList.toggle('is-ceo', me.role === 'CEO' || me.role === 'CFO');   // read-only on plans: no New project
     $('#who').textContent = me.name || me.user; $('#who').title = (me.owner ? 'Super user' : me.role) + ' · click to change your password';

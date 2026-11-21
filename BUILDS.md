@@ -213,4 +213,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 202 | 1.0.202| 2026-11-21 12:24| variation| `8c809e7` | 📝 Finance: variation orders (raised to the PM and program director, approved by the program director, recorded in Change control); contract |
 | 203 | 1.0.203| 2026-11-21 12:45| modalx| `7b4939d` | 🪟 Pop-ups stay open until closed: every pop-up gets a ✕; a click outside no longer shuts them (pop-ups, Today, the sticky-notes panel, phon |
 | 204 | 1.0.204| 2026-11-21 12:54| fcnote| `09f2ead` | 💵 Finance: forecast cost explained (BAC ÷ CPI, what CPI and SPI mean, earned vs spent); Project budget with the charter approved budget and |
-| 205 | 1.0.205 | 2026-11-21 15:16 | delunplanned | _this commit_ | _see git log_ |
+| 205 | 1.0.205| 2026-11-21 15:16| delunplanned| `76c4805` | 🗑 Projects: a Delete button on every project not planned yet (same confirm, edit access to Projects) (#66) |
+| 206 | 1.0.206 | 2026-11-21 15:24 | archive | _this commit_ | _see git log_ |
