@@ -165,15 +165,26 @@
       '<p class="muted ceo-note">Before tax. Money in: payments received (actual), then unpaid invoices on their due date (late ones next month) and milestones still to bill, 30 days after they fall due. Cost out: each plan\'s cost spread over its tasks\' dates. ' +
       (C.lateIn ? money(C.lateIn) + ' of it is already overdue. ' : '') + (C.unscheduled ? money(C.unscheduled) + ' of contract value is not on a milestone yet, so it is not in the forecast. ' : '') + '</p></section>';
   }
+  // ↕ sort the projects by a column (tap the heading again to reverse, a third time for worst first); remembered on this computer
+  var SORT = (function () { try { return JSON.parse(localStorage.getItem('ceoSort') || 'null') || { k: '', d: 1 }; } catch (e) { return { k: '', d: 1 }; } })();
+  var PH = { Initiation: 1, Planning: 2, Execution: 3, 'Monitoring and controlling': 4, Monitoring: 4, Closing: 5 };
+  var SK = { name: function (r) { return String(r.name || '').toLowerCase(); }, phase: function (r) { return PH[r.phase] || (/init/i.test(r.phase) ? 1 : /plan/i.test(r.phase) ? 2 : /exec/i.test(r.phase) ? 3 : /monit/i.test(r.phase) ? 4 : /clos/i.test(r.phase) ? 5 : 9); },
+    pct: function (r) { return r.pct || 0; }, spi: function (r) { return r.SPI == null ? null : r.SPI; }, cpi: function (r) { return r.CPI == null ? null : r.CPI; }, finish: function (r) { return r.forecast || r.finish || null; },
+    vac: function (r) { return r.vac == null ? null : r.vac; }, profit: function (r) { return r.internal || r.profit == null ? null : r.profit; } };
+  function sorted(L) {
+    if (!SORT.k || !SK[SORT.k]) return L; var f = SK[SORT.k];
+    return L.slice().sort(function (a, b) { var x = f(a), y = f(b); if (x == null && y == null) return 0; if (x == null) return 1; if (y == null) return -1; return (x < y ? -1 : x > y ? 1 : 0) * SORT.d || String(a.name).localeCompare(String(b.name)); });
+  }
+  function th(k, label, cls) { var on = SORT.k === k; return '<th class="ceo-sort' + (cls ? ' ' + cls : '') + (on ? ' on' : '') + '" data-sort="' + k + '" title="Sort by ' + label.toLowerCase() + '">' + label + ' <span>' + (on ? (SORT.d > 0 ? '▲' : '▼') : '↕') + '</span></th>'; }
   function draw(filter) {
-    var A = D.all, L = D.rows.filter(function (r) { return !r.closed && (!filter || r.health === filter); });
+    var A = D.all, L = sorted(D.rows.filter(function (r) { return !r.closed && (!filter || r.health === filter); }));
     var ov = D.overspends.length ? '<ol class="ceo-ov">' + D.overspends.map(function (o) { return '<li data-core="' + esc(o.core) + '"><b>' + esc(o.name) + '</b> <span class="muted">' + esc(o.program) + '</span><b class="ceo-neg">' + money(o.vac) + (o.over ? ' (' + Math.round(o.over) + '% over)' : '') + '</b></li>'; }).join('') + '</ol>' : '<p class="muted">No project is forecast to go over its budget.</p>';
     M.view().innerHTML = '<div class="ceo">' +
       '<div class="row ceo-head"><div><p class="muted">' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + ' · ' + A.n + ' live project' + (A.n === 1 ? '' : 's') + (D.closed ? ', ' + D.closed + ' closed' : '') + (D.since ? ' · ▲▼ compared with ' + esc(day(D.since)) : ' · the ▲▼ arrows start after a week') + '</p></div>' +
       '<div class="row" style="gap:6px"><button class="btn btn-sm" id="ceoRe" type="button">⟳ Refresh</button><button class="btn btn-sm" id="ceoPr" type="button">🖨 Print / PDF</button></div></div>' +
       briefHtml() + '<section class="card ceo-s"><h3>1 · How are the projects doing?</h3>' + health(A) +
-      '<p class="ceo-f">' + (filter ? 'Showing <b>' + esc(HW[filter]) + '</b> only · <a href="#" id="ceoAll">show all</a>' : 'Worst first. Tap a count to show only those, or a project to open it.') + '</p>' +
-      '<div class="table-wrap"><table class="ceo-tab ceo-rows"><thead><tr><th></th><th>Project</th><th class="hide-sm">Phase</th><th>Done</th><th>SPI</th><th>CPI</th><th>Finish</th><th class="num">Cost vs budget</th><th class="num">Profit / loss</th></tr></thead><tbody>' + rowsHtml(L) + '</tbody></table></div></section>' +
+      '<p class="ceo-f">' + (filter ? 'Showing <b>' + esc(HW[filter]) + '</b> only · <a href="#" id="ceoAll">show all</a>' : (SORT.k ? 'Sorted by <b>' + esc({ name: 'project', phase: 'phase', pct: '% done', spi: 'SPI', cpi: 'CPI', finish: 'finish', vac: 'cost vs budget', profit: 'profit / loss' }[SORT.k]) + '</b> ' + (SORT.d > 0 ? '(lowest first)' : '(highest first)') + ' · <a href="#" id="ceoWorst">worst first</a>' : 'Worst first.') + ' Tap a heading to sort, a count to show only those, or a project to open it.') + '</p>' +
+      '<div class="table-wrap"><table class="ceo-tab ceo-rows"><thead><tr><th></th>' + th('name', 'Project') + th('phase', 'Phase', 'hide-sm') + th('pct', 'Done') + th('spi', 'SPI') + th('cpi', 'CPI') + th('finish', 'Finish') + th('vac', 'Cost vs budget', 'num') + th('profit', 'Profit / loss', 'num') + '</tr></thead><tbody>' + rowsHtml(L) + '</tbody></table></div></section>' +
       '<section class="card ceo-s"><h3>2 · Where\'s the money?</h3>' + money2(A) +
       '<h4 class="ceo-sub">Biggest forecast overspends</h4>' + ov +
       '<h4 class="ceo-sub">By program</h4><p class="ceo-legend">Health: how many of the program\'s projects are <span class="ceo-pill red">n</span> in trouble, <span class="ceo-pill amber">n</span> at risk and <span class="ceo-pill green">n</span> on track. Over / under: forecast cost against budget.</p>' + programs(D.byProgram) + '</section>' + cashHtml() +
@@ -181,6 +192,11 @@
     var v = M.view();
     v.querySelectorAll('[data-hf]').forEach(function (b) { b.onclick = function () { draw(filter === b.getAttribute('data-hf') ? '' : b.getAttribute('data-hf')); }; });
     var a = v.querySelector('#ceoAll'); if (a) a.onclick = function (e) { e.preventDefault(); draw(''); };
+    var keep = function () { try { localStorage.setItem('ceoSort', JSON.stringify(SORT)); } catch (e) {} };
+    v.querySelectorAll('[data-sort]').forEach(function (h) { h.onclick = function () { var k = h.getAttribute('data-sort');
+      if (SORT.k !== k) SORT = { k: k, d: k === 'profit' || k === 'vac' || k === 'pct' ? -1 : 1 }; else if (SORT.d === (k === 'profit' || k === 'vac' || k === 'pct' ? -1 : 1)) SORT.d = -SORT.d; else SORT = { k: '', d: 1 };
+      keep(); draw(filter); }; });
+    var wf = v.querySelector('#ceoWorst'); if (wf) wf.onclick = function (e) { e.preventDefault(); SORT = { k: '', d: 1 }; keep(); draw(filter); };
     v.querySelectorAll('[data-core]').forEach(function (r) { r.onclick = function () { location.hash = '#plan/' + encodeURIComponent(r.getAttribute('data-core')) + '/schedule'; }; });
     v.querySelector('#ceoRe').onclick = function () { load().then(function () { draw(filter); toast('Up to date'); }).catch(fail); };
     v.querySelector('#ceoPr').onclick = function () { window.print(); };
