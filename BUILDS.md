@@ -236,4 +236,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 225 | 1.0.225| 2026-11-21 19:51| depfit| `6bedd25` | Dependency board fits laptops: timeline squeezes to the width, narrower names column, names stay above bars, redrawn on resize (#86) |
 | 226 | 1.0.226| 2026-11-21 19:52| tdyfade| `5fad13e` | Today: quick smooth fade in and out (no unroll, flying rows or fly-out) (#87) |
 | 227 | 1.0.227| 2026-11-21 19:57| fitmode| `99acbc7` | Header layout switch: Auto / Compact / Full (#88) |
-| 228 | 1.0.228 | 2026-11-21 20:02 | fit2 | _this commit_ | _see git log_ |
+| 228 | 1.0.228| 2026-11-21 20:02| fit2| `ffc255f` | Layout switch: Auto and Compact only (#89) |
+| 229 | 1.0.229 | 2026-11-21 20:12 | fitzoom | _this commit_ | _see git log_ |

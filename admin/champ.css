@@ -1254,3 +1254,21 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 /* 💻 the layout switch in the header */
 .ct-fit{white-space:nowrap}
 @media (max-width:700px){.ct-fit{display:none!important}}
+
+/* ⇅ the rail beside the Gantt chart */
+.gsplit{position:relative}
+.g-rail{flex:0 0 26px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 0;background:#F7F4EC;border-left:1px solid var(--line)}
+.g-rail button{width:22px;height:22px;border:1px solid var(--line);border-radius:6px;background:#fff;color:#5b5547;font-size:11px;line-height:1;cursor:pointer;padding:0}
+.g-rail button:hover{background:var(--gold-soft,#F7EFD6)}
+.g-rail input[type=range]{flex:1 1 auto;min-height:40px;width:18px;margin:4px 0;writing-mode:vertical-lr;direction:ltr;accent-color:#C9A227;cursor:pointer}
+.g-rail.none{opacity:.35;pointer-events:none}
+.gfull .g-rail{display:flex}
+
+/* 💻 the screen-fit panel */
+.fit-pop{position:fixed;z-index:3000;width:320px;max-width:calc(100vw - 16px);padding:12px 14px;border-radius:14px;background:var(--card,#fff);color:inherit;border:1px solid var(--line,#E5E2DA);box-shadow:0 16px 40px rgba(0,0,0,.22);display:grid;gap:8px;font-size:12.5px;animation:tdyFadeIn .15s ease-out both}
+.fit-pop>b{font-size:14px}
+.fit-x{position:absolute;top:8px;right:8px;border:0;background:none;font-size:14px;cursor:pointer;color:inherit}
+.fit-seg{display:flex;gap:6px}.fit-seg button{flex:1;padding:7px 8px;border-radius:10px;border:1px solid var(--line,#E5E2DA);background:transparent;color:inherit;font-weight:800;cursor:pointer}
+.fit-seg button.on{background:#1C1A16;color:#F5D77A;border-color:#1C1A16}
+.fit-info{padding:6px 8px;border-radius:8px;background:rgba(201,162,39,.1)}
+.fit-tip{line-height:1.55}.fit-tip kbd{display:inline-block;padding:0 5px;border:1px solid #bbb;border-bottom-width:2px;border-radius:4px;font:700 11px/16px system-ui;background:#fff;color:#222}
