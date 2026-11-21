@@ -175,6 +175,8 @@ try {
     const b = await bg({ mode: 'ceoBrief' }), cv2 = await api('planCeoGet', {});
     ok('CEO', '🎙 Champ\'s briefing: how we are faring, concerns and positives, the recommended strategy, focus, cash flow going forward and a conclusion, with a fixed verdict and a script to read out; kept for the CEO view',
       b.status === 'done' && b.brief && ['turnaround', 'steady', 'keep'].includes(b.brief.verdict) && b.brief.faring && b.brief.concerns.length && b.brief.positives.length && b.brief.strategy.length && b.brief.focus.length && b.brief.cash_view && b.brief.conclusion && b.brief.say && /strategy/i.test(b.brief.strategy_name) && cv2.j.brief && cv2.j.brief.at === b.brief.at, JSON.stringify(b).slice(0, 300));
+    const pdf = await api('planCeoBriefPdfGet', {}), pb = pdf.j.file ? Buffer.from(pdf.j.file, 'base64') : Buffer.alloc(0);
+    ok('CEO', '📄 the briefing downloads as a PDF note (one page for a normal briefing)', pdf.status === 200 && pb.slice(0, 5).toString() === '%PDF-' && pdf.j.pages === 1 && /\.pdf$/.test(pdf.j.name), JSON.stringify([pdf.status, pdf.j.pages, pdf.j.name, pdf.j.error]));
     const a = await bg({ mode: 'ceoAsk', q: 'Where should we focus next quarter?', history: [] });
     const fq = await bg({ mode: 'ceoAsk', q: 'Who is the customer for billing test?', history: [] });
     ok('CEO', '🧭 a project question on the CEO view gets a straight answer from the project facts (customer, project manager...), even with words around the AI\'s JSON', fq.status === 'done' && fq.answer && /Northside Health/.test(fq.answer.answer), JSON.stringify(fq).slice(0, 300));

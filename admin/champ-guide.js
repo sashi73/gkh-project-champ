@@ -96,7 +96,7 @@
 
   // ---------- 🔊 Champ's voice (Azure, the same voice as the website): reads replies and every step aloud ----------
   var V = { audio: null, n: 0, on: (function () { try { return localStorage.getItem('cgVoice') !== 'off'; } catch (e) { return true; } })() };
-  function hush() { V.n++; if (V.audio) { try { V.audio.pause(); } catch (e) {} V.audio = null; } if (window.ChampVoice) window.ChampVoice.stop(); }
+  function hush() { V.n++; if (V.audio) { try { V.audio.pause(); } catch (e) {} V.audio = null; } if (window.ChampVoice) window.ChampVoice.stop(); V.paused = false; var el = document.getElementById('cgVoice'); if (el) el.classList.remove('talk'); var pb = document.getElementById('cgPause'); if (pb) { pb.textContent = '⏸'; pb.title = 'Pause Champ'; } }
   // phones (iPhone above all) only let a page play sound that starts from a tap: one player, woken by the first tap, then reused
   var SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
   function unlock() { if (V.el) return; try { V.el = new Audio(); V.el.setAttribute('playsinline', ''); V.el.src = SILENT; var pr = V.el.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) { V.el = null; } }
@@ -358,12 +358,16 @@
       p = document.createElement('div'); p.id = 'cgPanel';
       var LL = (window.ChampI18n && window.ChampI18n.langs) || [['en', 'English']];
       p.innerHTML = '<div class="cgp-h"><img src="../assets/gkh-globe.webp" alt=""><b>Champ</b><select id="cgLang" title="Champ\'s language (the whole console changes too)">' + LL.map(function (l) { return '<option value="' + l[0] + '"' + (l[0] === lang() ? ' selected' : '') + '>' + esc(l[1]) + '</option>'; }).join('') + '</select>' +
-        '<button type="button" class="cgp-v" id="cgVoice"></button><button type="button" class="cgp-x" title="Close">✕</button></div><div class="cgp-log" id="cgLog"></div>' +
+        '<button type="button" class="cgp-v" id="cgVoice"></button><span class="cg-ctl"><button type="button" id="cgPause" title="Pause Champ">⏸</button><button type="button" id="cgStop" title="Stop Champ talking">⏹</button></span><button type="button" class="cgp-x" title="Close">✕</button></div><div class="cgp-log" id="cgLog"></div>' +
         '<div class="cgp-menu" id="cgMenu" hidden></div>' +
         '<p class="cgp-hint" id="cgHint">Tap 🎙 and ask, or say “menu”.</p>' +
         '<form class="cgp-f" id="cgF"><button type="button" class="cgp-mic" id="cgMic" title="Tap and ask; I listen until you finish (tap again to send). Say “menu” for the list.">🎙</button><input id="cgQ" maxlength="300" placeholder="Ask me anything…"><button class="cgp-send" type="submit" title="Ask">➤</button><button type="button" class="cgp-mbtn" id="cgMenuBtn" title="Menu: everything I can show you">☰</button></form>';
       document.body.appendChild(p);
       p.querySelector('.cgp-x').onclick = closePanel; voiceBtn();
+      // ⏸ ⏹ while Champ talks: pause (and carry on), or stop
+      $('#cgPause').onclick = function () { var b = this; if (!V.paused) { V.paused = true; if (V.audio) try { V.audio.pause(); } catch (e) {} try { window.speechSynthesis && window.speechSynthesis.pause(); } catch (e) {} b.textContent = '▶'; b.title = 'Carry on'; }
+        else { V.paused = false; if (V.audio) { var pr = V.audio.play(); if (pr && pr.catch) pr.catch(function () {}); } try { window.speechSynthesis && window.speechSynthesis.resume(); } catch (e) {} b.textContent = '⏸'; b.title = 'Pause Champ'; } };
+      $('#cgStop').onclick = function () { hush(); };
       $('#cgVoice').onclick = function () { V.on = !V.on; try { localStorage.setItem('cgVoice', V.on ? 'on' : 'off'); } catch (e) {} voiceBtn(); if (!V.on) hush(); else { V.warned = false; speak(lastBot || 'Hello!'); } };
       $('#cgLang').onchange = function () { var l = this.value; if (window.ChampI18n) window.ChampI18n.set(l); };   // the champ:lang listener redraws the panel
       $('#cgF').onsubmit = function (e) { e.preventDefault(); var q = $('#cgQ').value.trim(); if (q) { $('#cgQ').value = ''; ask(q); } };

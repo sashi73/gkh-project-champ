@@ -265,6 +265,10 @@ async function handle(req, context) {
       case 'acctBillAlerts': { const B = await import('../lib/billing.mjs'); return out(200, await B.alerts(ctx, new Date().toISOString().slice(0, 10))); }
       case 'acctBillSave': { if (ctx.scope || !(ctx.owner || ctx.role === 'CFO')) return bad('Finance is for the CFO and the CEO.', 403); const B = await import('../lib/billing.mjs'); const r = await B.saveBill(String(body.core || '').slice(0, 40), body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Billing set for ${body.core}: contract ${r.bill.contract}, ${Object.keys(r.bill.ms).length} milestone(s)`); return out(200, r); }
       case 'acctBillRaise': { if (ctx.scope || !(ctx.owner || ctx.role === 'CFO')) return bad('Finance is for the CFO and the CEO.', 403); const B = await import('../lib/billing.mjs'); const r = await B.raise(String(body.core || '').slice(0, 40), String(body.tid || '').slice(0, 24), by, new Date().toISOString().slice(0, 10)); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `${r.id} raised for a milestone on ${body.core}`); return out(200, r); }
+      case 'planCeoBriefPdfGet': {   // 📄 Champ's briefing as a PDF note
+        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
+        const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
+      }
       case 'planCeoGet': {   // 👔 the CEO view: the CEO, the super user, project directors and managers
         if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
         const CEO = await import('../lib/ceo.mjs'), last = await kv.get('ceo-brief').catch(() => null); return out(200, { ...(await CEO.ceoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10))), brief: last || null });

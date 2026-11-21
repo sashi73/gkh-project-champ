@@ -233,3 +233,37 @@ export async function ask(day, q, history) {
   return { answer: { answer: S(d.answer, 1200), options: (Array.isArray(d.options) ? d.options : []).slice(0, 3).map((o) => ({ option: S(o && o.option, 200), upside: S(o && o.upside, 300), downside: S(o && o.downside, 300) })).filter((o) => o.option),
     decision: S(d.decision, 600), measures: (Array.isArray(d.measures) ? d.measures : []).slice(0, 3).map((x) => S(x, 120)).filter(Boolean), say: S(d.say, 600), tokens: r.used || 0 } };
 }
+
+// 📄 the briefing as a one-page PDF note (A4; a second page only if Champ wrote a lot)
+export async function briefPdf() {
+  const B = await kv.get('ceo-brief').catch(() => null); if (!B) return { error: 'There is no briefing yet: press Get Champ\'s briefing first.' };
+  const { pdfLib } = await import('./pdf.mjs'), { PDFDocument, StandardFonts, rgb } = await pdfLib();
+  const doc = await PDFDocument.create(), F = await doc.embedFont(StandardFonts.Helvetica), FB = await doc.embedFont(StandardFonts.HelveticaBold);
+  const safe = (t) => String(t || '').replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-').replace(/…/g, '...').replace(/[^\n\x20-\x7E\xA0-\xFF]/g, '');
+  const W = 595, H = 842, M = 40, COLW = (W - 2 * M - 18) / 2, colX = [M, M + COLW + 18];
+  const VC = { turnaround: rgb(0.86, 0.15, 0.15), steady: rgb(0.85, 0.47, 0.02), keep: rgb(0.09, 0.64, 0.29) }[B.verdict] || rgb(0.4, 0.4, 0.4);
+  let page = doc.addPage([W, H]), y = H - M;
+  page.drawRectangle({ x: 0, y: H - 6, width: W, height: 6, color: VC });
+  page.drawText("Champ's CEO briefing", { x: M, y: y - 4, size: 16, font: FB }); y -= 22;
+  page.drawText(safe(new Date(B.at).toLocaleString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Australia/Sydney' })) + '  |  GKH Project Champ', { x: M, y, size: 8.5, font: F, color: rgb(0.4, 0.4, 0.4) });
+  const pill = safe(B.plan_name || ''), pw = FB.widthOfTextAtSize(pill, 9) + 14; page.drawRectangle({ x: W - M - pw, y: y - 3, width: pw, height: 15, color: VC }); page.drawText(pill, { x: W - M - pw + 7, y: y + 1, size: 9, font: FB, color: rgb(1, 1, 1) }); y -= 18;
+  const wrap = (t, f, size, w) => { const out = []; for (const para of safe(t).split('\n')) { let line = ''; for (const word of para.split(/\s+/)) { const tryL = line ? line + ' ' + word : word; if (f.widthOfTextAtSize(tryL, size) > w && line) { out.push(line); line = word; } else line = tryL; } out.push(line); } return out; };
+  for (const l of wrap(B.headline, FB, 11, W - 2 * M)) { page.drawText(l, { x: M, y, size: 11, font: FB }); y -= 14; }
+  y -= 6; page.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: rgb(0.85, 0.82, 0.75) }); y -= 14;
+  // two columns, filled left then right; a new page if both are full
+  let col = 0, top = y, cy = y;
+  const room = (h) => { if (cy - h >= M + 14) return; if (col === 0) { col = 1; cy = top; return; } page = doc.addPage([W, H]); col = 0; top = H - M; cy = top; };
+  const head = (t) => { room(30); page.drawText(safe(t).toUpperCase(), { x: colX[col], y: cy, size: 8, font: FB, color: rgb(0.45, 0.35, 0.1) }); cy -= 12; };
+  const para = (t, size = 8.6, f = F) => { for (const l of wrap(t, f, size, COLW)) { room(11); page.drawText(l, { x: colX[col], y: cy, size, font: f }); cy -= size + 2.6; } cy -= 4; };
+  const items = (L) => { (L || []).forEach((x, i) => { para((i + 1) + '. ' + x.title, 8.8, FB); cy += 3; para(x.detail, 8.3); }); };
+  head('How we are faring'); para(B.faring || B.overview);
+  head('What I am concerned about'); items(B.concerns);
+  if ((B.positives || []).length) { head('What I am happy about'); items(B.positives); }
+  head(B.strategy_name || 'Recommended strategy'); items(B.strategy);
+  head('What we should focus on next'); items(B.focus || B.quick_wins);
+  if (B.cash_view) { head('Our cash flow going forward'); para(B.cash_view); }
+  if ((B.plan || []).length) { head('Plan'); for (const x of B.plan) para(x.when + ': ' + x.what, 8.3); }
+  if (B.conclusion || B.road_ahead) { head('Conclusion'); para(B.conclusion || B.road_ahead, 8.8, FB); }
+  const pages = doc.getPages(); pages.forEach((p, i) => p.drawText('GKH Project Champ  |  confidential: for the CEO  |  page ' + (i + 1) + ' of ' + pages.length, { x: M, y: 20, size: 7, font: F, color: rgb(0.55, 0.55, 0.55) }));
+  return { name: 'Champ CEO briefing ' + new Date(B.at).toISOString().slice(0, 10) + '.pdf', type: 'application/pdf', file: Buffer.from(await doc.save()).toString('base64'), pages: pages.length };
+}
