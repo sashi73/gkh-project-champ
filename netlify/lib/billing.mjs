@@ -41,7 +41,8 @@ function projectBill(plan, bill, docs, today) {
   const base = MO.base, contA = MO.contA, resA = MO.resA, budget = MO.budget, eac = MO.eac, complete = MO.complete;
   const suggested = MO.price;
   // 📐 no accepted quote and nothing typed in: estimate the contract from Costing (budget + margin), clearly marked, until the CFO confirms it
-  const C1 = C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
+  const internal = P.isInternal(MO);   // 🏢 an internal project: no contract value, no invoices, no profit
+  const C1 = internal ? { value: 0, from: 'internal' } : C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
   // 📝 variation orders: change requests that carry a change to the contract value; approved ones add to it
   const vos = (plan.changes || []).filter((c) => c.vo).map((c) => ({ id: c.id, num: c.voNum || ('VO-' + c.num), title: String(c.title || '').replace(/^Variation order:\s*/i, ''), reason: c.reason || c.desc || '', amount: c.vo, status: c.status, by: c.raisedBy, at: c.raisedAt, decision: c.decision || null }));
   const voOk = r2(vos.filter((v) => v.status === 'Approved' || v.status === 'Implemented').reduce((a, v) => a + v.amount, 0)), voWait = r2(vos.filter((v) => ['Proposed', 'Under review', 'CCB meeting'].includes(v.status)).reduce((a, v) => a + v.amount, 0));
@@ -61,6 +62,11 @@ function projectBill(plan, bill, docs, today) {
       profit1: F1.profit, profit2: F2.profit, profit1Pct: Math.round(F1.profit / price * 1000) / 10, profit2Pct: Math.round(F2.profit / price * 1000) / 10,
       clientSaves: F0.clientSaves, yourSaving: F0.yourSaving, yourOverrun: F0.yourOverrun, unused: r2(Math.max(0, budget - eac)) }); }
   else Object.assign(money, { ctype: MO.ctype, ctypeName: MO.ctypeName, gain: MO.gain, pain: MO.pain });
+  // 🏢 internal: the result against the budget (no profit). Positive = within budget by that much; negative = over budget
+  //   1) against the project budget (contingency and reserve can be used); 2) with the management reserve held back; 3) against the base cost alone
+  if (internal) Object.assign(money, { internal: true, profit: null, profit1: null, profit2: null, revenue: 0, gst: 0, withGst: 0, margin: null,
+    vsBudget: r2(budget - eac), vsNoReserve: r2(base + contA - eac), vsBase: r2(base - eac), vsApproved: MO.approved ? r2(MO.approved - eac) : null,
+    usedCont: r2(Math.min(contA, Math.max(0, eac - base))), usedRes: r2(Math.min(resA, Math.max(0, eac - base - contA))) });
   // 📅 how close each milestone is: red and flashing within a week, amber within a month, green after; a short project (an event) scales the windows down
   const span = Math.max(1, Math.round((Date.parse((R.finish || today) + 'T00:00:00Z') - Date.parse((R.start || plan.start || today) + 'T00:00:00Z')) / 864e5));
   const redW = span >= 70 ? 7 : Math.max(1, Math.round(span / 10)), ambW = span >= 90 ? 30 : Math.max(redW + 2, Math.round(span / 3));
@@ -83,7 +89,8 @@ function projectBill(plan, bill, docs, today) {
   const stand = { workPct: Math.round(done * 100), billedPct: price ? Math.round(Math.min(1, invoiced / price) * 100) : 0, unbilled: r2(Math.max(0, price * done - invoiced)),
     overdueN: overdue.length, overdue: r2(overdue.reduce((a, i) => a + i.totals.inc - (i.paid || 0), 0)), estimate: C.from === 'estimate', auto };
   const rdy = rows.filter((r) => r.ready), rdyAmt = r2(rdy.reduce((a, r) => a + r.amount, 0));
-  stand.status = stand.overdueN ? { tone: 'red', text: stand.overdueN + ' invoice' + (stand.overdueN === 1 ? '' : 's') + ' overdue' }
+  if (internal) { stand.internal = true; stand.estimate = false; stand.auto = false; }
+  stand.status = internal ? { tone: 'grey', text: 'Internal project: no invoicing' + (eac > budget + 0.5 ? ' · over budget' : '') } : stand.overdueN ? { tone: 'red', text: stand.overdueN + ' invoice' + (stand.overdueN === 1 ? '' : 's') + ' overdue' }
     : rdy.length ? { tone: 'red', text: rdy.length + ' milestone' + (rdy.length === 1 ? '' : 's') + ' done, not billed (' + rdyAmt.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }) + ')' }
     : !price ? { tone: 'amber', text: 'No contract value or budget yet' }
     : stand.estimate ? { tone: 'amber', text: 'Contract value not confirmed (estimate)' }
@@ -105,6 +112,7 @@ export async function raise(core, tid, by, today) {
   const [plan, bill, docs] = await Promise.all([P.get(core), getBill(core), ACC.allDocs()]);
   if (!plan) return { error: 'That project is not there any more.', code: 404 };
   const B = projectBill(plan, bill, docs, today), m = B.milestones.find((x) => x.tid === tid);
+  if (B.stand && B.stand.internal) return { error: 'This is an internal project: there is no client to invoice.', code: 400 };
   if (!m) return { error: 'That milestone is not in the plan any more.', code: 404 };
   if (m.invoice) return { error: m.name + ' is already on invoice ' + m.invoice.id + '.', code: 400 };
   if (!m.done) return { error: m.name + ' is not done yet: it can be invoiced once it reaches 100%.', code: 400 };
@@ -146,8 +154,8 @@ export async function finance(today, cores) {
   for (const p of projects) for (const m of p.milestones) if (!m.invoice && m.amount > 0) expected.push({ month: plus(m.due && m.due > today ? m.due : today, 30).slice(0, 7), amount: m.amount, what: 'milestone ' + m.name, core: p.core, late: false });
   const unscheduled = r2(projects.reduce((a, p) => a + Math.max(0, p.contract * (100 - p.planned) / 100 - (p.planned ? 0 : p.invoiced)), 0));
   const est = projects.filter((p) => p.stand.estimate), sg = projects.filter((p) => p.contract && !p.stand.estimate);
-  const tone = { red: 0, amber: 1, green: 2 };
-  return { today, totals: { contract: sum(projects, 'contract'), signed: sum(sg, 'contract'), signedN: sg.length, estimated: sum(est, 'contract'), estimatedN: est.length, noValueN: projects.filter((p) => !p.contract).length,
+  const tone = { red: 0, amber: 1, green: 2, grey: 3 };
+  return { today, totals: { contract: sum(projects, 'contract'), signed: sum(sg, 'contract'), signedN: sg.length, estimated: sum(est, 'contract'), estimatedN: est.length, noValueN: projects.filter((p) => !p.contract && !p.stand.internal).length, internalN: projects.filter((p) => p.stand.internal).length,
     unbilled: r2(projects.reduce((a, p) => a + p.stand.unbilled, 0)), projectsN: projects.length, invoicedInc: sum(live, 'inc'), received: sum(live, 'paid'), owed: sum(live, 'balance'), overdue: r2(live.filter((i) => i.late > 0).reduce((a, i) => a + i.balance, 0)),
     overdueN: live.filter((i) => i.late > 0).length, ready: r2(ready.reduce((a, r) => a + r.amount, 0)), readyN: ready.length, drafts: invoices.filter((i) => i.status === 'draft').length },
     coming, scoped: !!cores, expected, unscheduled, aging, cash: months.map((k) => ({ month: k, invoiced: r2(cash[k].invoiced), received: r2(cash[k].received) })), ready, invoices,
@@ -196,6 +204,7 @@ export async function raiseVO(core, body, ctx, today) {
   if (!amount) return { error: 'Type the change to the contract value (use a minus for a reduction).', code: 400 };
   if (!title) return { error: 'Say what the variation is for.', code: 400 };
   const W = await people(core); if (!W.plan) return { error: 'That project is not there any more.', code: 404 };
+  if (P.isInternal(P.moneyOf(W.plan, P.rollup(JSON.parse(JSON.stringify(W.plan)), today || new Date().toISOString().slice(0, 10))))) return { error: 'This is an internal project: there is no contract to vary. Change its budget on the Costing tab (and re-approve it).', code: 400 };
   const by = ctx.name || ctx.user || 'owner';
   for (let tries = 0; tries < 3; tries++) {
     const plan = await P.get(core), ch = plan.changes || [], num = ch.reduce((a, c) => Math.max(a, c.num || 0), 0) + 1, voNum = 'VO-' + String(ch.filter((c) => c.vo).length + 1).padStart(3, '0');

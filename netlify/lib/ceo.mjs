@@ -65,15 +65,16 @@ export async function ceoView(day) {
     const vo = p ? r2((p.changes || []).filter((ch) => ch.vo && (ch.status === 'Approved' || ch.status === 'Implemented')).reduce((a, ch) => a + Number(ch.vo || 0), 0)) : 0;
     if (x.contract > 0 && vo) x.contract = r2(x.contract + vo);
     // 💹 profit by the contract type, the same calculation as Finance (plan.mjs profitAt)
-    const price = x.contract || x.quoted, PF = price && MO ? P.profitAt(MO, price, eac) : null, profit = price ? (PF ? PF.profit : r2(price - eac)) : null;
+    const internal = P.isInternal(MO);   // 🏢 an internal project: no price and no profit, only the budget result
+    const price = internal ? 0 : x.contract || x.quoted, PF = price && MO ? P.profitAt(MO, price, eac) : null, profit = price ? (PF ? PF.profit : r2(price - eac)) : null;
     if (p) for (const t of p.tasks || []) spread(t, P.taskCost(t), (k, v) => addF(k, 'planned', v));
     const was = old && old.map[c.core], trend = !was ? '' : RANK[health] < RANK[was[0]] ? 'up' : RANK[health] > RANK[was[0]] ? 'down'
       : c.SPI != null && was[1] != null && c.SPI - was[1] >= 0.03 ? 'up' : c.SPI != null && was[1] != null && was[1] - c.SPI >= 0.03 ? 'down' : 'flat';
     rows.push({ core: c.core, ref: c.ref, name: c.name, program: c.program || '', programKey: c.programKey || '', client: c.client || '', phase: P.PHASES[c.phase] || c.phase, health, why: why ? why.text : '',
       pct: c.pct || 0, SPI: c.SPI, CPI: c.CPI, finish: c.finish || '', forecast: PG.forecastFinish(c) || c.finish || '', baseline: n.baseline_finish || '', slip: n.slip_days || 0, late: c.late || 0,
       highRisks: c.highRisks || 0, openIssues: c.openIssues || 0, budget, spent: r2(c.AC), earned: r2(c.EV), evIn: r2(c.EVin || 0), acIn: r2(c.ACin || 0), eac, vac: r2(budget - eac), over: n.over_pct || 0,
-      contract: r2(x.contract), quoted: x.contract ? 0 : r2(x.quoted), invoiced: r2(x.invoiced), received: r2(x.received), owed: r2(x.owed), overdue: r2(x.overdue),
-      profit, margin: price && profit != null ? Math.round(profit / price * 1000) / 10 : null, ctype: MO ? MO.ctype : 'fixed', clientSaves: PF ? PF.clientSaves : 0, trend, closed: c.phase === 'close' });
+      contract: internal ? 0 : r2(x.contract), quoted: internal || x.contract ? 0 : r2(x.quoted), invoiced: r2(x.invoiced), received: r2(x.received), owed: r2(x.owed), overdue: r2(x.overdue),
+      profit, margin: price && profit != null ? Math.round(profit / price * 1000) / 10 : null, ctype: MO ? MO.ctype : 'fixed', internal, clientSaves: PF ? PF.clientSaves : 0, trend, closed: c.phase === 'close' });
   }
   rows.sort((a, b) => RANK[b.health] - RANK[a.health] || (a.SPI == null) - (b.SPI == null) || (a.SPI || 9) - (b.SPI || 9) || a.name.localeCompare(b.name));
 
@@ -83,7 +84,7 @@ export async function ceoView(day) {
     return { n: L.length, red: L.filter((r) => r.health === 'red').length, amber: L.filter((r) => r.health === 'amber').length, green: L.filter((r) => r.health === 'green').length, grey: L.filter((r) => r.health === 'grey').length,
       budget, spent: ac, earned: ev, eac, vac: r2(budget - eac), CPI: acIn > 0 ? r2(evIn / acIn) : null,   // as each project's CPI: from the costs actually entered SPI: pvL.length ? r2(pvL.reduce((a, r) => a + r.SPI * r.budget, 0) / Math.max(1, pvL.reduce((a, r) => a + r.budget, 0))) : null,
       contract: sum(L, 'contract'), quoted: sum(L, 'quoted'), price, invoiced: sum(L, 'invoiced'), received: sum(L, 'received'), owed: sum(L, 'owed'), overdue: sum(L, 'overdue'),
-      profit: pr ? pp : null, margin: pr ? Math.round(pp / pr * 1000) / 10 : null, priced: priced.length, unpriced: L.filter((r) => !(r.contract || r.quoted) && r.budget > 0).length }; };
+      profit: pr ? pp : null, margin: pr ? Math.round(pp / pr * 1000) / 10 : null, priced: priced.length, unpriced: L.filter((r) => !r.internal && !(r.contract || r.quoted) && r.budget > 0).length, internal: L.filter((r) => r.internal).length }; };
   const progs = {}; for (const r of live) (progs[r.program || 'No program'] = progs[r.program || 'No program'] || []).push(r);
   const byProgram = Object.entries(progs).map(([name, L]) => ({ name, key: L[0].programKey, ...totals(L) })).sort((a, b) => (b.red * 10 + b.amber) - (a.red * 10 + a.amber) || b.budget - a.budget);
 
@@ -111,12 +112,13 @@ async function factsOf(day) {
   const V = await ceoView(day), F = await B.finance(day).catch(() => null), verdict = verdictOf(V), A = V.all;
   const facts = { date: day, verdict, totals: { projects: A.n, in_trouble: A.red, at_risk: A.amber, on_track: A.green, no_plan: A.grey, SPI: A.SPI, CPI: A.CPI, budget: A.budget, spent: A.spent, earned_value: A.earned,
       forecast_cost_at_completion: A.eac, budget_minus_forecast: A.vac, contract_value: A.contract || A.price, invoiced_ex_tax: A.invoiced, received_ex_tax: A.received, owed_ex_tax: A.owed, overdue_ex_tax: A.overdue,
-      forecast_profit_or_loss_on_priced_projects_only: A.profit, priced_projects: A.priced, margin_pct_on_priced_projects: A.margin, unpriced_projects: A.unpriced },
+      forecast_profit_or_loss_on_priced_projects_only: A.profit, priced_projects: A.priced, margin_pct_on_priced_projects: A.margin, unpriced_projects: A.unpriced, internal_projects: A.internal },
     // 📖 what the numbers mean, so the briefing never misreads them
     definitions: { budget: 'per project: the approved (charter) budget, or else base cost + contingency + management reserve; ex tax',
       forecast_cost_at_completion: 'EAC = spent so far + the work still to do at the current cost efficiency (CPI); for finished work it is what was spent',
       budget_minus_forecast: 'positive = forecast to finish under budget; negative = forecast to finish over budget by that amount',
       forecast_profit_or_loss: 'by each project\'s contract type, ONLY for projects that have a contract value or an open quote (it is not the whole portfolio); negative = a loss. Fixed price: contract value minus forecast cost (unused contingency and reserve are profit). Cost-plus: the fee (margin %) on the actual cost (the client keeps what is not spent). Target cost / GMP: the fee plus our share of any saving, less our share of any overrun (GMP: the client never pays above the contract value)',
+      internal_project: 'a department\'s own project (e.g. a company retreat): no client, contract, invoices or profit; judge it only on budget_minus_forecast (within or over its budget)',
       CPI: 'earned value / actual cost, from the costs actually entered; under 1 = over budget', SPI: 'earned value / planned value; under 1 = behind schedule' },
     finance: F ? { ready_to_invoice: F.totals.ready, ready_milestones: F.totals.readyN, overdue_invoices: F.totals.overdueN, owed_by_age: F.aging } : null,
     programs: V.byProgram.slice(0, 12).map((p) => ({ program: p.name, projects: p.n, red: p.red, amber: p.amber, green: p.green, budget: p.budget, forecast_cost: p.eac, budget_minus_forecast: p.vac, profit_or_loss_on_priced_projects: p.profit, margin_pct: p.margin })),

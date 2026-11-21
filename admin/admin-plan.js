@@ -4110,7 +4110,8 @@
   var CTYPE = { fixed: ['Fixed price (lump sum)', 'The client pays the agreed price whatever it costs. Unused contingency and management reserve are your profit; overruns are your loss.'],
     cost: ['Cost-plus (cost reimbursable)', 'The client pays the actual cost plus the fee (the margin %). What is not spent is never billed: the client keeps unused contingency and reserve. Your profit is the fee on the actual cost.'],
     target: ['Target cost (shared savings and overruns)', 'Target cost = the budget (base + contingency + reserve). The client pays the actual cost plus the fee; a saving below the target is shared, and so is an overrun above it, by the splits below.'],
-    gmp: ['Guaranteed maximum price (GMP), shared savings', 'As target cost for savings (shared by your split below), but the client never pays more than the contract value: an overrun beyond the target comes out of your fee, then your pocket.'] };
+    gmp: ['Guaranteed maximum price (GMP), shared savings', 'As target cost for savings (shared by your split below), but the client never pays more than the contract value: an overrun beyond the target comes out of your fee, then your pocket.'],
+    internal: ['Internal (no billing)', 'A department\'s own project (for example the company retreat): no client, contract value, invoices, GST or profit. Costed like cost-plus, it is judged on one thing: did it stay within its budget (base + contingency + reserve), or go over, and by how much.'] };
   function catOf(p, t) {
     var o = bCfg(p).cat[t.id]; if (o && BCATS.indexOf(o) >= 0) return o;
     var u = String(t.unit || '').toLowerCase().trim(), n = String(t.name || '').toLowerCase(), who = String(t.resource || '').toLowerCase();
@@ -4140,7 +4141,7 @@
     if (msLab) byPh.push({ name: 'Milestones', v: Math.round(msLab * 100) / 100 });
     if (p.bomLoose > 0) { add({ n: '', t: { name: 'BOM lines not linked to a task', id: '' } }, Number(p.bomLoose), 'Materials', 'Bill of Materials', true); bomSum += Number(p.bomLoose); }
     if (bomSum) byPh.push({ name: 'Bill of Materials', v: Math.round(bomSum * 100) / 100 });
-    var r2_ = function (v) { return Math.round(v * 100) / 100; }, cont = r2_(base * b.cont / 100), res = r2_(base * b.res / 100), total = r2_(base + cont + res), price = r2_(total * (1 + b.margin / 100)), gst = r2_(price * b.gst / 100);
+    var r2_ = function (v) { return Math.round(v * 100) / 100; }, cont = r2_(base * b.cont / 100), res = r2_(base * b.res / 100), total = r2_(base + cont + res), price = b.ctype === 'internal' ? 0 : r2_(total * (1 + b.margin / 100)), gst = b.ctype === 'internal' ? 0 : r2_(price * b.gst / 100);
     var mk = Object.keys(months).sort(); return { cfg: b, R: R, base: r2_(base), cont: cont, res: res, total: total, price: price, gst: gst, inc: r2_(price + gst), byCat: byCat, byPh: byPh, tasks: tasks,
       months: mk.map(function (m) { return { m: m, v: r2_(months[m]) }; }), approved: (p.charter || {}).budget || 0, bom: r2_(bomSum) };
   }
@@ -4174,9 +4175,9 @@
       (ro ? '' : '<button class="btn btn-sm" id="bdUndo" type="button"' + (bdUndo().length ? ' title="Undo: ' + esc(bdUndo()[bdUndo().length - 1].label) + '"' : ' disabled title="Nothing to undo"') + '>↶ Undo' + (bdUndo().length ? ' (' + bdUndo().length + ')' : '') + '</button>') + '<button class="btn btn-sm" id="bdCsv" type="button">⬇ Costing (CSV)</button><button class="btn btn-sm btn-gold" id="bdSet" type="button"' + (ro ? ' disabled' : '') + '>✍ Approve the budget</button></div>' +
       '<p class="muted" style="margin:-4px 0 12px">Work out the costing from the plan: every task\'s cost (quantity × rate) and the signed-off Bill of Materials, by phase and by category, plus contingency for known risks and a management reserve for the unknown. Change a quantity, rate or category below and the totals follow.</p>' +
       '<div class="bd-tiles">' + tile(money(K.base), 'Base cost (BAC)', 'dark') + tile(money(K.cont), 'Contingency ' + b.cont + '%') + tile(money(K.res), 'Management reserve ' + b.res + '%') + tile(money(K.total), 'Total budget', 'gold') +
-        tile(money(K.price), b.margin ? 'Client price (+' + b.margin + '% margin)' : 'Client price') + tile(money(K.inc), 'Including GST ' + b.gst + '%') + '</div>' +
+        (b.ctype === 'internal' ? tile('🏢 Internal', 'No client price or invoicing: judged on staying within the budget') : tile(money(K.price), b.margin ? 'Client price (+' + b.margin + '% margin)' : 'Client price') + tile(money(K.inc), 'Including GST ' + b.gst + '%')) + '</div>' +
       '<div class="bd-cfg">' + pct('cont', 'Contingency', 'For identified risks (known unknowns). PMBOK: part of the cost baseline.') + pct('res', 'Management reserve', 'For unforeseen work (unknown unknowns). Held by the sponsor, outside the cost baseline.') +
-        pct('margin', 'Margin', 'Mark-up on the total budget, for the price to the client (0 for an internal project).') + pct('gst', 'GST / tax', 'Tax on the client price (10% GST in Australia, 8% SST in Malaysia).') +
+        (b.ctype === 'internal' ? '' : pct('margin', 'Margin', 'Mark-up on the total budget, for the price to the client.') + pct('gst', 'GST / tax', 'Tax on the client price (10% GST in Australia, 8% SST in Malaysia).')) +
         '<label class="bd-in bd-ct" title="Who keeps unused contingency and reserve, and who pays for overruns">Contract type<span><select data-bctype' + (ro ? ' disabled' : '') + '>' + Object.keys(CTYPE).map(function (k) { return '<option value="' + k + '"' + (b.ctype === k ? ' selected' : '') + '>' + esc(CTYPE[k][0]) + '</option>'; }).join('') + '</select></span></label>' +
         (b.ctype === 'target' || b.ctype === 'gmp' ? pct('gain', 'Your share of savings', 'Of any saving below the target cost, the share that is yours (the rest goes back to the client).') : '') +
         (b.ctype === 'target' ? pct('pain', 'Your share of overruns', 'Of any overrun above the target cost, the share you bear (the client pays the rest).') : '') +

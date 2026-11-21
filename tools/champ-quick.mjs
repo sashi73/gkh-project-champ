@@ -297,6 +297,16 @@ try {
     await api('acctBillSave', { core: CT.target13000.core, contract: 27600, ms: {} });
     const CV2 = (await api('planCeoGet', { today: '2026-11-21' })).j, rT = (CV2.rows || []).find((r) => r.core === CT.target13000.core) || {};
     ok('CEO', '📜 the CEO view works profit out by the contract type, the same as Finance (target cost, overrun shared: $3,100)', rT.profit === 3100 && rT.ctype === 'target', JSON.stringify([rT.profit, rT.ctype, rT.eac, rT.contract]));
+    // 🏢 internal projects (e.g. the company retreat): no contract, invoices or profit; judged on the budget
+    const iOver = await ctp('Company retreat', 'internal', 13000), iUnder = await ctp('Team offsite', 'internal', 10000);
+    const IO = (await api('acctBillGet', { core: iOver })).j.bill, IU = (await api('acctBillGet', { core: iUnder })).j.bill, IK = IO.money;
+    const iInv = await api('acctBillRaise', { core: iOver, tid: 'k1' }), iVo = await api('acctVoRaise', { core: iOver, amount: 100, title: 'x' }), FI = (await api('acctFinanceGet', {})).j;
+    const CVi = (await api('planCeoGet', { today: '2026-11-21' })).j, ri = (CVi.rows || []).find((r) => r.core === iOver) || {};
+    ok('Finance', '🏢 an internal project: no contract, GST, invoices, variation orders or profit; over budget by $3,000 (by $4,000 with the reserve held back, $6,000 against base); under budget by $3,000; the CEO view does not count it as unpriced',
+      IK.internal && IK.contract === 0 && IK.profit === null && IK.gst === 0 && IK.eac === 26000 && IK.vsBudget === -3000 && IK.vsNoReserve === -4000 && IK.vsBase === -6000 && IU.money.vsBudget === 3000 &&
+      IO.stand.internal && IO.stand.status.tone === 'grey' && iInv.status === 400 && iVo.status === 400 && FI.totals.internalN >= 2 && !FI.ready.some((r) => r.core === iOver) &&
+      ri.internal === true && ri.profit === null && ri.contract === 0 && ri.vac === -3000,
+      JSON.stringify([IK, IO.stand.status, iInv.status, iVo.status, FI.totals.internalN, ri.internal, ri.profit, ri.vac]).slice(0, 900));
     ok('Projects', '🔒 a planned project that started more than a week ago (even with a new record) cannot be deleted, not even by the super user', odOwn.status === 403 && odPm.status === 403, JSON.stringify([odOwn.status, odOwn.j.error, odPm.status]));
     ok('Projects', '🗄 a project in the Archived projects vault can only be deleted by the super user, and the delete stays in the audit register', vdCeo.status === 403 && vdOwn.status === 200 && vdReg, JSON.stringify([vdCeo.status, vdOwn.status, vdOwn.j.error, vdReg]));
     ok('Projects', '🗄 archive: needs a reason and a signature; only the super user, CEO or site administrator; leaves every list, is kept in the Project archive and comes back whole; a planned project in its first week can still be deleted',
