@@ -261,4 +261,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 250 | 1.0.250| 2026-11-22 03:52| sqlnames| `7a34266` | Reports: results show names, not IDs (ID columns hidden when a name is there, kept in the CSV), charts labelled by project name, and the AI  |
 | 251 | 1.0.251| 2026-11-22 03:55| aidelay| `3233806` | AI query: projects carry delayed_days (past the baseline, or the forecast past the planned finish) as the CEO view, with notes never to read |
 | 252 | 1.0.252| 2026-11-22 04:00| tmpl| `2947d21` | Reports: common reports rewritten for Project Champ (portfolio, schedule, money, risks and issues, change control, people) with project name |
-| 253 | 1.0.253 | 2026-11-22 04:03 | aibill | _this commit_ | _see git log_ |
+| 253 | 1.0.253| 2026-11-22 04:03| aibill| `0e1156c` | AI query: billed / invoiced projects and projects past their billing dates (as Finance shows); Billed projects and Past their billing dates  |
+| 254 | 1.0.254 | 2026-11-22 04:09 | aiview | _this commit_ | _see git log_ |

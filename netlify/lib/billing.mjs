@@ -81,9 +81,10 @@ function projectBill(plan, bill, docs, today) {
   const restPct = M0.filter((t) => !lineOf[t.id]).reduce((a, t) => a + shareOf(t), 0), allPct = M0.reduce((a, t) => a + shareOf(t), 0);
   const restPool = billedEx > 0 && restPct > 0 ? Math.max(0, C.value * Math.min(100, allPct) / 100 - billedEx) : null;
   const amtOf = (t, pc) => { const inv = lineOf[t.id]; if (inv) return r2((inv.items || []).filter((l) => l.tid === t.id).reduce((b, l) => b + (Number(l.qty) || 1) * (Number(l.price) || 0), 0)); return restPool != null ? r2(restPool * pc / restPct) : r2(C.value * pc / 100); };
-  const rows = M0.map((t) => { const pc = shareOf(t), inv = lineOf[t.id];
+  const BT = (plan.baseline && plan.baseline.tasks) || {}, billDate = (t) => (BT[t.id] && BT[t.id].ef) || t.ef || t.es || '';   // ⏰ the billing date: the agreed (baseline) milestone date; the plan date if there is no baseline
+  const rows = M0.map((t) => { const pc = shareOf(t), inv = lineOf[t.id], bd = billDate(t), pastD = !inv && bd && bd < today ? Math.round((Date.parse(today + 'T00:00:00Z') - Date.parse(bd + 'T00:00:00Z')) / 864e5) : 0;
     return { tid: t.id, name: String(t.name || 'Milestone').replace(/^[✓◆\s]+/, ''), due: t.ef || t.es || '', done: (t.pct || 0) >= 100, pct: pc, amount: amtOf(t, pc), gstPct: gstp, gst: inv ? r2(inv.totals.gst) : r2(amtOf(t, pc) * gstp / 100), inc: inv ? r2(inv.totals.inc) : r2(amtOf(t, pc) * (1 + gstp / 100)),
-      invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, ...near(t.ef || t.es || '', !!inv) }; });
+      invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, billDate: bd, pastDays: internal ? 0 : pastD, ...near(t.ef || t.es || '', !!inv) }; });
   const inc = (i) => i.totals.inc, ex = (i) => i.totals.ex, live = invs.filter((i) => i.status !== 'draft');
   const invoiced = r2(live.reduce((a, i) => a + ex(i), 0)), received = r2(live.reduce((a, i) => a + (inc(i) ? Math.min(inc(i), i.paid || 0) * ex(i) / inc(i) : 0), 0));
   // 📊 where the project stands: the work done is the plan's own % complete (the same figure as the plan and the CEO view; earned value
@@ -102,7 +103,8 @@ function projectBill(plan, bill, docs, today) {
     : stand.unbilled > price * 0.05 ? { tone: 'amber', text: 'Work is ahead of billing' }
     : { tone: 'green', text: 'Billing up to date' };
   return { core, name: plan.name, money, stand, vos, gstPct: gstp, billedEx, restPct, spread: restPool != null, windows: { red: redW, amber: ambW, span }, contract: C.value, contractFrom: C.from, typed: r2(bill.contract), milestones: rows, planned: r2(rows.reduce((a, r) => a + r.pct, 0)),
-    invoiced, received, owed: r2(invoiced - received), ready: rows.filter((r) => r.ready) };
+    invoiced, received, owed: r2(invoiced - received), ready: rows.filter((r) => r.ready),
+    past: (() => { const L = rows.filter((r) => r.pastDays > 0); return { n: L.length, days: L.reduce((a, r) => Math.max(a, r.pastDays), 0), amount: r2(L.reduce((a, r) => a + (Number(r.amount) || 0), 0)), doneN: L.filter((r) => r.done).length }; })() };
 }
 
 export async function billFor(core, today) {
@@ -162,7 +164,7 @@ export async function finance(today, cores) {
     unbilled: r2(projects.reduce((a, p) => a + p.stand.unbilled, 0)), projectsN: projects.length, invoicedInc: sum(live, 'inc'), received: sum(live, 'paid'), owed: sum(live, 'balance'), overdue: r2(live.filter((i) => i.late > 0).reduce((a, i) => a + i.balance, 0)),
     overdueN: live.filter((i) => i.late > 0).length, ready: r2(ready.reduce((a, r) => a + r.amount, 0)), readyN: ready.length, drafts: invoices.filter((i) => i.status === 'draft').length },
     coming, scoped: !!cores, expected, unscheduled, aging, cash: months.map((k) => ({ month: k, invoiced: r2(cash[k].invoiced), received: r2(cash[k].received) })), ready, invoices,
-    projects: projects.slice().sort((a, b) => tone[a.stand.status.tone] - tone[b.stand.status.tone] || b.stand.unbilled - a.stand.unbilled).map((p) => ({ core: p.core, stand: p.stand, name: p.name, program: (jobOf[p.core] || {}).program || '', client: (jobOf[p.core] || {}).name || '', ref: jobOf[p.core] ? J.refFor(jobOf[p.core]) : '', contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length,
+    projects: projects.slice().sort((a, b) => tone[a.stand.status.tone] - tone[b.stand.status.tone] || b.stand.unbilled - a.stand.unbilled).map((p) => ({ core: p.core, stand: p.stand, name: p.name, program: (jobOf[p.core] || {}).program || '', client: (jobOf[p.core] || {}).name || '', ref: jobOf[p.core] ? J.refFor(jobOf[p.core]) : '', contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length, past: p.past,
       next: (p.milestones.find((x) => !x.invoice && x.pct > 0) || {}).name || '' })), methods: ACC.PAY_METHODS };
 }
 
