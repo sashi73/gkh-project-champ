@@ -1091,3 +1091,10 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 #cgPanel .cg-ctl button{font-size:13px;line-height:1}
 .fin section>.actions{position:static;margin-top:16px;display:flex;justify-content:flex-start}
 .fin .ceo-tab tfoot td{padding-top:10px;padding-bottom:10px}
+.fin-how{margin:10px 0 0;border:1px solid #ece6d6;border-radius:10px;padding:8px 12px;background:#fdfbf5;font-size:13px}
+.fin-how summary{cursor:pointer;font-weight:600}
+.fin-how table{border-collapse:collapse;margin:8px 0}.fin-how td{padding:3px 14px 3px 0}.fin-how td.num{text-align:right;font-variant-numeric:tabular-nums}
+.fin-how tr.tot td{font-weight:700;border-top:1px solid #e3dccb}
+.fin-how p{margin:6px 0 0;line-height:1.45}
+.fin-sb{font-weight:700}
+.ceo-t span b{display:inline;font-size:inherit;line-height:inherit;margin:0}
