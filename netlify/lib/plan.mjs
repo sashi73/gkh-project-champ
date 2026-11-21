@@ -171,16 +171,20 @@ export function rollup(plan, today) {
   // 📐 CPI is shown to 2 decimals, but the forecast uses the exact ratio (a rounded CPI moves a $2.6M forecast by ~$10K).
   //    Forecast cost (EAC) = spent so far + the labour still to do ÷ labour CPI + the materials still to buy ÷ materials CPI.
   //    It is exactly what was spent once all the work is done.
-  const CPIx = ACin > 0 && EVin > 0 ? EVin / ACin : null, CPI = ACin > 0 ? r2(EVin / ACin) : null, SPI = PV > 0 ? r2(EV / PV) : null;
-  // 👷🧱 labour and materials apart (as EVM by cost element): a CPI for each from the actuals entered, and the forecast for the work left
-  //   at each one's own efficiency, so a labour overrun does not inflate materials bought at a fixed BOM price (and the reverse)
-  const S = { bL: 0, bM: 0, eL: 0, eM: 0, eLi: 0, eMi: 0, aLi: 0, aMi: 0, nAss: 0, ass: 0 };
-  for (const t of tasks) { const x = actualSplit(t, plan); S.bL += x.lab; S.bM += x.mat; S.eL += x.evL; S.eM += x.evM; if (x.has) { S.eLi += x.evL; S.eMi += x.evM; S.aLi += x.acL; S.aMi += x.acM; if (x.assumed) { S.nAss++; S.ass += x.acM; } } }
-  const kL = S.aLi > 0 && S.eLi > 0 ? S.eLi / S.aLi : null, kM = S.aMi > 0 && S.eMi > 0 ? S.eMi / S.aMi : null;
-  const split = { lab: { bac: r2(S.bL), ev: r2(S.eL), evIn: r2(S.eLi), acIn: r2(S.aLi), CPI: kL ? r2(kL) : null }, mat: { bac: r2(S.bM), ev: r2(S.eM), evIn: r2(S.eMi), acIn: r2(S.aMi), CPI: kM ? r2(kM) : null },
-    assumedTasks: S.nAss, assumedMat: r2(S.ass) };
-  const EAC = CPIx ? r2(AC + Math.max(0, S.bL - S.eL) / (kL || 1) + Math.max(0, S.bM - S.eM) / (kM || 1)) : null;
-  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, split, VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
+  // 👷 CPI and SPI measure the labour and services (the work people do). The BOM is priced and baselined: its materials count at the
+  //    BOM price, so they never move CPI; a material price change is recorded as a BOM change and re-baselined (a budget change).
+  //    Forecast cost (EAC) = spent so far + the labour and services still to do ÷ their CPI + the materials still to buy at the BOM price
+  //    (+ any unrecorded BOM difference already spent). It is exactly what was spent once all the work is done.
+  const S = { bL: 0, bM: 0, eL: 0, eM: 0, pL: 0, eLi: 0, aLi: 0, diff: 0, nDiff: 0, nProg: 0, nAct: 0 };
+  for (const t of tasks) { const x = actualSplit(t, plan); S.bL += x.lab; S.bM += x.mat; S.eL += x.evL; S.eM += x.evM; S.pL += x.lab * frac(t); if (x.lab > 0.004 && x.evL > 0.004) { S.nProg++; if (x.has) S.nAct++; }
+    if (x.has) { S.eLi += x.evL; S.aLi += x.acL; if (Math.abs(x.bomDiff) >= 0.5) { S.diff += x.bomDiff; S.nDiff++; } } }
+  const kL = S.aLi > 0 && S.eLi > 0 ? S.eLi / S.aLi : null;
+  const CPIx = kL, CPI = kL ? r2(kL) : ACin > 0 ? 1 : null;   // only materials with actuals: CPI 1.00 (they are held at the BOM price)
+  const SPI = S.pL > 0 ? r2(S.eL / S.pL) : PV > 0 ? r2(EV / PV) : null;   // schedule by the labour and services work; a materials-only plan falls back to all the work
+  // 📏 the evidence behind CPI: how much of the labour work done has its actual cost recorded (the rest is assumed on budget)
+  const split = { lab: { bac: r2(S.bL), ev: r2(S.eL), pv: r2(S.pL), evIn: r2(S.eLi), acIn: r2(S.aLi), CPI: kL ? r2(kL) : null, cover: S.eL > 0 ? Math.round(S.eLi / S.eL * 100) : null, nAct: S.nAct, nProg: S.nProg }, mat: { bac: r2(S.bM), ev: r2(S.eM) }, bomDiff: r2(S.diff), bomDiffTasks: S.nDiff };
+  const EAC = ACin > 0 ? r2(AC + Math.max(0, S.bL - S.eL) / (kL || 1) + Math.max(0, S.bM - S.eM)) : null;
+  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, split, cpiEV: r2(S.eLi), cpiAC: r2(S.aLi), spiEV: r2(S.pL > 0 ? S.eL : EV), spiPV: r2(S.pL > 0 ? S.pL : PV), VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
     openRisks: (plan.risks || []).filter((r) => r.status !== 'Closed').length, highRisks: (plan.risks || []).filter((r) => r.status !== 'Closed' && r.p * r.i >= 12).length,
     openIssues: (plan.issues || []).filter((x) => x.status !== 'Resolved').length };
 }
@@ -227,7 +231,7 @@ function clean(p, core) {
     const o = {
     id: uid(t.id, 't'), name: str(t.name, 160) || 'New task', phase: phIds.has(t.phase) ? t.phase : phases[0].id,
     dur: int(t.dur, 0, 365, 1), snet: ymdOk(t.snet), fixed: !!(t.fixed && ymdOk(t.snet)), pred: (Array.isArray(t.pred) ? t.pred : []).map((x) => str(x, 20)).slice(0, 10),
-    item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, actualMat: t.actualMat === '' || t.actualMat == null || isNaN(Number(t.actualMat)) ? undefined : Math.max(0, r2(t.actualMat)), crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
+    item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, actualLog: Array.isArray(t.actualLog) && t.actualLog.length ? t.actualLog.slice(-40).map((e) => ({ at: Number(e && e.at) || 0, by: str(e && e.by, 80), v: r2(e && e.v), ms: str(e && e.ms, 160) })) : undefined, crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
     // v64: the Board: owner (a stakeholder), priority and story points
     desc: str(t.desc, 300), owner: str(t.owner, 80),
     // the Product Backlog (Kanban or Scrum): where the item is ('', 'board' or a sprint id), when it was pulled in and when it was done
@@ -366,12 +370,14 @@ export function taskSplit(t, plan) { const m = matsOf(t), own = m.length && m[0]
 // what the work done on a task cost, labour and materials apart: a materials actual entered is used; a task that is all labour or all
 //   materials takes the whole actual; a mixed task with no materials actual assumes its materials cost the BOM price (flagged: assumed)
 export function actualSplit(t, plan) {
-  const { lab, mat } = taskSplit(t, plan), f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0;
-  if (!(act > 0)) return { has: false, lab, mat, evL: lab * f, evM: mat * f, acL: lab * f, acM: mat * f, assumed: false };
-  if (t.actualMat != null && !isNaN(Number(t.actualMat))) { const m = Math.min(act, Math.max(0, Number(t.actualMat))); return { has: true, lab, mat, evL: lab * f, evM: mat * f, acL: act - m, acM: m, assumed: false }; }
-  if (mat <= 0.004) return { has: true, lab, mat, evL: lab * f, evM: 0, acL: act, acM: 0, assumed: false };
-  if (lab <= 0.004) return { has: true, lab, mat, evL: 0, evM: mat * f, acL: 0, acM: act, assumed: false };
-  const m = Math.min(act, mat * f); return { has: true, lab, mat, evL: lab * f, evM: mat * f, acL: act - m, acM: m, assumed: true };
+  // 🧱 the BOM is priced and baselined: its materials always count at the BOM price. A price change is a BOM change (recorded in the
+  //    BOM, signed off and re-baselined), not a cost overrun. So the actual over the materials is the labour and services; on a task that
+  //    is materials only, a difference from the BOM price is flagged (bomDiff) as a BOM change not yet recorded, and is not labour.
+  const { lab, mat } = taskSplit(t, plan), f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0, evL = lab * f, evM = mat * f;
+  if (!(act > 0)) return { has: false, lab, mat, evL, evM, acL: evL, acM: evM, bomDiff: 0 };
+  if (lab <= 0.004) return { has: true, lab, mat, evL: 0, evM, acL: 0, acM: evM, bomDiff: act - evM };
+  if (act < evM) return { has: true, lab, mat, evL, evM, acL: 0, acM: evM, bomDiff: act - evM };
+  return { has: true, lab, mat, evL, evM, acL: act - evM, acM: evM, bomDiff: 0 };
 }
 // 🧾 the argument behind a profit or loss, in plain words with the project's own figures (Finance and the CEO view show the same sentence)
 const $m = (n) => (n < 0 ? '−$' : '$') + Math.abs(Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -400,8 +406,8 @@ export function timeIndex(plan, R) {
 // 🔎 where the money went: the tasks whose actual cost is furthest above the value of the work done, labour and materials apart
 export function overruns(plan, n = 10) {
   return (plan.tasks || []).map((t, i) => { const x = actualSplit(t, plan); if (!x.has) return null;
-    return { id: t.id, n: i + 1, name: t.name, pct: Number(t.pct) || 0, lab: r2(x.lab), mat: r2(x.mat), earned: r2(x.evL + x.evM), actual: r2(x.acL + x.acM), over: r2(x.acL + x.acM - x.evL - x.evM),
-      labOver: r2(x.acL - x.evL), matOver: r2(x.acM - x.evM), assumed: x.assumed, matEntered: t.actualMat != null }; })
+    const actual = Number(t.actual) || 0; return { id: t.id, n: i + 1, name: t.name, pct: Number(t.pct) || 0, lab: r2(x.lab), mat: r2(x.mat), earned: r2(x.evL + x.evM), actual: r2(actual), over: r2(actual - x.evL - x.evM),
+      labOver: r2(x.acL - x.evL), bomDiff: r2(x.bomDiff) }; })
     .filter((x) => x && Math.abs(x.over) >= 0.5).sort((a, b) => b.over - a.over).slice(0, n);
 }
 export function taskCost(t) {
