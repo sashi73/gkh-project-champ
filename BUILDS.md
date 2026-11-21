@@ -254,4 +254,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 243 | 1.0.243| 2026-11-22 02:36| ovorder| `5ecea31` | Overview: left column is Time & cost, Late tasks, This week, Top risks, Open issues; late tasks redesigned (#104) |
 | 244 | 1.0.244| 2026-11-22 02:55| spifix| `0c0b327` | Never re-baseline automatically: order changes never move delivered materials or started work, keep the order date, and never touch the base |
 | 245 | 1.0.245| 2026-11-22 03:02| basever| `bdfd860` | Baseline versions: v0 and every re-baseline kept, filed as PowerPoint and CSV in Project documents; re-baseline and roll back through change |
-| 246 | 1.0.246 | 2026-11-22 03:22 | crbase | _this commit_ | _see git log_ |
+| 246 | 1.0.246| 2026-11-22 03:22| crbase| `216a40f` | Baselines: the version is recorded at once and also on read (self-healing), its files are made in their own retried step with the result sho |
+| 247 | 1.0.247 | 2026-11-22 03:27 | basepdf | _this commit_ | _see git log_ |
