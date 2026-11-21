@@ -5422,7 +5422,7 @@
       (T.zero && !lock ? '<div class="est-warn bom-zwarn"><div class="est-ic">$</div><div class="est-tx"><b>' + pl(T.zero, 'line') + ' with no price</b> (highlighted): ' + (T.zero === 1 ? 'it adds' : 'they add') + ' $0 to the plan and the quote, so the job would be under-priced. Put in the unit price (ex GST). The BOM can\'t be signed off until every line has a price.</div></div>' : '') +
       (T.est && !lock ? '<div class="est-warn"><div class="est-ic">⚠</div><div class="est-tx"><b>' + pl(T.est, 'line') + ' marked ≈ est</b> came from the AI or a template: check the quantity and price of each (and the waste allowance) against the drawings and supplier quotes, then tick it as checked.</div></div>' : '') +
       (T.noItem && !lock && !NOINV ? '<p class="muted" style="font-size:12.5px;margin:6px 0">Every line is costed: the 🧱 Bill of Materials milestone and the quote include it. Lines that are not in Inventory are not set aside or tracked in stock: press <b>＋ Add to Inventory</b> (or 📦 to pick an existing stock item)' + (T.noItem > 1 ? ', or <button class="btn btn-sm" id="bomInvAll" type="button">＋ Add all ' + T.noItem + ' to Inventory</button>' : '') + '.</p>' : '') +
-      (b.lines.length ? fbar + '<div class="table-wrap bom-scroll"><table class="rt bom-tbl"><thead><tr><th class="bom-no">#</th><th class="c" title="Checked">✓</th><th class="bom-mat">Material</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit $</th><th class="num">Total</th><th class="num" title="Lead time (working days)">Lead</th>' + (NOINV ? '' : '<th>Stock</th>') + '<th></th></tr></thead><tbody>' + rows +
+      (b.lines.length ? fbar + '<div class="table-wrap bom-scroll"><table class="rt bom-tbl"><thead><tr><th class="bom-no">#</th><th class="c">' + (function () { var V = b.lines.filter(vis), all = V.length && V.every(function (l) { return l.checked; }); return '<label class="bom-ck bom-ckall" title="' + (all ? 'Untick all ' : 'Tick all ') + pl(V.length, 'line') + (shown < b.lines.length ? ' shown' : '') + ' in one go' + '"><input type="checkbox" id="bomAll"' + (all ? ' checked' : '') + dis + '></label>'; })() + '</th><th class="bom-mat">Material</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit $</th><th class="num">Total</th><th class="num" title="Lead time (working days)">Lead</th>' + (NOINV ? '' : '<th>Stock</th>') + '<th></th></tr></thead><tbody>' + rows +
         (rows ? '' : '<tr><td colspan="10" class="empty" style="padding:14px">No lines match. <button class="btn btn-sm" data-bomf="all" type="button">Show all</button></td></tr>') + (lock ? '' : '<tr class="bom-addrow"><td></td><td></td><td colspan="8"><button class="btn btn-sm" id="bomAdd2" type="button">＋ Add a line</button> <small class="muted">Anything else the project needs: type it in.</small></td></tr>') +
         '</tbody><tfoot><tr><td></td><td></td><td colspan="4"><b>Total materials</b> <small class="muted">(' + pl(b.lines.length, 'line') + ')</small> <small class="muted">ex GST</small></td><td class="num"><b>' + money(T.value) + '</b></td><td colspan="3"></td></tr></tfoot></table></div>'
         : '<div class="empty">No lines yet. ✨ Draft with AI, apply a 📋 template, or ＋ add a line.</div>') + '</div>' + shortHtml +
@@ -5431,6 +5431,13 @@
   }
   function bomWire(B, b, st) {
     var line = function (el) { var tr = el.closest('tr[data-bk]'); return b.lines[+tr.getAttribute('data-bk')]; };
+    var ba = B.querySelector('#bomAll'); if (ba) ba.onchange = function () {   // ✓ tick (or untick) every line shown in one go
+      var L = Array.prototype.map.call(B.querySelectorAll('tr[data-bk]'), function (tr) { return b.lines[+tr.getAttribute('data-bk')]; }).filter(Boolean), me = bomMe(), n = 0, skip = 0;
+      L.forEach(function (l) { if (ba.checked) { if (l.checked) return; if (!(Number(l.price) > 0) || !(Number(l.qty) > 0)) { skip++; return; } l.checked = true; l.checkedBy = me; l.est = false; n++; } else if (l.checked) { l.checked = false; l.checkedBy = ''; n++; } });
+      if (skip) toast(skip + ' line' + (skip === 1 ? '' : 's') + ' without a quantity or price ' + (skip === 1 ? 'was' : 'were') + ' left unticked: add them first', true);
+      if (!n) { bomTab(); return; }
+      bomSave((ba.checked ? 'BOM: ' + n + ' line' + (n === 1 ? '' : 's') + ' checked in one go by ' : 'BOM: ' + n + ' line' + (n === 1 ? '' : 's') + ' unticked in one go by ') + me);
+    };
     B.querySelectorAll('[data-bf]').forEach(function (el) {
       el.onchange = function () {
         var l = line(el), k = el.getAttribute('data-bf');
