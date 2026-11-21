@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 254,
+  "build": 255,
   "commit": "",
-  "branch": "aiview",
+  "branch": "aipm",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 04:09",
+  "builtAt": "2026-11-22 09:51",
   "site": ""
 };
