@@ -14,6 +14,7 @@ export const FOLDERS = [
   ['requirements', '📋 Requirements', 'BRD, FSD, requirements definition, user stories, use cases, specifications, RFP or RFQ'],
   ['plans', '🗓 Plans and schedules', 'Project plan, schedule, management plans (risk, quality, comms, resource), roadmaps'],
   ['design', '📐 Design and architecture', 'Solution design, architecture, technical design, drawings, data models'],
+  ['deliverables', '🏁 Deliverables', 'What the project hands over: final and interim deliverables such as a masterplan, blueprint, final report or study, each marked Draft or Final'],
   ['contracts', '📜 Contracts and commercial', 'Contracts, statements of work, purchase orders, quotes, invoices, variations'],
   ['meetings', '🗣 Meeting minutes', 'Minutes, agendas, transcripts, action logs, workshop notes'],
   ['reports', '📊 Reports and status', 'Status reports, dashboards, steering committee reports, audits, reviews, lessons learned'],
@@ -24,7 +25,8 @@ export const FOLDERS = [
   ['other', '🗂 Other', 'Anything else'],
 ];
 const KEYS = new Set(FOLDERS.map((f) => f[0]));
-export const STATUS = ['Draft', 'In review', 'Approved', 'Superseded', 'Archived'];
+export const STATUS = ['Draft', 'In review', 'Approved', 'Final', 'Superseded', 'Archived'];
+export const DTYPES = ['final', 'interim'];   // 🏁 a deliverable is a final one or an interim one
 export const folderOk = (f) => (KEYS.has(String(f || '')) ? String(f) : '');
 export const statusOk = (s) => (STATUS.includes(String(s || '')) ? String(s) : '');
 
@@ -32,6 +34,7 @@ export const statusOk = (s) => (STATUS.includes(String(s || '')) ? String(s) : '
 export function classify(name, text, kind = '') {
   const n = String(name || '').toLowerCase(), t = String(text || '').slice(0, 5000).toLowerCase(), s = n + ' ' + t;
   const has = (re) => re.test(n) || re.test(t.slice(0, 1500));
+  if (has(/deliverable|master ?plan|blueprint|final report|interim report|inception report|draft report|laporan (akhir|permulaan|interim)|pelan induk|roadmap report/)) return 'deliverables';
   if (/minutes|transcript/.test(kind.toLowerCase()) || has(/\bminutes\b|meeting notes|agenda|transcript|action log|workshop notes/)) return 'meetings';
   if (has(/\bbrd\b|\bfsd\b|\bsrs\b|business requirements?|functional spec|requirements? (definition|specification|document|catalogue)|user stor(y|ies)|use cases?|\brf[pqi]\b|request for (proposal|quotation|tender)|specification/)) return 'requirements';
   if (/contract/i.test(kind) || has(/\bcontract\b|agreement|statement of work|\bsow\b|purchase order|quotation|\bquote\b|invoice|variation|terms and conditions/)) return 'contracts';
@@ -66,6 +69,7 @@ export async function update(core, id, f) {
       if (f.owner !== undefined) d.owner = str(f.owner, 80);
       if (f.title !== undefined) d.title = str(f.title, 160);
       if (f.note !== undefined) d.note = str(f.note, 600);
+      if (f.dtype !== undefined) d.dtype = DTYPES.includes(f.dtype) ? f.dtype : '';
       if (f.tags !== undefined) d.tags = (Array.isArray(f.tags) ? f.tags : String(f.tags || '').split(',')).map((t) => str(t, 30)).filter(Boolean).slice(0, 8);
       if (f.status === 'Approved') { d.approvedAt = Date.now(); d.approvedBy = str(f.by, 60); }
     });
@@ -187,3 +191,16 @@ export async function review(core, by) {
   return { review: rec, tokens: used || 0 };
 }
 export async function reviewGet(core) { return (await kv.get('pdocreview:' + core).catch(() => null)) || null; }
+
+
+// 🕘 who did what with each document: uploads (with the version note) and downloads, kept per project (pdoclog:<core>)
+export async function logEvent(core, ev) {
+  await kv.update('pdoclog:' + core, (x) => { x.log = (x.log || []).concat([{ at: Date.now(), ...ev }]).slice(-3000); return x; }, () => ({ log: [] })).catch(() => {});
+}
+export async function history(core, id) {
+  const docs = await docList(core), d = docs.find((x) => x.id === id); if (!d) return { error: 'Document not found' };
+  const g = d.group || d.id, vs = docs.filter((x) => (x.group || x.id) === g).sort((a, b) => (b.version || 1) - (a.version || 1));
+  const log = (((await kv.get('pdoclog:' + core).catch(() => null)) || {}).log || []).filter((e) => e.group === g || vs.some((v) => v.id === e.id)).reverse().slice(0, 200);
+  return { name: d.title || d.name, versions: vs.map((v) => ({ id: v.id, version: v.version || 1, name: v.name, by: v.by || '', at: v.at, note: v.vnote || '', status: v.status || 'Draft', dtype: v.dtype || '', superseded: !!v.superseded, size: v.size || 0 })),
+    log: log.map((e) => ({ at: e.at, act: e.act, by: e.by || '', version: e.version || 1, note: e.note || '' })) };
+}

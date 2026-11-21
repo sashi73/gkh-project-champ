@@ -227,6 +227,16 @@ try {
       pmB.status === 200 && pmF.status === 200 && (pmF.j.projects || []).every((p) => p.core === gc) && pmA.status === 200 && pmA.j.projects === 1 && d2B.status === 403 && pmSave.status === 403,
       [pmB.status, pmF.status, JSON.stringify((pmF.j.projects || []).map((p) => p.name)), JSON.stringify(pmA.j), d2B.status, pmSave.status].join(' '));
   }
+    // ---------- 🏁 deliverables: final / interim, Draft / Final, versions with notes, and a log of uploads and downloads ----------
+  { const b64 = (t) => Buffer.from(t).toString('base64'), tx = 'Selangor transport masterplan. Chapter 1 vision and objectives for the corridor plan.';
+    const u1 = await api('intelUpload', { core, name: 'Selangor Masterplan.txt', type: 'text/plain', text: tx, file: b64(tx) });
+    const u2 = await api('intelUpload', { core, name: 'Selangor Masterplan v2.txt', type: 'text/plain', text: tx + ' Revised.', file: b64(tx + ' Revised.'), replaces: u1.j.doc.id, vnote: 'Client comments from the workshop', dtype: 'final' });
+    const st = await api('intelDmsUpdate', { core, id: u2.j.doc.id, set: { status: 'Final' } }), dl = await api('intelDocFile', { core, id: u2.j.doc.id });
+    const L = await api('intelDmsList', { core }), cur = (L.j.docs || []).find((d) => d.id === u2.j.doc.id), h = await api('intelDmsHistoryGet', { core, id: u2.j.doc.id });
+    ok('Docs', '🏁 a masterplan files itself under Deliverables; a new version keeps who uploaded it and what changed, is a final deliverable marked Final; downloads and uploads are logged',
+      u1.status === 200 && u1.j.doc.folder === 'deliverables' && cur && cur.folder === 'deliverables' && cur.dtype === 'final' && cur.status === 'Final' && cur.version === 2 && st.status === 200 && dl.status === 200 &&
+      h.status === 200 && h.j.versions.length === 2 && h.j.versions[0].note === 'Client comments from the workshop' && h.j.versions[0].by && h.j.log.some((e) => e.act === 'download' && e.version === 2) && h.j.log.filter((e) => e.act === 'upload').length === 2 && (L.j.folders || []).some((f) => f.key === 'deliverables'),
+      JSON.stringify([u1.j.doc && u1.j.doc.folder, cur && [cur.folder, cur.dtype, cur.status, cur.version], h.j]).slice(0, 500)); }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

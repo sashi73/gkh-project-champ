@@ -67,6 +67,8 @@ export async function upload(core, f, by) {   // the text for Ask AI; the origin
   d.owner = str(f.owner, 80) || (old && old.owner) || str(by, 60); d.title = str(f.title, 160) || (old && old.title) || '';
   d.tags = (Array.isArray(f.tags) ? f.tags : String(f.tags || '').split(',')).map((x) => str(x, 30)).filter(Boolean).slice(0, 8);
   if (old) { d.group = old.group || old.id; d.version = (old.version || 1) + 1; } else { d.group = id; d.version = 1; }
+  d.vnote = str(f.vnote, 400) || undefined;   // 🕘 what changed in this version
+  { const dt = str(f.dtype, 10) || (old && old.dtype) || ''; if (dt === 'final' || dt === 'interim') d.dtype = dt; }   // 🏁 a final or interim deliverable
   await kv.update('pdocs:' + job.core, (x) => { x.docs = (x.docs || []).map((y) => (old && y.id === old.id ? Object.assign({}, y, { superseded: d.id, prevStatus: y.status, status: 'Superseded' }) : y)).concat([d]); return x; }, () => ({ docs: [] }));
   return { doc: d, truncated: String(f.text || '').length > MAX_TEXT };
 }
@@ -305,6 +307,7 @@ export async function intelPost(action, body, { who, by, audit }) {
     }
     case 'intelUpload': {
       const r = await upload(core, body, by); if (r.error) return out(400, r);
+      { const D = await import('./dms.mjs'); await D.logEvent(core, { act: 'upload', id: r.doc.id, group: r.doc.group || r.doc.id, version: r.doc.version || 1, by: by || who, note: str(body.vnote, 400) }); }
       if (audit) await audit(who, `Project ${core}: document uploaded for Ask AI: ${r.doc.name}`);
       return out(200, r);
     }
@@ -336,6 +339,7 @@ export async function intelPost(action, body, { who, by, audit }) {
     case 'intelDocDelete': { await remove(core, str(body.id, 20)); if (audit) await audit(who, `Project ${core}: document deleted from Ask AI`); return out(200, { ok: true }); }
     case 'intelDocFile': {
       const id = str(body.id, 20), dd = (await docList(core)).find((d) => d.id === id);
+      if (dd) { const D = await import('./dms.mjs'); await D.logEvent(core, { act: 'download', id, group: dd.group || dd.id, version: dd.version || 1, by: by || who }); }   // 🕘 every download is logged
       if (dd && dd.r2) { const R2 = await import('./r2.mjs'); const url = R2.presign('GET', dd.r2, { expires: 600, download: dd.name }); if (url) return out(200, { name: dd.name, url }); }   // ☁️ straight from R2
       const f = await kv.getFile(`pdocfile:${core}:${id}`);
       if (f) return out(200, { name: f.metadata.name || 'document', type: f.metadata.type || 'application/octet-stream', file: f.buf.toString('base64') });
@@ -349,6 +353,7 @@ export async function intelPost(action, body, { who, by, audit }) {
       if (audit && body.set && body.set.status) await audit(who, `Project ${core}: document ${str(body.id, 20)} marked ${str(body.set.status, 20)}`);
       return out(200, r);
     }
+    case 'intelDmsHistoryGet': { const D = await import('./dms.mjs'), r = await D.history(core, str(body.id, 20)); return r.error ? out(404, r) : out(200, r); }
     case 'intelDmsSearchGet': { const D = await import('./dms.mjs'); return out(200, await D.search(core, str(body.q, 200))); }
     case 'intelDmsAnalysisGet': { const D = await import('./dms.mjs'); return out(200, { analysis: await D.analysis(core, str(body.id, 20)) }); }
     case 'intelDmsReviewGet': { const D = await import('./dms.mjs'); return out(200, { review: await D.reviewGet(core) }); }
