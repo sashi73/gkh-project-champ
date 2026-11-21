@@ -23,18 +23,31 @@
     var d = m.days, t = d == null ? '' : d < 0 ? Math.abs(d) + ' day' + (d === -1 ? '' : 's') + ' overdue' : d === 0 ? 'due today' : d === 1 ? 'due tomorrow' : 'due in ' + d + ' days';
     return '<span class="fin-due ' + (m.alert || 'green') + '" title="Due ' + esc(day(m.due)) + '">📅 ' + esc(day(m.due)) + (t ? ' · ' + t : '') + '</span>';
   }
+  // 🧮 how each figure is worked out, with this project's own numbers
+  function how(K) {
+    var gap = K.approved ? K.approved - K.budget : 0, L = [
+      ['Costed work', money(K.base), 'every task\'s cost on the plan (labour, materials, BOM)'],
+      ['+ Contingency ' + K.contPct + '%', money(K.contingency), 'for known risks'],
+      ['+ Management reserve ' + K.resPct + '%', money(K.reserve), 'for the unknowns'],
+      ['= Budget', money(K.budget), 'what the plan needs to deliver the work']];
+    if (K.contractFrom === 'estimate' || !K.contract) L.push(['+ Margin ' + (K.marginCfg || 0) + '%', money(K.suggested - K.budget), ''], ['= Estimated contract value', money(K.suggested), 'used until the CFO confirms the real one']);
+    return '<details class="fin-how"' + (K.approved && Math.abs(gap) > 1 ? ' open' : '') + '><summary>🧮 How these figures are worked out</summary><table>' + L.map(function (r) { return '<tr' + (/^=/.test(r[0]) ? ' class="tot"' : '') + '><td>' + esc(r[0]) + '</td><td class="num">' + r[1] + '</td><td class="muted">' + esc(r[2]) + '</td></tr>'; }).join('') + '</table>' +
+      (K.approved ? '<p><b>Budget vs the approved ' + money(K.approved) + ':</b> the approved figure is the budget signed off in the project charter. The budget here is built up from the plan itself, so it shows what the scheduled work is actually costed at. ' +
+        (gap > 1 ? 'The plan comes to <b>' + money(gap) + ' less</b> than was approved: either some work is not costed on the plan yet (check the tasks with no cost on Costing), or the project needs less than approved.' : gap < -1 ? '<b class="ceo-neg">The plan comes to ' + money(-gap) + ' more than was approved</b>: it needs a budget change or cuts to the work.' : 'They match.') + '</p>' : '') +
+      '<p class="muted">Contingency, reserve, margin and GST rates are set on the project\'s 💰 Costing tab. Forecast cost = the budgeted cost adjusted by how efficiently money is being spent so far (CPI). Margin = contract − budget; forecast profit = contract − forecast cost. Amounts are before GST unless marked.</p></details>';
+  }
   function moneyPanel(B) {
     var K = B.money; if (!K) return '';
     var t = function (l, v, s2, c) { return '<div class="ceo-t ' + (c || '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s2 ? '<span>' + s2 + '</span>' : '') + '</div>'; };
     return '<div class="fin-panel"><div class="ceo-ts">' +
-      t('Contract value', K.contract ? money(K.contract) : '<span class="muted">not set</span>', K.contract ? (K.contractFrom === 'quote' ? 'from the accepted quote' : K.contractFrom === 'estimate' ? '<b class="fin-amb">estimate from Costing, not confirmed</b>' : 'confirmed · before GST') : 'Costing suggests ' + money(K.suggested)) +
+      t('Contract value', K.contract ? money(K.contract) : '<span class="muted">not set</span>', K.contract ? (K.contractFrom === 'quote' ? 'from the accepted quote' : K.contractFrom === 'estimate' ? '<span class="fin-amb fin-sb">estimate from Costing, not confirmed</span>' : 'confirmed · before GST') : 'Costing suggests ' + money(K.suggested)) +
       t('GST ' + K.gstPct + '%', money(K.gst), 'with GST: ' + money(K.withGst)) +
-      t('Budget', money(K.budget), 'cost ' + money(K.base) + (K.approved ? ' · approved ' + money(K.approved) : '')) +
+      t('Budget', money(K.budget), 'costed work ' + money(K.base) + ' + reserves ' + money(K.contingency + K.reserve) + (K.approved ? '<br>charter approved ' + money(K.approved) : '')) +
       t('Reserves', money(K.contingency + K.reserve), 'contingency ' + K.contPct + '% ' + money(K.contingency) + ' · management ' + K.resPct + '% ' + money(K.reserve)) +
       t('Forecast cost', money(K.eac), 'spent so far ' + money(K.spent) + (K.CPI ? ' · CPI ' + K.CPI.toFixed(2) : ''), K.CPI && K.CPI < 0.9 ? 'neg' : '') +
       t('Margin', K.margin == null ? '–' : money(K.margin), K.margin == null ? 'set the contract value' : K.marginPct + '% · contract − budget', K.margin != null && K.margin < 0 ? 'neg' : 'pos') +
       t('Forecast profit', K.profit == null ? '–' : money(K.profit), K.profit == null ? 'set the contract value' : K.profitPct + '% · contract − forecast cost', K.profit != null && K.profit < 0 ? 'neg' : 'pos') +
-      '</div><p class="muted" style="font-size:12px;margin:6px 0 0">Budget, reserves, margin and GST come from the project\'s Costing settings. Amounts before GST unless marked.</p></div>';
+      '</div>' + how(K) + '</div>';
   }
   function wb(S) { return '<span class="fin-wbw" title="Work done ' + S.workPct + '% · billed ' + S.billedPct + '%"><span class="fin-wb"><i style="width:' + S.workPct + '%"></i><em style="width:' + S.billedPct + '%"></em></span><small>' + S.workPct + '% done · ' + S.billedPct + '% billed</small></span>'; }
   // 📍 every project: where it stands on billing, worst first
@@ -63,7 +76,7 @@
     var tab = function (k, w, n) { return '<button type="button" class="fin-tab' + (filt === k ? ' on' : '') + '" data-f="' + k + '">' + esc(w) + (n != null ? ' <b>' + n + '</b>' : '') + '</button>'; };
     M.view().innerHTML = '<div class="ceo fin">' +
       '<div class="row ceo-head"><div><p class="muted">Milestone billing across every project · amounts include tax unless marked · ' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })) + '</p></div><div class="row" style="gap:6px"><button class="btn btn-sm" id="finRe" type="button">⟳ Refresh</button><button class="btn btn-sm" id="finPr" type="button">🖨 Print / PDF</button></div></div>' +
-      '<div class="ceo-ts">' + tile('Contract value', money(T.contract), T.estimatedN ? money(T.signed) + ' confirmed · <b class="fin-amb">' + money(T.estimated) + ' estimated (' + T.estimatedN + ' project' + (T.estimatedN === 1 ? '' : 's') + ')</b>' : 'before tax, all confirmed', T.estimatedN ? 'warn' : '') + tile('Invoiced', money(T.invoicedInc), F.invoices.filter(function (i) { return i.status !== 'draft'; }).length + ' invoices') + tile('Received', money(T.received), T.invoicedInc ? Math.round(T.received / T.invoicedInc * 100) + '% of invoiced' : '') +
+      '<div class="ceo-ts">' + tile('Contract value', money(T.contract), T.estimatedN ? money(T.signed) + ' confirmed · <span class="fin-amb fin-sb">' + money(T.estimated) + ' estimated (' + T.estimatedN + ' project' + (T.estimatedN === 1 ? '' : 's') + ')</span>' : 'before tax, all confirmed', T.estimatedN ? 'warn' : '') + tile('Invoiced', money(T.invoicedInc), F.invoices.filter(function (i) { return i.status !== 'draft'; }).length + ' invoices') + tile('Received', money(T.received), T.invoicedInc ? Math.round(T.received / T.invoicedInc * 100) + '% of invoiced' : '') +
         tile('Still owed', money(T.owed), T.overdue ? '<b class="ceo-neg">' + money(T.overdue) + ' overdue (' + T.overdueN + ')</b>' : 'none overdue', T.overdue ? 'neg' : '') + tile('Ready to invoice', money(T.ready), T.readyN ? T.readyN + ' milestone' + (T.readyN === 1 ? '' : 's') + ' done, not billed' : 'nothing waiting', T.readyN ? 'warn' : '') +
         tile('Work done, not yet billed', money(T.unbilled), 'earned on the plan, not invoiced', T.unbilled > 0 ? 'warn' : '') + '</div>' + standHtml(F.projects, T) +
       (F.coming && F.coming.length ? '<section class="card ceo-s"><h3>📅 Billing coming due</h3><div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Project</th><th>Milestone</th><th>Due</th><th class="num">Amount (before GST)</th></tr></thead><tbody>' +

@@ -41,7 +41,7 @@ function projectBill(plan, bill, docs, today) {
   // 📐 no accepted quote and nothing typed in: estimate the contract from Costing (budget + margin), clearly marked, until the CFO confirms it
   const C = C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
   const price = C.value || 0, gst = r2(price * gstp / 100);
-  const money = { contract: price, contractFrom: C.from, suggested, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
+  const money = { contract: price, contractFrom: C.from, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
     spent: r2(R.AC), eac, CPI: R.CPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null };
   // 📅 how close each milestone is: red and flashing within a week, amber within a month, green after; a short project (an event) scales the windows down
   const span = Math.max(1, Math.round((Date.parse((R.finish || today) + 'T00:00:00Z') - Date.parse((R.start || plan.start || today) + 'T00:00:00Z')) / 864e5));

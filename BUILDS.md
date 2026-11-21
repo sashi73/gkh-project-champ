@@ -207,4 +207,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 196 | 1.0.196| 2026-11-21 11:34| bill-panel| `a3cd478` | 💵 Billing: one money panel (contract, GST, budget with contingency and reserve, forecast cost, margin, profit); milestone due dates in colo |
 | 197 | 1.0.197| 2026-11-21 11:38| deliverables| `47cec0c` | 🏁 Project documents: a Deliverables folder (final and interim deliverables, Draft or Final; masterplans, blueprints and reports file themse |
 | 198 | 1.0.198| 2026-11-21 11:42| pause| `2bb716b` | 🎙 CEO briefing: ▾ Hide / ▸ Show (remembered), 📄 Download PDF (a one-page note), ⏸ Pause / ▶ Carry on while it reads; Champ's panel gets ⏸  |
-| 199 | 1.0.199 | 2026-11-21 11:54 | billfix | _this commit_ | _see git log_ |
+| 199 | 1.0.199| 2026-11-21 11:54| billfix| `197bdca` | 💵 Finance: every project shows where it stands on billing; no contract yet = an estimate from Costing (split evenly across milestones) unti |
+| 200 | 1.0.200 | 2026-11-21 11:59 | budgetwhy | _this commit_ | _see git log_ |
