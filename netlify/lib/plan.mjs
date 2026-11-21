@@ -180,7 +180,8 @@ export function rollup(plan, today) {
     if (x.has) { S.eLi += x.evL; S.aLi += x.acL; if (Math.abs(x.bomDiff) >= 0.5) { S.diff += x.bomDiff; S.nDiff++; } } }
   const kL = S.aLi > 0 && S.eLi > 0 ? S.eLi / S.aLi : null, kM = S.eM > 0.004 ? S.eMb / S.eM : null;   // materials: baseline ÷ current BOM price on the work done
   // CPI = (labour earned + materials earned at the baseline) ÷ (labour spent + materials at the current BOM price), on the work with costs recorded
-  const cE = S.eLi + (S.eM > 0.004 ? S.eMb : 0), cA = S.aLi + (S.eM > 0.004 ? S.eM : 0), CPIx = cA > 0 && cE > 0 ? cE / cA : null, CPI = CPIx ? r2(CPIx) : ACin > 0 ? 1 : null;
+  // (+ money spent on materials-only tasks above the current BOM price, not yet recorded as a BOM revision: spent is spent, so it counts)
+  const cE = S.eLi + (S.eM > 0.004 ? S.eMb : 0), cA = S.aLi + (S.eM > 0.004 ? S.eM : 0) + S.diff, CPIx = cA > 0 && cE > 0 ? cE / cA : null, CPI = CPIx ? r2(CPIx) : ACin > 0 ? 1 : null;
   const SPI = S.pL > 0 ? r2(S.eL / S.pL) : PV > 0 ? r2(EV / PV) : null;   // schedule by the labour and services work; a materials-only plan falls back to all the work
   // 📏 the evidence behind CPI: how much of the labour work done has its actual cost recorded (the rest is assumed on budget)
   const split = { lab: { bac: r2(S.bL), ev: r2(S.eL), pv: r2(S.pL), evIn: r2(S.eLi), acIn: r2(S.aLi), CPI: kL ? r2(kL) : null, cover: S.eL > 0 ? Math.round(S.eLi / S.eL * 100) : null, nAct: S.nAct, nProg: S.nProg },
