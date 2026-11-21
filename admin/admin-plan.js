@@ -5314,6 +5314,8 @@
   }
   function bomCrHtml(c) {
     var x = c.bom || {}, b = S.plan.bom || {}, L = b.lines || [];
+    if (x.action === 'order') { var ln = L.filter(function (y) { return y.id === x.line; })[0] || { name: '?' };
+      return '<div class="cr-bom"><b>📦 Order change: ' + esc(ln.name) + '</b><p>' + esc(c.desc) + '</p><p class="muted">Approved: the BOM / BOQ line takes the new price and lead time (a new BOM version is filed)' + (x.snetDate ? ', the 🧱 milestone moves to ' + esc(dmy(x.snetDate)) + (x.crit ? ', and the Gantt is re-baselined (finish ' + esc(dmy(x.from)) + ' → ' + esc(dmy(x.to)) + ')' : '') : '') + '. Rejected: nothing changes.</p></div>'; }
     if (x.action === 'signoff') return '<div class="cr-bom"><b>🧱 BOM / BOQ sign-off</b><p>' + esc(L.length + ' lines, ' + money(c.estCost) + ' ex GST, signed off by ' + (b.signedBy || '') + (b.signedRole ? ', ' + b.signedRole : '')) + '.</p><p class="muted">Approved: it goes into the 💰 Costing and the Gantt as the materials baseline (BOM v0), filed as BOM-BOQ.pdf and BOM-BOQ.csv in Project documents. Rejected: the BOM is reopened for changes.</p><p><a class="btn btn-sm" href="#plan/' + esc(S.core) + '/bom">Open the BOM / BOQ</a></p></div>';
     var rows = Object.keys(x.prices || {}).map(function (id) { var l = L.filter(function (y) { return y.id === id; })[0] || { name: id, qty: 0 }; var np = x.prices[id], op = Number(l.price) || 0; return '<tr><td>' + esc(l.name) + '</td><td class="num">' + esc(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="num">' + money(op) + '</td><td class="num"><b>' + money(np) + '</b></td><td class="num ' + (np > op ? 'bad' : 'good') + '">' + (np > op ? '+' : '') + money((np - op) * (Number(l.qty) || 0)) + '</td></tr>'; }).join('');
     return '<div class="cr-bom"><b>🧱 BOM / BOQ price change</b> <span class="muted">' + money(x.from) + ' → ' + money(x.to) + '</span><div class="tblwrap"><table class="tbl"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price now</th><th class="num">Proposed</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="muted">Approved: the prices go into the BOM, a new BOM / BOQ version is recorded (BOM-BOQ.pdf and BOM-BOQ.csv in Project documents), and the actual cost, the costing and CPI change. Rejected: nothing changes.</p></div>';
@@ -5328,6 +5330,11 @@
       return crNo(c) + ' rejected: the BOM / BOQ is reopened for changes';
     }
     b.ccOpen = (b.ccOpen || []).filter(function (id) { return id !== c.id; });
+    if (x.action === 'order') {
+      if (!ok) { bomLog('Order change ' + crNo(c) + ' ' + c.status.toLowerCase() + ' in change control by ' + c.decision.by); return msg; }
+      var out = ordApply(x.line, x.price, x.lead, { snet: x.snetDate, msId: x.snetTask, crit: x.crit, f0: x.from, f1: x.to }, c.decision.by, crNo(c));
+      c.status = 'Implemented'; c.implementedAt = Date.now(); crLog(c, 'Applied: ' + out); return crNo(c) + ' approved: ' + out;
+    }
     if (!ok) { bomLog('Price change ' + crNo(c) + ' ' + c.status.toLowerCase() + ' in change control by ' + c.decision.by); return msg; }
     var n = 0; (b.lines || []).forEach(function (l) { if (x.prices && x.prices[l.id] != null) { l.price = x.prices[l.id]; n++; } });
     var t = S.plan.tasks.filter(function (y) { return y.id === x.task; })[0];
@@ -7014,11 +7021,11 @@
         ' (labour and services ' + money(SPX.lab.evIn || 0) + ' ÷ ' + money(SPX.lab.acIn || 0) + '; materials at the BOM v0 baseline ' + money(SPX.mat.ev || 0) + ' ÷ at the current BOM ' + money(SPX.mat.ac || 0) + (bd ? ' + ' + money(bd) + ' spent above the BOM' : '') + ').' +
         (R.ACest > 0.004 ? ' Work with no actual yet (' + money(R.ACest) + ') is left out, not guessed.' : '') + (bd ? ' Record the ' + money(bd) + ' as a BOM / BOQ price change (click the row\'s Actual $ in the Gantt) so the BOM shows it too.' : '') + ' All the work as it stands: ' + money(R.EV) + ' ÷ ' + money(R.AC) + ' = ' + rat(R.EV, R.AC) + '.'], ['Forecast final cost (EAC)', R.EAC == null ? '—' : money(R.EAC), R.EAC == null ? '' : p.tasks.every(function (t) { return (t.pct || 0) >= 100; }) ? 'all the work is done: what was spent' : '= spent ' + money(R.AC) + ' + labour and services left ' + money(Math.max(0, (SPX.lab.bac || 0) - (SPX.lab.ev || 0))) + ' ÷ their CPI ' + (SPX.lab.CPI != null ? Number(SPX.lab.CPI).toFixed(2) : '1.00') + ' + materials left at the current BOM price ' + money(Math.max(0, (SPX.mat.bac || 0) - (SPX.mat.ac || 0)))]]);
     $('#planBody').innerHTML = setupSteps(p, R) + estBanner(p) + '<div class="grid two"><div class="grid" style="align-content:start">' +
-      '<div class="card"><h2>Time & cost (earned value)</h2><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      '<div class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><h2 style="margin:0">Time & cost (earned value)</h2>' + (canCost() ? '<button class="btn btn-sm btn-gold" type="button" data-costin>💲 Record actual costs</button>' : '') + '</div><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
         (S.expensesEx ? '<p class="muted" style="margin:10px 0 0">Expenses recorded for this job in Accounts: <b>' + money(S.expensesEx) + '</b> ex GST.</p>' : '') +
         (p.baseline ? '<p class="muted" style="margin:6px 0 0">Baseline set ' + esc(M.day(p.baseline.at)) + ': finish ' + esc(prettyY(p.baseline.finish)) + ', budget ' + money(p.baseline.BAC) + '. Now: finish ' + esc(prettyY(R.finish)) + ' (' + esc(varDays(p.baseline.finish, R.finish)) + ').</p>' : '<p class="muted" style="margin:6px 0 0">Tip: press “Set baseline” once the plan is agreed, so you can track slippage.</p>') + '</div>' +
       '<div class="card"><h2>This week <small class="muted" style="font-weight:500">(' + esc(pretty(t0)) + ' to ' + esc(pretty(soon)) + ')</small></h2>' + (coming.length ? '<div class="list">' + coming.map(function (r) { return '<div class="item"><div><b>#' + r.n + ' ' + esc(r.t.name) + '</b><br><small>' + esc(pretty(r.t.es)) + ' – ' + esc(pretty(r.t.ef)) + (r.t.res && r.t.res.length ? ' · ' + esc(resText(r.t)) : '') + '</small></div><b>' + r.t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing scheduled this week.</div>') + '</div></div>' +
-      cpiCard(p, R) +
+
       '<div class="grid" style="align-content:start">' +
       materialsCard() +
       '<div class="card"><h2>Late tasks</h2>' + (R.late.length ? '<div class="list">' + R.late.map(function (t) { return '<div class="item"><div><b>' + esc(t.name) + '</b><br><small style="color:#C2410C">was due ' + esc(pretty(t.ef)) + '</small></div><b>' + t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing late. 👍</div>') + '</div>' +
@@ -7098,28 +7105,90 @@
   }
 
 
-  // 🛒 things to order (from the BOM, no Inventory): what, how many, order by when; tick when ordered; a note on what is happening (Enter or 💾 saves)
+  // 📦 order status (from the BOM / BOQ): what is ordered and where each order stands. When a supplier's price or lead time changes,
+  //    Champ works out the effect (the BOM total, the delivery date against the date the materials are needed, and whether the finish
+  //    moves because it is on the critical path) and re-baselines the BOM and the Gantt: through change control when it is on.
+  var ORD_ST = ['Not ordered', 'Ordered', 'Confirmed', 'In transit', 'Delivered', 'Delayed'];
+  function ordSt(l) { return l.ordStatus && ORD_ST.indexOf(l.ordStatus) >= 0 ? l.ordStatus : l.ordered ? 'Ordered' : 'Not ordered'; }
   function materialsCard() {
     var b = S.plan.bom, L = b && (b.lines || []); if (!L || !L.length || (S.mods && S.mods.bom === false)) return '';
-    var ms = bomMs(), need = ms && ms.es ? ms.es : '', t0 = today(), done = L.filter(function (l) { return l.ordered; }).length;
+    var ms = bomMs(), need = ms && ms.es ? ms.es : '', t0 = today(), done = L.filter(function (l) { return l.ordered; }).length, dlv = L.filter(function (l) { return ordSt(l) === 'Delivered'; }).length, bad = L.filter(function (l) { return ordSt(l) === 'Delayed'; }).length;
     var by = function (l) { if (!need) return ''; var d = addDays(need, -(Number(l.lead) || 0)); return d; };
+    var eta = function (l) { var o = l.orderedAt ? new Date(l.orderedAt).toISOString().slice(0, 10) : t0; return addDays(o, Number(l.lead) || 0); };
     var rows = L.slice().sort(function (a, c) { return (a.ordered - c.ordered) || String(by(a)).localeCompare(String(by(c))); });
-    return '<div class="card ord"><div class="card-h"><h2>🛒 Things to order</h2><span class="sp"></span><small class="muted">' + done + ' of ' + L.length + ' ordered</small></div>' +
-      '<p class="muted" style="margin:-4px 0 8px;font-size:12.5px">From the Bill of Materials' + (need ? ': needed by ' + esc(prettyY(need)) + ' (the 🧱 milestone)' : '') + '. Tick each one when it is ordered, and note what is happening.</p><div class="ord-list">' +
-      rows.map(function (l) { var d = by(l), late = !l.ordered && d && d < t0, soon = !l.ordered && d && !late && d <= addDays(t0, 7);
-        return '<div class="ord-row' + (l.ordered ? ' done' : '') + '" data-ol="' + esc(l.id) + '"><label class="ord-ck" title="' + (l.ordered ? 'Ordered' + (l.orderedBy ? ' by ' + esc(l.orderedBy) : '') : 'Tick when it is ordered') + '"><input type="checkbox" data-ord' + (l.ordered ? ' checked' : '') + '></label>' +
-          '<div class="ord-main"><b>' + esc(l.name) + '</b><small>' + esc(q3c(l.qty) + ' ' + (l.unit || '')) + (d ? ' · <span class="' + (late ? 'bad' : soon ? 'warn' : '') + '">' + (l.ordered ? 'ordered' + (l.orderedAt ? ' ' + esc(pretty(new Date(l.orderedAt).toISOString().slice(0, 10))) : '') : (late ? 'order now (was due ' : 'order by ') + esc(pretty(d)) + (late ? ')' : '')) + '</span>' : '') + (l.lead ? ' · ' + l.lead + '-day lead time' : '') + '</small>' +
-          '<div class="ord-note"><input data-onote maxlength="300" placeholder="Note: what is happening (supplier, quote, delivery date…)" value="' + esc(l.orderNote || '') + '"><button type="button" class="btn btn-sm" data-osave title="Save the note (or press Enter)">💾 Save</button></div>' +
+    return '<div class="card ord"><div class="card-h"><h2>📦 Order status: what is ordered and where it stands</h2><span class="sp"></span><small class="muted">' + done + ' of ' + L.length + ' ordered · ' + dlv + ' delivered' + (bad ? ' · <b class="bad">' + bad + ' delayed</b>' : '') + '</small></div>' +
+      '<p class="muted" style="margin:-4px 0 8px;font-size:12.5px">From the BOM / BOQ' + (need ? ': needed by ' + esc(prettyY(need)) + ' (the 🧱 milestone)' : '') + '. Keep each order up to date. If the supplier\'s <b>price</b> or <b>lead time</b> changes, type it in and press 💾: Champ works out the effect on the BOM total and the Gantt (it moves the finish only if the delivery is late for work on the critical path) and re-baselines both' + (ccOff() ? '' : ', through 🔁 Change control') + '.</p><div class="ord-list">' +
+      rows.map(function (l) { var d = by(l), st = ordSt(l), late = !l.ordered && d && d < t0, soon = !l.ordered && d && !late && d <= addDays(t0, 7), e = l.ordered ? eta(l) : '', eLate = e && need && e > need && st !== 'Delivered';
+        return '<div class="ord-row' + (st === 'Delivered' ? ' done' : '') + (st === 'Delayed' || eLate ? ' warnrow' : '') + '" data-ol="' + esc(l.id) + '"><label class="ord-ck" title="' + (l.ordered ? 'Ordered' + (l.orderedBy ? ' by ' + esc(l.orderedBy) : '') : 'Tick when it is ordered') + '"><input type="checkbox" data-ord' + (l.ordered ? ' checked' : '') + '></label>' +
+          '<div class="ord-main"><div class="ord-top"><b>' + esc(l.name) + '</b><select data-ost class="ord-st st-' + esc(st.replace(/\s/g, '').toLowerCase()) + '">' + ORD_ST.map(function (x) { return '<option' + (x === st ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></div>' +
+          '<small>' + esc(q3c(l.qty) + ' ' + (l.unit || '')) + ' × ' + money(l.price) + ' = <b>' + money((Number(l.qty) || 0) * (Number(l.price) || 0)) + '</b>' + (d ? ' · <span class="' + (late ? 'bad' : soon ? 'warn' : '') + '">' + (l.ordered ? 'ordered' + (l.orderedAt ? ' ' + esc(pretty(new Date(l.orderedAt).toISOString().slice(0, 10))) : '') : (late ? 'order now (was due ' : 'order by ') + esc(pretty(d)) + (late ? ')' : '')) + '</span>' : '') +
+            (e ? ' · due on site <span class="' + (eLate ? 'bad' : '') + '">' + esc(pretty(e)) + (eLate ? ' (after it is needed: ' + esc(pretty(need)) + ')' : '') + '</span>' : '') + '</small>' +
+          '<div class="ord-edit"><label>Unit $<input data-oprice inputmode="decimal" value="' + esc((Number(l.price) || 0).toFixed(2)) + '"></label><label>Lead time (days)<input data-olead type="number" min="0" max="999" value="' + esc(l.lead || 0) + '"></label>' +
+          '<input data-onote maxlength="300" placeholder="Note: supplier, quote, delivery date…" value="' + esc(l.orderNote || '') + '"><button type="button" class="btn btn-sm" data-osave title="Save (or press Enter)">💾 Save</button></div>' +
           (l.orderNote && l.orderNoteBy ? '<small class="muted ord-by">Note by ' + esc(l.orderNoteBy) + (l.orderNoteAt ? ', ' + esc(new Date(l.orderNoteAt).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })) : '') + '</small>' : '') + '</div></div>'; }).join('') + '</div></div>';
+  }
+  // the effect of a new price or lead time for one BOM line: BOM total, delivery against the need date, and the finish (critical path)
+  function ordImpact(l, price, lead) {
+    var p = S.plan, ms = bomMs(), t0 = today(), o = l.orderedAt ? new Date(l.orderedAt).toISOString().slice(0, 10) : t0, q = Number(l.qty) || 0;
+    var R0 = rollup(p, t0), e0 = addDays(o, Number(l.lead) || 0), e1 = addDays(o, lead), need = ms && ms.es ? ms.es : '';
+    var r = { dCost: r2((price - (Number(l.price) || 0)) * q), e0: e0, e1: e1, need: need, msId: ms ? ms.id : '', snet: '', days: 0, f0: R0.finish, f1: R0.finish, crit: false };
+    if (ms && need && e1 > need) {   // late for the materials milestone: it moves to the delivery date; the finish moves only if it is critical
+      r.snet = nextWork(e1); var c = JSON.parse(JSON.stringify(p)), cm = c.tasks.filter(function (t) { return t.id === ms.id; })[0];
+      if (!cm.snet || r.snet > cm.snet) cm.snet = r.snet; schedule(c); var R1 = rollup(c, t0); r.f1 = R1.finish;
+      r.days = r.f1 > r.f0 ? workBetween(r.f0, r.f1) - 1 : 0; r.crit = r.days > 0; rollup(p, t0);
+    }
+    return r;
+  }
+  function ordApply(lineId, price, lead, im, by, why) {   // the change itself: the BOM line, the Gantt (and a new baseline when the finish moves)
+    var p = S.plan, l = ((p.bom || {}).lines || []).filter(function (x) { return x.id === lineId; })[0]; if (!l) return '';
+    var was = [Number(l.price) || 0, Number(l.lead) || 0]; l.price = price; l.lead = lead;
+    var out = l.name + ': ' + (was[0] !== price ? money(was[0]) + ' → ' + money(price) + ' each' : '') + (was[0] !== price && was[1] !== lead ? ', ' : '') + (was[1] !== lead ? 'lead time ' + was[1] + ' → ' + lead + ' days' : '');
+    if (im && im.snet && im.msId) { var ms = p.tasks.filter(function (t) { return t.id === im.msId; })[0]; if (ms && (!ms.snet || im.snet > ms.snet)) { ms.snet = im.snet; out += '; 🧱 milestone moved to ' + dmy(im.snet); } }
+    var t = p.tasks.filter(function (x) { return x.id === l.task; })[0]; if (t && bomOnly(t)) { var amt = r2(bomLinesOf(t).reduce(function (a, y) { return a + (Number(y.qty) || 0) * (Number(y.price) || 0); }, 0)); t.actual = r2(amt * Math.min(100, t.pct || 0) / 100) || ''; }
+    bomSync(); schedule(p);
+    if (im && im.crit) {   // the finish moved: the Gantt is re-baselined (the BOM is re-baselined by its new version on save)
+      var R1 = rollup(p, today()), bt = {}; p.tasks.forEach(function (x) { bt[x.id] = { es: x.es, ef: x.ef, cost: cost(x) }; });
+      p.baseline = { at: Date.now(), finish: R1.finish, BAC: R1.BAC, tasks: bt }; out += '; Gantt re-baselined: finish ' + dmy(im.f0) + ' → ' + dmy(im.f1);
+    }
+    bomLog('Order change by ' + by + ': ' + out + (why ? ' (' + why + ')' : '')); return out;
+  }
+  function ordChange(l, price, lead, note) {
+    var im = ordImpact(l, price, lead), cc = !ccOff();
+    M.modal('<h2>📦 ' + esc(l.name) + ': the order changed</h2>' +
+      '<div class="tblwrap"><table class="tbl"><tbody>' +
+      (im.dCost ? '<tr><td>Unit price</td><td class="num">' + money(l.price) + ' → <b>' + money(price) + '</b></td><td class="num ' + (im.dCost > 0 ? 'bad' : 'good') + '">' + (im.dCost > 0 ? '+' : '') + money(im.dCost) + ' on the BOM / BOQ</td></tr>' : '') +
+      ((Number(l.lead) || 0) !== lead ? '<tr><td>Lead time</td><td class="num">' + (l.lead || 0) + ' → <b>' + lead + ' days</b></td><td class="num">due on site ' + esc(dmy(im.e0)) + ' → <b>' + esc(dmy(im.e1)) + '</b></td></tr>' : '') +
+      (im.need ? '<tr><td>Needed by</td><td class="num">' + esc(dmy(im.need)) + ' (🧱 milestone)</td><td class="num">' + (im.snet ? '<b class="bad">' + pl(workBetween(im.need, im.e1) - 1, 'working day') + ' late</b>' : '<span class="good">in time</span>') + '</td></tr>' : '') +
+      '<tr><td>Project finish</td><td class="num">' + esc(dmy(im.f0)) + (im.crit ? ' → <b class="bad">' + esc(dmy(im.f1)) + '</b>' : '') + '</td><td class="num">' + (im.crit ? '<b class="bad">+' + pl(im.days, 'working day') + ': on the critical path</b>' : im.snet ? 'no change: the delay fits in the slack (not on the critical path)' : 'no change') + '</td></tr></tbody></table></div>' +
+      '<p class="muted">' + (im.dCost ? 'The BOM / BOQ gets a new version (PDF and spreadsheet in Project documents), and the actual cost, the costing and CPI follow. ' : '') + (im.snet ? 'The 🧱 materials milestone moves to the delivery date' + (im.crit ? ', the tasks after it move, and the Gantt is re-baselined.' : '; the tasks with slack absorb it.') : '') + '</p>' +
+      '<label style="display:block">Why <span class="bad">*</span><input id="ocWhy" value="' + esc(note || '') + '" placeholder="e.g. supplier quote 22 Nov: price up, delivery pushed back" style="width:100%"></label>' +
+      '<div class="actions"><button class="btn btn-gold" type="button" id="ocGo">' + (cc ? '🔁 Send to change control' : '✓ Apply and re-baseline') + '</button><button class="btn" type="button" data-close>Cancel</button></div>');
+    $('#ocGo').onclick = function () {
+      var why = $('#ocWhy').value.trim(); if (!why) { toast('Say why the order changed', true); $('#ocWhy').focus(); return; }
+      if (cc) {
+        var c = bomCr('order', 'Order change: ' + l.name + (im.dCost ? ' ' + (im.dCost > 0 ? '+' : '') + money(im.dCost) : '') + (im.crit ? ', finish +' + pl(im.days, 'day') : ''), l.name + ': ' + (im.dCost ? 'unit price ' + money(l.price) + ' → ' + money(price) + ' (' + (im.dCost > 0 ? '+' : '') + money(im.dCost) + ')' : '') + ((Number(l.lead) || 0) !== lead ? (im.dCost ? '; ' : '') + 'lead time ' + (l.lead || 0) + ' → ' + lead + ' days, due on site ' + dmy(im.e1) : '') + (im.snet ? '; the 🧱 milestone moves to ' + dmy(im.snet) + (im.crit ? ' and the finish moves ' + dmy(im.f0) + ' → ' + dmy(im.f1) + ' (critical path): the Gantt is re-baselined' : ' (slack absorbs it)') : ''), why, im.dCost,
+          { line: l.id, price: price, lead: lead, snetTask: im.snet ? im.msId : '', snetDate: im.snet || '', crit: !!im.crit, from: im.f0, to: im.f1 });
+        c.estDays = im.days; M.closeModal(); dirty('Order change sent to change control: ' + crNo(c)); render(); toast('🔁 Sent to Change control as ' + crNo(c) + ': the BOM and the Gantt change once it is approved'); return;
+      }
+      var out = ordApply(l.id, price, lead, im, bomMe(), why); M.closeModal(); dirty('Order change: ' + out); render(); toast('📦 ' + out);
+    };
   }
   function ordWire(box) {
     if (!box) return; var line = function (el) { var id = el.closest('[data-ol]').getAttribute('data-ol'); return ((S.plan.bom || {}).lines || []).filter(function (l) { return l.id === id; })[0]; };
-    box.querySelectorAll('[data-ord]').forEach(function (c) { c.onchange = function () { var l = line(c); if (!l) return; l.ordered = c.checked; l.orderedBy = c.checked ? bomMe() : ''; l.orderedAt = c.checked ? Date.now() : 0; dirty((c.checked ? 'ordered: ' : 'not ordered: ') + l.name); setTimeout(render, 0); }; });
-    var save = function (el) { var l = line(el), inp = el.closest('[data-ol]').querySelector('[data-onote]'), v = inp.value.trim(); if (!l || v === (l.orderNote || '')) { flash(inp); return; }
+    box.querySelectorAll('[data-ord]').forEach(function (c) { c.onchange = function () { var l = line(c); if (!l) return; l.ordered = c.checked; l.orderedBy = c.checked ? bomMe() : ''; l.orderedAt = c.checked ? Date.now() : 0; if (c.checked && ordSt(l) === 'Not ordered') l.ordStatus = 'Ordered'; if (!c.checked) l.ordStatus = 'Not ordered'; dirty((c.checked ? 'ordered: ' : 'not ordered: ') + l.name); setTimeout(render, 0); }; });
+    box.querySelectorAll('[data-ost]').forEach(function (sl) { sl.onchange = function () { var l = line(sl); if (!l) return; l.ordStatus = sl.value; if (sl.value !== 'Not ordered' && !l.ordered) { l.ordered = true; l.orderedBy = bomMe(); l.orderedAt = Date.now(); } if (sl.value === 'Not ordered') { l.ordered = false; l.orderedAt = 0; } l.ordStatusAt = Date.now(); dirty('order ' + sl.value.toLowerCase() + ': ' + l.name); setTimeout(render, 0); }; });
+    var num = function (v) { return Number(String(v).replace(/[$,\s]/g, '')) || 0; };
+    var save = function (el) { var row = el.closest('[data-ol]'), l = line(el), inp = row.querySelector('[data-onote]'), v = inp.value.trim(); if (!l) return;
+      var price = Math.round(num(row.querySelector('[data-oprice]').value) * 100) / 100, lead = Math.max(0, Math.round(num(row.querySelector('[data-olead]').value)));
+      if (Math.abs(price - (Number(l.price) || 0)) > 0.004 || lead !== (Number(l.lead) || 0)) {
+        if ((S.plan.bom || {}).status !== 'Signed off') { l.price = price; l.lead = lead; if (v !== (l.orderNote || '')) { l.orderNote = v; l.orderNoteBy = bomMe(); l.orderNoteAt = Date.now(); } dirty('BOM line: ' + l.name); toast('Saved (the BOM is not signed off yet)'); setTimeout(render, 0); return; }
+        if (v !== (l.orderNote || '')) { l.orderNote = v; l.orderNoteBy = bomMe(); l.orderNoteAt = Date.now(); dirty('order note: ' + l.name); }
+        return ordChange(l, price, lead, v); }
+      if (v === (l.orderNote || '')) { flash(inp); return; }
       l.orderNote = v; l.orderNoteBy = bomMe(); l.orderNoteAt = Date.now(); dirty('order note: ' + l.name); toast('Note saved'); setTimeout(render, 0); };
     var flash = function (inp) { inp.classList.add('ord-ok'); setTimeout(function () { inp.classList.remove('ord-ok'); }, 700); };
     box.querySelectorAll('[data-osave]').forEach(function (bt) { bt.onclick = function () { save(bt); }; });
-    box.querySelectorAll('[data-onote]').forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); save(inp); } }; });
+    box.querySelectorAll('[data-onote],[data-oprice],[data-olead]').forEach(function (inp) { inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); save(inp); } }; });
   }
 
   /* ---------- job page card ---------- */
