@@ -5261,10 +5261,11 @@
     var b = S.plan.bom || {}, W = (S.plan.changes || []).filter(function (c) { return c.kind === 'bom' && (b.ccOpen || []).indexOf(c.id) >= 0 && (!t || (c.bom || {}).task === t.id); });
     return W.length ? '<small class="cr-wait">⏳ ' + W.map(crNo).join(', ') + ' in change control</small>' : '';
   }
-  function bomActCell(t) {
-    var L = bomLinesOf(t), amt = r2(L.reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0)), now = r2(amt * Math.min(100, t.pct || 0) / 100), rv = (S.plan.bomRevs || []).slice(-1)[0], off = Number(t.actual) > 0 && Math.abs(Number(t.actual) - now) > 0.5;
-    return '<button type="button" class="bom-act' + (off ? ' off' : '') + '" data-bomact="' + esc(t.id) + '" title="' + esc('From the BOM' + (rv ? ' v' + rv.v + ' (' + bomStamp(rv.at) + ')' : '') + ': ' + money(amt) + (t.pct < 100 ? ' × ' + t.pct + '% done' : '') + '. Click to change the prices: that saves a new BOM version.' + (off ? ' The actual typed earlier (' + money(t.actual) + ') is not in the BOM yet.' : '')) + '">' + money(now) + ' <span>✎</span>' + (rv ? '<small>BOM v' + rv.v + '</small>' : '') + (off ? '<small class="bad">typed ' + money(t.actual) + ' ⚠</small>' : '') + bomWait(t) + '</button>';
+  function bomActCell(t) {   // 🧱 one line: the actual cost from the BOM / BOQ (current version × % done); click it to change prices
+    var L = bomLinesOf(t), amt = r2(L.reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0)), now = r2(amt * Math.min(100, t.pct || 0) / 100), rv = (S.plan.bomRevs || []).slice(-1)[0];
+    return '<button type="button" class="bom-act" data-bomact="' + esc(t.id) + '" title="' + esc('From the BOM / BOQ' + (rv ? ' v' + rv.v + ' (' + bomStamp(rv.at) + ')' : '') + ': ' + money(amt) + (t.pct < 100 ? ' × ' + t.pct + '% done' : '') + '. Click to change the prices (' + (ccOff() ? 'a new BOM version' : 'through change control') + ').') + '">' + money(now) + '</button>' + bomWait(t);
   }
+
   function bomPrices(tid) {
     var p = S.plan, b = p.bom, t = p.tasks.filter(function (x) { return x.id === tid; })[0]; if (!t || !b) return;
     var L = bomLinesOf(t), was = L.map(function (l) { return Number(l.price) || 0; }), tot0 = r2(L.reduce(function (a, l, i) { return a + (Number(l.qty) || 0) * was[i]; }, 0)), rv = (p.bomRevs || []).slice(-1)[0], typed = Number(t.actual) > 0 && Math.abs(Number(t.actual) - r2(tot0 * Math.min(100, t.pct || 0) / 100)) > 0.5 ? Number(t.actual) : 0;
@@ -5428,6 +5429,8 @@
     // v93: lines not in Inventory still cost money: in the task's cost (bomx); lines with no task: bomLoose (their own quote line)
     var bx = {}, loose = 0; b.lines.forEach(function (l) { var v = (Number(l.qty) || 0) * (Number(l.price) || 0); if (!l.task) loose += v; else if (!l.item) bx[l.task] = (bx[l.task] || 0) + v; });
     p.tasks.forEach(function (t) { if (bx[t.id]) t.bomx = r2(bx[t.id]); else delete t.bomx; }); p.bomLoose = r2(loose);
+    // 🧱 as the server: a BOM-only task's actual cost is the BOM × % done (never a typed figure)
+    p.tasks.forEach(function (t) { if (t.bomx > 0 && !(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) > 0.004) && !(t.mats || []).length) t.actual = r2(t.bomx * Math.min(100, Number(t.pct) || 0) / 100); });
   }
   function bomSave(what) { bomSync(); dirty(what); bomTab(); }
   function bomLoadStock() {   // stock levels, and what this plan itself has set aside (so it is not counted twice)

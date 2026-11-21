@@ -323,6 +323,8 @@ function clean(p, core) {
   if (!bomIn) for (const t of res.tasks) t.mats = [];
   for (const l of (bomIn && res.bom.lines) || []) { const v = (Number(l.qty) || 0) * (Number(l.price) || 0); if (!l.task) loose += v; else if (!l.item) bx[l.task] = (bx[l.task] || 0) + v; }
   for (const t of res.tasks) { if (bx[t.id]) t.bomx = r2(bx[t.id]); else delete t.bomx; }
+  // 🧱 a task that is only BOM materials (no labour): its actual cost IS the BOM (current version) × % done, never a typed figure
+  for (const t of res.tasks) if (t.bomx > 0 && !(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) > 0.004) && !(t.mats || []).length) t.actual = r2(t.bomx * Math.min(100, Number(t.pct) || 0) / 100);
   res.bomLoose = r2(loose);
   res.raciMap = {};
   for (const [tid, row] of Object.entries(rm).slice(0, 400)) {
