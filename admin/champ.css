@@ -1174,3 +1174,56 @@ body.cg-dragging,body.cg-dragging *{user-select:none!important;-webkit-user-sele
 .gbomv.up{background:#b42318}.gbomv.down{background:#067647}
 /* ✓ tick all BOM lines in one go */
 .bom-ckall{display:inline-flex;align-items:center;cursor:pointer}.bom-ckall input{width:16px;height:16px;cursor:pointer}
+
+/* 💻 the Gantt chart's height: dragged by you (any screen) or fitted to a small laptop's screen (champ-fit.js) */
+.gsplit.gh-on,.gsplit.gh-on .gpane{max-height:var(--gH)!important}
+.gsplit.gh-on{height:var(--gH)}
+.gh-drag{display:flex;align-items:center;justify-content:center;gap:10px;height:14px;margin:2px 0 0;cursor:row-resize;touch-action:none;user-select:none;border-radius:6px;color:#8a8473}
+.gh-drag span{width:46px;height:4px;border-radius:2px;background:repeating-linear-gradient(90deg,#B8B2A3 0,#B8B2A3 4px,transparent 4px,transparent 7px)}
+.gh-drag small{font-size:10.5px;opacity:0;transition:opacity .15s}
+.gh-drag:hover,.gh-drag:focus{background:var(--gold-soft,#F7EFD6);outline:none}.gh-drag:hover small,.gh-drag:focus small{opacity:1}
+body.gh-dragging{cursor:row-resize;user-select:none}body.gh-dragging .gpane{pointer-events:none}
+.gfull .gh-drag{display:none}
+
+/* 💻 a small laptop (under 800 px high or 1400 px wide, champ-fit.js): the same console, tighter, so the work fits on the screen */
+@media (min-width:701px){
+  body.is-short .gkh-bar{padding:3px 18px;gap:4px 10px}
+  body.is-short .gkh-bar .gkh-globe{width:22px;height:22px}
+  body.is-short .gkh-bar b{font-size:14px}
+  body.is-short .gkh-bar span,body.is-short .gkh-bar small{display:none}
+  body.is-short header.top{padding:6px 18px;gap:10px;min-height:0}
+  body.is-short header.top h1{font-size:19px}
+  body.is-short .view{padding:12px 16px 40px}
+  body.is-short .plan-head{margin-bottom:6px!important;gap:6px!important}
+  body.is-short .plan-head .btn{padding:4px 8px;font-size:12px}
+  /* the documents bar: one row of buttons */
+  body.is-short .vchain.docs3{display:flex!important;flex-wrap:wrap;gap:6px;border:0!important;background:none!important;padding:0!important;margin-bottom:6px}
+  body.is-short .vchain.docs3 .vstep{flex:none!important;padding:0!important;border:0!important;background:none!important;display:block}
+  body.is-short .vchain.docs3 .vstep>b,body.is-short .vchain.docs3 .vstep>small{display:none}
+  body.is-short .vchain.docs3 .vstep .btn{white-space:nowrap;margin:0}
+  /* the number tiles: one slim row */
+  body.is-short .pkpis{gap:8px!important;margin-bottom:6px!important}
+  body.is-short .pkpis>.card{padding:6px 10px!important}
+  body.is-short .pkpis .s,body.is-short .pkpis .kpi-sub{display:none}
+  body.is-short .pkpis .v{font-size:16px!important}
+  body.is-short .pkpis table{font-size:11px}
+  body.is-short #planTabs{margin-bottom:6px!important}
+  body.is-short #planTabs .tab{padding:4px 10px;font-size:12.5px}
+  body.is-short .gcard{padding:8px!important}
+  body.is-short .gcard>.row{margin-bottom:6px!important}
+}
+
+/* 💻 small laptop: the Gantt toolbars in one slim line each; dates and calendar behind 📆 */
+.gopt-wrap{display:none!important}
+@media (min-width:701px){
+  body.is-short .gopt-wrap{display:flex!important}
+  body.is-short:not(.gopts) .gcard .qgate,body.is-short:not(.gopts) .gcard .pdline{display:none!important}
+  body.is-short .gcard>.row{gap:6px!important;flex-wrap:wrap;align-items:center}
+  body.is-short .gcard>.row .btn-sm{padding:3px 8px;font-size:12px}
+  body.is-short .gcard .pviews .tab{padding:3px 9px;font-size:12px}
+  body.is-short .gfull>.row>#gFull{display:none}
+  body.is-short .gtool{flex-wrap:nowrap!important;overflow-x:auto;scrollbar-width:thin;padding:4px 8px!important;gap:4px!important}
+  body.is-short .gtool .gtb,body.is-short .gtool .gts{flex:none;padding:3px 7px;font-size:12px;min-height:0;height:28px}
+  body.is-short .gtool .gtfind{flex:none;width:150px;height:28px}
+  body.is-short .gtool #gtSel{display:none!important}
+}
