@@ -159,6 +159,16 @@ try {
     ok('Finance', '💵 milestone billing: shares over 100% refused; a done milestone is ready to invoice; raising it bills its share once (not twice, not before it is done); a payment shows as received and owed; the CEO view picks it up',
       over.status === 400 && sv.status === 200 && rd && rd.tid === 'm1' && rd.amount === 40000 && r1.status === 200 && r2.status === 400 && r3.status === 400 && iv && iv.inc === 44000 && iv.paid === 22000 && iv.balance === 22000 && !(f2.j.ready || []).some((r) => r.core === bc) && pr && pr.invoiced === 40000 && pr.received === 20000 && cr && cr.contract === 100000 && cr.invoiced === 40000,
       JSON.stringify([over.status, sv.status, rd, r1.status, r2.status, r3.status, iv, pr, cr && [cr.contract, cr.invoiced]]));
+    const ne = await api('planNewProject', { name: 'Estimate test', client: 'Northside Health', program: 'Digital health' }), ec = ne.j.core;
+    await api('planSave', { core: ec, plan: { name: 'Estimate test', start: '2026-10-01', phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+      { id: 'k1', phase: 'ph1', name: 'Design', dur: 5, pred: [], res: [], qty: 10, rate: 1000, pct: 100, status: 'done' }, { id: 'm1', phase: 'ph1', name: 'Design signed off', dur: 0, pred: ['k1'], res: [], pct: 100, status: 'done' },
+      { id: 'k2', phase: 'ph1', name: 'Build', dur: 10, pred: ['m1'], res: [], qty: 10, rate: 1000, pct: 0, status: 'todo' }, { id: 'm2', phase: 'ph1', name: 'Handover', dur: 0, pred: ['k2'], res: [], pct: 0, status: 'todo' }] } });
+    const eg = await api('acctBillGet', { core: ec }), EB = eg.j.bill || {}, em1 = (EB.milestones || []).find((m) => m.tid === 'm1') || {}, eRaise = await api('acctBillRaise', { core: ec, tid: 'm1' });
+    const ef = await api('acctFinanceGet', {}), ep = (ef.j.projects || []).find((x) => x.core === ec) || {};
+    await api('acctBillSave', { core: ec, contract: EB.contract, ms: { m1: 50, m2: 50 } }); const eRaise2 = await api('acctBillRaise', { core: ec, tid: 'm1' });
+    ok('Finance', '📐 no contract yet: estimated from Costing and split evenly across milestones, shown as "done, not billed"; it cannot be invoiced until the CFO saves (confirms) it',
+      EB.contractFrom === 'estimate' && EB.contract > 0 && em1.pct === 50 && em1.ready && em1.confirm && eRaise.status === 400 && ep.stand && ep.stand.status.tone === 'red' && ep.stand.workPct === 50 && ep.stand.unbilled > 0 && ef.j.totals.estimatedN >= 1 && eRaise2.status === 200,
+      JSON.stringify([EB.contractFrom, EB.contract, em1, eRaise.status, ep.stand, ef.j.totals && ef.j.totals.estimatedN, eRaise2.status, eRaise2.j.error]));
     const c1 = await api('userCreate', { user: { email: 'cfo1@example.com', name: 'Money One', password: 'Cfopass2026x', role: 'CFO' } }), c2 = await api('userCreate', { user: { email: 'cfo2@example.com', name: 'Money Two', password: 'Cfopass2026x', role: 'CFO' } });
     const keep = cookie; cookie = '';
     const lc = await api('login', { username: 'cfo1@example.com', password: 'Cfopass2026x' }), fg = await api('acctFinanceGet', {}), ps = await api('planSave', { core: bc, plan: { name: 'x', tasks: [] } });

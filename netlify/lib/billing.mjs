@@ -31,25 +31,44 @@ export async function saveBill(core, body, by) {
 
 // one project's billing: the contract, each milestone with its share, done or not, and its invoice
 function projectBill(plan, bill, docs, today) {
-  const core = plan.core, C = contractOf(core, bill, docs.quotes), invs = docs.invoices.filter((i) => i.core === core && i.status !== 'void');
+  const core = plan.core, C0 = contractOf(core, bill, docs.quotes), invs = docs.invoices.filter((i) => i.core === core && i.status !== 'void');
   const lineOf = {}; for (const i of invs) for (const l of i.items || []) if (l.tid) lineOf[l.tid] = i;
   P.schedule(plan);
   // 💰 the money, in one place: contract, GST, budget (cost + reserves), forecast cost, margin and profit (Costing settings: contingency, reserve, margin, GST)
   const cfg = plan.budgetCfg || {}, pc0 = (k, d) => (cfg[k] == null || isNaN(+cfg[k]) ? d : +cfg[k]), cont = pc0('cont', 10), res = pc0('res', 5), mg = pc0('margin', 0), gstp = pc0('gst', 10);
   const R = P.rollup(JSON.parse(JSON.stringify(plan)), today), base = r2(R.BAC), contA = r2(base * cont / 100), resA = r2(base * res / 100), budget = r2(base + contA + resA), eac = r2(R.EAC || base);
-  const suggested = r2(budget * (1 + mg / 100)), price = C.value || 0, gst = r2(price * gstp / 100);
+  const suggested = r2(budget * (1 + mg / 100));
+  // 📐 no accepted quote and nothing typed in: estimate the contract from Costing (budget + margin), clearly marked, until the CFO confirms it
+  const C = C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
+  const price = C.value || 0, gst = r2(price * gstp / 100);
   const money = { contract: price, contractFrom: C.from, suggested, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
     spent: r2(R.AC), eac, CPI: R.CPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null };
   // 📅 how close each milestone is: red and flashing within a week, amber within a month, green after; a short project (an event) scales the windows down
   const span = Math.max(1, Math.round((Date.parse((R.finish || today) + 'T00:00:00Z') - Date.parse((R.start || plan.start || today) + 'T00:00:00Z')) / 864e5));
   const redW = span >= 70 ? 7 : Math.max(1, Math.round(span / 10)), ambW = span >= 90 ? 30 : Math.max(redW + 2, Math.round(span / 3));
   const near = (due, billed) => { if (!due || billed) return { alert: '', days: null }; const d = Math.round((Date.parse(due + 'T00:00:00Z') - Date.parse(today + 'T00:00:00Z')) / 864e5); return { alert: d <= redW ? 'red' : d <= ambW ? 'amber' : 'green', days: d }; };
-  const rows = ms(plan).map((t) => { const pc = (bill.ms || {})[t.id] || 0, inv = lineOf[t.id];
+  // 📐 no milestone shares set yet: split the contract evenly across the milestones (marked "suggested") until the CFO saves them
+  const M0 = ms(plan), typedMs = Object.keys(bill.ms || {}).length > 0, auto = !typedMs && M0.length > 0, even = {};
+  if (auto) { const n = M0.length, e = Math.floor(1000 / n) / 10; M0.forEach((t, i) => { even[t.id] = i === n - 1 ? r2(100 - e * (n - 1)) : e; }); }
+  const rows = M0.map((t) => { const pc = auto ? even[t.id] : (bill.ms || {})[t.id] || 0, inv = lineOf[t.id];
     return { tid: t.id, name: String(t.name || 'Milestone').replace(/^[✓◆\s]+/, ''), due: t.ef || t.es || '', done: (t.pct || 0) >= 100, pct: pc, amount: r2(C.value * pc / 100),
-      invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, ...near(t.ef || t.es || '', !!inv) }; });
+      invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, ...near(t.ef || t.es || '', !!inv) }; });
   const inc = (i) => i.totals.inc, ex = (i) => i.totals.ex, live = invs.filter((i) => i.status !== 'draft');
   const invoiced = r2(live.reduce((a, i) => a + ex(i), 0)), received = r2(live.reduce((a, i) => a + (inc(i) ? Math.min(inc(i), i.paid || 0) * ex(i) / inc(i) : 0), 0));
-  return { core, name: plan.name, money, windows: { red: redW, amber: ambW, span }, contract: C.value, contractFrom: C.from, typed: r2(bill.contract), milestones: rows, planned: r2(rows.reduce((a, r) => a + r.pct, 0)),
+  // 📊 where the project stands: work done (earned value ÷ budget) against what has been billed
+  const done = R.BAC > 0 ? Math.min(1, (R.EV || 0) / R.BAC) : Math.min(1, (Number(R.pct) || 0) / 100), overdue = invs.filter((i) => i.status !== 'draft' && i.due && i.due < today && (i.totals.inc - (i.paid || 0)) > 0.005);
+  const stand = { workPct: Math.round(done * 100), billedPct: price ? Math.round(Math.min(1, invoiced / price) * 100) : 0, unbilled: r2(Math.max(0, price * done - invoiced)),
+    overdueN: overdue.length, overdue: r2(overdue.reduce((a, i) => a + i.totals.inc - (i.paid || 0), 0)), estimate: C.from === 'estimate', auto };
+  const rdy = rows.filter((r) => r.ready), rdyAmt = r2(rdy.reduce((a, r) => a + r.amount, 0));
+  stand.status = stand.overdueN ? { tone: 'red', text: stand.overdueN + ' invoice' + (stand.overdueN === 1 ? '' : 's') + ' overdue' }
+    : rdy.length ? { tone: 'red', text: rdy.length + ' milestone' + (rdy.length === 1 ? '' : 's') + ' done, not billed (' + rdyAmt.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', maximumFractionDigits: 0 }) + ')' }
+    : !price ? { tone: 'amber', text: 'No contract value or budget yet' }
+    : stand.estimate ? { tone: 'amber', text: 'Contract value not confirmed (estimate)' }
+    : auto ? { tone: 'amber', text: 'Milestone shares not set' }
+    : !rows.length ? { tone: 'amber', text: 'No milestones to bill against' }
+    : stand.unbilled > price * 0.05 ? { tone: 'amber', text: 'Work is ahead of billing' }
+    : { tone: 'green', text: 'Billing up to date' };
+  return { core, name: plan.name, money, stand, windows: { red: redW, amber: ambW, span }, contract: C.value, contractFrom: C.from, typed: r2(bill.contract), milestones: rows, planned: r2(rows.reduce((a, r) => a + r.pct, 0)),
     invoiced, received, owed: r2(invoiced - received), ready: rows.filter((r) => r.ready) };
 }
 
@@ -67,6 +86,7 @@ export async function raise(core, tid, by, today) {
   if (m.invoice) return { error: m.name + ' is already on invoice ' + m.invoice.id + '.', code: 400 };
   if (!m.done) return { error: m.name + ' is not done yet: it can be invoiced once it reaches 100%.', code: 400 };
   if (!(m.amount > 0)) return { error: 'Set the contract value and this milestone\'s share first.', code: 400 };
+  if (m.confirm) return { error: 'This project\'s billing is still an estimate: check the contract value and each milestone\'s share, then press Save billing to confirm before invoicing.', code: 400 };
   const job = await J.find(core).catch(() => null);
   const d = await ACC.createDoc('invoice', { core, customer: job ? { name: job.name, email: job.email, phone: job.phone, address: job.suburb } : { name: plan.name }, title: plan.name + ': ' + m.name,
     items: [{ desc: 'Milestone: ' + m.name + ' (' + m.pct + '% of the contract value ' + ACC.money(B.contract) + ')', qty: 1, price: m.amount, gst: true, tid: m.tid }] }, by);
@@ -101,10 +121,13 @@ export async function finance(today, cores) {
     const m = i.due && i.due >= today ? i.due.slice(0, 7) : nextMonth; expected.push({ month: m, amount: r2(inc ? bal * i.totals.ex / inc : 0), what: 'invoice ' + i.id, core: i.core || '', late: !!(i.due && i.due < today) }); }
   for (const p of projects) for (const m of p.milestones) if (!m.invoice && m.amount > 0) expected.push({ month: plus(m.due && m.due > today ? m.due : today, 30).slice(0, 7), amount: m.amount, what: 'milestone ' + m.name, core: p.core, late: false });
   const unscheduled = r2(projects.reduce((a, p) => a + Math.max(0, p.contract * (100 - p.planned) / 100 - (p.planned ? 0 : p.invoiced)), 0));
-  return { today, totals: { contract: sum(projects, 'contract'), invoicedInc: sum(live, 'inc'), received: sum(live, 'paid'), owed: sum(live, 'balance'), overdue: r2(live.filter((i) => i.late > 0).reduce((a, i) => a + i.balance, 0)),
+  const est = projects.filter((p) => p.stand.estimate), sg = projects.filter((p) => p.contract && !p.stand.estimate);
+  const tone = { red: 0, amber: 1, green: 2 };
+  return { today, totals: { contract: sum(projects, 'contract'), signed: sum(sg, 'contract'), signedN: sg.length, estimated: sum(est, 'contract'), estimatedN: est.length, noValueN: projects.filter((p) => !p.contract).length,
+    unbilled: r2(projects.reduce((a, p) => a + p.stand.unbilled, 0)), projectsN: projects.length, invoicedInc: sum(live, 'inc'), received: sum(live, 'paid'), owed: sum(live, 'balance'), overdue: r2(live.filter((i) => i.late > 0).reduce((a, i) => a + i.balance, 0)),
     overdueN: live.filter((i) => i.late > 0).length, ready: r2(ready.reduce((a, r) => a + r.amount, 0)), readyN: ready.length, drafts: invoices.filter((i) => i.status === 'draft').length },
     coming, scoped: !!cores, expected, unscheduled, aging, cash: months.map((k) => ({ month: k, invoiced: r2(cash[k].invoiced), received: r2(cash[k].received) })), ready, invoices,
-    projects: projects.filter((p) => p.contract || p.invoiced || p.milestones.length).map((p) => ({ core: p.core, name: p.name, contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length,
+    projects: projects.slice().sort((a, b) => tone[a.stand.status.tone] - tone[b.stand.status.tone] || b.stand.unbilled - a.stand.unbilled).map((p) => ({ core: p.core, stand: p.stand, name: p.name, contract: p.contract, contractFrom: p.contractFrom, planned: p.planned, invoiced: p.invoiced, received: p.received, owed: p.owed, ms: p.milestones.length, readyN: p.ready.length,
       next: (p.milestones.find((x) => !x.invoice && x.pct > 0) || {}).name || '' })), methods: ACC.PAY_METHODS };
 }
 
