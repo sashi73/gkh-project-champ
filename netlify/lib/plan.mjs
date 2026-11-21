@@ -291,6 +291,7 @@ function clean(p, core) {
     bomBase: p.bomBase && typeof p.bomBase === 'object' ? { v: int(p.bomBase.v, 0, 999, 0), at: Number(p.bomBase.at) || 0, total: r2(p.bomBase.total), byTask: Object.fromEntries(Object.entries(p.bomBase.byTask || {}).slice(0, 600).filter(([k]) => /^[\w-]{1,30}$/.test(k)).map(([k, v]) => [k, r2(v)])) } : undefined,
     bomRevs: Array.isArray(p.bomRevs) && p.bomRevs.length ? p.bomRevs.slice(-60).map((x) => ({ v: int(x.v, 0, 999, 0), at: Number(x.at) || 0, by: str(x.by, 80), total: r2(x.total), delta: r2(x.delta), pct: Number(x.pct) || 0, n: int(x.n, 0, 999, 0), syn: str(x.syn, 1500),
       top: (Array.isArray(x.top) ? x.top : []).slice(0, 6).map((c) => ({ name: str(c.name, 160), kind: str(c.kind, 30), oldQty: Number(c.oldQty) || 0, newQty: Number(c.newQty) || 0, oldPrice: r2(c.oldPrice), newPrice: r2(c.newPrice), delta: r2(c.delta) })) })) : undefined,
+    baseRevs: Array.isArray(p.baseRevs) && p.baseRevs.length ? p.baseRevs.slice(-100).map((x) => ({ v: int(x.v, 0, 9999, 0), at: Number(x.at) || 0, by: str(x.by, 120), why: str(x.why, 1000), cr: str(x.cr, 20), direct: !!x.direct, rollback: x.rollback != null ? int(x.rollback, 0, 9999, 0) : undefined, finish: ymdOk(x.finish), BAC: r2(x.BAC), dFinish: int(x.dFinish, -99999, 99999, 0), dBAC: r2(x.dBAC) })) : undefined,
     lessons: (Array.isArray(p.lessons) ? p.lessons : []).slice(0, 200).map((l) => (l && typeof l === 'object' ? { id: uid(l.id, 'l'), title: str(l.title, 200), category: str(l.category, 40), phase: str(l.phase, 80),
       impact: l.impact === 'positive' ? 'positive' : 'negative', what: str(l.what, 1500), cause: str(l.cause, 800), rec: str(l.rec, 800), status: ['Draft', 'Agreed'].includes(l.status) ? l.status : 'Draft',
       reuse: l.reuse !== false, source: l.source === 'ai' ? 'ai' : l.source === 'library' ? 'library' : 'manual', from: str(l.from, 120), by: str(l.by, 80), at: Number(l.at) || Date.now() } : null)).filter((l) => l && (l.title || l.what)),
@@ -346,7 +347,7 @@ function meetLink(u) { const s = str(u, 600); return /^https:\/\/([a-z0-9-]+\.)*
 export async function get(core) { return kv.get('plan:' + core); }
 // v82: one change request
 const CR_ST = ['Proposed', 'Under review', 'CCB meeting', 'Approved', 'Implemented', 'Rejected', 'Deferred'];
-function cleanBase(b) { return b && typeof b === 'object' ? { at: Number(b.at) || Date.now(), finish: ymdOk(b.finish), BAC: r2(b.BAC), by: str(b.by, 80) || undefined,
+function cleanBase(b) { return b && typeof b === 'object' ? { at: Number(b.at) || Date.now(), finish: ymdOk(b.finish), BAC: r2(b.BAC), by: str(b.by, 120) || undefined, why: str(b.why, 1000) || undefined, cr: str(b.cr, 20) || undefined, direct: b.direct ? true : undefined, rollback: b.rollback != null && b.rollback !== '' ? Math.max(0, Math.round(Number(b.rollback) || 0)) : undefined,
   tasks: Object.fromEntries(Object.entries(b.tasks || {}).slice(0, 300).map(([k, v]) => [str(k, 20), { es: ymdOk(v.es), ef: ymdOk(v.ef), cost: r2(v.cost) }])) } : null; }
 function crClean(c) {
   if (!c || typeof c !== 'object') return null;
@@ -356,7 +357,7 @@ function crClean(c) {
   const d = c.decision && typeof c.decision === 'object' ? c.decision : null;
   return { id: str(c.id, 20).replace(/[^\w-]/g, '') || 'cr' + Math.random().toString(36).slice(2, 8), num: int(c.num, 1, 9999, 1), title: str(c.title, 200) || 'Change request', desc: str(c.desc, 4000), reason: str(c.reason, 2000),
     // 🧱 a BOM / BOQ change request: the sign-off waiting for approval, or new unit prices for some lines
-    kind: c.kind === 'bom' || c.kind === 'baseline' ? c.kind : undefined, eval: c.kind === 'bom' && c.eval && typeof c.eval === 'object' ? { scope: str(c.eval.scope, 1000), time: str(c.eval.time, 1000), cost: str(c.eval.cost, 1000), quality: str(c.eval.quality, 1000) } : undefined, bom: c.kind === 'bom' && c.bom && typeof c.bom === 'object' ? { action: ['prices', 'order'].includes(c.bom.action) ? c.bom.action : 'signoff', total: r2(c.bom.total), task: str(c.bom.task, 30), from: c.bom.action === 'order' ? str(c.bom.from, 10) : r2(c.bom.from), to: c.bom.action === 'order' ? str(c.bom.to, 10) : r2(c.bom.to),
+    kind: c.kind === 'bom' || c.kind === 'baseline' ? c.kind : undefined, base: c.kind === 'baseline' && c.base && c.base.rollback != null ? { rollback: int(c.base.rollback, 0, 9999, 0) } : undefined, eval: c.kind === 'bom' && c.eval && typeof c.eval === 'object' ? { scope: str(c.eval.scope, 1000), time: str(c.eval.time, 1000), cost: str(c.eval.cost, 1000), quality: str(c.eval.quality, 1000) } : undefined, bom: c.kind === 'bom' && c.bom && typeof c.bom === 'object' ? { action: ['prices', 'order'].includes(c.bom.action) ? c.bom.action : 'signoff', total: r2(c.bom.total), task: str(c.bom.task, 30), from: c.bom.action === 'order' ? str(c.bom.from, 10) : r2(c.bom.from), to: c.bom.action === 'order' ? str(c.bom.to, 10) : r2(c.bom.to),
       line: str(c.bom.line, 20), price: r2(c.bom.price), lead: Math.max(0, Math.min(999, Math.round(Number(c.bom.lead) || 0))), snetTask: str(c.bom.snetTask, 30), snetDate: /^\d{4}-\d\d-\d\d$/.test(c.bom.snetDate || '') ? c.bom.snetDate : '', crit: !!c.bom.crit,
       prices: Object.fromEntries(Object.entries(c.bom.prices && typeof c.bom.prices === 'object' ? c.bom.prices : {}).slice(0, 400).filter(([k]) => /^[\w-]{1,20}$/.test(k)).map(([k, v]) => [k, r2(v)])) } : undefined,
     source: ['manual', 'meeting', 'intel', 'fit'].includes(c.source) ? c.source : 'manual', direct: !!c.direct, recorded: Number(c.recorded) || 0, recKey: str(c.recKey, 30), srcRef: str(c.srcRef, 30), srcTitle: str(c.srcTitle, 200), raisedBy: str(c.raisedBy, 80), raisedAt: Number(c.raisedAt) || Date.now(),
@@ -1183,6 +1184,12 @@ export async function planPost(action, body, { who, by, audit }) {
     if (audit) await audit(who, `Project ${core}: ${MODNAME[mod]} ${on ? 'on' : 'off'}`);
     return out(200, { ok: true, mod, on, [mod]: on });
   }
+  // 📌 one baseline version (to roll back to), and ✨ the AI's analysis of the baseline history
+  if (action === 'planBaseGet') { const BV = await import('./baserev.mjs'), sn = await BV.snapshot(core, body.v); return sn ? out(200, { snap: sn }) : out(404, { error: 'That baseline version was not found.' }); }
+  if (action === 'planBaseAnalyse') {
+    const plan = await get(core); if (!plan) return out(404, { error: 'No plan' });
+    try { const BV = await import('./baserev.mjs'); return out(200, await BV.analyse(core, plan, rollup(plan, String(body.today || '').match(/^\d{4}-\d\d-\d\d$/) ? body.today : new Date().toISOString().slice(0, 10)))); }
+    catch (e) { return out(e.code || 500, { error: e.message }); } }
   if (action === 'planGet') {
     const job = await J.find(core);
     if (!job) return out(404, { error: 'Job not found' });
@@ -1196,15 +1203,18 @@ export async function planPost(action, body, { who, by, audit }) {
     if (!core || !(await J.find(core))) return out(404, { error: 'Job not found' });
     const before = await get(core);
     // 🧱 the BOM baseline and revision list belong to the server (they are only changed by a new BOM version), never by the browser
-    if (body.plan && typeof body.plan === 'object') { body.plan.bomBase = before ? before.bomBase : undefined; body.plan.bomRevs = before ? before.bomRevs : undefined; }
+    if (body.plan && typeof body.plan === 'object') { body.plan.bomBase = before ? before.bomBase : undefined; body.plan.bomRevs = before ? before.bomRevs : undefined; body.plan.baseRevs = before ? before.baseRevs : undefined; }   // 📌 the baseline versions list belongs to the server too
     const r = await save(core, body.plan || {}, body.rev, by);
     if (r.conflict) return out(409, { error: 'Someone else changed this plan. Your view has been refreshed with their version.', plan: r.conflict });
     if (body.note && audit) await audit(who, `Plan ${core}: ${str(body.note, 120)}`);
     let low = [];
     // GKH Project Champ: no Inventory, so a plan never sets stock aside
     // 🧱 a signed-off BOM that changed: a new version (v0 baseline, then v1, v2 …), filed, summarised and learned from
-    try { const BR = await import('./bomrev.mjs'), rv = await BR.check(core, r.plan, by, save); if (rv) return out(200, { plan: rv.plan, low, bomRev: rv.info }); } catch (e) { console.error('BOM revision: ' + e.message); }
-    return out(200, { plan: r.plan, low });
+    let cur = r.plan, extra = {};
+    try { const BR = await import('./bomrev.mjs'), rv = await BR.check(core, cur, by, save); if (rv) { cur = rv.plan; extra.bomRev = rv.info; } } catch (e) { console.error('BOM revision: ' + e.message); }
+    // 📌 a new (or replaced) baseline: the next baseline version, filed as a spreadsheet and a PowerPoint deck, kept for roll-back and audit
+    try { const BV = await import('./baserev.mjs'), bv = await BV.check(core, cur, by, save); if (bv) { cur = bv.plan; extra.baseRev = bv.info; } } catch (e) { console.error('Baseline version: ' + e.message); }
+    return out(200, { plan: cur, low, ...extra });
   }
   if (action === 'pipelineBoard') {   // the dashboard's big Kanban: every open job (and recently closed ones) in its pipeline column
     const out2 = await pipelineBoard(body); return out(200, out2);
