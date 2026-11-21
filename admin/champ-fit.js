@@ -63,22 +63,27 @@
   // ↔ as you scroll down, the chart follows the bars: if none of the rows in view has its bar on screen, it slides across to them
   //    (it leaves you alone for a few seconds after you scroll sideways yourself)
   function follow(g) {
+    // v239: it waits until you have stopped scrolling (0.7 s with no wheel, touch or scroll), then jumps (no smooth animation):
+    //   a programmatic scroll while you are still scrolling would cut your scroll short
     var Rt = document.getElementById('gRight'), L = document.getElementById('gLeft'); if (!Rt || Rt.gFollow) return; Rt.gFollow = 1;
-    var mine = false, userX = 0, lastX = Rt.scrollLeft, lastY = Rt.scrollTop, tm = 0;
+    var mine = false, userX = 0, lastX = Rt.scrollLeft, lastY = Rt.scrollTop, busy = 0, tm = 0;
     var check = function () {
-      if (Date.now() - userX < 4000 || document.body.classList.contains('gh-dragging')) return;
+      if (Date.now() - userX < 4000 || Date.now() - busy < 650 || document.body.classList.contains('gh-dragging')) return;
       var R = Rt.getBoundingClientRect(), head = Rt.querySelector('thead'), top = R.top + (head ? head.offsetHeight : 0), lo = Infinity, hi = -Infinity, any = false;
       Rt.querySelectorAll('tbody tr').forEach(function (tr) { var b = tr.getBoundingClientRect(); if (b.bottom < top + 4 || b.top > R.bottom - 4) return;
         tr.querySelectorAll('.gbar,.gmile').forEach(function (el) { var e = el.getBoundingClientRect(); if (!e.width && !e.height) return; any = true; var x0 = e.left - R.left + Rt.scrollLeft, x1 = e.right - R.left + Rt.scrollLeft; if (x0 < lo) lo = x0; if (x1 > hi) hi = x1; }); });
       if (!any) return; var v0 = Rt.scrollLeft, v1 = v0 + Rt.clientWidth;
       if (hi > v0 + 20 && lo < v1 - 20) return;   // a bar in view already
-      mine = true; Rt.scrollTo({ left: Math.max(0, lo - 80), behavior: 'smooth' }); setTimeout(function () { mine = false; lastX = Rt.scrollLeft; }, 700);
+      mine = true; Rt.scrollLeft = Math.max(0, lo - 80); lastX = Rt.scrollLeft; setTimeout(function () { mine = false; }, 50);
     };
+    var poke = function () { busy = Date.now(); clearTimeout(tm); tm = setTimeout(check, 700); };
+    [L, Rt].forEach(function (el) { ['wheel', 'touchmove', 'pointerdown', 'keydown'].forEach(function (ev) { el.addEventListener(ev, function () { busy = Date.now(); }, { passive: true }); }); });
     Rt.addEventListener('scroll', function () {
       if (Rt.scrollLeft !== lastX) { if (!mine) userX = Date.now(); lastX = Rt.scrollLeft; }
-      if (Rt.scrollTop !== lastY) { lastY = Rt.scrollTop; clearTimeout(tm); tm = setTimeout(check, 160); }
+      if (Rt.scrollTop !== lastY) { lastY = Rt.scrollTop; poke(); }
     }, { passive: true });
   }
+
   // ⇅ the rail beside the Gantt chart: ⤒ top, ▲ up a page, a slider for the rows, ▼ down a page, ⤓ end (for touch screens and touch pads)
   function rail(g) {
     if (g.querySelector('.g-rail')) return; var L = document.getElementById('gLeft'); if (!L) return;
