@@ -48,17 +48,34 @@
   }
   function wb(S) { return '<span class="fin-wbw" title="Work done ' + S.workPct + '% · billed ' + S.billedPct + '%"><span class="fin-wb"><i style="width:' + S.workPct + '%"></i><em style="width:' + S.billedPct + '%"></em></span><small>' + S.workPct + '% done · ' + S.billedPct + '% billed</small></span>'; }
   // 📍 every project: where it stands on billing, worst first
-  function standHtml(P, T) {
-    var n = { red: 0, amber: 0, green: 0 }; P.forEach(function (p) { n[p.stand.status.tone]++; });
+  // 🔎 search and filter the projects: by name, client, reference or program, by program, and by status
+  var FQ = { q: '', prog: '', tone: '' };
+  function bindStand(T) {
+    var w = document.getElementById('fsWrap'); if (!w) return;
+    var redo = function (keep) { var pos = keep ? document.getElementById('fsQ').selectionStart : null; w.innerHTML = standHtml(F.projects, T); bindStand(T); if (keep) { var q = document.getElementById('fsQ'); q.focus(); q.setSelectionRange(pos, pos); } };
+    var q = document.getElementById('fsQ'); q.oninput = function () { FQ.q = q.value.trim().toLowerCase(); redo(true); };
+    document.getElementById('fsP').onchange = function () { FQ.prog = this.value; redo(false); };
+    var x = document.getElementById('fsX'); if (x) x.onclick = function () { FQ = { q: '', prog: '', tone: '' }; redo(false); };
+    w.querySelectorAll('[data-tone]').forEach(function (b) { b.onclick = function () { var t = b.getAttribute('data-tone'); FQ.tone = FQ.tone === t ? '' : t; redo(false); }; });
+    w.querySelectorAll('[data-bill]').forEach(function (r) { r.onclick = function () { location.hash = '#finance/' + encodeURIComponent(r.getAttribute('data-bill')); }; });
+  }
+  function standHtml(P0, T) {
+    var n = { red: 0, amber: 0, green: 0 }; P0.forEach(function (p) { n[p.stand.status.tone]++; });
+    var progs = P0.map(function (p) { return p.program || ''; }).filter(function (x, i, a) { return x && a.indexOf(x) === i; }).sort();
+    var P = P0.filter(function (p) { return (!FQ.prog || (p.program || '') === FQ.prog) && (!FQ.tone || p.stand.status.tone === FQ.tone) &&
+      (!FQ.q || [p.name, p.client, p.ref, p.program, p.stand.status.text].join(' ').toLowerCase().indexOf(FQ.q) >= 0); });
     return '<section class="card ceo-s"><h3>📍 Where each project stands on billing</h3>' +
-      '<p class="fin-counts"><span class="fin-pill red">' + n.red + ' need billing action</span><span class="fin-pill amber">' + n.amber + ' need setting up</span><span class="fin-pill green">' + n.green + ' up to date</span></p>' +
+      '<div class="fin-find"><input type="search" id="fsQ" placeholder="🔎 Search project, client, reference or program…" value="' + esc(FQ.q) + '">' +
+        '<select id="fsP"><option value="">All programs</option>' + progs.map(function (g) { return '<option' + (g === FQ.prog ? ' selected' : '') + '>' + esc(g) + '</option>'; }).join('') + '</select>' +
+        (FQ.q || FQ.prog || FQ.tone ? '<button class="btn btn-sm" id="fsX" type="button">✕ Clear</button><span class="muted">' + P.length + ' of ' + P0.length + '</span>' : '') + '</div>' +
+      '<p class="fin-counts"><button type="button" class="fin-pill red' + (FQ.tone === 'red' ? ' on' : '') + '" data-tone="red">' + n.red + ' need billing action</button><button type="button" class="fin-pill amber' + (FQ.tone === 'amber' ? ' on' : '') + '" data-tone="amber">' + n.amber + ' need setting up</button><button type="button" class="fin-pill green' + (FQ.tone === 'green' ? ' on' : '') + '" data-tone="green">' + n.green + ' up to date</button></p>' +
       (T.estimatedN ? '<div class="fin-est">📐 <b>' + T.estimatedN + ' of ' + T.projectsN + ' projects have no confirmed contract value.</b> Until the CFO confirms one, Champ estimates it from the project\'s Costing (budget, reserves and margin) and splits it evenly across the milestones, so you can see what is due. Estimates are marked <b class="fin-amb">estimate</b>; open a project to confirm its figures.</div>' : '') +
       '<div class="table-wrap"><table class="ceo-tab ceo-rows"><thead><tr><th>Project</th><th>Status</th><th class="num">Contract</th><th>Work done vs billed</th><th class="num">Work done, not billed</th><th class="num">Received</th><th class="num">Owed</th></tr></thead><tbody>' +
       (P.length ? P.map(function (p) { var S = p.stand;
-        return '<tr data-bill="' + esc(p.core) + '" class="click"><td><b>' + esc(p.name) + '</b><small>' + p.ms + ' milestone' + (p.ms === 1 ? '' : 's') + (p.next ? ' · next: ' + esc(p.next) : '') + '</small></td><td><span class="fin-pill ' + S.status.tone + '">' + esc(S.status.text) + '</span></td>' +
+        return '<tr data-bill="' + esc(p.core) + '" class="click"><td><b>' + esc(p.name) + '</b><small>' + (p.program ? '🗂 ' + esc(p.program) + ' · ' : '') + p.ms + ' milestone' + (p.ms === 1 ? '' : 's') + (p.next ? ' · next: ' + esc(p.next) : '') + '</small></td><td><span class="fin-pill ' + S.status.tone + '">' + esc(S.status.text) + '</span></td>' +
           '<td class="num">' + (p.contract ? money(p.contract) + '<small' + (S.estimate ? ' class="fin-amb">estimate' : '>' + (p.contractFrom === 'quote' ? 'accepted quote' : 'confirmed')) + '</small>' : '<span class="muted">not set</span>') + '</td>' +
           '<td>' + wb(S) + '</td><td class="num">' + (S.unbilled > 0 ? '<b>' + money(S.unbilled) + '</b>' : money(0)) + '</td><td class="num">' + money(p.received) + '</td><td class="num">' + (S.overdueN ? '<b class="ceo-neg">' + money(p.owed) + '</b>' : money(p.owed)) + '</td></tr>'; }).join('')
-        : '<tr><td colspan="7" class="muted" style="text-align:center">No projects yet.</td></tr>') + '</tbody></table></div></section>';
+        : '<tr><td colspan="7" class="muted" style="text-align:center">' + (P0.length ? 'No project matches. Try another word, or ✕ Clear.' : 'No projects yet.') + '</td></tr>') + '</tbody></table></div></section>';
   }
   function bars(C) {
     var max = Math.max(1, Math.max.apply(null, C.map(function (c) { return Math.max(c.invoiced, c.received); }))), W = 720, H = 170, bw = W / C.length;
@@ -75,7 +92,7 @@
       '<div class="row ceo-head"><div><p class="muted">Milestone billing across every project · amounts include tax unless marked · ' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })) + '</p></div><div class="row" style="gap:6px"><button class="btn btn-sm" id="finRe" type="button">⟳ Refresh</button><button class="btn btn-sm" id="finPr" type="button">🖨 Print / PDF</button></div></div>' +
       '<div class="ceo-ts">' + tile('Contract value', money(T.contract), T.estimatedN ? money(T.signed) + ' confirmed · <span class="fin-amb fin-sb">' + money(T.estimated) + ' estimated (' + T.estimatedN + ' project' + (T.estimatedN === 1 ? '' : 's') + ')</span>' : 'before tax, all confirmed', T.estimatedN ? 'warn' : '') + tile('Invoiced', money(T.invoicedInc), F.invoices.filter(function (i) { return i.status !== 'draft'; }).length + ' invoices') + tile('Received', money(T.received), T.invoicedInc ? Math.round(T.received / T.invoicedInc * 100) + '% of invoiced' : '') +
         tile('Still owed', money(T.owed), T.overdue ? '<b class="ceo-neg">' + money(T.overdue) + ' overdue (' + T.overdueN + ')</b>' : 'none overdue', T.overdue ? 'neg' : '') + tile('Ready to invoice', money(T.ready), T.readyN ? T.readyN + ' milestone' + (T.readyN === 1 ? '' : 's') + ' done, not billed' : 'nothing waiting', T.readyN ? 'warn' : '') +
-        tile('Work done, not yet billed', money(T.unbilled), 'earned on the plan, not invoiced', T.unbilled > 0 ? 'warn' : '') + '</div>' + standHtml(F.projects, T) +
+        tile('Work done, not yet billed', money(T.unbilled), 'earned on the plan, not invoiced', T.unbilled > 0 ? 'warn' : '') + '</div><div id="fsWrap">' + standHtml(F.projects, T) + '</div>' +
       (F.coming && F.coming.length ? '<section class="card ceo-s"><h3>📅 Billing coming due</h3><div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Project</th><th>Milestone</th><th>Due</th><th class="num">Amount (before GST)</th></tr></thead><tbody>' +
         F.coming.slice(0, 30).map(function (x) { return '<tr data-bill="' + esc(x.core) + '" class="click"><td><b>' + esc(x.project) + '</b></td><td>◆ ' + esc(x.name) + (x.ready ? ' <small class="ceo-pos">✓ done, ready to invoice</small>' : '') + '</td><td>' + dueChip(x) + '</td><td class="num">' + money(x.amount) + '</td></tr>'; }).join('') + '</tbody></table></div><p class="ceo-legend fin-leg">🔴 flashing: due within a week (less for short projects such as events) · 🟠 within a month · 🟢 later</p></section>' : '') +
       '<section class="card ceo-s"><h3>🔔 Ready to invoice</h3>' + (F.ready.length ? '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Project</th><th>Milestone</th><th>Done by</th><th class="num">Share</th><th class="num">Amount (before tax)</th><th></th></tr></thead><tbody>' +
@@ -93,6 +110,7 @@
     v.querySelector('#finPr').onclick = function () { window.print(); };
     v.querySelectorAll('[data-f]').forEach(function (b) { b.onclick = function () { filt = b.getAttribute('data-f'); draw(); }; });
     v.querySelectorAll('[data-bill]').forEach(function (r) { r.onclick = function () { location.hash = '#finance/' + encodeURIComponent(r.getAttribute('data-bill')); }; });
+    bindStand(T);
     v.querySelectorAll('[data-raise]').forEach(function (b) { b.onclick = function () { var x = b.getAttribute('data-raise').split('|'); raise(x[0], x[1], b).then(function () { return load(); }).then(draw).catch(fail); }; });
     v.querySelectorAll('[data-pay]').forEach(function (b) { b.onclick = function () { pay(F.invoices.filter(function (i) { return i.id === b.getAttribute('data-pay'); })[0]); }; });
   }
