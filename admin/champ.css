@@ -1137,3 +1137,5 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .ceo-info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:4px;padding:0;border:1px solid #c9a227;border-radius:50%;background:#fffaf0;color:#8a6a10;font-size:11px;font-weight:700;line-height:1;cursor:pointer;vertical-align:middle}
 .ceo-info:hover{background:#c9a227;color:#fff}
 .cpi-why{margin-top:12px!important}
+.cpi-ev{margin:8px 0 0;padding:8px 10px;border-radius:8px;background:#f0f7f2;font-size:13px}.cpi-ev.low{background:#fff4dc}
+.ci-tab td,.ci-tab th{padding:5px 8px}
