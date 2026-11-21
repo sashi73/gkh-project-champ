@@ -247,10 +247,10 @@ async function handle(req, context) {
       // 🎯 Today: the start screen (only what is linked to you), and ✓ done / resolve from it
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
       // 🔒 the Finance vault: Program → Project → Contracts / Billing / Invoices / Documents (netlify/lib/vault.mjs checks who may open and file)
-      case 'vaultTree': case 'vaultList': case 'vaultUrl': case 'vaultAdd': case 'vaultFile': case 'vaultDelete': case 'vaultMoveIn': {
+      case 'vaultTree': case 'vaultSearch': case 'vaultList': case 'vaultUrl': case 'vaultAdd': case 'vaultFile': case 'vaultDelete': case 'vaultMoveIn': {
         if (ctx.scope || ctx.kind === 'google' && !['CEO', 'CFO', 'Project manager', 'Project director'].includes(ctx.role)) return bad('The Finance vault is not open to this login.', 403);
         const V = await import('../lib/vault.mjs'), core = String(body.core || '').slice(0, 40);
-        const r = action === 'vaultTree' ? await V.tree(ctx) : action === 'vaultList' ? await V.list(ctx, core) : action === 'vaultUrl' ? await V.uploadUrl(ctx, body) : action === 'vaultAdd' ? await V.add(ctx, body, by)
+        const r = action === 'vaultTree' ? await V.tree(ctx) : action === 'vaultSearch' ? await V.search(ctx, body) : action === 'vaultList' ? await V.list(ctx, core) : action === 'vaultUrl' ? await V.uploadUrl(ctx, body) : action === 'vaultAdd' ? await V.add(ctx, body, by)
           : action === 'vaultFile' ? await V.file(ctx, core, String(body.id || '').slice(0, 24)) : action === 'vaultDelete' ? await V.remove(ctx, core, String(body.id || '').slice(0, 24)) : await V.moveIn(ctx, by);
         if (r.error) return bad(r.error, r.code || 400);
         if (action === 'vaultAdd') await A.audit(who, `Finance vault: ${r.file.name} filed in ${r.file.folder} on ${core}${r.copy && r.copy.id ? ' (redacted copy for the team)' : ''}`);
