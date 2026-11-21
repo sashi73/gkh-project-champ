@@ -832,7 +832,7 @@
     if (args && args[0] === 'new') return newProjectForm();
     return api('planList', { today: today() }).then(function (d) {
       return api('planJobs', {}).then(function (j) {
-        var avail = j.jobs;
+        var avail = j.jobs, canDel = !!(M.me && !M.me.scope && (M.me.owner || (M.me.mods || {}).projects === 'edit'));
         var behind = function (p) { var v = p.fin ? p.fin.SPIt : p.SPI; return (p.late > 0) || (v != null && v < 0.9) || (p.CPI != null && p.CPI < 0.9); };
         var nBehind = d.plans.filter(behind).length;
         V().innerHTML = '<div class="card"><div class="card-h"><h2>Projects <small class="muted" id="plCount">(' + d.plans.length + ' planned' + (avail.length ? ', ' + avail.length + ' not planned yet' : '') + ')</small></h2></div>' +
@@ -847,7 +847,7 @@
                 '<td class="hide-sm">' + p.openRisks + (p.highRisks ? ' <b style="color:#C2410C">(' + p.highRisks + ' high)</b>' : '') + '</td><td class="hide-sm">' + p.openIssues + '</td><td><button class="btn btn-sm" data-pdel="' + esc(p.core) + '" data-pname="' + esc(p.name) + '" title="Delete this project">🗑</button></td></tr>';
             }).join('');
             }).join('') + (avail.length ? '<tr class="pg-row pl-new-h" data-pg="~new"><td colspan="8"><div class="pg-rowin"><span class="kind-tag new">📋 Not planned yet</span><small class="muted">projects with no schedule: plan one to bring it into the portfolio</small></div></td></tr>' +
-              avail.map(function (x) { return '<tr class="pl-row pl-new" data-g="~new" data-new="1" data-s="' + esc([x.name, x.title, x.ref, x.suburb, x.program, x.service].filter(Boolean).join(' ').toLowerCase()) + '"><td colspan="7"><span class="kind-tag proj">📁 Project</span><b>' + esc(x.title || x.name) + '</b><br><small class="muted"><span class="ref">' + esc(x.ref) + '</span> · ' + esc(x.name) + (x.suburb ? ' · ' + esc(x.suburb) : '') + '</small></td><td><button class="btn btn-sm btn-gold" data-planit="' + esc(x.core) + '" type="button">Plan it →</button></td></tr>'; }).join('') : '') +
+              avail.map(function (x) { return '<tr class="pl-row pl-new" data-g="~new" data-new="1" data-s="' + esc([x.name, x.title, x.ref, x.suburb, x.program, x.service].filter(Boolean).join(' ').toLowerCase()) + '"><td colspan="7"><span class="kind-tag proj">📁 Project</span><b>' + esc(x.title || x.name) + '</b><br><small class="muted"><span class="ref">' + esc(x.ref) + '</span> · ' + esc(x.name) + (x.suburb ? ' · ' + esc(x.suburb) : '') + '</small></td><td class="nowrap"><button class="btn btn-sm btn-gold" data-planit="' + esc(x.core) + '" type="button">Plan it →</button>' + (canDel ? ' <button class="btn btn-sm pl-del" data-delnew="' + esc(x.core) + '" type="button" title="Delete this project">🗑 Delete</button>' : '') + '</td></tr>'; }).join('') : '') +
             '</tbody></table></div><div id="plNone" class="empty" hidden>No project matches. Try another word, or clear the search.</div>' + evLegend() : (avail.length ? '<div class="empty champ-empty"><b>' + avail.length + ' project' + (avail.length > 1 ? 's' : '') + ' waiting for a plan.</b><br>Pick one in “Plan an existing project…” above, or start one with <b>＋ New project</b> in the left panel.</div>' : '<div class="empty champ-empty"><b>No projects yet.</b><br>Start your first one with <b>＋ New project</b> in the left panel.</div>')) + '</div>';
         V().querySelectorAll('[data-plan]').forEach(function (tr) { tr.onclick = function () { location.hash = '#plan/' + tr.getAttribute('data-plan'); }; });
         V().querySelectorAll('[data-pdel]').forEach(function (b) {
@@ -858,6 +858,9 @@
         });
         var byCore = {}; avail.forEach(function (x) { byCore[x.core] = x; });
         V().querySelectorAll('[data-planit]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); location.hash = '#plan/' + b.getAttribute('data-planit'); }; });
+        // 🗑 delete a project that has no plan yet (same confirm as anywhere else: it cannot be undone)
+        V().querySelectorAll('[data-delnew]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); var x = avail.filter(function (y) { return y.core === b.getAttribute('data-delnew'); })[0]; if (!x || !M.champDelete) return;
+          M.champDelete([{ core: x.core, name: x.title || x.name, ref: x.ref }]).then(function (ok) { if (ok) projects(args); }); }; });
         // 🔎 find a project: the words and the filter, as you type; a program heading shows while any of its projects does
         var PF = '', filt = function () {
           var q = (($('#plQ') || {}).value || '').toLowerCase().trim().split(/\s+/).filter(Boolean), shown = 0, seen = {};
