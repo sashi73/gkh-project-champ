@@ -220,4 +220,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 209 | 1.0.209| 2026-11-21 16:23| profitfix| `1ed2626` | 💹 Money audit: one set of numbers everywhere (#70) |
 | 210 | 1.0.210| 2026-11-21 16:27| finsearch| `88ebf1e` | 🔎 Finance: search projects by name, client, reference or program; filter by program and by status (click the counts) (#71) |
 | 211 | 1.0.211| 2026-11-21 16:40| ctype| `ef8dfcf` | 📜 Contract type on Costing (fixed price by default; cost-plus; target cost with gain/pain share; GMP with shared savings), one profit calcu |
-| 212 | 1.0.212 | 2026-11-21 16:47 | internal | _this commit_ | _see git log_ |
+| 212 | 1.0.212| 2026-11-21 16:47| internal| `95d8c76` | 🏢 Internal projects (no billing): a contract type for a department's own project; no contract value, GST, invoices, variation orders or pro |
+| 213 | 1.0.213 | 2026-11-21 17:46 | cpibasis | _this commit_ | _see git log_ |

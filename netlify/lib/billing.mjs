@@ -49,7 +49,7 @@ function projectBill(plan, bill, docs, today) {
   const C = { ...C1, base: C1.value || 0, value: r2((C1.value || 0) + voOk) };
   const price = C.value || 0, gst = r2(price * gstp / 100);
   const money = { contract: price, contractFrom: C.from, contractBase: C.base, variations: voOk, variationsWaiting: voWait, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: MO.approved,
-    spent: r2(R.AC), earned: r2(R.EV || 0), toDo: r2(Math.max(0, R.BAC - R.EV)), loose: MO.loose, eac, CPI: R.CPI, SPI: R.SPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
+    spent: r2(R.AC), earned: r2(R.EV || 0), toDo: r2(Math.max(0, R.BAC - R.EV)), loose: MO.loose, eac, split: R.split, overruns: P.overruns(plan, 6), timeIdx: P.timeIndex(plan, R), CPI: R.CPI, SPI: R.SPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
     // 📈 forecast profit, two scenarios. The reserves pay for overruns, so a scenario's cost is the forecast cost or the budget that scenario allows, whichever is higher (no double counting)
     //   1) contingency and management reserve both used: cost up to the whole project budget; 2) the management reserve not used: up to base + contingency
     profit1: price ? r2(price - Math.max(eac, budget)) : null, profit2: price ? r2(price - Math.max(eac, base + contA)) : null, complete };
@@ -60,7 +60,7 @@ function projectBill(plan, bill, docs, today) {
   if (price) { const at = (c) => P.profitAt(MO, price, c), F0 = at(eac), F1 = complete ? F0 : at(Math.max(eac, budget)), F2 = complete ? F0 : at(Math.max(eac, base + contA));
     Object.assign(money, { ctype: MO.ctype, ctypeName: MO.ctypeName, gain: MO.gain, pain: MO.pain, revenue: F0.revenue, profit: F0.profit, profitPct: Math.round(F0.profit / price * 1000) / 10,
       profit1: F1.profit, profit2: F2.profit, profit1Pct: Math.round(F1.profit / price * 1000) / 10, profit2Pct: Math.round(F2.profit / price * 1000) / 10,
-      clientSaves: F0.clientSaves, yourSaving: F0.yourSaving, yourOverrun: F0.yourOverrun, unused: r2(Math.max(0, budget - eac)) }); }
+      clientSaves: F0.clientSaves, yourSaving: F0.yourSaving, yourOverrun: F0.yourOverrun, unused: r2(Math.max(0, budget - eac)), why: P.profitWhy(MO, price, eac, complete) }); }
   else Object.assign(money, { ctype: MO.ctype, ctypeName: MO.ctypeName, gain: MO.gain, pain: MO.pain });
   // 🏢 internal: the result against the budget (no profit). Positive = within budget by that much; negative = over budget
   //   1) against the project budget (contingency and reserve can be used); 2) with the management reserve held back; 3) against the base cost alone
