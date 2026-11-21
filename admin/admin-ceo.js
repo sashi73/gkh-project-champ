@@ -76,6 +76,7 @@
         '<td class="num">' + money(p.contract || p.quoted) + '</td><td class="num">' + money(p.invoiced) + '</td><td class="num">' + money(p.received) + '</td><td class="num">' + (p.profit == null ? '<span class="muted">–</span>' : '<b class="' + (p.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + money(p.profit) + '</b><small>' + p.margin + '%</small>') + '</td></tr>'; }).join('') + '</tbody></table></div>';
   }
   // ---------- 🎙 Champ's CEO briefing ----------
+  var fold = function () { try { return localStorage.getItem('champBriefFold') === '1'; } catch (e) { return false; } };
   var VERD = { turnaround: ['red', '🚨'], steady: ['amber', '⚖'], keep: ['green', '🏆'] };
   function list(L) { return L && L.length ? '<ol class="ceo-bl">' + L.map(function (x) { return '<li><b>' + esc(x.title) + '</b><span>' + esc(x.detail) + '</span></li>'; }).join('') + '</ol>' : ''; }
   function briefHtml() {
@@ -83,14 +84,16 @@
     if (!B) return '<section class="card ceo-s ceo-brief"><div class="ceo-bh"><div><h3>🎙 Champ\'s CEO briefing</h3><p class="muted">Champ reads everything on this page and tells you how we are faring, what it is concerned and happy about, the recommended turnaround or winning strategy, what to focus on next, the cash flow going forward, and its conclusion. It can read it out.</p></div><button class="btn btn-gold" id="ceoBrief" type="button">🎙 Get Champ\'s briefing</button></div></section>';
     var v = VERD[B.verdict] || VERD.steady, when = new Date(B.at).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
     return '<section class="card ceo-s ceo-brief ' + v[0] + '"><div class="ceo-bh"><div><span class="ceo-verd ' + v[0] + '">' + v[1] + ' ' + esc(B.plan_name) + '</span><h3>' + esc(B.headline) + '</h3><p class="muted">Champ\'s briefing · written ' + esc(when) + '</p></div>' +
-      '<div class="row" style="gap:6px"><button class="btn btn-gold" id="ceoRead" type="button">' + (TT.on ? '⏹ Stop' : '▶ Read it out') + '</button><button class="btn btn-sm" id="ceoBrief" type="button">↻ Fresh briefing</button></div></div>' +
+      '<div class="row" style="gap:6px;flex-wrap:wrap;justify-content:flex-end"><button class="btn btn-gold" id="ceoRead" type="button">' + (TT.on ? '⏹ Stop' : '▶ Read it out') + '</button><button class="btn btn-sm" id="ceoPause" type="button"' + (TT.on ? '' : ' hidden') + '>' + (TT.paused ? '▶ Carry on' : '⏸ Pause') + '</button>' +
+        '<button class="btn btn-sm" id="ceoPdf" type="button" title="The briefing as a one-page PDF note">📄 Download PDF</button><button class="btn btn-sm" id="ceoBrief" type="button">↻ Fresh briefing</button><button class="btn btn-sm" id="ceoFold" type="button" title="Hide or show the briefing">' + (fold() ? '▸ Show' : '▾ Hide') + '</button></div></div>' +
+      '<div class="ceo-bbody"' + (fold() ? ' hidden' : '') + '>' +
       '<div class="ceo-bg"><div><h4 class="ceo-sub">📊 How we are faring</h4><p>' + esc(B.faring || B.overview || '') + '</p></div>' +
       '<div><h4 class="ceo-sub">⚠ What I am concerned about</h4>' + list(B.concerns) + (B.positives && B.positives.length ? '<h4 class="ceo-sub">👍 What I am happy about</h4>' + list(B.positives) : '') + '</div>' +
       '<div><h4 class="ceo-sub">🧭 ' + esc(B.strategy_name || 'Recommended strategy') + '</h4>' + list(B.strategy) + '</div>' +
       '<div><h4 class="ceo-sub">🎯 What we should focus on next</h4>' + list(B.focus || B.quick_wins) + '</div>' +
       (B.cash_view ? '<div><h4 class="ceo-sub">💧 Our cash flow going forward</h4><p>' + esc(B.cash_view) + '</p></div>' : '') + '</div>' +
       (B.conclusion || B.road_ahead ? '<p class="ceo-road"><b>Conclusion.</b> ' + esc(B.conclusion || B.road_ahead) + '</p>' : '') +
-      (B.plan && B.plan.length ? '<h4 class="ceo-sub">🗓 ' + esc(B.plan_name) + '</h4><div class="ceo-plan">' + B.plan.map(function (x) { return '<div><b>' + esc(x.when) + '</b><span>' + esc(x.what) + '</span></div>'; }).join('') + '</div>' : '') + '</section>';
+      (B.plan && B.plan.length ? '<h4 class="ceo-sub">🗓 ' + esc(B.plan_name) + '</h4><div class="ceo-plan">' + B.plan.map(function (x) { return '<div><b>' + esc(x.when) + '</b><span>' + esc(x.what) + '</span></div>'; }).join('') + '</div>' : '') + '</div></section>';
   }
   // a long job (the AI takes up to a couple of minutes): the background function, then ask for the result until it is ready
   function bgJob(body) {
@@ -108,11 +111,14 @@
   M.ceoAsk = function (q) { return bgJob({ mode: 'ceoAsk', q: q, history: HIST.slice(-4) }).then(function (x) { var a = x.answer || {}; HIST.push({ q: q, a: (a.answer || '') + (a.options && a.options.length ? ' Options: ' + a.options.map(function (o) { return o.option; }).join('; ') : '') + (a.decision ? ' Decision: ' + a.decision : '') }); return a; }); };
   // ▶ read it out: Champ's voice (Azure), part by part; the browser's own voice if Azure is not there
   var TT = { on: false, n: 0, a: null };
-  function stopRead() { TT.n++; TT.on = false; if (TT.a) { try { TT.a.pause(); } catch (e) {} TT.a = null; } if (window.ChampVoice) window.ChampVoice.stop(); var b = document.getElementById('ceoRead'); if (b) b.textContent = '▶ Read it out'; }
+  function stopRead() { TT.n++; TT.on = false; TT.paused = false; if (TT.a) { try { TT.a.pause(); } catch (e) {} TT.a = null; } if (window.ChampVoice) window.ChampVoice.stop(); var b = document.getElementById('ceoRead'); if (b) b.textContent = '▶ Read it out'; var p = document.getElementById('ceoPause'); if (p) { p.hidden = true; p.textContent = '⏸ Pause'; } }
+  function pauseRead(b) { if (!TT.on) return; TT.paused = !TT.paused;
+    if (TT.paused) { if (TT.a) try { TT.a.pause(); } catch (e) {} try { window.speechSynthesis && window.speechSynthesis.pause(); } catch (e) {} b.textContent = '▶ Carry on'; }
+    else { if (TT.a) { var pr = TT.a.play(); if (pr && pr.catch) pr.catch(function () {}); } try { window.speechSynthesis && window.speechSynthesis.resume(); } catch (e) {} b.textContent = '⏸ Pause'; } }
   function readOut(text, btn) {
     if (M.champHush) M.champHush(); stopRead(); if (!text) return; var n = TT.n, lang = (window.ChampI18n && window.ChampI18n.get()) || 'en';
     var parts = (String(text).match(/[^.!?]+[.!?]+["')]?\s*|[^.!?]+$/g) || [text]).reduce(function (a, x) { if (a.length && (a[a.length - 1] + x).length < 320) a[a.length - 1] += x; else a.push(x); return a; }, []);
-    TT.on = true; if (btn) btn.textContent = '⏹ Stop';
+    TT.on = true; TT.paused = false; if (btn) btn.textContent = '⏹ Stop'; var pz = document.getElementById('ceoPause'); if (pz) { pz.hidden = false; pz.textContent = '⏸ Pause'; }
     var done = function () { if (n === TT.n) stopRead(); };
     var browser = function (i) { if (window.ChampVoice && window.ChampVoice.say(parts.slice(i).join(' '), lang, done)) return; done(); };
     var get = function (i) { return fetch('/.netlify/functions/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: parts[i], lang: lang }) }).then(function (r) { if (!r.ok) throw new Error('no voice'); return r.blob(); }); };
@@ -177,6 +183,10 @@
     v.querySelector('#ceoPr').onclick = function () { window.print(); };
     var bg = v.querySelector('#ceoBrief'); if (bg) bg.onclick = function () { makeBrief(bg, filter); };
     var rd = v.querySelector('#ceoRead'); if (rd) rd.onclick = function () { if (TT.on) { stopRead(); return; } readOut(D.brief.say || D.brief.overview, rd); };
+    var ps = v.querySelector('#ceoPause'); if (ps) ps.onclick = function () { pauseRead(ps); };
+    var fd = v.querySelector('#ceoFold'); if (fd) fd.onclick = function () { var f = !fold(); try { localStorage.setItem('champBriefFold', f ? '1' : '0'); } catch (e) {} var bb = v.querySelector('.ceo-bbody'); if (bb) bb.hidden = f; fd.textContent = f ? '▸ Show' : '▾ Hide'; };
+    var pf = v.querySelector('#ceoPdf'); if (pf) pf.onclick = function () { pf.disabled = true; api('planCeoBriefPdfGet', {}).then(function (r) { var bin = atob(r.file), u8 = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u8], { type: 'application/pdf' })); a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); pf.disabled = false; }).catch(function (e) { pf.disabled = false; fail(e); }); };
   }
   // the colour of Champ's button on this screen: the briefing's verdict, or the same rules from the numbers
   function ragOf() { if (D.brief && D.brief.verdict) return { turnaround: 'red', steady: 'amber', keep: 'green' }[D.brief.verdict] || 'amber';

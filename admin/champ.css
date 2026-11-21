@@ -1061,3 +1061,8 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .dm-dt.final{background:#DCFCE7;border-color:#86EFAC;color:#166534}.dm-dt.interim{background:#FEF3C7;border-color:#FCD34D;color:#92400E}
 .dm-dtf{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px}
 .dm-s-Final{background:#DCFCE7!important;color:#166534!important}
+/* ⏸ ⏹ while Champ talks */
+.cg-ctl{display:none;gap:4px;margin-left:2px}
+#cgPanel:has(#cgVoice.talk) .cg-ctl,#cgPanel:has(#cgPause[title="Carry on"]) .cg-ctl{display:inline-flex}
+.cg-ctl button{width:30px;height:30px;border-radius:50%;border:1px solid var(--line,#E0DACB);background:#fff;cursor:pointer;font-size:13px;line-height:1;display:grid;place-items:center}
+.cg-ctl button:hover{border-color:#D4A017}
