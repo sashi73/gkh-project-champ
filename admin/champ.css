@@ -1142,3 +1142,15 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .ci-pct{width:70px}
 #cgBtn{touch-action:none;cursor:grab}#cgBtn.cg-drag{cursor:grabbing;opacity:.9;box-shadow:0 10px 30px rgba(0,0,0,.3)}
 #cgBtn img{-webkit-user-drag:none;user-select:none;pointer-events:none}
+/* 💲 the progress and cost check-in: wide, readable, the save button always in view */
+#modal .modal-card:has(.ci-wide){max-width:min(1100px,96vw)}
+.ci-intro{margin:-4px 0 10px;font-size:13px;line-height:1.5}
+.ci-scroll{max-height:min(58vh,560px);overflow:auto;border:1px solid #eee8da;border-radius:10px}
+.ci-tab{width:100%;border-collapse:collapse;font-size:13.5px}
+.ci-tab thead th{position:sticky;top:0;background:#faf7ef;z-index:1;padding:8px 10px;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:#6b6656;text-align:left;white-space:nowrap}
+.ci-tab thead th.num{text-align:right}
+.ci-tab td{padding:8px 10px;border-top:1px solid #f0ece2;vertical-align:middle}
+.ci-tab td:first-child{min-width:280px;white-space:normal;line-height:1.35}
+.ci-tab td.num{white-space:nowrap}
+.ci-tab .cpi-in{width:140px}.ci-tab .ci-pct{width:70px}
+.ci-act{position:static!important;margin-top:14px;display:flex;justify-content:flex-end;gap:8px}
