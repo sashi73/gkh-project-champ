@@ -197,7 +197,7 @@
     var pr = period(), sql = t.p ? t.sql.replace(/\{FROM\}/g, pr.from).replace(/\{TO\}/g, pr.to) : t.sql;
     S.title = t.p ? t.n + ' (' + (pr.key === 'custom' ? prettyRange(pr) : pr.name) + ')' : t.n;
     try { run(sql); } catch (e) { return fail(e); }
-    if (t.c) { S.chart = { type: t.c[0], x: t.c[1], y: t.c[2].slice() }; S.view = 'chart'; } else { S.view = 'table'; autoChart(); }
+    if (t.c) { S.chart = { type: t.c[0], x: isIdCol(t.c[1]) && nameCol(S.cols) ? nameCol(S.cols) : t.c[1], y: t.c[2].slice() }; S.view = 'chart'; } else { S.view = 'table'; autoChart(); }
     S.tab = 'editor'; draw();
   }
 
@@ -315,7 +315,7 @@
       a.sql = S.sql; a.title = r.title || 'AI query'; a.note = r.note || '';
       S.title = a.title;
       var ok = r.chart && S.cols.indexOf(r.chart.x) >= 0 && r.chart.y.every(function (y) { return S.cols.indexOf(y) >= 0; });
-      if (ok && S.rows.length > 1) { S.chart = { type: r.chart.type, x: r.chart.x, y: r.chart.y.slice() }; S.view = 'chart'; } else { S.view = 'table'; autoChart(); }
+      if (ok && S.rows.length > 1) { S.chart = { type: r.chart.type, x: isIdCol(r.chart.x) && nameCol(S.cols) ? nameCol(S.cols) : r.chart.x, y: r.chart.y.slice() }; S.view = 'chart'; } else { S.view = 'table'; autoChart(); }
       a.view = S.view; a.chart = JSON.parse(JSON.stringify(S.chart));
       if (S.rows.length === 1 && S.cols.length === 1) { var v = S.rows[0][S.cols[0]]; a.single = typeof v === 'number' ? v.toLocaleString('en-AU', { maximumFractionDigits: 2 }) : String(v == null ? '' : v); }
       results(); showAnswer(a);
@@ -449,8 +449,14 @@
   }
 
   /* ---------- results ---------- */
+  // 🏷 people read names, not IDs: a column that is only a key (project_id, job, core …) is hidden when the rows also have a name, and charts label by the name
+  function isIdCol(c) { return /(^|_)id$|^(job|core|job_id|project_ref|ref)$/i.test(c); }
+  function nameCol(cols) { var pref = ['project_name', 'program', 'name', 'task', 'title', 'item', 'business', 'customer', 'client', 'person', 'supplier'];
+    for (var i = 0; i < pref.length; i++) if (cols.indexOf(pref[i]) >= 0) return pref[i];
+    return cols.filter(function (c) { return /name|title/i.test(c) && !isIdCol(c); })[0] || cols.filter(function (c) { return !isNum(c) && !isIdCol(c); })[0] || ''; }
+  function shownCols() { var nm = nameCol(S.cols); return nm ? S.cols.filter(function (c) { return !isIdCol(c) || c === nm; }) : S.cols; }
   function autoChart() {
-    var x = S.cols.filter(function (c) { return !isNum(c); })[0] || S.cols[0] || '';
+    var x = nameCol(S.cols) || S.cols.filter(function (c) { return !isNum(c); })[0] || S.cols[0] || '';
     var y = S.cols.filter(function (c) { return isNum(c) && c !== x; }).slice(0, 3);
     S.chart = { type: S.chart.type || 'bar', x: x, y: y };
   }
@@ -467,11 +473,12 @@
     var B = $('#resBody');
     if (!n) { B.innerHTML = '<div class="empty">No rows match.</div>'; return; }
     if (S.view === 'table') {
-      B.innerHTML = '<div class="table-wrap"><table><thead><tr>' + S.cols.map(function (c) { return '<th' + (isNum(c) ? ' style="text-align:right"' : '') + '>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
-        S.rows.slice(0, 500).map(function (r) { return '<tr' + (r.any_expired === true || r.compliance === 'expired' ? ' class="sq-exp"' : '') + '>' + S.cols.map(function (c) { return '<td' + (typeof r[c] === 'number' ? ' style="text-align:right"' : '') + '>' + flagCell(c, r[c]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' +
+      var SC = shownCols(), hid = S.cols.length - SC.length;
+      B.innerHTML = (hid ? '<p class="muted" style="margin:0 0 6px;font-size:12px">' + hid + ' ID column' + (hid === 1 ? '' : 's') + ' hidden (the names show instead); the CSV keeps ' + (hid === 1 ? 'it' : 'them') + '.</p>' : '') + '<div class="table-wrap"><table><thead><tr>' + SC.map(function (c) { return '<th' + (isNum(c) ? ' style="text-align:right"' : '') + '>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+        S.rows.slice(0, 500).map(function (r) { return '<tr' + (r.any_expired === true || r.compliance === 'expired' ? ' class="sq-exp"' : '') + '>' + SC.map(function (c) { return '<td' + (typeof r[c] === 'number' ? ' style="text-align:right"' : '') + '>' + flagCell(c, r[c]) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>' +
         (n > 500 ? '<p class="muted">Showing the first 500 rows. Download the CSV for all of them.</p>' : '');
     } else if (S.view === 'records') {
-      B.innerHTML = '<div class="recs">' + S.rows.slice(0, 100).map(function (r, i) { return '<div class="rec"><div class="muted" style="font-size:11.5px;font-weight:800">#' + (i + 1) + '</div><dl class="kv">' + S.cols.map(function (c) { return '<dt>' + esc(c) + '</dt><dd>' + flagCell(c, r[c]) + '</dd>'; }).join('') + '</dl></div>'; }).join('') + '</div>' +
+      B.innerHTML = '<div class="recs">' + S.rows.slice(0, 100).map(function (r, i) { return '<div class="rec"><div class="muted" style="font-size:11.5px;font-weight:800">#' + (i + 1) + '</div><dl class="kv">' + shownCols().map(function (c) { return '<dt>' + esc(c) + '</dt><dd>' + flagCell(c, r[c]) + '</dd>'; }).join('') + '</dl></div>'; }).join('') + '</div>' +
         (n > 100 ? '<p class="muted">Showing the first 100 records.</p>' : '');
     } else chartView(B);
   }
