@@ -256,4 +256,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 245 | 1.0.245| 2026-11-22 03:02| basever| `bdfd860` | Baseline versions: v0 and every re-baseline kept, filed as PowerPoint and CSV in Project documents; re-baseline and roll back through change |
 | 246 | 1.0.246| 2026-11-22 03:22| crbase| `216a40f` | Baselines: the version is recorded at once and also on read (self-healing), its files are made in their own retried step with the result sho |
 | 247 | 1.0.247| 2026-11-22 03:27| basepdf| `599b769` | Baselines: each version filed as a PDF (and a spreadsheet), not PowerPoint; pptxgenjs removed (#108) |
-| 248 | 1.0.248 | 2026-11-22 03:29 | basenames | _this commit_ | _see git log_ |
+| 248 | 1.0.248| 2026-11-22 03:29| basenames| `21aa198` | Baselines: every version is its own document, Project Baseline vN (PDF and spreadsheet), all listed for audit (#109) |
+| 249 | 1.0.249 | 2026-11-22 03:44 | aiprofit | _this commit_ | _see git log_ |

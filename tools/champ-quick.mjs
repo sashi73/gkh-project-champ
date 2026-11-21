@@ -376,6 +376,9 @@ try {
       ar0.status === 400 && pmA.status === 403 && sa.status === 200 && ceoA.status === 200 && gone && arl.status === 200 && hit.archived && hit.archived.reason === 'Cancelled by the client' && hit.planned && pmL.status === 403 && back0.status === 400 && back.status === 200 && again && pmDel.status === 200 && ((await api('planArchiveList', {})).j.register || []).filter((e) => e.core === ac).map((e) => e.what).sort().join() === 'Archived,Brought back',
       JSON.stringify([ar0.status, pmA.status, sa.status, sa.j.error, ceoA.status, ceoA.j.error, gone, arl.status, hit, pmL.status, back.status, again, pmDel.status, pmDel.j.error]));
   }
+    { const sd = (await api('sqlData', {})).j, P = ((sd.data || {}).projects || []), cv = (await api('planCeoGet', {})).j, rows = ((cv.view || cv).rows || []), bad = [];
+      for (const r of rows) { const q = P.find((x) => x.job === r.core); if (!q) continue; const want = r.internal ? null : r.profit == null ? null : r.profit; if (!((want == null && q.forecast_profit == null) || Math.abs((q.forecast_profit || 0) - want) < 0.011)) bad.push(r.name + ' ' + q.forecast_profit + ' vs ' + want); }
+      ok('Reports', '💹 the AI query data has the same profit per project as the CEO view (forecast_profit, contract value and where it came from), so a profit question is answered from it', P.length > 3 && P.some((x) => x.forecast_profit != null && x.contract_from) && !bad.length, JSON.stringify([bad.slice(0, 5), P.slice(0, 2).map((x) => [x.project_name, x.forecast_profit, x.contract_from, x.contract_value])])); }
     // 🔎 one set of figures: for EVERY project, the plan, the CEO view and Finance (billing and the finance list) agree on
     //    % complete, budget, forecast cost, CPI, SPI and profit
     { const cv = (await api('planCeoGet', {})).j, rows = ((cv.view || cv).rows || []).filter((r) => !r.closed), fl = (await api('acctFinanceGet', {})).j.projects || [], bad = [];
