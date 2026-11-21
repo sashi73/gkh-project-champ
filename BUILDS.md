@@ -203,4 +203,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 192 | 1.0.192| 2026-11-21 00:11| ask-fix| `8e11912` | 🧭 Ask Champ (CEO view): follow-up questions no longer break: the conversation goes in as notes, and a plain-words answer is shown instead o |
 | 193 | 1.0.193| 2026-11-21 00:15| champ-btn| `25ec23a` | 👔 CEO view: Champ's button in the same globe-and-colour format (act now / watch / on track, from the portfolio's verdict); Champ folds back |
 | 194 | 1.0.194| 2026-11-21 11:19| vault-lib| `7d6c333` | 🔒 Finance vault as a document library: one search box (name, project, program, client, words inside with the matching passage), quick filte |
-| 195 | 1.0.195 | 2026-11-21 11:22 | plans-search | _this commit_ | _see git log_ |
+| 195 | 1.0.195| 2026-11-21 11:22| plans-search| `6db3173` | 📁 Projects list: find a project as you type (name, reference, client, program), filters (All, Behind, Not planned yet), projects not planne |
+| 196 | 1.0.196 | 2026-11-21 11:34 | bill-panel | _this commit_ | _see git log_ |

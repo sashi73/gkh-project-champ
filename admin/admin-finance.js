@@ -18,6 +18,24 @@
     if (i.late > 0) return '<span class="fin-st late">' + i.late + ' day' + (i.late === 1 ? '' : 's') + ' overdue</span>';
     return '<span class="fin-st open">' + (i.paid > 0 ? 'Part paid' : 'Sent') + ' · due ' + esc(day(i.due)) + '</span>';
   }
+  function dueChip(m) {
+    if (!m.due) return ''; if (m.invoice) return '<small class="muted">due ' + esc(day(m.due)) + '</small>';
+    var d = m.days, t = d == null ? '' : d < 0 ? Math.abs(d) + ' day' + (d === -1 ? '' : 's') + ' overdue' : d === 0 ? 'due today' : d === 1 ? 'due tomorrow' : 'due in ' + d + ' days';
+    return '<span class="fin-due ' + (m.alert || 'green') + '" title="Due ' + esc(day(m.due)) + '">📅 ' + esc(day(m.due)) + (t ? ' · ' + t : '') + '</span>';
+  }
+  function moneyPanel(B) {
+    var K = B.money; if (!K) return '';
+    var t = function (l, v, s2, c) { return '<div class="ceo-t ' + (c || '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s2 ? '<span>' + s2 + '</span>' : '') + '</div>'; };
+    return '<div class="fin-panel"><div class="ceo-ts">' +
+      t('Contract value', K.contract ? money(K.contract) : '<span class="muted">not set</span>', K.contract ? (K.contractFrom === 'quote' ? 'from the accepted quote' : 'before GST') : 'Costing suggests ' + money(K.suggested)) +
+      t('GST ' + K.gstPct + '%', money(K.gst), 'with GST: ' + money(K.withGst)) +
+      t('Budget', money(K.budget), 'cost ' + money(K.base) + (K.approved ? ' · approved ' + money(K.approved) : '')) +
+      t('Reserves', money(K.contingency + K.reserve), 'contingency ' + K.contPct + '% ' + money(K.contingency) + ' · management ' + K.resPct + '% ' + money(K.reserve)) +
+      t('Forecast cost', money(K.eac), 'spent so far ' + money(K.spent) + (K.CPI ? ' · CPI ' + K.CPI.toFixed(2) : ''), K.CPI && K.CPI < 0.9 ? 'neg' : '') +
+      t('Margin', K.margin == null ? '–' : money(K.margin), K.margin == null ? 'set the contract value' : K.marginPct + '% · contract − budget', K.margin != null && K.margin < 0 ? 'neg' : 'pos') +
+      t('Forecast profit', K.profit == null ? '–' : money(K.profit), K.profit == null ? 'set the contract value' : K.profitPct + '% · contract − forecast cost', K.profit != null && K.profit < 0 ? 'neg' : 'pos') +
+      '</div><p class="muted" style="font-size:12px;margin:6px 0 0">Budget, reserves, margin and GST come from the project\'s Costing settings. Amounts before GST unless marked.</p></div>';
+  }
   function bars(C) {
     var max = Math.max(1, Math.max.apply(null, C.map(function (c) { return Math.max(c.invoiced, c.received); }))), W = 720, H = 170, bw = W / C.length;
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="ceo-flow">' + C.map(function (c, i) { var x = i * bw, h = function (v) { return Math.round(v / max * (H - 28)); }, m = new Date(c.month + '-01T00:00:00Z').toLocaleDateString('en-AU', { month: 'short', timeZone: 'UTC' });
@@ -33,6 +51,8 @@
       '<div class="row ceo-head"><div><p class="muted">Milestone billing across every project · amounts include tax unless marked · ' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' })) + '</p></div><div class="row" style="gap:6px"><button class="btn btn-sm" id="finRe" type="button">⟳ Refresh</button><button class="btn btn-sm" id="finPr" type="button">🖨 Print / PDF</button></div></div>' +
       '<div class="ceo-ts">' + tile('Contract value', money(T.contract), 'before tax, all projects') + tile('Invoiced', money(T.invoicedInc), F.invoices.filter(function (i) { return i.status !== 'draft'; }).length + ' invoices') + tile('Received', money(T.received), T.invoicedInc ? Math.round(T.received / T.invoicedInc * 100) + '% of invoiced' : '') +
         tile('Still owed', money(T.owed), T.overdue ? '<b class="ceo-neg">' + money(T.overdue) + ' overdue (' + T.overdueN + ')</b>' : 'none overdue', T.overdue ? 'neg' : '') + tile('Ready to invoice', money(T.ready), T.readyN ? T.readyN + ' milestone' + (T.readyN === 1 ? '' : 's') + ' done, not billed' : 'nothing waiting', T.readyN ? 'warn' : '') + '</div>' +
+      (F.coming && F.coming.length ? '<section class="card ceo-s"><h3>📅 Billing coming due</h3><div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Project</th><th>Milestone</th><th>Due</th><th class="num">Amount (before GST)</th></tr></thead><tbody>' +
+        F.coming.slice(0, 30).map(function (x) { return '<tr data-bill="' + esc(x.core) + '" class="click"><td><b>' + esc(x.project) + '</b></td><td>◆ ' + esc(x.name) + (x.ready ? ' <small class="ceo-pos">✓ done, ready to invoice</small>' : '') + '</td><td>' + dueChip(x) + '</td><td class="num">' + money(x.amount) + '</td></tr>'; }).join('') + '</tbody></table></div><p class="ceo-legend fin-leg">🔴 flashing: due within a week (less for short projects such as events) · 🟠 within a month · 🟢 later</p></section>' : '') +
       '<section class="card ceo-s"><h3>🔔 Ready to invoice</h3>' + (F.ready.length ? '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Project</th><th>Milestone</th><th>Done by</th><th class="num">Share</th><th class="num">Amount (before tax)</th><th></th></tr></thead><tbody>' +
         F.ready.map(function (r) { return '<tr><td><b>' + esc(r.project) + '</b></td><td>◆ ' + esc(r.name) + '</td><td>' + esc(day(r.due)) + '</td><td class="num">' + r.pct + '%</td><td class="num"><b>' + money(r.amount) + '</b></td><td class="num">' + (ed ? '<button class="btn btn-sm btn-gold" data-raise="' + esc(r.core) + '|' + esc(r.tid) + '" type="button">🧾 Raise invoice</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
         : '<p class="muted">No milestone is waiting to be billed. A milestone shows here once it reaches 100% and has a share of the contract.</p>') + '</section>' +
@@ -73,10 +93,10 @@
   function project(core) {
     return api('acctBillGet', { core: core }).then(function (d) {
       var B = d.bill, ed = canEdit();
-      var rows = B.milestones.map(function (m) { return '<tr><td>◆ <b>' + esc(m.name) + '</b><small>' + (m.due ? 'due ' + esc(day(m.due)) : '') + (m.done ? ' · ✓ done' : '') + '</small></td><td class="num">' + (ed && !m.invoice ? '<input type="number" class="fin-pc" min="0" max="100" step="0.5" data-ms="' + esc(m.tid) + '" value="' + (m.pct || '') + '">%' : m.pct + '%') + '</td>' +
+      var rows = B.milestones.map(function (m) { return '<tr><td>◆ <b>' + esc(m.name) + '</b><div>' + dueChip(m) + (m.done ? ' <small class="muted">✓ done</small>' : '') + '</div></td><td class="num">' + (ed && !m.invoice ? '<input type="number" class="fin-pc" min="0" max="100" step="0.5" data-ms="' + esc(m.tid) + '" value="' + (m.pct || '') + '">%' : m.pct + '%') + '</td>' +
         '<td class="num" data-amt="' + esc(m.tid) + '">' + money(m.amount) + '</td><td>' + (m.invoice ? '<b>' + esc(m.invoice.id) + '</b> · ' + (m.invoice.paid >= m.invoice.inc - 0.005 ? 'paid' : 'owed ' + money(m.invoice.inc - m.invoice.paid)) : m.ready ? (ed ? '<button class="btn btn-sm btn-gold" data-raise="' + esc(m.tid) + '" type="button">🧾 Raise invoice</button>' : 'ready to invoice') : m.done ? '<span class="muted">set a share to bill it</span>' : '<span class="muted">not done yet</span>') + '</td></tr>'; }).join('');
       M.view().innerHTML = '<div class="ceo fin"><div class="row ceo-head"><div><a href="#finance" class="btn btn-sm">← Finance</a></div><a class="btn btn-sm" href="#plan/' + encodeURIComponent(core) + '/schedule">📅 Open the plan</a></div>' +
-        '<section class="card ceo-s"><h3>💵 Billing: ' + esc(B.name) + '</h3>' +
+        '<section class="card ceo-s"><h3>💵 Billing: ' + esc(B.name) + '</h3>' + moneyPanel(B) +
         '<div class="fin-form"><label>Contract value (before tax)<input type="number" min="0" step="1" id="bContract" value="' + (B.contractFrom === 'quote' ? B.contract : B.typed || '') + '"' + (B.contractFrom === 'quote' || !ed ? ' disabled' : '') + '></label>' + (B.contractFrom === 'quote' ? '<p class="muted" style="align-self:end">Set by the accepted quote.</p>' : '') + '</div>' +
         (B.milestones.length ? '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Milestone</th><th class="num">Share of contract</th><th class="num">Amount</th><th>Invoice</th></tr></thead><tbody>' + rows + '</tbody><tfoot><tr><td><b>Total</b></td><td class="num"><b id="bTot">' + B.planned + '%</b></td><td class="num" id="bTotAmt"></td><td></td></tr></tfoot></table></div>'
           : '<p class="ceo-none">This plan has no milestones yet. Add milestones (tasks with 0 days) on the Gantt chart, then give each one a share of the contract here.</p>') +
@@ -91,5 +111,16 @@
     });
   }
   function load() { return api('acctFinanceGet', {}).then(function (d) { F = d; }); }
-  M.addView('finance', 'Finance', function (args) { M.view().innerHTML = '<div class="empty">Gathering the invoices…</div>'; if (args && args[0]) return project(args[0]); return load().then(draw); }, 'finance');
+  // 🔴 the red count on the Finance menu: milestones due soon and not billed, milestones ready to invoice, overdue invoices
+  var lastB = 0;
+  M.finBadge = function (force) {
+    if (!force && Date.now() - lastB < 60000) return; lastB = Date.now();
+    api('acctBillAlerts', {}).then(function (c) { var a = document.querySelector('.side-nav [data-nav="finance"]'); if (!a) return;
+      if (c.projects > 0) a.hidden = false;
+      var el = a.querySelector('.tdy-badge'); if (!c.count) { if (el) el.remove(); return; }
+      if (!el) { el = document.createElement('span'); el.className = 'tdy-badge fin-badge'; a.appendChild(el); } el.textContent = c.count > 99 ? '99+' : String(c.count);
+      el.title = c.red + ' milestone' + (c.red === 1 ? '' : 's') + ' due within a week, not billed · ' + c.ready + ' ready to invoice · ' + c.overdue + ' overdue invoice' + (c.overdue === 1 ? '' : 's'); }).catch(function () {});
+  };
+  window.addEventListener('hashchange', function () { M.finBadge(); });
+  M.addView('finance', 'Finance', function (args) { setTimeout(function () { M.finBadge(true); }, 800); M.view().innerHTML = '<div class="empty">Gathering the invoices…</div>'; if (args && args[0]) return project(args[0]); return load().then(draw); }, 'finance');
 })();
