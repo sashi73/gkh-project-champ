@@ -1098,3 +1098,4 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .fin-how p{margin:6px 0 0;line-height:1.45}
 .fin-sb{font-weight:700}
 .ceo-t span b{display:inline;font-size:inherit;line-height:inherit;margin:0}
+.fin-lnk{color:#8a6a10;font-weight:600;text-decoration:none}.fin-lnk:hover{text-decoration:underline}
