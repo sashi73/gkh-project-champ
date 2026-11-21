@@ -1550,7 +1550,7 @@
   function renderNow() {
     var p = S.plan, R = rollup(p, today());
     $('#title').textContent = 'Project plan';
-    var tabs = [['overview', '◎ Overview'], ['schedule', '▤ Gantt'], ['budget', '💰 Costing'], ['critical', '⚡ Critical path'], ['board', '📋 Backlog & Board'], ['bom', '🧱 BOM']].concat([['stake', '👥 Stakeholders'], ['scope', '🎯 Scope'], ['risks', '⚠ Risks'], ['issues', '❗ Issues'], ['contracts', '📜 Contracts'], ['docs', '📁 Documents'], ['comms', '📞 Comms'], ['reports', '📊 Reports'], ['swms', '🦺 SWMS'], ['change', '🔁 Change control'], ['lessons', '📘 Lessons learned'], ['intel', '🧠 Ask AI']]);
+    var tabs = [['overview', '◎ Overview'], ['schedule', '▤ Gantt'], ['budget', '💰 Costing'], ['critical', '⚡ Critical path'], ['board', '📋 Backlog & Board'], ['bom', '🧱 BOM / BOQ']].concat([['stake', '👥 Stakeholders'], ['scope', '🎯 Scope'], ['risks', '⚠ Risks'], ['issues', '❗ Issues'], ['contracts', '📜 Contracts'], ['docs', '📁 Documents'], ['comms', '📞 Comms'], ['reports', '📊 Reports'], ['swms', '🦺 SWMS'], ['change', '🔁 Change control'], ['lessons', '📘 Lessons learned'], ['intel', '🧠 Ask AI']]);
     var MODS = S.mods || {}; tabs = tabs.filter(function (t) { return MODS[t[0]] !== false; });   // GKH Project Champ: optional modules switched off
     if (MODS[S.tab] === false) S.tab = 'overview';
     var sub = !!(M.me && M.me.scope), hide = sub ? ' style="display:none"' : '';   // v91: a sub-contractor signed in to this project
@@ -1592,7 +1592,7 @@
     if ($('#modBtn')) $('#modBtn').onclick = function (e) {   // GKH Project Champ: optional modules (BOM, SWMS) on or off
       e.stopPropagation();
       var btn = this, old = document.getElementById('modPop'); if (old) { old.remove(); btn.setAttribute('aria-expanded', 'false'); return; }
-      var L = [['change', '🔁 Change control', 'Changes are reviewed, approved and signed before they go into the plan. Off (small projects): changes are committed straight away'], ['bom', '🧱 Bill of Materials (BOM)', 'Materials costed and signed off, then added to the costing'], ['swms', '🦺 SWMS', 'Safe Work Method Statements for high-risk construction work']];
+      var L = [['change', '🔁 Change control', 'Changes are reviewed, approved and signed before they go into the plan. Off (small projects): changes are committed straight away'], ['bom', '🧱 BOM / BOQ (Bill of Materials and Quantities)', 'Materials costed and signed off, then added to the costing'], ['swms', '🦺 SWMS', 'Safe Work Method Statements for high-risk construction work']];
       var pop = document.createElement('div'); pop.id = 'modPop'; pop.className = 'mod-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Modules');
       pop.innerHTML = '<b>Modules for this project</b>' + L.map(function (m) {
         return '<label class="mod-row"><span><b>' + m[1] + '</b><small>' + m[2] + '</small></span><span class="bom-switch"><input type="checkbox" data-mod="' + m[0] + '"' + ((S.mods || {})[m[0]] === false ? '' : ' checked') + '><span class="bom-slider"></span></span></label>';
@@ -1605,7 +1605,7 @@
           var mod = box.getAttribute('data-mod'), on = box.checked; box.disabled = true;
           api('planModuleSet', { core: S.core, mod: mod, on: on }).then(function () {
             S.mods = S.mods || {}; S.mods[mod] = on; if (!on && S.tab === mod) S.tab = 'overview';
-            toast(({ bom: '🧱 Bill of Materials', swms: '🦺 SWMS', change: '🔁 Change control' }[mod] || mod) + (on ? ' switched on' : ' switched off for this project') + (mod === 'change' && !on ? ': changes are now committed straight away' : ''));
+            toast(({ bom: '🧱 BOM / BOQ', swms: '🦺 SWMS', change: '🔁 Change control' }[mod] || mod) + (on ? ' switched on' : ' switched off for this project') + (mod === 'change' && !on ? ': changes are now committed straight away' : ''));
             document.removeEventListener('click', shut); render();
           }).catch(function (err) { box.checked = !on; box.disabled = false; fail(err); });
         };
@@ -2189,8 +2189,9 @@
     var stamp = bomStamp;
     var bomChip = function (t) {
       if (!isBomMs(t)) return ''; var r = bomRv();
+      if (p.bom && p.bom.ccPending) { var pc = (p.changes || []).filter(function (c) { return c.id === p.bom.ccPending; })[0]; return '<button class="bomver pend" type="button" data-bomver title="Signed off and waiting for approval in Change control: not in the costing yet">🧱 BOM / BOQ ⏳ ' + (pc ? crNo(pc) : '') + ' awaiting change control</button>'; }
       if (!r) return '<button class="bomver pend" type="button" data-bomver title="The BOM gets its version (v0 = the baseline) when it is signed off and saved">🧱 BOM ' + (p.bom.status === 'Signed off' ? 'signed off · v0 on the next save' : esc(p.bom.status || 'draft') + ': no version yet') + '</button>';
-      return '<button class="bomver' + (r.delta > 0 && r.v ? ' up' : r.delta < 0 ? ' down' : '') + '" type="button" data-bomver title="' + esc((p.bomRevs || []).slice().reverse().map(function (x) { return 'v' + x.v + ' · ' + stamp(x.at) + ' · ' + money(x.total) + (x.v ? ' (' + (x.delta >= 0 ? '+' : '') + money(x.delta) + ')' : ' baseline'); }).join('\n') + '\nClick for the versions and their files') + '">🧱 BOM <b>v' + r.v + '</b> · ' + esc(stamp(r.at)) + ' · ' + money(r.total) +
+      return '<button class="bomver' + (r.delta > 0 && r.v ? ' up' : r.delta < 0 ? ' down' : '') + '" type="button" data-bomver title="' + esc((p.bomRevs || []).slice().reverse().map(function (x) { return 'v' + x.v + ' · ' + stamp(x.at) + ' · ' + money(x.total) + (x.v ? ' (' + (x.delta >= 0 ? '+' : '') + money(x.delta) + ')' : ' baseline'); }).join('\n') + '\nClick for the versions and their files') + '">🧱 BOM / BOQ <b>v' + r.v + '</b> · ' + esc(stamp(r.at)) + ' · ' + money(r.total) +
         (r.v ? ' <span>(' + (r.delta >= 0 ? '+' : '') + money(r.delta) + ', ' + (r.pct >= 0 ? '+' : '') + r.pct + '%)</span>' : ' <span>(baseline)</span>') + '</button>';
     };
     var bomMarks = function (t) {   // a marker on the Gantt chart on each day a BOM version was made (versions on the same day share one marker)
@@ -5255,9 +5256,13 @@
   //    In the Gantt it shows the BOM amount and its version; changing it updates the BOM prices, which saves a new BOM version.
   function bomLinesOf(t) { var b = S.plan.bom; return b && b.status === 'Signed off' ? (b.lines || []).filter(function (l) { return l.task === t.id; }) : []; }
   function bomOnly(t) { return bomLinesOf(t).length > 0 && !(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) > 0.004); }
+  function bomWait(t) {   // 🔁 price changes for this row waiting in change control
+    var b = S.plan.bom || {}, W = (S.plan.changes || []).filter(function (c) { return c.kind === 'bom' && (b.ccOpen || []).indexOf(c.id) >= 0 && (!t || (c.bom || {}).task === t.id); });
+    return W.length ? '<small class="cr-wait">⏳ ' + W.map(crNo).join(', ') + ' in change control</small>' : '';
+  }
   function bomActCell(t) {
     var L = bomLinesOf(t), amt = r2(L.reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0)), now = r2(amt * Math.min(100, t.pct || 0) / 100), rv = (S.plan.bomRevs || []).slice(-1)[0], off = Number(t.actual) > 0 && Math.abs(Number(t.actual) - now) > 0.5;
-    return '<button type="button" class="bom-act' + (off ? ' off' : '') + '" data-bomact="' + esc(t.id) + '" title="' + esc('From the BOM' + (rv ? ' v' + rv.v + ' (' + bomStamp(rv.at) + ')' : '') + ': ' + money(amt) + (t.pct < 100 ? ' × ' + t.pct + '% done' : '') + '. Click to change the prices: that saves a new BOM version.' + (off ? ' The actual typed earlier (' + money(t.actual) + ') is not in the BOM yet.' : '')) + '">' + money(now) + ' <span>✎</span>' + (rv ? '<small>BOM v' + rv.v + '</small>' : '') + (off ? '<small class="bad">typed ' + money(t.actual) + ' ⚠</small>' : '') + '</button>';
+    return '<button type="button" class="bom-act' + (off ? ' off' : '') + '" data-bomact="' + esc(t.id) + '" title="' + esc('From the BOM' + (rv ? ' v' + rv.v + ' (' + bomStamp(rv.at) + ')' : '') + ': ' + money(amt) + (t.pct < 100 ? ' × ' + t.pct + '% done' : '') + '. Click to change the prices: that saves a new BOM version.' + (off ? ' The actual typed earlier (' + money(t.actual) + ') is not in the BOM yet.' : '')) + '">' + money(now) + ' <span>✎</span>' + (rv ? '<small>BOM v' + rv.v + '</small>' : '') + (off ? '<small class="bad">typed ' + money(t.actual) + ' ⚠</small>' : '') + bomWait(t) + '</button>';
   }
   function bomPrices(tid) {
     var p = S.plan, b = p.bom, t = p.tasks.filter(function (x) { return x.id === tid; })[0]; if (!t || !b) return;
@@ -5270,7 +5275,7 @@
       '</tbody><tfoot><tr><th colspan="5">New total <small class="muted">(was ' + money(tot0) + ')</small></th><th class="num" id="bpTot">' + money(tot0) + '</th></tr></tfoot></table></div>' +
       '<div class="row" style="gap:8px;align-items:center;margin:8px 0"><label>Or set the new total $ <input id="bpNew" inputmode="decimal" placeholder="' + pr(tot0) + '" style="width:150px"></label><button type="button" class="btn btn-sm" id="bpSpread">Spread over the lines</button></div>' +
       '<label style="display:block">Why the price changed <span class="bad">*</span><input id="bpWhy" placeholder="e.g. supplier quote 14 Nov: steel up 6%" style="width:100%"></label>' +
-      '<div class="actions"><button class="btn btn-gold" type="button" id="bpSave">Save as a new BOM version</button><button class="btn" type="button" data-close>Cancel</button></div>');
+      '<div class="actions"><button class="btn btn-gold" type="button" id="bpSave">' + (ccOff() ? 'Save as a new BOM / BOQ version' : '🔁 Send to change control') + '</button><button class="btn" type="button" data-close>Cancel</button></div>');
     var box = document.getElementById('modalBody') || document, ins = box.querySelectorAll('[data-bp]'), num = function (v) { return Number(String(v).replace(/[$,\s]/g, '')) || 0; };
     var calc = function () { var tot = 0; ins.forEach(function (x) { var i = +x.getAttribute('data-bp'), a = (Number(L[i].qty) || 0) * num(x.value); tot += a; var c = box.querySelector('[data-ba="' + i + '"]'); if (c) c.textContent = money(a); x.classList.toggle('chg', Math.abs(num(x.value) - was[i]) > 0.004); }); var T = box.querySelector('#bpTot'); T.innerHTML = money(tot) + (Math.abs(tot - tot0) > 0.004 ? '<br><small class="' + (tot > tot0 ? 'bad' : 'good') + '">' + (tot > tot0 ? '+' : '') + money(tot - tot0) + (tot0 ? ' (' + (tot > tot0 ? '+' : '') + Math.round((tot - tot0) / tot0 * 1000) / 10 + '%)' : '') + '</small>' : ''); return tot; };
     var spread = function (target) { if (!(target > 0) || !(tot0 > 0)) return; var f = target / tot0, acc = 0; ins.forEach(function (x, k) { var i = +x.getAttribute('data-bp'); x.value = pr(was[i] * f); }); calc(); };
@@ -5282,8 +5287,15 @@
       ins.forEach(function (x) { var i = +x.getAttribute('data-bp'), v = Math.round(num(x.value) * 100) / 100; if (Math.abs(v - was[i]) > 0.004) ch.push([i, v]); });
       if (!ch.length) { toast('No price changed', true); return; }
       if (!why) { toast('Say why the price changed: it goes in the BOM log and Lessons learned', true); box.querySelector('#bpWhy').focus(); return; }
+      var tot = r2(L.reduce(function (a, l, i) { var c2 = ch.filter(function (c) { return c[0] === i; })[0]; return a + (Number(l.qty) || 0) * (c2 ? c2[1] : Number(l.price) || 0); }, 0));
+      if (!ccOff()) {   // 🔁 change control on: the new prices are a change request; the BOM, the Gantt and the costing change once it is approved
+        var prices = {}; ch.forEach(function (c) { prices[L[c[0]].id] = c[1]; });
+        var cr1 = bomCr('prices', 'BOM / BOQ price change: ' + t.name + ' ' + money(tot0) + ' → ' + money(tot), ch.map(function (c) { var l = L[c[0]]; return l.name + ': ' + money(was[c[0]]) + ' → ' + money(c[1]) + ' each × ' + l.qty + ' ' + (l.unit || '') + ' (' + (c[1] > was[c[0]] ? '+' : '') + money((c[1] - was[c[0]]) * (Number(l.qty) || 0)) + ')'; }).join('\n'), why, r2(tot - tot0), { task: t.id, prices: prices, from: tot0, to: tot });
+        bomLog('Price change for ' + t.name + ' (' + money(tot0) + ' → ' + money(tot) + ') sent to change control as ' + crNo(cr1) + ' by ' + bomMe() + ': ' + why);
+        M.closeModal(); dirty('BOM price change sent to change control: ' + crNo(cr1)); render();
+        toast('🔁 Sent to Change control as ' + crNo(cr1) + ': the BOM, the Gantt and the costing change once it is approved'); return;
+      }
       ch.forEach(function (c) { L[c[0]].price = c[1]; });
-      var tot = r2(L.reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0));
       bomLog('Price revision from the Gantt by ' + bomMe() + ' (' + ch.length + ' line' + (ch.length === 1 ? '' : 's') + ', ' + money(tot0) + ' → ' + money(tot) + '): ' + why);
       t.actual = r2(tot * Math.min(100, t.pct || 0) / 100) || ''; (t.actualLog = t.actualLog || []).push({ at: Date.now(), by: bomMe(), v: t.actual, ms: 'bom' });
       bomSync(); M.closeModal();
@@ -5291,11 +5303,43 @@
       if (S.timer) saveNow();
     };
   }
+  // 🔁 the BOM / BOQ through change control: a sign-off (v0) or a price change waits as a change request; approved, it goes into the
+  //    costing and the Gantt (and the server records the new BOM version); rejected, nothing changes (a rejected sign-off reopens the BOM)
+  function bomCr(action, title, desc, reason, delta, extra) {
+    var b = S.plan.bom, c = crNew({ title: title, desc: desc, reason: reason || '', source: 'manual', srcTitle: '🧱 BOM / BOQ', raisedBy: bomMe(), priority: Math.abs(delta) > 50000 ? 'High' : 'Medium', estCost: action === 'signoff' ? r2(delta) : r2(delta), estDays: 0 });
+    c.kind = 'bom'; c.bom = Object.assign({ action: action, total: r2(delta) }, extra || {});
+    if (action === 'signoff') { b.ccPending = c.id; } else { b.ccOpen = (b.ccOpen || []).concat([c.id]); }
+    return c;
+  }
+  function bomCrHtml(c) {
+    var x = c.bom || {}, b = S.plan.bom || {}, L = b.lines || [];
+    if (x.action === 'signoff') return '<div class="cr-bom"><b>🧱 BOM / BOQ sign-off</b><p>' + esc(L.length + ' lines, ' + money(c.estCost) + ' ex GST, signed off by ' + (b.signedBy || '') + (b.signedRole ? ', ' + b.signedRole : '')) + '.</p><p class="muted">Approved: it goes into the 💰 Costing and the Gantt as the materials baseline (BOM v0), filed as BOM-BOQ.pdf and BOM-BOQ.csv in Project documents. Rejected: the BOM is reopened for changes.</p><p><a class="btn btn-sm" href="#plan/' + esc(S.core) + '/bom">Open the BOM / BOQ</a></p></div>';
+    var rows = Object.keys(x.prices || {}).map(function (id) { var l = L.filter(function (y) { return y.id === id; })[0] || { name: id, qty: 0 }; var np = x.prices[id], op = Number(l.price) || 0; return '<tr><td>' + esc(l.name) + '</td><td class="num">' + esc(l.qty) + ' ' + esc(l.unit || '') + '</td><td class="num">' + money(op) + '</td><td class="num"><b>' + money(np) + '</b></td><td class="num ' + (np > op ? 'bad' : 'good') + '">' + (np > op ? '+' : '') + money((np - op) * (Number(l.qty) || 0)) + '</td></tr>'; }).join('');
+    return '<div class="cr-bom"><b>🧱 BOM / BOQ price change</b> <span class="muted">' + money(x.from) + ' → ' + money(x.to) + '</span><div class="tblwrap"><table class="tbl"><thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price now</th><th class="num">Proposed</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="muted">Approved: the prices go into the BOM, a new BOM / BOQ version is recorded (BOM-BOQ.pdf and BOM-BOQ.csv in Project documents), and the actual cost, the costing and CPI change. Rejected: nothing changes.</p></div>';
+  }
+  function bomCrDecide(c, ok, msg) {
+    var b = S.plan.bom, x = c.bom || {}; if (!b) return msg;
+    c.effect = { days: 0, cost: ok ? r2(c.estCost) : 0, f0: '', f1: '', b0: 0, b1: 0, est: true };
+    if (x.action === 'signoff') {
+      if (b.ccPending === c.id) delete b.ccPending;
+      if (ok) { bomLog('Approved through change control (' + crNo(c) + ' by ' + c.decision.by + '): added to the costing and the Gantt'); bomSync(); c.status = 'Implemented'; c.implementedAt = Date.now(); crLog(c, 'BOM / BOQ added to the costing and the Gantt'); return crNo(c) + ' approved: the BOM / BOQ (' + money(c.estCost) + ') is in the costing and the Gantt'; }
+      bomLog('Rejected in change control (' + crNo(c) + ' by ' + c.decision.by + '): reopened for changes'); b.status = 'Draft'; b.signedBy = ''; b.signedRole = ''; b.sig = ''; b.signedAt = 0; bomSync();
+      return crNo(c) + ' rejected: the BOM / BOQ is reopened for changes';
+    }
+    b.ccOpen = (b.ccOpen || []).filter(function (id) { return id !== c.id; });
+    if (!ok) { bomLog('Price change ' + crNo(c) + ' ' + c.status.toLowerCase() + ' in change control by ' + c.decision.by); return msg; }
+    var n = 0; (b.lines || []).forEach(function (l) { if (x.prices && x.prices[l.id] != null) { l.price = x.prices[l.id]; n++; } });
+    var t = S.plan.tasks.filter(function (y) { return y.id === x.task; })[0];
+    if (t && bomOnly(t)) { var amt = r2(bomLinesOf(t).reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0)); t.actual = r2(amt * Math.min(100, t.pct || 0) / 100) || ''; (t.actualLog = t.actualLog || []).push({ at: Date.now(), by: c.decision.by, v: t.actual, ms: 'bom' }); }
+    bomLog('Price change approved through change control (' + crNo(c) + ' by ' + c.decision.by + '): ' + n + ' line' + (n === 1 ? '' : 's') + ', ' + money(x.from) + ' → ' + money(x.to));
+    bomSync(); c.status = 'Implemented'; c.implementedAt = Date.now(); crLog(c, 'New prices in the BOM / BOQ: a new BOM version is recorded on save');
+    return crNo(c) + ' approved: the new BOM / BOQ prices are in (' + money(x.from) + ' → ' + money(x.to) + ')';
+  }
   function bomStamp(ms) { var d = new Date(ms), z = function (n) { return (n < 10 ? '0' : '') + n; }; return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
   // 🧱 the BOM versions: each with its date and time, total, change and synopsis; the files are in Project documents (BOM.csv)
   function bomVersions() {
     var p = S.plan, L = (p.bomRevs || []).slice().reverse();
-    M.modal('<h2>🧱 BOM versions</h2><p class="muted" style="margin:-4px 0 10px">v0 is the baseline signed off first: materials are budgeted at it. Each later version is the current price: it is the actual cost of the materials, so it moves the costing and CPI. Every version is a file (BOM.csv) in Project documents.</p>' +
+    M.modal('<h2>🧱 BOM / BOQ versions</h2><p class="muted" style="margin:-4px 0 10px">v0 is the baseline signed off first: materials are budgeted at it. Each later version is the current price: it is the actual cost of the materials, so it moves the costing and CPI. Every version is filed in Project documents as a PDF and a spreadsheet (BOM-BOQ.pdf and BOM-BOQ.csv).</p>' +
       (L.length ? '<div class="tblwrap"><table class="tbl bomv-t"><thead><tr><th>Version</th><th>Date and time</th><th>By</th><th class="num">Total (ex GST)</th><th class="num">Change</th><th>What changed</th></tr></thead><tbody>' +
         L.map(function (r, i) { return '<tr><td class="nowrap"><b>v' + r.v + '</b>' + (r.v === 0 ? ' <small class="muted">baseline</small>' : '') + (i === 0 ? ' <small class="good">current</small>' : '') + '</td><td class="nowrap">' + esc(bomStamp(r.at)) + '</td><td>' + esc(r.by || '') + '</td><td class="num">' + money(r.total) + '</td><td class="num ' + (r.v && r.delta > 0 ? 'bad' : r.v && r.delta < 0 ? 'good' : '') + '">' + (r.v ? (r.delta >= 0 ? '+' : '') + money(r.delta) + '<br><small>' + (r.pct >= 0 ? '+' : '') + r.pct + '%</small>' : '—') + '</td><td style="font-size:12.5px">' + esc(r.syn || '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
         : '<p>No version yet: the BOM gets v0 when it is signed off and the plan is saved.</p>') +
@@ -5359,7 +5403,7 @@
   }
   function bomSync() {   // BOM ➜ tasks: each task's stock materials are the BOM lines on it that are Inventory items
     var p = S.plan, b = bomOf(); if (!b) return;
-    if (b.status !== 'Signed off') { p.tasks.forEach(function (t) { t.mats = []; delete t.bomx; }); p.bomLoose = 0; return; }   // GKH Project Champ: the BOM goes into the costing once it is signed off
+    if (b.status !== 'Signed off' || b.ccPending) { p.tasks.forEach(function (t) { t.mats = []; delete t.bomx; }); p.bomLoose = 0; return; }   // 🔁 waiting for change control: not in the costing yet   // GKH Project Champ: the BOM goes into the costing once it is signed off
     var by = {};
     b.lines.forEach(function (l) { if (!l.task || !l.item) return; var g = by[l.task] = by[l.task] || {}, x = g[l.item] = g[l.item] || { qty: 0, val: 0 }; x.qty += Number(l.qty) || 0; x.val += (Number(l.qty) || 0) * (Number(l.price) || 0); });
     p.tasks.forEach(function (t) { var g = by[t.id] || {}; t.mats = Object.keys(g).map(function (id) { var x = g[id]; return { item: id, qty: q3c(x.qty), price: x.qty ? r2(x.val / x.qty) : 0 }; }); });
@@ -5405,7 +5449,7 @@
     var B = $('#planBody'), b = bomOf();
     if (!b) {
       var have = 0; S.plan.tasks.forEach(function (t) { have += matsOf(t).length; });
-      B.innerHTML = '<div class="card bom-intro"><h2>🧱 Bill of Materials: ' + esc(S.plan.name) + '</h2><p>Every material, fixing and consumable the job needs, with quantities and prices: checked and signed off <b>before the work starts</b>. In the Gantt chart it is one milestone, <b>🧱 Bill of Materials</b>, just before the build starts (e.g. before site set-out and excavation), and all the materials are costed there.</p>' +
+      B.innerHTML = '<div class="card bom-intro"><h2>🧱 Bill of Materials and Quantities (BOM / BOQ): ' + esc(S.plan.name) + '</h2><p>Every material, fixing and consumable the job needs, with quantities and prices: checked and signed off <b>before the work starts</b>. In the Gantt chart it is one milestone, <b>🧱 Bill of Materials</b>, just before the build starts (e.g. before site set-out and excavation), and all the materials are costed there.</p>' +
         '<ol class="bom-how"><li><b>✨ Draft with AI</b> from the plan and the scope, or start from a <b>📋 template</b> (e.g. a standard bathroom), or add lines yourself.</li>' +
         '<li><b>One milestone:</b> all of it sits on the 🧱 Bill of Materials milestone in the Gantt chart, just before the work starts.</li>' +
         '<li><b>Check and sign off:</b> the preparer ticks each line as checked, then signs. Signed off, the BOM is locked and its total goes into the 💰 Costing as materials.</li></ol>' +
@@ -5457,7 +5501,7 @@
     var place = ms ? '<div class="bom-place"><span>🧱 In the Gantt chart: milestone <b>#' + msN + ' Bill of Materials</b>' + (ms.es ? ' on ' + esc(dmy(ms.es)) : '') + ', just before</span>' +
       (lock ? '<b>' + esc(bs ? bs.name : 'the end') + '</b>' : '<select id="bomBefore" title="Where the build (physical work) starts: the materials are needed before it"><option value="">– the end of the plan –</option>' + S.plan.tasks.filter(function (t) { return t.id !== ms.id; }).map(function (t) { return '<option value="' + esc(t.id) + '"' + (bs && bs.id === t.id ? ' selected' : '') + '>#' + (S.plan.tasks.indexOf(t) + 1) + ' ' + esc(t.name.slice(0, 70)) + '</option>'; }).join('') + '</select>') +
       '<small class="muted">where the build starts. All the materials are costed and set aside there.</small></div>' : '';
-    B.innerHTML = bomPhases() + '<div class="card"><div class="card-h"><h2>🧱 Bill of Materials: ' + esc(S.plan.name) + '</h2><span class="bom-pill ' + (lock ? 'ok' : '') + '">' + (lock ? '✓ Signed off' : 'Draft') + '</span><span class="sp"></span>' +
+    B.innerHTML = bomPhases() + '<div class="card"><div class="card-h"><h2>🧱 Bill of Materials and Quantities (BOM / BOQ): ' + esc(S.plan.name) + '</h2><span class="bom-pill ' + (lock ? 'ok' : '') + '">' + (lock ? (bomOf().ccPending ? '⏳ Signed off · awaiting change control' : '✓ Signed off') : 'Draft') + '</span><span class="sp"></span>' +
         (lock ? '' : '<button class="btn btn-sm" id="bomAi" type="button"' + (bomHas() ? ' disabled title="One BOM per project: delete this BOM first to generate a new one"' : '') + '>✨ Draft with AI</button><button class="btn btn-sm" id="bomAdd" type="button">＋ Line</button>' + (NOINV ? '' : '<button class="btn btn-sm" id="bomStock" type="button" title="Pick materials from Inventory">📦 From stock</button>') + '') +
         '<button class="btn btn-sm" id="bomTpl" type="button"' + (bomHas() ? ' disabled title="One BOM per project: delete this BOM first to generate a new one"' : '') + '>📋 Templates</button><button class="btn btn-sm" id="bomDoc" type="button">📄 Document</button><button class="btn btn-sm" id="bomXls" type="button">⬇ Excel</button><button class="btn btn-sm btn-danger-soft" id="bomDel" type="button" title="Delete the whole BOM: its lines, its milestone and its materials in the costing">🗑 Delete BOM</button>' +
         (lock ? '<button class="btn btn-sm" id="bomOpen" type="button">🔓 Reopen</button>' : '<button class="btn btn-sm btn-gold" id="bomSign" type="button"' + (b.lines.length && T.checked === b.lines.length && !T.noTask && !T.zero ? '' : ' disabled title="' + (T.zero ? 'Every line needs a price first (no $0 lines)' : T.noTask ? 'Link every line to a task first (so its cost is in the plan)' : 'Tick every line as checked first') + '"') + '>✍ Sign off</button>') + '</div>' +
@@ -5632,6 +5676,11 @@
     $('#bsF').onsubmit = function (e) {
       e.preventDefault(); var f = this;
       b.status = 'Signed off'; b.signedBy = f.by.value.trim(); b.signedRole = f.role.value; b.sig = f.sig.value.trim(); b.signedAt = Date.now();
+      if (!ccOff()) {   // 🔁 change control on: the signed-off BOM is reviewed first; it goes into the costing and the Gantt once approved
+        var cr0 = bomCr('signoff', 'BOM / BOQ v0 for approval: ' + money(T.value) + ' of materials', 'The Bill of Materials and Quantities (BOM / BOQ) was signed off by ' + b.signedBy + ', ' + b.signedRole + ': ' + b.lines.length + ' lines, ' + money(T.value) + ' ex GST. Once approved it goes into the costing and the Gantt as the materials baseline (BOM v0).', 'Materials for the project', T.value, {});
+        bomLog('Signed off by ' + b.signedBy + ', ' + b.signedRole + ' (' + money(T.value) + '): sent to change control as ' + crNo(cr0)); M.closeModal(); bomSync(); dirty('BOM signed off and sent to change control: ' + crNo(cr0));
+        toast('✍ BOM signed off and sent to 🔁 Change control (' + crNo(cr0) + '). It goes into the costing and the Gantt once it is approved.'); location.hash = '#plan/' + S.core + '/change'; return;
+      }
       bomLog('Signed off by ' + b.signedBy + ', ' + b.signedRole + ' (' + money(T.value) + '): added to the costing'); M.closeModal(); bomSync(); dirty('BOM signed off: ' + money(T.value) + ' added to the costing');
       toast('✍ BOM signed off: ' + money(T.value) + ' added to the 💰 Costing as materials'); location.hash = '#plan/' + S.core + '/budget';
     };
@@ -5781,7 +5830,7 @@
       var wb = new XL.Workbook(), ws = wb.addWorksheet('BOM'), money$ = '"$"#,##0.00', num = {};
       S.plan.tasks.forEach(function (t, i) { num[t.id] = i + 1; });
       ws.columns = [{ width: 8 }, { width: 34 }, { width: 40 }, { width: 10 }, { width: 9 }, { width: 12 }, { width: 13 }, { width: 8 }, { width: 18 }, { width: 10 }, { width: 10 }];
-      ws.addRow(['Bill of Materials: ' + S.plan.name + (S.job.ref ? ' (' + S.job.ref + ')' : '')]).font = { bold: true, size: 14 };
+      ws.addRow(['Bill of Materials and Quantities (BOM / BOQ): ' + S.plan.name + (S.job.ref ? ' (' + S.job.ref + ')' : '')]).font = { bold: true, size: 14 };
       ws.addRow([b.status + (b.signedBy ? ', signed off by ' + b.signedBy : '') + ' · ' + dmy(today())]);
       ws.addRow([]);
       var h = ws.addRow(['Task #', 'Task', 'Material', 'Qty', 'Unit', 'Unit $', 'Total', 'Lead', 'Stock', 'Checked', 'Estimate']); h.font = { bold: true, color: { argb: 'FFFFFFFF' } };
@@ -5856,7 +5905,7 @@
       '<div class="cr-info">' + info.map(function (x) { return '<div><small>' + esc(x[0]) + '</small><b>' + esc(x[1]) + '</b></div>'; }).join('') +
         '<div><small>Priority</small>' + (lock ? '<b>' + esc(c.priority) + '</b>' : '<select data-crf="priority" style="width:auto">' + ['Low', 'Medium', 'High', 'Urgent'].map(function (x) { return '<option' + (c.priority === x ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>') + '</div></div>' +
       '<div class="cr-tx"><label>What is the change?<textarea data-crf="desc" rows="2" maxlength="4000"' + (lock ? ' readonly' : '') + '>' + esc(c.desc) + '</textarea></label><label>Why is it needed? (justification)<textarea data-crf="reason" rows="2" maxlength="2000"' + (lock ? ' readonly' : '') + '>' + esc(c.reason) + '</textarea></label></div>' +
-      (c.items ? impactHtml(c.items, null, c) + (lock ? '' : '<p style="margin:6px 0 0"><button class="btn btn-sm" type="button" data-cra="assess">↻ Assess the impact again with AI</button></p>')
+      (c.kind === 'bom' ? bomCrHtml(c) : c.items ? impactHtml(c.items, null, c) + (lock ? '' : '<p style="margin:6px 0 0"><button class="btn btn-sm" type="button" data-cra="assess">↻ Assess the impact again with AI</button></p>')
         : '<div class="cr-noimp"><b>No impact assessment yet.</b> ' + (lock ? '' : 'Let the AI work out what this change means for the plan (tasks, dates, costs, scope, risks, issues, stakeholders, quality), or put in your own estimate.') +
           (lock ? '' : '<div class="row" style="gap:8px;margin-top:8px;align-items:center"><button class="btn btn-gold btn-sm" type="button" data-cra="assess">✨ Assess the impact with AI</button><label class="cr-est">Time (days)<input data-crf="estDays" type="number" value="' + (c.estDays || 0) + '"></label><label class="cr-est">Cost ($)<input data-crf="estCost" inputmode="decimal" value="' + (c.estCost || 0) + '"></label></div>') + '</div>') +
       decision + acts +
@@ -5928,6 +5977,7 @@
       c.decision = { by: by, role: role, at: Date.now(), note: note || '', sig: sig || '', outcome: outcome }; if (direct) c.direct = true;
       c.status = outcome; crLog(c, outcome + ' by ' + by + ' (' + role + ')' + (c.decision.note ? ': ' + c.decision.note : ''));
       var msg = crNo(c) + ' ' + outcome.toLowerCase();
+      if (c.kind === 'bom') return bomCrDecide(c, ok, msg);
       if (ok && c.items && n) {
         var R0 = rollup(S.plan, today()), k = impactApply(S.plan, c.items, pk, { tag: ' (' + crNo(c) + ')' }), R1 = rollup(S.plan, today());
         if (c.items.replan && c.items.replan.rebaseline) {   // an approved re-plan is the new performance baseline (PMBOK)

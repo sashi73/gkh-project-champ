@@ -238,4 +238,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 227 | 1.0.227| 2026-11-21 19:57| fitmode| `99acbc7` | Header layout switch: Auto / Compact / Full (#88) |
 | 228 | 1.0.228| 2026-11-21 20:02| fit2| `ffc255f` | Layout switch: Auto and Compact only (#89) |
 | 229 | 1.0.229| 2026-11-21 20:12| fitzoom| `6c7bf31` | Gantt: panes scroll together reliably (wheel/touch pad), a ⤒▲ slider ▼⤓ rail, Excel-style arrow and Enter keys; Screen fit panel with detect |
-| 230 | 1.0.230 | 2026-11-22 01:16 | gantt3 | _this commit_ | _see git log_ |
+| 230 | 1.0.230| 2026-11-22 01:16| gantt3| `a822878` | Gantt: ▦ Columns to hide grid columns, chart follows the bars as you scroll down, BOM rows take their actual cost from the BOM and price cha |
+| 231 | 1.0.231 | 2026-11-22 01:25 | bomcc | _this commit_ | _see git log_ |

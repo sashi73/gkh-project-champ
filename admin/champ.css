@@ -1282,3 +1282,6 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 /* ▦ the Columns panel */
 .gcol-pop{width:260px}.gcol-list{display:grid;gap:4px;max-height:50vh;overflow:auto;padding:2px}
 .gcol-list label{display:flex;gap:8px;align-items:center;padding:3px 4px;border-radius:6px;cursor:pointer;text-transform:capitalize}.gcol-list label:hover{background:rgba(201,162,39,.1)}
+
+.bom-act .cr-wait,.cr-wait{color:#9a5b00!important;font-weight:700}
+.cr-bom{padding:10px 12px;border:1px solid #d9c9a3;border-radius:10px;background:#fbf6ea;margin-top:8px}.cr-bom p{margin:6px 0}
