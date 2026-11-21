@@ -363,24 +363,33 @@
   function dragBtn(b) {
     applyPos(b); window.addEventListener('resize', function () { applyPos(b); placePanel(); });
     b.addEventListener('dragstart', function (e) { e.preventDefault(); });   // the globe image must not start a browser drag (it cancels the move)
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });   // no text selection or link drag starting under the button (a click still fires)
+    window.addEventListener('dragstart', function (e) { if (st) e.preventDefault(); }, true);   // nothing else may start a browser drag while Champ is held
     Array.prototype.forEach.call(b.querySelectorAll('img'), function (i) { i.draggable = false; });
     var st = null;
     b.addEventListener('pointerdown', function (e) { if (e.button !== 0) return; var r = b.getBoundingClientRect(); st = { x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false }; });
     window.addEventListener('pointermove', function (e) { if (!st) return; if (!st.moved && Math.abs(e.clientX - st.x) + Math.abs(e.clientY - st.y) < 6) return;
-      if (!st.moved) { st.moved = true; b.classList.add('cg-drag'); try { b.setPointerCapture(e.pointerId); } catch (er) {} }
+      e.preventDefault();
+      if (!st.moved) { st.moved = true; b.classList.add('cg-drag'); document.body.classList.add('cg-dragging'); try { window.getSelection().removeAllRanges(); } catch (er) {} try { b.setPointerCapture(e.pointerId); } catch (er) {} }
       putBtn(b, e.clientX - st.dx, e.clientY - st.dy); placePanel(); });
-    var end = function () { if (!st) return; if (st.moved) { b._dragged = true; b.classList.remove('cg-drag'); var r = b.getBoundingClientRect();
+    var end = function () { if (!st) return; document.body.classList.remove('cg-dragging'); if (st.moved) { b._dragged = true; b.classList.remove('cg-drag'); var r = b.getBoundingClientRect();
         try { localStorage.setItem(POS_KEY, JSON.stringify({ x: r.left / innerWidth, y: r.top / innerHeight })); } catch (e) {} setTimeout(function () { b._dragged = false; }, 50); } st = null; };
     window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
     b.addEventListener('dblclick', function () { try { localStorage.removeItem(POS_KEY); } catch (e) {} applyPos(b); placePanel(); });
   }
+  // 📐 the panel always fits on screen: it opens on the side of the button with more room, its height is capped to that room
+  //    (the conversation scrolls inside), and it is placed again whenever its content grows or the window changes size
   function placePanel() {
     var p = $('#cgPanel'), b = $('#cgBtn'); if (!p || p.hidden || !b) return;
-    if (!savedPos()) { p.style.left = p.style.top = p.style.right = p.style.bottom = ''; return; }
-    var r = b.getBoundingClientRect(), pw = p.offsetWidth || 360, ph = p.offsetHeight || 400;
-    var x = r.left + r.width / 2 > innerWidth / 2 ? r.right - pw : r.left, y = r.top + r.height / 2 > innerHeight / 2 ? r.top - ph - 10 : r.bottom + 10;
-    p.style.left = Math.max(6, Math.min(innerWidth - pw - 6, x)) + 'px'; p.style.top = Math.max(6, Math.min(innerHeight - ph - 6, y)) + 'px'; p.style.right = 'auto'; p.style.bottom = 'auto';
+    var M8 = 10, r = b.getBoundingClientRect(), pw = Math.min(p.offsetWidth || 360, innerWidth - 2 * M8);
+    var above = r.top - M8 * 2, below = innerHeight - r.bottom - M8 * 2, side = savedPos() ? (above >= below ? 'up' : 'down') : 'up', room = Math.max(220, side === 'up' ? above : below);
+    p.style.maxHeight = Math.min(560, room, innerHeight - 2 * M8) + 'px';
+    var ph = Math.min(p.offsetHeight, innerHeight - 2 * M8);
+    if (!savedPos()) { p.style.left = p.style.top = ''; p.style.right = '18px'; p.style.bottom = Math.max(M8, innerHeight - r.top + M8) + 'px'; return; }
+    var x = r.left + r.width / 2 > innerWidth / 2 ? r.right - pw : r.left, y = side === 'up' ? r.top - ph - M8 : r.bottom + M8;
+    p.style.left = Math.max(M8, Math.min(innerWidth - pw - M8, x)) + 'px'; p.style.top = Math.max(M8, Math.min(innerHeight - ph - M8, y)) + 'px'; p.style.right = 'auto'; p.style.bottom = 'auto';
   }
+
   function openPanel() {
     var p = $('#cgPanel');
     if (!p) {
@@ -407,6 +416,7 @@
       chipsFill(p);
     }
     p.hidden = false; watchBtn(); stratMode(); placePanel();
+    if (!p._ro && window.ResizeObserver) { p._ro = new ResizeObserver(function () { placePanel(); }); p._ro.observe(p); }   // its content grows (Champ's message arrives): place it again
     var core = planHash();
     if (core && !W.told[core]) watchBrief(false);   // in a project: Champ's view of it comes first
     else if (!core) greet(false);   // in a project, Champ's view of it is the hello
