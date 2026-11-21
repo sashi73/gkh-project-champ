@@ -357,7 +357,7 @@
     if (!p) {
       p = document.createElement('div'); p.id = 'cgPanel';
       var LL = (window.ChampI18n && window.ChampI18n.langs) || [['en', 'English']];
-      p.innerHTML = '<div class="cgp-h"><img src="../assets/gkh-globe.webp" alt=""><b>Champ</b><select id="cgLang" title="Champ\'s language (the whole console changes too)">' + LL.map(function (l) { return '<option value="' + l[0] + '"' + (l[0] === lang() ? ' selected' : '') + '>' + esc(l[1]) + '</option>'; }).join('') + '</select>' +
+      p.innerHTML = '<div class="cgp-h"><img src="../assets/gkh-globe.webp" alt=""><b>Champ</b><select id="cgLang" title="Champ\'s language (the whole console changes too)">' + LL.map(function (l) { return '<option value="' + l[0] + '" data-full="' + esc(l[1]) + '" data-code="' + esc(String(l[0]).slice(0, 2).toUpperCase()) + '"' + (l[0] === lang() ? ' selected' : '') + '>' + esc(String(l[0]).slice(0, 2).toUpperCase()) + '</option>'; }).join('') + '</select>' +
         '<button type="button" class="cgp-v" id="cgVoice"></button><span class="cg-ctl"><button type="button" id="cgPause" title="Pause Champ">⏸</button><button type="button" id="cgStop" title="Stop Champ talking">⏹</button></span><button type="button" class="cgp-x" title="Close">✕</button></div><div class="cgp-log" id="cgLog"></div>' +
         '<div class="cgp-menu" id="cgMenu" hidden></div>' +
         '<p class="cgp-hint" id="cgHint">Tap 🎙 and ask, or say “menu”.</p>' +
@@ -369,7 +369,10 @@
         else { V.paused = false; if (V.audio) { var pr = V.audio.play(); if (pr && pr.catch) pr.catch(function () {}); } try { window.speechSynthesis && window.speechSynthesis.resume(); } catch (e) {} b.textContent = '⏸'; b.title = 'Pause Champ'; } };
       $('#cgStop').onclick = function () { hush(); };
       $('#cgVoice').onclick = function () { V.on = !V.on; try { localStorage.setItem('cgVoice', V.on ? 'on' : 'off'); } catch (e) {} voiceBtn(); if (!V.on) hush(); else { V.warned = false; speak(lastBot || 'Hello!'); } };
-      $('#cgLang').onchange = function () { var l = this.value; if (window.ChampI18n) window.ChampI18n.set(l); };   // the champ:lang listener redraws the panel
+      // 🌐 the language box shows just the code (EN); the full names show while it is open
+      var lgs = $('#cgLang'), lgFull = function (f) { Array.prototype.forEach.call(lgs.options, function (o) { o.textContent = o.getAttribute(f ? 'data-full' : 'data-code'); }); };
+      lgs.onmousedown = lgs.onfocus = function () { lgFull(true); }; lgs.onblur = function () { lgFull(false); };
+      lgs.onchange = function () { lgFull(false); var l = this.value; if (window.ChampI18n) window.ChampI18n.set(l); };   // the champ:lang listener redraws the panel
       $('#cgF').onsubmit = function (e) { e.preventDefault(); var q = $('#cgQ').value.trim(); if (q) { $('#cgQ').value = ''; ask(q); } };
       $('#cgMic').onclick = mic; $('#cgMenuBtn').onclick = function () { menu(); };
       chipsFill(p);

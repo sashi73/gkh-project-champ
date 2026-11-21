@@ -206,4 +206,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 195 | 1.0.195| 2026-11-21 11:22| plans-search| `6db3173` | 📁 Projects list: find a project as you type (name, reference, client, program), filters (All, Behind, Not planned yet), projects not planne |
 | 196 | 1.0.196| 2026-11-21 11:34| bill-panel| `a3cd478` | 💵 Billing: one money panel (contract, GST, budget with contingency and reserve, forecast cost, margin, profit); milestone due dates in colo |
 | 197 | 1.0.197| 2026-11-21 11:38| deliverables| `47cec0c` | 🏁 Project documents: a Deliverables folder (final and interim deliverables, Draft or Final; masterplans, blueprints and reports file themse |
-| 198 | 1.0.198 | 2026-11-21 11:42 | pause | _this commit_ | _see git log_ |
+| 198 | 1.0.198| 2026-11-21 11:42| pause| `2bb716b` | 🎙 CEO briefing: ▾ Hide / ▸ Show (remembered), 📄 Download PDF (a one-page note), ⏸ Pause / ▶ Carry on while it reads; Champ's panel gets ⏸  |
+| 199 | 1.0.199 | 2026-11-21 11:54 | billfix | _this commit_ | _see git log_ |
