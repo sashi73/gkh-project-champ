@@ -6853,7 +6853,7 @@
     var p = S.plan, t0 = today(), soon = toS(new Date(toD(t0).getTime() + 6 * 864e5));
     var coming = ordered().filter(function (r) { return r.t.pct < 100 && r.t.es <= soon && r.t.ef >= t0; });
     var evm = [['Budget at completion (BAC)', money(R.BAC), 'Total planned cost'], ['Planned value (PV)', money(R.PV), 'Work that should be done by today'], ['Earned value (EV)', money(R.EV), 'Work actually done (cost × % complete)'],
-      ['Actual cost (AC)', money(R.AC), 'Money spent so far (Actual $ column)'], ['Schedule performance (SPI = EV ÷ PV)', R.SPI == null ? '—' : R.SPI, p.tasks.length && p.tasks.every(function (t) { return (t.pct || 0) >= 100; }) ? 'always 1.00 once all the work is done: for a finished project the time index below is used instead' : R.SPI == null ? '' : R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule'],
+      ['Actual cost (AC)', money(R.AC), 'Money spent so far (Actual $ column)'], ['Schedule performance (SPI = EV ÷ PV)', R.SPI == null ? '—' : R.SPI, p.tasks.length && p.tasks.every(function (t) { return (t.pct || 0) >= 100; }) ? 'always 1.00 once all the work is done: for a finished project the time index below is used instead' : R.SPI == null ? '' : lagText(schedLag(p, R, t0), R, p)],
       // 🏁 finished: SPI always ends at 1.00, so add the time index (planned ÷ actual duration, as Champ judges it)
     ].concat((function () { var W2 = p.tasks.filter(function (t) { return t.dur > 0; }); if (!W2.length || !p.tasks.every(function (t) { return (t.pct || 0) >= 100; })) return [];
       var fin = W2.reduce(function (m, t) { var d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish, bf = (p.baseline && p.baseline.finish) || R.finish;
@@ -6909,6 +6909,25 @@
         M.closeModal(); if (n || np) { dirty((np ? 'progress updated on ' + np + ' task' + (np === 1 ? '' : 's') : '') + (np && n ? ' and ' : '') + (n ? 'actual costs recorded for ' + n + ' task' + (n === 1 ? '' : 's') : '') + (g.ms ? ' (' + g.ms.name + ')' : ''));
           toast('💲 ' + [np ? np + ' progress update' + (np === 1 ? '' : 's') : '', n ? n + ' actual cost' + (n === 1 ? '' : 's') : ''].filter(Boolean).join(' and ') + ' saved: EV and AC are up to date'); render(); } }; };
     draw(gi);
+  }
+  // ⏱ earned schedule, as the server (plan.mjs scheduleLag): the date by which the work done was planned, and the working days behind or ahead
+  function lagText(L, R, p) {
+    var slip = p.baseline && p.baseline.finish && R.finish ? Math.round((toD(R.finish) - toD(p.baseline.finish)) / 864e5) : null, sl = slip ? '; forecast finish ' + Math.abs(slip) + ' day' + (Math.abs(slip) === 1 ? '' : 's') + (slip > 0 ? ' behind' : ' ahead of') + ' the baseline' : '';
+    if (!L) return (R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule') + sl;
+    if (L.ahead) return (L.days ? 'ahead of schedule by ' + L.days + ' working day' + (L.days === 1 ? '' : 's') + ' (the work done was planned up to ' + pretty(L.date) + ')' : 'on schedule') + sl;
+    return 'behind schedule by ' + L.days + ' working day' + (L.days === 1 ? '' : 's') + ': the work done was planned to be done by ' + pretty(L.date) + sl;
+  }
+  function schedLag(p, R, today0) {
+    if (!R || !p.tasks.length || p.tasks.every(function (t) { return (t.pct || 0) >= 100; })) return null;
+    var T = p.tasks.filter(function (t) { return t.es && t.ef; }), useLab = R.split && R.split.lab.bac > 0.004, w = function (t) { return useLab ? taskSplit(p, t).lab : cost(t); }, ev = useLab ? R.split.lab.ev : R.EV;
+    var fr = function (t, d) { return d < t.es ? 0 : d >= t.ef ? 1 : workBetween(t.es, d) / Math.max(1, workBetween(t.es, t.ef)); };
+    var pvAt = function (d) { return T.reduce(function (a, t) { return a + w(t) * fr(t, d); }, 0); }, pvNow = pvAt(today0); if (!(pvNow > 0.5)) return null;
+    var at = function (b, n) { return toS(new Date(toD(b).getTime() + n * 864e5)); }, days = function (a, b) { return Math.round((toD(b) - toD(a)) / 864e5); };
+    var last = function (from, n) { var lo = 0, hi = n; while (lo < hi) { var mid = Math.ceil((lo + hi) / 2); if (pvAt(at(from, mid)) <= ev + 0.5) lo = mid; else hi = mid - 1; } return at(from, lo); };
+    if (ev >= pvNow - 0.5) { var end = T.reduce(function (m, t) { return t.ef > m ? t.ef : m; }, ''), d1 = end > today0 ? last(today0, days(today0, end)) : today0; return { days: d1 > today0 ? workBetween(at(today0, 1), d1) : 0, date: d1, ahead: true }; }
+    var start = T.reduce(function (m, t) { return !m || t.es < m ? t.es : m; }, ''), d = pvAt(start) > ev ? start : last(start, days(start, today0)), shown = d;
+    for (var k = 0; k < 14 && !wk(toD(shown)); k++) shown = at(shown, -1);
+    return { days: workBetween(at(d, 1), today0), date: shown, ahead: false };
   }
   function cpiCard(p, R) {
     var btn = canCost() ? '<button class="btn btn-sm btn-gold" type="button" data-costin>💲 Record actual costs</button>' : '';
