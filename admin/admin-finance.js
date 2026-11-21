@@ -24,6 +24,9 @@
     var d = m.days, t = d == null ? '' : d < 0 ? Math.abs(d) + ' day' + (d === -1 ? '' : 's') + ' overdue' : d === 0 ? 'due today' : d === 1 ? 'due tomorrow' : 'due in ' + d + ' days';
     return '<span class="fin-due ' + (m.alert || 'green') + '" title="Due ' + esc(day(m.due)) + '">📅 ' + esc(day(m.due)) + (t ? ' · ' + t : '') + '</span>';
   }
+  // 💹 profit in green, loss in red, always with the word
+  function pl(n, small) { var p = n >= 0; return '<b class="' + (p ? 'fin-pos' : 'ceo-neg') + (small ? ' fin-plsm' : '') + '">' + (p ? 'Profit ' : 'Loss ') + money2(Math.abs(n)) + '</b>'; }
+  function pct(n, of) { return of ? (Math.round(n / of * 1000) / 10) + '%' : ''; }
   function moneyPanel(B) {
     var K = B.money; if (!K) return '';
     var t = function (l, v, s2, c) { return '<div class="ceo-t ' + (c || '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s2 ? '<span>' + s2 + '</span>' : '') + '</div>'; };
@@ -33,11 +36,14 @@
       t('Project budget', money2(K.budget), 'Base cost (BAC) ' + money2(K.base) + ' + contingency ' + money2(K.contingency) + ' + reserve ' + money2(K.reserve) + (K.approved ? '<br>Charter approved budget ' + money2(K.approved) + ' · <b class="' + (K.approved - K.budget >= 0 ? 'fin-pos' : 'ceo-neg') + '">' + (K.approved - K.budget >= 0 ? money2(K.approved - K.budget) + ' to spare' : money2(K.budget - K.approved) + ' over') + '</b>' : '') + '<br><a class="fin-lnk" href="#plan/' + encodeURIComponent(B.core) + '/budget" onclick="event.stopPropagation()">See the plan\'s Costing for details →</a>') +
       t('Reserves', money2(K.contingency + K.reserve), 'contingency ' + K.contPct + '% ' + money2(K.contingency) + ' · management ' + K.resPct + '% ' + money2(K.reserve)) +
       t('Forecast cost', money2(K.eac), 'spent so far ' + money2(K.spent) + (K.CPI ? ' · <b class="' + (K.CPI < 1 ? 'ceo-neg' : 'fin-pos') + '">CPI ' + K.CPI.toFixed(2) + '</b>' : '') + (K.SPI ? ' · <b class="' + (K.SPI < 1 ? 'ceo-neg' : 'fin-pos') + '">SPI ' + K.SPI.toFixed(2) + '</b>' : '') +
-        '<br>' + (K.CPI ? 'Base cost (BAC) ' + money2(K.base) + ' ÷ CPI ' + K.CPI.toFixed(2) + '. CPI: each $1 spent has done $' + K.CPI.toFixed(2) + ' of work (' + money2(K.earned) + ' earned for ' + money2(K.spent) + ' spent).' : 'Nothing spent yet, so the forecast is the base cost (BAC).') +
+        '<br>' + (K.complete ? 'The work is all done, so the forecast cost is the final cost: what was spent.' : K.CPI ? 'Spent ' + money2(K.spent) + ' + work still to do ' + money2(K.toDo) + ' ÷ CPI ' + K.CPI.toFixed(2) + (K.loose ? ' + BOM lines not linked to a task ' + money2(K.loose) : '') + '.' : 'No actual costs entered yet, so the forecast is the base cost.') +
+        (K.CPI ? ' CPI ' + K.CPI.toFixed(2) + ': each $1 spent has done $' + K.CPI.toFixed(2) + ' of work (' + money2(K.earned) + ' earned for ' + money2(K.spent) + ' spent).' : '') +
         (K.SPI ? ' SPI: ' + Math.round(K.SPI * 100) + '% of the work planned by today is done' + (K.SPI < 1 ? ' (behind schedule).' : '.') : ''), K.CPI && K.CPI < 0.9 ? 'neg' : '') +
       t('Margin', K.margin == null ? '–' : money2(K.margin), K.margin == null ? 'set the contract value' : K.marginPct + '% · contract − budget', K.margin != null && K.margin < 0 ? 'neg' : 'pos') +
-      t('Forecast profit · scenario 1', K.profit1 == null ? '–' : money2(K.profit1), K.profit1 == null ? 'set the contract value' : K.profit1Pct + '% · if contingency and management reserve are both used', K.profit1 != null && K.profit1 < 0 ? 'neg' : 'pos') +
-      t('Forecast profit · scenario 2', K.profit2 == null ? '–' : money2(K.profit2), K.profit2 == null ? 'set the contract value' : K.profit2Pct + '% · if the management reserve is not used', K.profit2 != null && K.profit2 < 0 ? 'neg' : 'pos') +
+      t(K.complete ? 'Profit or loss (final)' : 'Forecast profit or loss', K.profit == null ? '–' : pl(K.profit), K.profit == null ? 'set the contract value' : pct(K.profit, K.contract) + ' of the contract · contract − ' + (K.complete ? 'final cost' : 'forecast cost'), K.profit != null && K.profit < 0 ? 'neg' : 'pos') +
+      t('Profit scenarios', K.profit == null ? '–' : '<span class="fin-scn">' +
+          '<span><small>1 · contingency and management reserve both used</small>' + pl(K.profit1, true) + '</span><span><small>2 · management reserve not used</small>' + pl(K.profit2, true) + '</span></span>',
+        K.profit == null ? 'set the contract value' : K.complete ? 'The project is complete: the cost is final, so these match the profit above.' : 'The reserves pay for overruns, so each scenario costs the forecast cost or what that scenario allows, whichever is higher.') +
       '</div></div>';
   }
   function wb(S) { return '<span class="fin-wbw" title="Work done ' + S.workPct + '% · billed ' + S.billedPct + '%"><span class="fin-wb"><i style="width:' + S.workPct + '%"></i><em style="width:' + S.billedPct + '%"></em></span><small>' + S.workPct + '% done · ' + S.billedPct + '% billed</small></span>'; }

@@ -1105,3 +1105,7 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 /* 🗄 Project archive */
 .ar-q{min-width:260px;padding:8px 12px;border:1px solid var(--line,#D6D1C4);border-radius:999px;font:inherit}
 .ar-sig{font-family:"Segoe Script","Brush Script MT","Lucida Handwriting",cursive;font-size:16px;color:#1d3f8a}
+.fin-scn{display:flex;flex-direction:column;gap:6px;font-size:15px}
+.fin-scn>span{display:flex;flex-direction:column}.fin-scn small{font-size:11.5px;font-weight:500;color:#6b6b6b}
+.fin-plsm{font-size:17px}
+.ceo-t .fin-scn b.fin-plsm{font-size:17px}

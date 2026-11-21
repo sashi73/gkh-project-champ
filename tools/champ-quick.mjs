@@ -273,6 +273,18 @@ try {
     const od = await api('planNewProject', { name: 'Old project', client: 'Acme', program: 'Digital health' }), odc = od.j.core;
     await api('planSave', { core: odc, plan: { name: 'Old project', start: '2025-04-07', phases: [{ id: 'ph1', name: 'Work' }], tasks: [{ id: 'k1', phase: 'ph1', name: 'Design', dur: 5, pred: [], res: [], qty: 1, rate: 100, pct: 100, status: 'done' }] } });
     const odOwn = await api('planProjectDelete', { core: odc }), odPm = await as('pm1@example.com', 'Vaultpass2026x', () => api('planProjectDelete', { core: odc }));
+    // 💹 money checks with hand-worked figures (the same numbers everywhere: Finance, the CEO view)
+    const mk = async (name, tasks, charter) => { const r = await api('planNewProject', { name, client: 'Acme', program: 'Digital health' }); await api('planSave', { core: r.j.core, plan: { name, start: '2026-10-01', budgetCfg: { cont: 10, res: 5, margin: 0, gst: 10 }, ...(charter ? { charter } : {}), phases: [{ id: 'ph1', name: 'Work' }], tasks } }); return r.j.core; };
+    const t1 = (id, cost, pct, actual) => ({ id, phase: 'ph1', name: 'Work ' + id, dur: 10, pred: [], res: [], qty: 1, rate: cost, pct, status: pct >= 100 ? 'done' : pct ? 'doing' : 'todo', ...(actual ? { actual } : {}) });
+    const cDone = await mk('Money done', [t1('k1', 2602995, 100, 2902473)]), cHalf = await mk('Money half', [t1('k1', 10000, 100, 11111), t1('k2', 10000, 0)]), cAppr = await mk('Money approved', [t1('k1', 2602995, 100, 2902473)], { budget: 2831648 });
+    const KD = (await api('acctBillGet', { core: cDone })).j.bill.money, KH = (await api('acctBillGet', { core: cHalf })).j.bill.money;
+    ok('Finance', '💹 a finished project: forecast cost = what was spent, exactly (no rounded CPI); contract $2,993,444.25 → Profit $90,971.25; scenario 1 $0, scenario 2 $90,971.25',
+      KD.eac === 2902473 && KD.contract === 2993444.25 && KD.profit === 90971.25 && KD.profit1 === 0 && KD.profit2 === 90971.25 && KD.complete === true, JSON.stringify(KD));
+    ok('Finance', '💹 half done at CPI 0.90: forecast = spent $11,111 + work left $10,000 ÷ 0.90 = $22,222; Profit $778; scenarios $0 and $778 (the reserves absorb the overrun, no double counting)',
+      KH.eac === 22222 && KH.budget === 23000 && KH.profit === 778 && KH.profit1 === 0 && KH.profit2 === 778 && KH.CPI === 0.9, JSON.stringify(KH));
+    const CV = (await api('planCeoGet', { today: '2026-11-21' })).j, row = (c) => (CV.rows || CV.view && CV.view.rows || []).find((r) => r.core === c) || {}, rD = row(cDone), rA = row(cAppr);
+    ok('CEO', '💹 the CEO view uses the same money: budget = approved, or else base + contingency + reserve; forecast = what was spent when done; under/over budget agrees with Finance',
+      rD.budget === 2993444.25 && rD.eac === 2902473 && rD.vac === 90971.25 && rA.budget === 2831648 && rA.vac === -70825, JSON.stringify([rD.budget, rD.eac, rD.vac, rA.budget, rA.eac, rA.vac, Object.keys(CV).slice(0, 8)]));
     ok('Projects', '🔒 a planned project that started more than a week ago (even with a new record) cannot be deleted, not even by the super user', odOwn.status === 403 && odPm.status === 403, JSON.stringify([odOwn.status, odOwn.j.error, odPm.status]));
     ok('Projects', '🗄 a project in the Archived projects vault can only be deleted by the super user, and the delete stays in the audit register', vdCeo.status === 403 && vdOwn.status === 200 && vdReg, JSON.stringify([vdCeo.status, vdOwn.status, vdOwn.j.error, vdReg]));
     ok('Projects', '🗄 archive: needs a reason and a signature; only the super user, CEO or site administrator; leaves every list, is kept in the Project archive and comes back whole; a planned project in its first week can still be deleted',

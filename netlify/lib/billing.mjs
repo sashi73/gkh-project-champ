@@ -36,9 +36,10 @@ function projectBill(plan, bill, docs, today) {
   const lineOf = {}; for (const i of invs) for (const l of i.items || []) if (l.tid) lineOf[l.tid] = i;
   P.schedule(plan);
   // 💰 the money, in one place: contract, GST, budget (cost + reserves), forecast cost, margin and profit (Costing settings: contingency, reserve, margin, GST)
-  const cfg = plan.budgetCfg || {}, pc0 = (k, d) => (cfg[k] == null || isNaN(+cfg[k]) ? d : +cfg[k]), cont = pc0('cont', 10), res = pc0('res', 5), mg = pc0('margin', 0), gstp = pc0('gst', 10);
-  const R = P.rollup(JSON.parse(JSON.stringify(plan)), today), base = r2(R.BAC), contA = r2(base * cont / 100), resA = r2(base * res / 100), budget = r2(base + contA + resA), eac = r2(R.EAC || base);
-  const suggested = r2(budget * (1 + mg / 100));
+  // 💰 the shared money function (plan.mjs moneyOf): the same base, budget and forecast cost as the Costing tab and the CEO view
+  const R = P.rollup(JSON.parse(JSON.stringify(plan)), today), MO = P.moneyOf(plan, R), cont = MO.cont, res = MO.res, mg = MO.margin, gstp = MO.gst;
+  const base = MO.base, contA = MO.contA, resA = MO.resA, budget = MO.budget, eac = MO.eac, complete = MO.complete;
+  const suggested = MO.price;
   // 📐 no accepted quote and nothing typed in: estimate the contract from Costing (budget + margin), clearly marked, until the CFO confirms it
   const C1 = C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
   // 📝 variation orders: change requests that carry a change to the contract value; approved ones add to it
@@ -46,10 +47,11 @@ function projectBill(plan, bill, docs, today) {
   const voOk = r2(vos.filter((v) => v.status === 'Approved' || v.status === 'Implemented').reduce((a, v) => a + v.amount, 0)), voWait = r2(vos.filter((v) => ['Proposed', 'Under review', 'CCB meeting'].includes(v.status)).reduce((a, v) => a + v.amount, 0));
   const C = { ...C1, base: C1.value || 0, value: r2((C1.value || 0) + voOk) };
   const price = C.value || 0, gst = r2(price * gstp / 100);
-  const money = { contract: price, contractFrom: C.from, contractBase: C.base, variations: voOk, variationsWaiting: voWait, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
-    spent: r2(R.AC), earned: r2(R.EV || 0), eac, CPI: R.CPI, SPI: R.SPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
-    // 📈 forecast profit, two scenarios: 1) contingency and management reserve both spent; 2) the management reserve not needed
-    profit1: price ? r2(price - eac - contA - resA) : null, profit2: price ? r2(price - eac - contA) : null };
+  const money = { contract: price, contractFrom: C.from, contractBase: C.base, variations: voOk, variationsWaiting: voWait, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: MO.approved,
+    spent: r2(R.AC), earned: r2(R.EV || 0), toDo: r2(Math.max(0, R.BAC - R.EV)), loose: MO.loose, eac, CPI: R.CPI, SPI: R.SPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
+    // 📈 forecast profit, two scenarios. The reserves pay for overruns, so a scenario's cost is the forecast cost or the budget that scenario allows, whichever is higher (no double counting)
+    //   1) contingency and management reserve both used: cost up to the whole project budget; 2) the management reserve not used: up to base + contingency
+    profit1: price ? r2(price - Math.max(eac, budget)) : null, profit2: price ? r2(price - Math.max(eac, base + contA)) : null, complete };
   for (const k of ['profit1', 'profit2']) money[k + 'Pct'] = price ? Math.round(money[k] / price * 1000) / 10 : null;
   // 📅 how close each milestone is: red and flashing within a week, amber within a month, green after; a short project (an event) scales the windows down
   const span = Math.max(1, Math.round((Date.parse((R.finish || today) + 'T00:00:00Z') - Date.parse((R.start || plan.start || today) + 'T00:00:00Z')) / 864e5));

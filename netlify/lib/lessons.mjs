@@ -30,7 +30,8 @@ export function facts(job, plan) {
   return {
     today, project: str(plan.name, 140), client: str(job.name, 120), program: str(job.program || '', 120), objective: str(C.objective, 600), summary: str(job.summary || C.background, 800),
     start: R.start, finish: R.finish, baseline_finish: b ? b.finish : '', slip_days: b && b.finish && R.finish ? days(b.finish, R.finish) : 0,
-    budget: Number(C.budget) || (b && b.BAC) || R.BAC, baseline_cost: (b && b.BAC) || 0, BAC: R.BAC, EAC: R.EAC != null ? R.EAC : R.BAC, AC: R.AC, EV: R.EV, PV: R.PV, SPI: R.SPI, CPI: R.CPI, pct: R.pct,
+    // 💰 as Finance and the CEO view: the approved budget, or else base + contingency + reserve; EAC includes unlinked BOM lines
+    budget: P.moneyOf(p, R).approved || P.moneyOf(p, R).budget, baseline_cost: (b && b.BAC) || 0, BAC: R.BAC, EAC: P.moneyOf(p, R).eac, AC: R.AC, EV: R.EV, PV: R.PV, SPI: R.SPI, CPI: R.CPI, pct: R.pct,
     tasks_total: R.total, tasks_done: R.done, tasks_late: R.late, phases: ph, milestones: ms.slice(0, 30),
     risks: (plan.risks || []).slice(0, 40).map((r) => ({ title: str(r.title, 160), score: (r.p || 0) * (r.i || 0), response: r.response, status: r.status, action: str(r.action, 200) })),
     issues: (plan.issues || []).slice(0, 40).map((x) => ({ title: str(x.title, 160), priority: x.priority, status: x.status, raised: x.raised || '', resolution: str(x.resolution, 200) })),

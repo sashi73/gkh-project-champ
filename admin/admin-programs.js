@@ -32,7 +32,8 @@
     var starts = L.map(function (c) { return c.start; }).filter(Boolean).sort(), ends = L.map(function (c) { return c.forecast || c.finish; }).filter(Boolean).sort();
     var cores = {}; L.forEach(function (c) { cores[c.core] = 1; });
     var dl = depsOf(cores), probs = dl.filter(function (d) { return d.status === 'conflict' || d.status === 'risk'; });
-    var spi = PV > 0 ? EV / PV : null, cpi = AC > 0 ? EV / AC : null;
+    // CPI as each project's: from the costs actually entered (earned on those tasks ÷ what they cost), not estimates
+    var EVin = sum('EVin'), ACin = sum('ACin'), spi = PV > 0 ? EV / PV : null, cpi = ACin > 0 ? EVin / ACin : null;
     var health = !L.length ? 'grey' : H.red || (spi != null && spi < 0.9) || (cpi != null && cpi < 0.9) || dl.some(function (d) { return d.status === 'conflict'; }) ? 'red'
       : H.amber || probs.length || (spi != null && spi < 1) || (cpi != null && cpi < 1) ? 'amber' : H.green ? 'green' : 'grey';
     return { list: L, n: L.length, BAC: BAC, EV: EV, AC: AC, PV: PV, spi: spi, cpi: cpi, pct: pct, H: H, health: health, start: starts[0] || '', finish: ends[ends.length - 1] || '', deps: dl, probs: probs, late: sum('late') };
@@ -57,7 +58,8 @@
     load().then(function () {
       var R = D.programs.map(function (p) { return { p: p, r: roll(p) }; });
       var all = D.cards, BAC = all.reduce(function (s, c) { return s + (c.BAC || 0); }, 0), EV = all.reduce(function (s, c) { return s + (c.EV || 0); }, 0), AC = all.reduce(function (s, c) { return s + (c.AC || 0); }, 0), PV = all.reduce(function (s, c) { return s + (c.PV || 0); }, 0);
-      var spi = PV > 0 ? EV / PV : null, cpi = AC > 0 ? EV / AC : null, probs = D.deps.filter(function (d) { return d.status === 'conflict' || d.status === 'risk'; });
+      var EVin = all.reduce(function (s, c) { return s + (c.EVin || 0); }, 0), ACin = all.reduce(function (s, c) { return s + (c.ACin || 0); }, 0);
+      var spi = PV > 0 ? EV / PV : null, cpi = ACin > 0 ? EVin / ACin : null, probs = D.deps.filter(function (d) { return d.status === 'conflict' || d.status === 'risk'; });
       var red = R.filter(function (x) { return x.r.health === 'red'; }).length;
       el.innerHTML = head('programs') +
         '<div class="cs-tiles">' + tile('Programs', D.programs.length, R.filter(function (x) { return x.p.status === 'active'; }).length + ' active') +
