@@ -820,11 +820,11 @@
     return order.sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; }).map(function (k) { return G[k]; });
   }
   function progRow(g) {
-    if (!g.name) return '<tr class="pg-row"><td colspan="8"><b>Not in a program</b></td></tr>';
+    if (!g.name) return '<tr class="pg-row" data-pg="~none"><td colspan="8"><div class="pg-rowin"><span class="kind-tag prog">🗂 Program</span><b>Not in a program</b></div></td></tr>';
     var L = g.list, BAC = L.reduce(function (s, p) { return s + (p.BAC || 0); }, 0), hr = L.reduce(function (s, p) { return s + (p.highRisks || 0); }, 0);
     var fin = L.map(function (p) { return p.finish; }).filter(Boolean).sort().pop();
     var spis = L.map(function (p) { return p.fin ? p.fin.SPIt : p.SPI; }).filter(function (v) { return v != null; }), low = spis.length ? Math.min.apply(null, spis) : null;
-    return '<tr class="pg-row" style="--pg:' + esc(g.color) + '"><td colspan="8"><div class="pg-rowin">' + (g.key ? '<span class="pgref">' + esc(g.key) + '</span>' : '') + '<b>' + esc(g.name) + '</b>' +
+    return '<tr class="pg-row" data-pg="' + esc(g.key || g.name) + '" style="--pg:' + esc(g.color) + '"><td colspan="8"><div class="pg-rowin"><span class="kind-tag prog">🗂 Program</span>' + (g.key ? '<span class="pgref">' + esc(g.key) + '</span>' : '') + '<b>' + esc(g.name) + '</b>' +
       '<small class="muted">' + L.length + ' project' + (L.length === 1 ? '' : 's') + (BAC ? ' · ' + money(BAC) + ' budget' : '') + (fin ? ' · last finish ' + esc(prettyY(fin)) : '') + (low != null ? ' · lowest SPI ' + low.toFixed(2) : '') + (hr ? ' · <b style="color:#C2410C">' + hr + ' high risk' + (hr === 1 ? '' : 's') + '</b>' : '') + '</small>' +
       '<span class="sp"></span>' + (g.id ? '<a class="btn btn-sm" href="#programs/' + esc(g.id) + '" title="Open the program: roadmap and dependencies">🔗 Program →</a>' : '') + '</div></td></tr>';
   }
@@ -833,17 +833,22 @@
     return api('planList', { today: today() }).then(function (d) {
       return api('planJobs', {}).then(function (j) {
         var avail = j.jobs;
-        V().innerHTML = '<div class="card"><div class="card-h"><h2>Project plans (' + d.plans.length + ')</h2>' +
-          '<div class="row">' + (avail.length ? '<select id="newPlanJob" style="width:auto;max-width:min(560px,100%)"><option value="">Plan an existing project…</option>' + avail.map(function (x) { return '<option value="' + esc(x.core) + '">' + esc(jobLabel(x)) + '</option>'; }).join('') + '</select><button class="btn btn-sm" id="newPlanGo">Plan it</button>' : '') + '</div></div><div id="jobPeek" hidden></div>' +
+        var behind = function (p) { var v = p.fin ? p.fin.SPIt : p.SPI; return (p.late > 0) || (v != null && v < 0.9) || (p.CPI != null && p.CPI < 0.9); };
+        var nBehind = d.plans.filter(behind).length;
+        V().innerHTML = '<div class="card"><div class="card-h"><h2>Projects <small class="muted" id="plCount">(' + d.plans.length + ' planned' + (avail.length ? ', ' + avail.length + ' not planned yet' : '') + ')</small></h2></div>' +
+          '<div class="pl-tools"><div class="vl-search pl-search"><span>🔎</span><input id="plQ" type="search" placeholder="Find a project: name, reference, client, program…" autocomplete="off"></div>' +
+          '<div class="pl-chips"><button type="button" class="vl-chip on" data-pf="">All <b>' + (d.plans.length + avail.length) + '</b></button><button type="button" class="vl-chip" data-pf="behind">🔴 Behind <b>' + nBehind + '</b></button>' + (avail.length ? '<button type="button" class="vl-chip" data-pf="new">📋 Not planned yet <b>' + avail.length + '</b></button>' : '') + '</div></div>' +
           (d.plans.length ? '<div class="table-wrap"><table><thead><tr><th>Project</th><th>Progress</th><th class="hide-sm">Finish</th><th title="Schedule Performance Index: work done ÷ work planned by today">SPI <small class="muted" style="text-transform:none;letter-spacing:0">(time)</small></th><th title="Cost Performance Index: value of work done ÷ actual cost">CPI <small class="muted" style="text-transform:none;letter-spacing:0">(cost)</small></th><th class="hide-sm">Risks</th><th class="hide-sm">Issues</th><th></th></tr></thead><tbody>' +
             byProgram(d.plans).map(function (g) {
               return progRow(g) + g.list.map(function (p) {
-              return '<tr class="click' + (p.programKey ? ' pg-member' : '') + '" data-plan="' + esc(p.core) + '"' + (p.programKey ? ' style="--pg:' + esc(p.programColor || '#64748B') + '"' : '') + '><td><b>' + esc(p.name) + '</b><br><small class="muted"><span class="ref">' + esc(p.ref) + '</span>' + (p.programKey ? ' · <span class="pgref" style="--pg:' + esc(p.programColor || '#64748B') + '" title="Program: ' + esc(p.program) + '">' + esc(p.programKey) + '</span>' : '') + ' · ' + esc(p.customer) + '</small></td>' +
+              return '<tr class="click pl-row' + (p.programKey ? ' pg-member' : '') + '" data-plan="' + esc(p.core) + '" data-g="' + esc(p.programKey || (p.program ? '~' + p.program : '~none')) + '" data-behind="' + (behind(p) ? 1 : 0) + '" data-s="' + esc([p.name, p.ref, p.customer, p.program, p.programKey].filter(Boolean).join(' ').toLowerCase()) + '"' + (p.programKey ? ' style="--pg:' + esc(p.programColor || '#64748B') + '"' : '') + '><td><span class="kind-tag proj">📁 Project</span><b>' + esc(p.name) + '</b><br><small class="muted"><span class="ref">' + esc(p.ref) + '</span>' + (p.programKey ? ' · <span class="pgref" style="--pg:' + esc(p.programColor || '#64748B') + '" title="Program: ' + esc(p.program) + '">' + esc(p.programKey) + '</span>' : '') + ' · ' + esc(p.customer) + '</small></td>' +
                 '<td style="min-width:140px"><div class="pbar"><span style="width:' + p.pct + '%"></span></div><small>' + p.pct + '% · ' + p.done + '/' + p.total + ' tasks' + (p.late ? ' · <b style="color:#C2410C">' + p.late + ' late</b>' : '') + '</small></td>' +
                 '<td class="hide-sm">' + esc(prettyY(p.finish)) + '</td><td class="evcell">' + (p.fin ? finChip(p.fin) : evChip('SPI', p.SPI)) + '</td><td class="evcell">' + evChip('CPI', p.CPI) + '</td>' +
                 '<td class="hide-sm">' + p.openRisks + (p.highRisks ? ' <b style="color:#C2410C">(' + p.highRisks + ' high)</b>' : '') + '</td><td class="hide-sm">' + p.openIssues + '</td><td><button class="btn btn-sm" data-pdel="' + esc(p.core) + '" data-pname="' + esc(p.name) + '" title="Delete this project">🗑</button></td></tr>';
             }).join('');
-            }).join('') + '</tbody></table></div>' + evLegend() : (avail.length ? '<div class="empty champ-empty"><b>' + avail.length + ' project' + (avail.length > 1 ? 's' : '') + ' waiting for a plan.</b><br>Pick one in “Plan an existing project…” above, or start one with <b>＋ New project</b> in the left panel.</div>' : '<div class="empty champ-empty"><b>No projects yet.</b><br>Start your first one with <b>＋ New project</b> in the left panel.</div>')) + '</div>';
+            }).join('') + (avail.length ? '<tr class="pg-row pl-new-h" data-pg="~new"><td colspan="8"><div class="pg-rowin"><span class="kind-tag new">📋 Not planned yet</span><small class="muted">projects with no schedule: plan one to bring it into the portfolio</small></div></td></tr>' +
+              avail.map(function (x) { return '<tr class="pl-row pl-new" data-g="~new" data-new="1" data-s="' + esc([x.name, x.title, x.ref, x.suburb, x.program, x.service].filter(Boolean).join(' ').toLowerCase()) + '"><td colspan="7"><span class="kind-tag proj">📁 Project</span><b>' + esc(x.title || x.name) + '</b><br><small class="muted"><span class="ref">' + esc(x.ref) + '</span> · ' + esc(x.name) + (x.suburb ? ' · ' + esc(x.suburb) : '') + '</small></td><td><button class="btn btn-sm btn-gold" data-planit="' + esc(x.core) + '" type="button">Plan it →</button></td></tr>'; }).join('') : '') +
+            '</tbody></table></div><div id="plNone" class="empty" hidden>No project matches. Try another word, or clear the search.</div>' + evLegend() : (avail.length ? '<div class="empty champ-empty"><b>' + avail.length + ' project' + (avail.length > 1 ? 's' : '') + ' waiting for a plan.</b><br>Pick one in “Plan an existing project…” above, or start one with <b>＋ New project</b> in the left panel.</div>' : '<div class="empty champ-empty"><b>No projects yet.</b><br>Start your first one with <b>＋ New project</b> in the left panel.</div>')) + '</div>';
         V().querySelectorAll('[data-plan]').forEach(function (tr) { tr.onclick = function () { location.hash = '#plan/' + tr.getAttribute('data-plan'); }; });
         V().querySelectorAll('[data-pdel]').forEach(function (b) {
           b.onclick = function (e) {
@@ -852,8 +857,17 @@
           };
         });
         var byCore = {}; avail.forEach(function (x) { byCore[x.core] = x; });
-        if ($('#newPlanJob')) $('#newPlanJob').onchange = function () { var x = byCore[this.value], el = $('#jobPeek'); el.hidden = !x; el.innerHTML = x ? jobPeek(x) : ''; };
-        if ($('#newPlanGo')) $('#newPlanGo').onclick = function () { var c = $('#newPlanJob').value; if (!c) return toast('Pick a job first', true); location.hash = '#plan/' + c; };
+        V().querySelectorAll('[data-planit]').forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); location.hash = '#plan/' + b.getAttribute('data-planit'); }; });
+        // 🔎 find a project: the words and the filter, as you type; a program heading shows while any of its projects does
+        var PF = '', filt = function () {
+          var q = (($('#plQ') || {}).value || '').toLowerCase().trim().split(/\s+/).filter(Boolean), shown = 0, seen = {};
+          V().querySelectorAll('tr.pl-row').forEach(function (tr) { var s0 = tr.getAttribute('data-s') || '', ok = q.every(function (w) { return s0.indexOf(w) >= 0; }) && (!PF || (PF === 'new' ? tr.hasAttribute('data-new') : PF === 'behind' ? tr.getAttribute('data-behind') === '1' : true));
+            tr.hidden = !ok; if (ok) { shown++; seen[tr.getAttribute('data-g')] = 1; } });
+          V().querySelectorAll('tr.pg-row').forEach(function (tr) { var k = tr.getAttribute('data-pg'); tr.hidden = !Object.keys(seen).some(function (g) { return g === k || g === '~' + k; }); });
+          var nn = $('#plNone'); if (nn) nn.hidden = !!shown;
+        };
+        if ($('#plQ')) { $('#plQ').oninput = filt; setTimeout(function () { try { $('#plQ').focus({ preventScroll: true }); } catch (e) {} }, 50); }
+        V().querySelectorAll('[data-pf]').forEach(function (b) { b.onclick = function () { PF = b.getAttribute('data-pf'); V().querySelectorAll('[data-pf]').forEach(function (x) { x.classList.toggle('on', x === b); }); filt(); }; });
       });
     });
   }
