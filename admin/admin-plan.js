@@ -742,8 +742,11 @@
     if (!can) { V().innerHTML = '<div class="card noaccess"><h2>🔒 View only</h2><p class="muted">Your login can look at projects but not start new ones.</p></div>'; return; }
     V().innerHTML = '<div class="card champ-new"><div class="card-h"><h2>＋ New project</h2><a class="btn btn-sm" href="#projects">← All projects</a></div>' +
       '<p class="muted">Give the project a name and a client. Next you pick a template (or a blank plan, or ✨ AI) and Project Champ builds the schedule, Gantt chart, Board, budget, risks and reports.</p>' +
-      '<div class="cn-doc" id="cnDoc"><div class="cn-dh"><span class="cn-ic">📄</span><div><b>Start from a document</b> <small class="muted">(optional)</small><p class="muted">Usually a <b>requirements document</b>, a <b>feasibility study</b> or <b>part of an RFP</b> (or a brief, business case or deck): Word, PowerPoint, Excel or PDF, 100+ pages is fine. The AI reads all of it (retrieval over vectors of every part, up to 80,000 tokens), fills in the project below and plans it from the document. No document? Just type the details.</p></div>' +
-        '<label class="btn btn-gold cn-pick">Choose a file<input type="file" id="cnFile" accept=".pdf,.docx,.pptx,.xlsx,.txt,.md" hidden></label></div><div id="cnDocOut"></div></div>' +
+      '<div class="cn-doc" id="cnDoc"><div class="cn-dh"><span class="cn-ic">📄</span><div><b>Start from a document</b> <small class="muted">(optional)</small><p class="muted">Usually a <b>requirements document</b>, a <b>feasibility study</b> or <b>part of an RFP</b> (or a brief, business case or deck): Word, PowerPoint, Excel or PDF, 100+ pages is fine. The AI reads all of it (retrieval over vectors of every part, up to 80,000 tokens), fills in the project below and plans it from the document. No document? Just type the details.</p>' +
+        '<p class="muted cn-bim">🏗 <b>BIM and construction files:</b> an <b>IFC model</b> (any size: read here in your browser) gives the levels, the elements by trade and the <b>quantity take-off</b> the BOM / BOQ is drafted from; ' +
+        'a <b>Navisworks TimeLiner</b> export (CSV or MS Project XML) gives the schedule; a <b>Clash Detective report</b> (XML) gives the coordination issues; DXF gives the drawing notes. ' +
+        '<b>Revit, Navisworks and AutoCAD</b> files (.rvt .nwd .nwc .dwg .dwf) are kept with the project as originals, with a tip on what to export. You can pick several files at once.</p></div>' +
+        '<label class="btn btn-gold cn-pick">Choose a file<input type="file" id="cnFile" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.ifc,.xml,.dxf,.rvt,.rfa,.nwd,.nwc,.nwf,.dwg,.dwf,.dwfx" hidden></label></div><div id="cnDocOut"></div></div>' +
       '<form id="champNew" class="champ-form">' +
       '<div class="champ-2"><label>Program <small class="muted">(every project belongs to one)</small><select name="progPick" required><option value="">Loading programs…</option></select></label>' +
       '<label class="champ-newprog" hidden>New program name<input name="program" maxlength="80" placeholder="e.g. Hospital redevelopment"></label></div>' +
@@ -796,17 +799,39 @@
         '<ul class="cn-got">' + row('Read as', f.kind) + row('Project', f.name, 'name') + row('Client', f.client, 'client') + row('Sponsor', f.sponsor, 'sponsor') + row('Manager', f.manager, 'manager') + row('Location', f.site, 'site') + row('Type', f.type) + row('Dates', (f.start || f.finish) ? (f.start ? dmy(f.start) : '?') + ' to ' + (f.finish ? dmy(f.finish) : '?') : '', 'dates') + row('Budget', f.budget, 'budget') + '</ul>' +
         (r.gaps && r.gaps.length ? '<div class="cn-gaps"><b>Still to find out</b><ul>' + r.gaps.map(function (g) { return '<li>' + esc(g) + '</li>'; }).join('') + '</ul></div>' : '') +
         '<details class="cn-brief"><summary>📋 The brief the AI will plan from (' + Math.round(r.briefText.length / 100) / 10 + 'k characters)</summary><pre>' + esc(r.briefText) + '</pre></details>' +
+        (CN.parts && CN.parts.some(function (p) { return p.kind === 'ifc'; }) ? '<p class="cn-bimok">🏗 ' + CN.parts.filter(function (p) { return p.kind === 'ifc' && p.summary; }).map(function (p) { var m = p.summary; return '<b>' + esc(p.name) + '</b>: ' + Number(m.elements).toLocaleString('en-AU') + ' elements in ' + m.types + ' types on ' + m.levels + ' levels' + (m.rooms ? ', ' + m.rooms + ' rooms' : '') + (m.elements ? (m.withQty ? ' (' + Math.round(m.withQty / m.elements * 100) + '% with quantities)' : ' (no quantities in the model: counts only; export the IFC with base quantities for areas and volumes)') : ''); }).join('<br>') + '. The model take-off goes to the BOM / BOQ when the AI drafts it.</p>' : '') +
+        keepBox() +
         '<p class="muted" style="font-size:12.5px;margin:6px 0 0">Check the boxes below (filled ones are highlighted). On <b>Create project and plan it</b> the document is attached to the project\'s <b>Ask AI</b>, and the AI builds the plan from it straight away.</p></div>');
     };
-    var cnRead = function (file) {
-      if (!file) return; CN = { sid: '', file: file, got: null };
-      if (file.size > 60 * 1024 * 1024) return cnSay('<p class="bad">That file is over 60 MB. Save a smaller copy (or a PDF without images) and try again.</p>');
-      cnSay('<p class="ask-think">Reading “' + esc(file.name) + '”…</p>');
-      piExtract(file, function (k, n) { if (k % 5 === 1 || k === n) cnSay('<p class="ask-think">Reading “' + esc(file.name) + '”: page ' + k + ' of ' + n + '…</p>'); }).then(function (x) {
-        if (/\.docx$/i.test(file.name) && !/\[page \d+\]/.test(x.text)) x = withPages(x.text);
-        if (!x.text || x.text.replace(/\[(page|slide) \d+\]/g, '').trim().length < 200) throw new Error('No text found in “' + file.name + '”. If it is a scanned PDF (pictures of pages), save it as a text PDF or Word file first.');
+    // 🏗 the files kept as originals (Revit, Navisworks, AutoCAD): what to export so the AI can read them
+    var KEEPRE = /\.(rvt|rfa|rte|rft|nwd|nwc|nwf|dwg|dwf|dwfx)$/i;
+    var keepBox = function () { var K = CN.keep || []; if (!K.length) return '';
+      return '<div class="cn-keep"><b>📦 Kept with the project as original files</b> <small class="muted">(in its Documents when you create it)</small><ul>' + K.map(function (f) { return '<li><b>' + esc(f.name) + '</b> <small class="muted">(' + fsize(f.size) + ')</small><br><small>' + esc(window.ChampBIM ? window.ChampBIM.tip(f.name) : '') + '</small></li>'; }).join('') + '</ul></div>'; };
+    var cnRead = function (file) { cnPick([file]); };
+    var cnPick = function (files) {
+      files = (files || []).filter(Boolean); if (!files.length) return;
+      var rd = files.filter(function (f) { return !KEEPRE.test(f.name); }), keep = files.filter(function (f) { return KEEPRE.test(f.name); });
+      CN = { sid: '', file: rd[0] || null, got: null, keep: keep, extra: rd.slice(1), name: '' };
+      var tooBig = rd.filter(function (f) { return f.size > (/\.ifc$/i.test(f.name) ? 2048 : 60) * 1024 * 1024; })[0];
+      if (tooBig) return cnSay('<p class="bad">“' + esc(tooBig.name) + '” is over ' + (/\.ifc$/i.test(tooBig.name) ? '2 GB' : '60 MB') + '. Save a smaller copy (or a PDF without images) and try again.</p>');
+      var loaded = keep.length ? piBim().catch(function () {}) : Promise.resolve();
+      if (!rd.length) return loaded.then(function () { cnSay(keepBox() + '<p class="muted" style="font-size:12.5px;margin:6px 0 0">Nothing here the AI can read yet: add an IFC, a TimeLiner or clash export, or a PDF of the drawings (you can pick several files at once), or type the details below.</p>'); });
+      var parts = [], file = rd[0];
+      var chain = loaded;
+      rd.forEach(function (f, i) { chain = chain.then(function () {
+        var who = '“' + esc(f.name) + '”' + (rd.length > 1 ? ' (' + (i + 1) + ' of ' + rd.length + ')' : '');
+        cnSay('<p class="ask-think">Reading ' + who + '…</p>');
+        return piExtract(f, function (k, n) { if (/\.ifc$/i.test(f.name)) cnSay('<p class="ask-think">🏗 Reading the model ' + who + ': ' + k + '% (levels, elements, quantities, materials)…</p>'); else if (k % 5 === 1 || k === n) cnSay('<p class="ask-think">Reading ' + who + ': page ' + k + ' of ' + n + '…</p>'); }).then(function (x) {
+          if (/\.docx$/i.test(f.name) && !/\[page \d+\]/.test(x.text)) x = withPages(x.text);
+          if (!x.text || x.text.replace(/\[(page|slide) \d+\]/g, '').trim().length < 200) throw new Error('No text found in “' + f.name + '”. If it is a scanned PDF (pictures of pages), save it as a text PDF or Word file first.');
+          parts.push({ name: f.name, text: x.text, pages: x.pages || 0, kind: x.kind || '', summary: x.summary || null });
+        }); }); });
+      chain.then(function () {
+        var one = parts.length === 1, x = one ? parts[0] : { text: parts.map(function (p) { return '[file: ' + p.name + ']\n' + p.text; }).join('\n\n'), pages: 0 };
+        CN.name = one ? file.name : file.name + ' + ' + (parts.length - 1) + ' more';
+        CN.parts = parts.map(function (p) { return { name: p.name, kind: p.kind, summary: p.summary }; });
         cnSay('<p class="ask-think">Indexing ' + Math.round(x.text.length / 1000) + 'k characters into vectors…</p>');
-        return api('planDocStage', { name: file.name, pages: x.pages, text: x.text, kind: (file.name.split('.').pop() || '').toLowerCase() });
+        return api('planDocStage', { name: CN.name, pages: x.pages, text: x.text, kind: one ? (file.name.split('.').pop() || '').toLowerCase() : 'set' });
       }).then(function (st) {
         CN.sid = st.sid; var id = rid(), t0 = Date.now();
         cnSay('<p class="ask-think">✨ The AI is reading ' + (st.pages ? pl(st.pages, 'page') + ', ' : '') + st.chunks + ' chunks (' + (st.whole ? 'all of it fits: read in full' : 'the most relevant parts for every field, up to ' + Number(st.budget).toLocaleString('en-AU') + ' tokens') + ')' + (st.truncated ? ' (very long: the first 1.5 million characters)' : '') + '. This takes 1 to 4 minutes for a big document.</p>');
@@ -820,11 +845,11 @@
           body: JSON.stringify({ id: id, mode: 'docIngest', sid: st.sid, lang: tplLang() }) }).then(function (r) { if (r.status === 401 || r.status === 403) throw new Error('Your session has ended. Sign in again.'); if (r.status !== 202 && !r.ok) throw new Error('Could not start the AI (' + r.status + ').'); return poll(); });
       }).catch(function (e) { CN.sid = ''; cnSay('<p class="bad">' + esc(e.message || String(e)) + '</p>'); });
     };
-    var fi = $('#cnFile'); fi.onchange = function () { cnRead(fi.files[0]); fi.value = ''; };
+    var fi = $('#cnFile'); fi.onchange = function () { cnPick([].slice.call(fi.files)); fi.value = ''; };
     var dz = $('#cnDoc');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); }); });
-    dz.addEventListener('drop', function (e) { var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) cnRead(f); });
+    dz.addEventListener('drop', function (e) { var L = e.dataTransfer && e.dataTransfer.files ? [].slice.call(e.dataTransfer.files) : []; if (L.length) cnPick(L); });
     $('#champNew').onsubmit = function (e) {
       e.preventDefault(); var f = e.target, b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
       api('planNewProject', { name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
@@ -832,8 +857,15 @@
         .then(function (r) {
           toast('Project ' + r.ref + ' created' + (r.docId ? ': the document is in its Ask AI' : ''));
           var go = function () { if (r.docId) { try { sessionStorage.setItem('champAutoPlan', r.core); } catch (e3) {} } location.hash = '#plan/' + r.core; };
-          if (!r.docId || !CN.file) return go();
-          return storeFile(CN.file, 'project', r.core).then(function (ff) { if (!ff.file && !ff.r2Key) return; return api('intelDocPutFile', { core: r.core, id: r.docId, file: ff.file || '', r2Key: ff.r2Key || '', size: CN.file.size, type: CN.file.type }); }).catch(function () {}).then(go);
+          // 📦 the other files: each kept as an original in the project's Documents (the extra ones were read into the first document)
+          var others = function () { var L = (CN.extra || []).map(function (f) { return { f: f, t: 'Original file, read into the project document “' + (CN.name || '') + '” (its text is there for Ask AI).' }; })
+              .concat((CN.keep || []).map(function (f) { return { f: f, t: 'Original ' + f.name.split('.').pop().toUpperCase() + ' file kept with the project. ' + (window.ChampBIM ? window.ChampBIM.tip(f.name) : '') }; })), bad = 0;
+            if (L.length) toast('Storing ' + L.length + ' original file' + (L.length === 1 ? '' : 's') + '…');
+            return L.reduce(function (c, o) { return c.then(function () { return storeFile(o.f, 'project', r.core).then(function (ff) { if (!ff.file && !ff.r2Key) bad++;
+              return api('intelUpload', { core: r.core, name: o.f.name, type: o.f.type, size: o.f.size, text: o.t, file: ff.file || '', r2Key: ff.r2Key || '', allowEmpty: true, folder: 'design' }); }).catch(function () { bad++; }); }); }, Promise.resolve())
+              .then(function () { if (bad) toast(bad + ' file' + (bad === 1 ? '' : 's') + ' could not be stored (too big for this storage): add ' + (bad === 1 ? 'it' : 'them') + ' later in Documents.', true); }); };
+          if (!r.docId || !CN.file) return others().then(go, go);
+          return storeFile(CN.file, 'project', r.core).then(function (ff) { if (!ff.file && !ff.r2Key) return; return api('intelDocPutFile', { core: r.core, id: r.docId, file: ff.file || '', r2Key: ff.r2Key || '', size: CN.file.size, type: CN.file.type }); }).catch(function () {}).then(others).catch(function () {}).then(go);
         })
         .catch(function (err) { fail(err); b.disabled = false; b.textContent = 'Create project and plan it →'; });
     };
@@ -6736,8 +6768,16 @@
       return { text: parts.join('\n\n'), pages: n };
     });
   }
+  function piBim() { return piLoad('champ-bim.js?v=1', function () { return !!window.ChampBIM; }); }
+  M.bim = piBim;
   function piExtract(f, onProg) {
     var name = f.name.toLowerCase();
+    // 🏗 IFC models, Navisworks TimeLiner and clash reports, MS Project XML, DXF: read into text (quantities, levels, schedule, clashes)
+    if (/\.(ifc|dxf|xml|csv)$/.test(name)) return piBim().then(function () { return window.ChampBIM.read(f, onProg); }).then(function (x) {
+      if (x) return x;
+      if (/\.(csv|xml)$/.test(name)) return f.text().then(function (t) { return { text: t, pages: 0 }; });
+      throw new Error('“' + f.name + '” could not be read.'); });
+    if (/\.(rvt|rfa|rte|rft|nwd|nwc|nwf|dwg|dwf|dwfx)$/.test(name)) return piBim().then(function () { return Promise.reject(new Error(window.ChampBIM.tip(f.name))); });
     if (/\.pdf$/.test(name)) return piLoad('vendor/pdf.min.js?v=3111', function () { return !!window.pdfjsLib; }).then(function () {
       window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js?v=3111';
       return f.arrayBuffer().then(function (buf) { return window.pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise; }).then(function (doc) {
@@ -6789,7 +6829,7 @@
     $('#planBody').innerHTML =
       '<div class="card dm-top"><div class="dm-h"><div><h3 style="margin:0">📁 Project documents</h3><p class="muted" style="margin:2px 0 0;font-size:12.5px">This project\'s own repository: charter, plans, BRD, FSD, requirements, design, contracts, minutes, reports and more. Files are kept privately in Cloudflare R2 storage; Ask AI reads the current version of each.</p></div><span class="sp"></span>' +
         '<input id="dmQ" type="search" placeholder="🔎 Search inside every document…" value="' + esc(D.q || '') + '">' +
-        (ro ? '' : '<label class="btn btn-gold btn-sm" style="cursor:pointer">⬆ Upload documents<input type="file" id="dmFile" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg" hidden></label>') +
+        (ro ? '' : '<label class="btn btn-gold btn-sm" style="cursor:pointer">⬆ Upload documents<input type="file" id="dmFile" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.ifc,.xml,.dxf,.rvt,.rfa,.nwd,.nwc,.nwf,.dwg,.dwf,.dwfx" hidden></label>') +
         (ai && cur.length ? '<button class="btn btn-sm" id="dmRev" type="button" title="The AI checks all the documents against the plan: what is covered, missing, in conflict or out of date">🧠 Review all against the plan</button>' : '') + '</div>' +
         '<div class="dm-stat"><span>📄 <b>' + cur.length + '</b> document' + (cur.length === 1 ? '' : 's') + (d.docs.length > cur.length ? ' · ' + (d.docs.length - cur.length) + ' older version' + (d.docs.length - cur.length === 1 ? '' : 's') : '') + '</span><span>☁️ ' + fsize(d.r2bytes) + ' in R2</span><span>✓ ' + cur.filter(function (x) { return x.status === 'Approved'; }).length + ' approved</span><span>🧠 ' + cur.filter(function (x) { return x.analysed; }).length + ' analysed</span>' + (R ? '<button class="dm-link" id="dmRevOpen" type="button">Last review ' + esc(dmy(new Date(R.at).toISOString().slice(0, 10))) + ' ›</button>' : '') + '</div>' +
         '<div id="dmUp"></div><div id="dmHits"></div></div>' +
@@ -6823,7 +6863,7 @@
     B.querySelectorAll('[data-dmnv]').forEach(function (b) { b.onclick = function () { var x = d.docs.find(function (y) { return y.id === b.getAttribute('data-dmnv'); }) || {};
       M.modal('<h2>⬆ New version: v' + ((x.version || 1) + 1) + '</h2><p class="muted" style="margin:-4px 0 10px">' + esc(x.title || x.name || '') + '. The current version (v' + (x.version || 1) + ') is kept as superseded.</p><div class="form-grid"><label>What changed in this version?<input id="dmVn" maxlength="400" placeholder="e.g. Client comments from the 18 Nov workshop; chapter 4 rewritten"></label>' +
         (x.folder === 'deliverables' ? '<label>This version is<select id="dmVs"><option value="Draft">Draft</option><option value="Final">Final</option></select></label>' : '') +
-        '<label class="vl-drop" style="grid-column:1/-1">📎 <b>Choose the file</b><input type="file" id="dmVf" hidden accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg"><small id="dmVfn" class="muted"></small></label></div><div class="actions"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="dmVgo" type="button" disabled>Upload v' + ((x.version || 1) + 1) + '</button></div>');
+        '<label class="vl-drop" style="grid-column:1/-1">📎 <b>Choose the file</b><input type="file" id="dmVf" hidden accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.png,.jpg,.jpeg,.ifc,.xml,.dxf,.rvt,.rfa,.nwd,.nwc,.nwf,.dwg,.dwf,.dwfx"><small id="dmVfn" class="muted"></small></label></div><div class="actions"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="dmVgo" type="button" disabled>Upload v' + ((x.version || 1) + 1) + '</button></div>');
       var vf = $('#dmVf'), go = $('#dmVgo'); vf.onchange = function () { $('#dmVfn').textContent = vf.files[0] ? ' · ' + vf.files[0].name : ''; go.disabled = !vf.files[0]; };
       go.onclick = function () { var f = vf.files[0], note = $('#dmVn').value, st = $('#dmVs') ? $('#dmVs').value : ''; M.closeModal(); dmUpload([f], x.id, { vnote: note, status: st }); }; }; });
     var fi = $('#dmFile'); if (fi) fi.onchange = function () { dmUpload([].slice.call(fi.files)); fi.value = ''; };

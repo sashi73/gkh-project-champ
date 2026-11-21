@@ -34,6 +34,9 @@ export const statusOk = (s) => (STATUS.includes(String(s || '')) ? String(s) : '
 export function classify(name, text, kind = '') {
   const n = String(name || '').toLowerCase(), t = String(text || '').slice(0, 5000).toLowerCase(), s = n + ' ' + t;
   const has = (re) => re.test(n) || re.test(t.slice(0, 1500));
+  // 🏗 BIM models, drawings and clash reports go to Design; a TimeLiner or MS Project schedule to Plans
+  if (/\.(ifc|rvt|rfa|rte|rft|nwd|nwc|nwf|dwg|dwf|dwfx|dxf)$/.test(n) || /^(bim model|coordination clashes|drawing \(dxf\))/.test(t)) return 'design';
+  if (/^construction schedule/.test(t)) return 'plans';
   if (has(/deliverable|master ?plan|blueprint|final report|interim report|inception report|draft report|laporan (akhir|permulaan|interim)|pelan induk|roadmap report/)) return 'deliverables';
   if (/minutes|transcript/.test(kind.toLowerCase()) || has(/\bminutes\b|meeting notes|agenda|transcript|action log|workshop notes/)) return 'meetings';
   if (has(/\bbrd\b|\bfsd\b|\bsrs\b|business requirements?|functional spec|requirements? (definition|specification|document|catalogue)|user stor(y|ies)|use cases?|\brf[pqi]\b|request for (proposal|quotation|tender)|specification/)) return 'requirements';

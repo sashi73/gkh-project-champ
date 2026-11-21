@@ -514,11 +514,37 @@
         backgroundColor: round ? rows.map(function (_, k) { return COLORS[k % COLORS.length]; }) : (c.type === 'area' || c.type === 'radar' ? col + '55' : col),
         borderColor: round ? '#fff' : col, borderWidth: round ? 2 : 2, fill: c.type === 'area' || c.type === 'radar', tension: 0.25, pointRadius: 3 };
     });
+    // 🔢 every chart says what it shows: the value on each slice or bar, its % of the total, and what 100% is
+    var y0 = ys[0] || '', nice = function (y) { return String(y || '').replace(/_/g, ' '); };
+    var sumOk = function (y) { return /count|(^|_)n$|total|value|cost|budget|amount|profit|invoic|received|owed|spent|earned|planned|contract|qty|quantity|hours|tasks|risks|issues|projects|milestones|people|jobs|sum|revenue|loss/i.test(y) && !/pct|percent|cpi|spi|ratio|rate|avg|average|mean|margin|score|index|days|elevation/i.test(y); };
+    var vals = sets.length ? sets[0].data : [], total = vals.reduce(function (a, v) { return a + (v > 0 ? v : 0); }, 0);
+    var pctOn = sets.length === 1 && total > 0 && vals.every(function (v) { return v >= 0; }) && (round || sumOk(y0));
+    var pctOf = function (v) { var p = v / total * 100; return p >= 10 || p === 0 ? Math.round(p) + '%' : (Math.round(p * 10) / 10) + '%'; };
+    var lab = function (v) { return fmt(v) + (pctOn ? ' (' + pctOf(v) + ')' : ''); };
+    var sub = pctOn ? 'Total ' + nice(y0) + ': ' + fmt(total) + ' = 100%' : '';
+    var many = rows.length > (round ? 16 : 40);
+    var valuePlugin = { id: 'champVals', afterDatasetsDraw: function (ch) {
+      if (many || type === 'line' || type === 'radar') return;
+      var x = ch.ctx; x.save(); x.font = '600 11.5px Poppins, system-ui, sans-serif'; x.textBaseline = 'middle';
+      ch.data.datasets.forEach(function (ds, di) { var meta = ch.getDatasetMeta(di); if (meta.hidden) return;
+        meta.data.forEach(function (el, k) { var v = ds.data[k]; if (v == null || (round && !(v > 0))) return;
+          if (round) { if (total && v / total < 0.04) return; var p = el.tooltipPosition(); x.textAlign = 'center'; x.fillStyle = '#fff'; x.shadowColor = 'rgba(0,0,0,.45)'; x.shadowBlur = 3;
+            x.fillText(fmt(v), p.x, p.y - (pctOn ? 7 : 0)); if (pctOn) x.fillText(pctOf(v), p.x, p.y + 8); x.shadowBlur = 0; return; }
+          if (c.type === 'stacked') return;
+          var hz = c.type === 'hbar', t = sets.length === 1 ? lab(v) : fmt(v); x.fillStyle = '#1F2937';
+          if (hz) { x.textAlign = v < 0 ? 'right' : 'left'; x.fillText(t, el.x + (v < 0 ? -5 : 5), el.y); } else { x.textAlign = 'center'; x.textBaseline = v < 0 ? 'top' : 'bottom'; x.fillText(t, el.x, el.y + (v < 0 ? 4 : -4)); x.textBaseline = 'middle'; }
+        }); });
+      if (c.type === 'doughnut' && pctOn) { var m0 = ch.getDatasetMeta(0), a0 = m0.data[0]; if (a0) { x.textAlign = 'center'; x.fillStyle = '#6B7280'; x.font = '600 11px Poppins, system-ui, sans-serif'; x.fillText('Total (100%)', a0.x, a0.y - 10); x.fillStyle = '#111827'; x.font = '800 18px Poppins, system-ui, sans-serif'; x.fillText(fmt(total), a0.x, a0.y + 10); } }
+      x.restore(); } };
+    var legendLabels = round ? { generateLabels: function (ch) { var L = window.Chart.overrides.doughnut.plugins.legend.labels.generateLabels(ch); L.forEach(function (it, k) { var v = ch.data.datasets[0].data[k]; it.text = it.text + ': ' + lab(v); }); return L; } } : {};
     return { type: type, data: { labels: labels, datasets: sets },
       options: { responsive: !still, maintainAspectRatio: false, animation: still ? false : { duration: 300 }, devicePixelRatio: still ? 2 : undefined, indexAxis: c.type === 'hbar' ? 'y' : 'x',
-        plugins: { legend: { display: round || sets.length > 1, position: 'bottom' }, title: { display: !!S.title, text: S.title, font: { size: 15, weight: '700' } } },
-        scales: round || c.type === 'radar' ? {} : { x: { stacked: c.type === 'stacked' }, y: { stacked: c.type === 'stacked', beginAtZero: true } } },
-      plugins: [{ id: 'white', beforeDraw: function (ch) { var x = ch.ctx; x.save(); x.globalCompositeOperation = 'destination-over'; x.fillStyle = '#fff'; x.fillRect(0, 0, ch.width, ch.height); x.restore(); } }] };
+        layout: { padding: { right: c.type === 'hbar' ? 90 : 10, top: round ? 6 : 20 } },
+        plugins: { legend: { display: round || sets.length > 1, position: 'bottom', labels: legendLabels }, title: { display: !!S.title, text: S.title, font: { size: 15, weight: '700' } },
+          subtitle: { display: !!sub, text: sub, color: '#6B7280', font: { size: 12, weight: '600' }, padding: { bottom: 8 } },
+          tooltip: { callbacks: { label: function (ctx) { var v = ctx.raw; return ' ' + (ctx.dataset.label ? nice(ctx.dataset.label) + ': ' : '') + (sets.length === 1 ? lab(v) : fmt(v)); } } } },
+        scales: round || c.type === 'radar' ? {} : { x: { stacked: c.type === 'stacked', title: { display: c.type === 'hbar' && sets.length === 1, text: nice(y0) } }, y: { stacked: c.type === 'stacked', beginAtZero: true, ticks: { autoSkip: !(c.type === 'hbar' && rows.length <= 40) }, title: { display: c.type !== 'hbar' && sets.length === 1, text: nice(y0) } } } },
+      plugins: [valuePlugin, { id: 'white', beforeDraw: function (ch) { var x = ch.ctx; x.save(); x.globalCompositeOperation = 'destination-over'; x.fillStyle = '#fff'; x.fillRect(0, 0, ch.width, ch.height); x.restore(); } }] };
   }
   function hasNumbers() { return S.cols.some(isNum); }
   function drawChart() {

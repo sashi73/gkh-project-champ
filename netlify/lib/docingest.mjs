@@ -101,7 +101,7 @@ const FIELDS = [
   'objectives goals aims outcomes benefits success criteria KPIs', 'scope in scope work packages requirements included', 'out of scope exclusions not included',
   'deliverables outputs products documents reports', 'phases stages approach methodology work breakdown structure activities', 'timeline schedule milestones start date end date completion deadline go-live weeks months',
   'budget cost estimate funding price contract value fees', 'stakeholders users teams governance roles responsibilities RACI', 'risks issues constraints assumptions dependencies',
-  'resources team staffing skills equipment materials vendors suppliers', 'quality acceptance criteria testing standards compliance regulations', 'communication reporting meetings status updates'];
+  'resources team staffing skills equipment materials vendors suppliers', 'BIM model IFC levels storeys elements trades quantity take-off materials rooms', 'construction schedule TimeLiner planned start end tasks clashes coordination', 'quality acceptance criteria testing standards compliance regulations', 'communication reporting meetings status updates'];
 
 const SYS = 'You are a senior project document analyst (PMP, PRINCE2, business analysis). You get extracts from ONE document that gives the context for a project, with page numbers. ' +
   'It is usually a REQUIREMENTS document (business, functional or technical requirements, BRD, SRS), a FEASIBILITY STUDY, or PART OF AN RFP / tender; it can also be a brief, proposal, business case, statement of work or slide deck. First decide which ("doc_kind"), then read it that way: ' +
@@ -114,7 +114,10 @@ const SYS = 'You are a senior project document analyst (PMP, PRINCE2, business a
   '"summary": what the project is about, AS DESCRIPTIVE AS THE DOCUMENT ALLOWS, in plain prose (background, the problem or opportunity, objectives, what will be delivered, approach, key dates, budget, main stakeholders, constraints): 900 to 3,000 characters; ' +
   '"brief": an object for the planner with arrays of short, specific lines: "objectives", "in_scope", "out_of_scope", "deliverables", "phases" ([{"name","what","when"}] in order), "milestones" ([{"name","date"}]), ' +
   '"stakeholders" ([{"who","role"}], roles or organisations; names only if given), "requirements", "constraints", "assumptions", "risks", "success_criteria", and "budget_notes" (one line). ' +
-  'Also return "doc_kind": "requirements" | "feasibility" | "rfp" | "brief" | "business_case" | "proposal" | "other". ' +
+  'BIM / CONSTRUCTION FILES (text made from an IFC model, a Navisworks TimeLiner or MS Project schedule, a clash report or a DXF drawing, marked BIM MODEL, CONSTRUCTION SCHEDULE, COORDINATION CLASHES or DRAWING): the project is building what the model shows; the site, building and project names come from the model; ' +
+  'in_scope and deliverables are the trades and elements by level with their quantities (e.g. "Walls and partitions: 320 walls, 4,500 m2"); phases follow the build sequence (site works, substructure, structure, envelope, services rough-in, finishes and fit-out, testing and commissioning, handover), level by level where the model has levels; ' +
+  'schedule tasks and dates become phases and milestones with their dates; open clashes become risks (design coordination before the trades install); requirements hold the key quantities; say in gaps what the model does not give (contract, budget, client, dates if there is no schedule). ' +
+  'Also return "doc_kind": "requirements" | "feasibility" | "rfp" | "brief" | "business_case" | "proposal" | "bim" | "other". ' +
   'Add "pages": {"field": [page numbers]} for where you found the name, client, sponsor, site, dates and budget, and "confidence": "high" | "medium" | "low" for the whole reading, and "gaps": things a project manager should still find out (at most 6). ' +
   'Write in the document\'s language unless asked otherwise. Keep every list item under 200 characters.';
 
@@ -138,7 +141,7 @@ export async function ingest({ sid, lang }, by) {
     milestones: (Array.isArray(b.milestones) ? b.milestones : []).slice(0, 30).map((m) => (m && typeof m === 'object' ? { name: str(m.name, 160), date: str(m.date, 40) } : { name: str(m, 160), date: '' })).filter((m) => m.name),
     stakeholders: (Array.isArray(b.stakeholders) ? b.stakeholders : []).slice(0, 30).map((s) => (s && typeof s === 'object' ? { who: str(s.who || s.name, 120), role: str(s.role, 160) } : { who: str(s, 120), role: '' })).filter((s) => s.who),
     requirements: L(b.requirements, 40), constraints: L(b.constraints), assumptions: L(b.assumptions), risks: L(b.risks), success_criteria: L(b.success_criteria), budget_notes: str(b.budget_notes, 300) };
-  const KIND = { requirements: 'Requirements document', feasibility: 'Feasibility study', rfp: 'RFP / tender', brief: 'Project brief', business_case: 'Business case', proposal: 'Proposal', other: 'Project document' };
+  const KIND = { requirements: 'Requirements document', feasibility: 'Feasibility study', rfp: 'RFP / tender', brief: 'Project brief', business_case: 'Business case', proposal: 'Proposal', bim: 'BIM model and construction files', other: 'Project document' };
   const kind = KIND[String(o.doc_kind || '').toLowerCase()] || 'Project document';
   const fields = { name: str(o.name, 120), client: str(o.client, 120), sponsor: str(o.sponsor, 80), manager: str(o.manager, 80), site: str(o.site, 80), start: ymd(o.start_date), finish: ymd(o.finish_date),
     budget: str(o.budget, 80), type: str(o.project_type, 120), summary: str(o.summary, 4000), kind };
@@ -163,4 +166,4 @@ export function briefText(f, b, docName) {
 }
 // the questions the plan builder asks of the document
 export const PLAN_QUERIES = ['phases stages approach methodology work breakdown activities tasks', 'timeline schedule milestones dates deadline go-live duration weeks', 'deliverables outputs acceptance',
-  'requirements specifications functional technical', 'dependencies sequence prerequisites approvals', 'resources team roles vendors procurement', 'risks constraints assumptions', 'testing training handover transition support'];
+  'requirements specifications functional technical', 'dependencies sequence prerequisites approvals', 'resources team roles vendors procurement', 'risks constraints assumptions', 'work breakdown by level and trade scope of work model elements construction schedule clashes', 'testing training handover transition support'];
