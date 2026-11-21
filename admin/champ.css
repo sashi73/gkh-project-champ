@@ -1154,3 +1154,8 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .ci-tab td.num{white-space:nowrap}
 .ci-tab .cpi-in{width:140px}.ci-tab .ci-pct{width:70px}
 .ci-act{position:static!important;margin-top:14px;display:flex;justify-content:flex-end;gap:8px}
+/* ✋ no text selection while Champ is dragged; the panel scrolls inside when its height is capped */
+body.cg-dragging,body.cg-dragging *{user-select:none!important;-webkit-user-select:none!important}
+#cgBtn{user-select:none;-webkit-user-select:none}
+#cgPanel{overflow:hidden}
+#cgPanel .cgp-log{max-height:none;flex:1 1 auto;min-height:90px}#cgPanel>*:not(.cgp-log){flex:0 0 auto}
