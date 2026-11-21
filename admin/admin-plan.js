@@ -7045,12 +7045,12 @@
       '<div class="card"><div class="row" style="justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px"><h2 style="margin:0">Time & cost (earned value)</h2>' + (canCost() ? '<button class="btn btn-sm btn-gold" type="button" data-costin>💲 Record actual costs</button>' : '') + '</div><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
         (S.expensesEx ? '<p class="muted" style="margin:10px 0 0">Expenses recorded for this job in Accounts: <b>' + money(S.expensesEx) + '</b> ex GST.</p>' : '') +
         (p.baseline ? '<p class="muted" style="margin:6px 0 0">Baseline set ' + esc(M.day(p.baseline.at)) + ': finish ' + esc(prettyY(p.baseline.finish)) + ', budget ' + money(p.baseline.BAC) + '. Now: finish ' + esc(prettyY(R.finish)) + ' (' + esc(varDays(p.baseline.finish, R.finish)) + ').</p>' : '<p class="muted" style="margin:6px 0 0">Tip: press “Set baseline” once the plan is agreed, so you can track slippage.</p>') + '</div>' +
-      ovRisks(p) + ovIssues(p, t0) +
-      '<div class="card"><h2>This week <small class="muted" style="font-weight:500">(' + esc(pretty(t0)) + ' to ' + esc(pretty(soon)) + ')</small></h2>' + (coming.length ? '<div class="list">' + coming.map(function (r) { return '<div class="item"><div><b>#' + r.n + ' ' + esc(r.t.name) + '</b><br><small>' + esc(pretty(r.t.es)) + ' – ' + esc(pretty(r.t.ef)) + (r.t.res && r.t.res.length ? ' · ' + esc(resText(r.t)) : '') + '</small></div><b>' + r.t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing scheduled this week.</div>') + '</div></div>' +
+      ovLate(R) +
+      '<div class="card"><h2>This week <small class="muted" style="font-weight:500">(' + esc(pretty(t0)) + ' to ' + esc(pretty(soon)) + ')</small></h2>' + (coming.length ? '<div class="list">' + coming.map(function (r) { return '<div class="item"><div><b>#' + r.n + ' ' + esc(r.t.name) + '</b><br><small>' + esc(pretty(r.t.es)) + ' – ' + esc(pretty(r.t.ef)) + (r.t.res && r.t.res.length ? ' · ' + esc(resText(r.t)) : '') + '</small></div><b>' + r.t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing scheduled this week.</div>') + '</div>' +
+      ovRisks(p) + ovIssues(p, t0) + '</div>' +
 
       '<div class="grid" style="align-content:start">' +
       materialsCard() +
-      '<div class="card"><h2>Late tasks</h2>' + (R.late.length ? '<div class="list">' + R.late.map(function (t) { return '<div class="item"><div><b>' + esc(t.name) + '</b><br><small style="color:#C2410C">was due ' + esc(pretty(t.ef)) + '</small></div><b>' + t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing late. 👍</div>') + '</div>' +
       (S.reminders.length ? '<div class="card"><h2>Reminders for this job</h2><div class="list">' + S.reminders.map(function (r) { return '<div class="item"><div><b>' + esc(r.when) + '</b><br><small>' + esc(r.text) + '</small></div></div>'; }).join('') + '</div></div>' : '') +
       '</div></div>';
     ordWire($('#planBody'));
@@ -7099,6 +7099,12 @@
     return { days: workBetween(at(d, 1), today0), date: shown, ahead: false };
   }
   // ⚠ the top risks and the open issues on the overview: neat rows, the worst first, with a link to the full register
+  function ovLate(R) {   // ⏰ late tasks: the latest first, how late, and how far along
+    var t0 = today(), L = (R.late || []).slice().sort(function (a, b) { return String(a.ef).localeCompare(String(b.ef)); });
+    return '<div class="card ov-reg"><div class="card-h"><h2>⏰ Late tasks</h2><span class="sp"></span>' + (L.length ? '<small class="bad"><b>' + L.length + ' late</b></small>' : '') + '</div>' +
+      (L.length ? '<div class="ov-list">' + L.map(function (t) { var d = Math.max(1, workBetween(t.ef, t0) - 1);
+        return '<div class="ov-row"><span class="ov-pri pri-' + (d > 10 ? 'critical' : d > 3 ? 'high' : 'medium') + '">' + d + ' day' + (d === 1 ? '' : 's') + ' late</span><div class="ov-body"><b>' + esc(t.name) + '</b><small>was due ' + esc(pretty(t.ef)) + ' (working days)' + (t.res && t.res.length ? ' · 👤 ' + esc(resText(t)) : '') + '</small><span class="ov-bar"><i style="width:' + (t.pct || 0) + '%"></i></span></div><span class="ov-st">' + (t.pct || 0) + '%</span></div>'; }).join('') + '</div>' : '<div class="empty">Nothing late. 👍</div>') + '</div>';
+  }
   function ovRisks(p) {
     var L = (p.risks || []).filter(function (r) { return r.status !== 'Closed'; }), top = L.slice().sort(function (a, b) { return b.p * b.i - a.p * a.i; }).slice(0, 5);
     return '<div class="card ov-reg"><div class="card-h"><h2>⚠ Top risks</h2><span class="sp"></span><a class="btn btn-sm" href="#plan/' + esc(S.core) + '/risks">All ' + L.length + ' →</a></div>' +
