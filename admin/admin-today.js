@@ -20,16 +20,7 @@
   function close(now) {
     var o = $('#tdy'); document.removeEventListener('keydown', onKey, true); document.body.classList.remove('tdy-open'); if (!o) return;
     if (now === true || still() || o.classList.contains('tdy-out')) { o.remove(); return; }
-    var nav = $('.side-nav [data-today]'), st = $('.tdy-stage', o), r = nav && nav.getBoundingClientRect();
-    if (st && r && r.width && r.right > 0 && st.animate) {   // it flies back into 🎯 Today in the menu, where it stays
-      var b = st.getBoundingClientRect(), dx = r.left + r.width / 2 - (b.left + b.width / 2), dy = r.top + r.height / 2 - (b.top + b.height / 2), k = Math.max(.04, r.height / b.height);
-      o.classList.add('tdy-out', 'tdy-fly');
-      st.animate([{ transform: 'none', opacity: 1, borderRadius: '0' }, { transform: 'translate(' + dx * .35 + 'px,' + (dy * .35 - 30) + 'px) scale(.55) rotate(-4deg)', opacity: .95, offset: .45 },
-        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + k + ') rotate(-12deg)', opacity: .2, borderRadius: '40px' }], { duration: 650, easing: 'cubic-bezier(.5,0,.7,.4)', fill: 'forwards' });
-      setTimeout(function () { o.remove(); nav.classList.remove('tdy-land'); void nav.offsetWidth; nav.classList.add('tdy-land'); }, 640);
-      return;
-    }
-    o.classList.add('tdy-out'); setTimeout(function () { o.remove(); }, 520);   // no menu on screen (phone, menu folded): the page rolls back up
+    o.classList.add('tdy-out'); setTimeout(function () { o.remove(); }, 150);   // a quick, smooth fade (no fly-out)
   }
   // the red count on 🎯 Today in the menu: overdue work and open blockers
   function badge(c) { var a = $('.side-nav [data-today]'); if (!a) return; var n = c ? (c.now != null ? c.now : (c.overdue || 0) + (c.blockers || 0)) : 0, el = $('.tdy-badge', a);
@@ -97,7 +88,7 @@
     var f = $('#tdyGo'); if (f) f.focus({ preventScroll: true });
     // the numbers count up as the page opens
     o.querySelectorAll('.tdy-flow b').forEach(function (b) { var n = +b.textContent || 0; if (!n || still()) return; var k = 0, steps = Math.min(n, 18); b.textContent = '0';
-      var tick = function () { k++; b.textContent = String(Math.round(n * k / steps)); if (k < steps) setTimeout(tick, 420 / steps); }; setTimeout(tick, 450); });
+      var tick = function () { k++; b.textContent = String(Math.round(n * k / steps)); if (k < steps) setTimeout(tick, 200 / steps); }; setTimeout(tick, 60); });
     o.classList.add('tdy-ready');
   }
 
