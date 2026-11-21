@@ -47,7 +47,7 @@ function projectBill(plan, bill, docs, today) {
   const C = { ...C1, base: C1.value || 0, value: r2((C1.value || 0) + voOk) };
   const price = C.value || 0, gst = r2(price * gstp / 100);
   const money = { contract: price, contractFrom: C.from, contractBase: C.base, variations: voOk, variationsWaiting: voWait, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
-    spent: r2(R.AC), eac, CPI: R.CPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
+    spent: r2(R.AC), earned: r2(R.EV || 0), eac, CPI: R.CPI, SPI: R.SPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
     // 📈 forecast profit, two scenarios: 1) contingency and management reserve both spent; 2) the management reserve not needed
     profit1: price ? r2(price - eac - contA - resA) : null, profit2: price ? r2(price - eac - contA) : null };
   for (const k of ['profit1', 'profit2']) money[k + 'Pct'] = price ? Math.round(money[k] / price * 1000) / 10 : null;
