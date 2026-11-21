@@ -67,6 +67,7 @@ export async function upload(core, f, by) {   // the text for Ask AI; the origin
   d.owner = str(f.owner, 80) || (old && old.owner) || str(by, 60); d.title = str(f.title, 160) || (old && old.title) || '';
   d.tags = (Array.isArray(f.tags) ? f.tags : String(f.tags || '').split(',')).map((x) => str(x, 30)).filter(Boolean).slice(0, 8);
   if (old) { d.group = old.group || old.id; d.version = (old.version || 1) + 1; } else { d.group = id; d.version = 1; }
+  if (Number.isInteger(f.version) && f.version >= 0) d.version = f.version;   // 🧱 a BOM keeps its own numbering (v0 = the baseline)
   d.vnote = str(f.vnote, 400) || undefined;   // 🕘 what changed in this version
   { const dt = str(f.dtype, 10) || (old && old.dtype) || ''; if (dt === 'final' || dt === 'interim') d.dtype = dt; }   // 🏁 a final or interim deliverable
   await kv.update('pdocs:' + job.core, (x) => { x.docs = (x.docs || []).map((y) => (old && y.id === old.id ? Object.assign({}, y, { superseded: d.id, prevStatus: y.status, status: 'Superseded' }) : y)).concat([d]); return x; }, () => ({ docs: [] }));

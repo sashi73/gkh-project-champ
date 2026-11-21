@@ -171,20 +171,22 @@ export function rollup(plan, today) {
   // 📐 CPI is shown to 2 decimals, but the forecast uses the exact ratio (a rounded CPI moves a $2.6M forecast by ~$10K).
   //    Forecast cost (EAC) = spent so far + the labour still to do ÷ labour CPI + the materials still to buy ÷ materials CPI.
   //    It is exactly what was spent once all the work is done.
-  // 👷 CPI and SPI measure the labour and services (the work people do). The BOM is priced and baselined: its materials count at the
-  //    BOM price, so they never move CPI; a material price change is recorded as a BOM change and re-baselined (a budget change).
-  //    Forecast cost (EAC) = spent so far + the labour and services still to do ÷ their CPI + the materials still to buy at the BOM price
-  //    (+ any unrecorded BOM difference already spent). It is exactly what was spent once all the work is done.
-  const S = { bL: 0, bM: 0, eL: 0, eM: 0, pL: 0, eLi: 0, aLi: 0, diff: 0, nDiff: 0, nProg: 0, nAct: 0 };
-  for (const t of tasks) { const x = actualSplit(t, plan); S.bL += x.lab; S.bM += x.mat; S.eL += x.evL; S.eM += x.evM; S.pL += x.lab * frac(t); if (x.lab > 0.004 && x.evL > 0.004) { S.nProg++; if (x.has) S.nAct++; }
+  // 👷🧱 CPI = (labour earned + materials earned at the BOM v0 baseline) ÷ (labour spent + materials at the current BOM revision), on the
+  //    work with costs recorded: a recorded BOM price change moves it. SPI measures the labour and services work.
+  //    Forecast cost (EAC) = spent so far + the labour and services still to do ÷ their CPI + the materials still to buy at the current BOM
+  //    price (+ any unrecorded BOM difference already spent). It is exactly what was spent once all the work is done.
+  const S = { bL: 0, bM: 0, bMb: 0, eL: 0, eM: 0, eMb: 0, pL: 0, eLi: 0, aLi: 0, diff: 0, nDiff: 0, nProg: 0, nAct: 0 };
+  for (const t of tasks) { const x = actualSplit(t, plan); S.bL += x.lab; S.bM += x.mat; S.bMb += x.base; S.eL += x.evL; S.eM += x.evM; S.eMb += x.evMb; S.pL += x.lab * frac(t); if (x.lab > 0.004 && x.evL > 0.004) { S.nProg++; if (x.has) S.nAct++; }
     if (x.has) { S.eLi += x.evL; S.aLi += x.acL; if (Math.abs(x.bomDiff) >= 0.5) { S.diff += x.bomDiff; S.nDiff++; } } }
-  const kL = S.aLi > 0 && S.eLi > 0 ? S.eLi / S.aLi : null;
-  const CPIx = kL, CPI = kL ? r2(kL) : ACin > 0 ? 1 : null;   // only materials with actuals: CPI 1.00 (they are held at the BOM price)
+  const kL = S.aLi > 0 && S.eLi > 0 ? S.eLi / S.aLi : null, kM = S.eM > 0.004 ? S.eMb / S.eM : null;   // materials: baseline ÷ current BOM price on the work done
+  // CPI = (labour earned + materials earned at the baseline) ÷ (labour spent + materials at the current BOM price), on the work with costs recorded
+  const cE = S.eLi + (S.eM > 0.004 ? S.eMb : 0), cA = S.aLi + (S.eM > 0.004 ? S.eM : 0), CPIx = cA > 0 && cE > 0 ? cE / cA : null, CPI = CPIx ? r2(CPIx) : ACin > 0 ? 1 : null;
   const SPI = S.pL > 0 ? r2(S.eL / S.pL) : PV > 0 ? r2(EV / PV) : null;   // schedule by the labour and services work; a materials-only plan falls back to all the work
   // 📏 the evidence behind CPI: how much of the labour work done has its actual cost recorded (the rest is assumed on budget)
-  const split = { lab: { bac: r2(S.bL), ev: r2(S.eL), pv: r2(S.pL), evIn: r2(S.eLi), acIn: r2(S.aLi), CPI: kL ? r2(kL) : null, cover: S.eL > 0 ? Math.round(S.eLi / S.eL * 100) : null, nAct: S.nAct, nProg: S.nProg }, mat: { bac: r2(S.bM), ev: r2(S.eM) }, bomDiff: r2(S.diff), bomDiffTasks: S.nDiff };
+  const split = { lab: { bac: r2(S.bL), ev: r2(S.eL), pv: r2(S.pL), evIn: r2(S.eLi), acIn: r2(S.aLi), CPI: kL ? r2(kL) : null, cover: S.eL > 0 ? Math.round(S.eLi / S.eL * 100) : null, nAct: S.nAct, nProg: S.nProg },
+    mat: { bac: r2(S.bM), base: r2(S.bMb), ev: r2(S.eMb), ac: r2(S.eM), CPI: kM ? r2(kM) : null, rev: plan.bomRevs && plan.bomRevs.length ? plan.bomRevs[plan.bomRevs.length - 1].v : null }, bomDiff: r2(S.diff), bomDiffTasks: S.nDiff };
   const EAC = ACin > 0 ? r2(AC + Math.max(0, S.bL - S.eL) / (kL || 1) + Math.max(0, S.bM - S.eM)) : null;
-  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, split, cpiEV: r2(S.eLi), cpiAC: r2(S.aLi), spiEV: r2(S.pL > 0 ? S.eL : EV), spiPV: r2(S.pL > 0 ? S.pL : PV), VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
+  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, split, cpiEV: r2(cE), cpiAC: r2(cA), spiEV: r2(S.pL > 0 ? S.eL : EV), spiPV: r2(S.pL > 0 ? S.pL : PV), VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
     openRisks: (plan.risks || []).filter((r) => r.status !== 'Closed').length, highRisks: (plan.risks || []).filter((r) => r.status !== 'Closed' && r.p * r.i >= 12).length,
     openIssues: (plan.issues || []).filter((x) => x.status !== 'Resolved').length };
 }
@@ -281,6 +283,10 @@ function clean(p, core) {
     // v82: 🔁 change control: change requests (CR-001 ...): raised, assessed, reviewed (change control meeting), approved / rejected / deferred, implemented
     changes: (Array.isArray(p.changes) ? p.changes : []).slice(0, 200).map(crClean).filter(Boolean),
     // 📘 lessons learned: the living log (reusable ones go into the library other projects draw on)
+    // 🧱 server-owned (bomrev.mjs): the BOM materials baseline (v0) and the revision list
+    bomBase: p.bomBase && typeof p.bomBase === 'object' ? { v: int(p.bomBase.v, 0, 999, 0), at: Number(p.bomBase.at) || 0, total: r2(p.bomBase.total), byTask: Object.fromEntries(Object.entries(p.bomBase.byTask || {}).slice(0, 600).filter(([k]) => /^[\w-]{1,30}$/.test(k)).map(([k, v]) => [k, r2(v)])) } : undefined,
+    bomRevs: Array.isArray(p.bomRevs) && p.bomRevs.length ? p.bomRevs.slice(-60).map((x) => ({ v: int(x.v, 0, 999, 0), at: Number(x.at) || 0, by: str(x.by, 80), total: r2(x.total), delta: r2(x.delta), pct: Number(x.pct) || 0, n: int(x.n, 0, 999, 0), syn: str(x.syn, 1500),
+      top: (Array.isArray(x.top) ? x.top : []).slice(0, 6).map((c) => ({ name: str(c.name, 160), kind: str(c.kind, 30), oldQty: Number(c.oldQty) || 0, newQty: Number(c.newQty) || 0, oldPrice: r2(c.oldPrice), newPrice: r2(c.newPrice), delta: r2(c.delta) })) })) : undefined,
     lessons: (Array.isArray(p.lessons) ? p.lessons : []).slice(0, 200).map((l) => (l && typeof l === 'object' ? { id: uid(l.id, 'l'), title: str(l.title, 200), category: str(l.category, 40), phase: str(l.phase, 80),
       impact: l.impact === 'positive' ? 'positive' : 'negative', what: str(l.what, 1500), cause: str(l.cause, 800), rec: str(l.rec, 800), status: ['Draft', 'Agreed'].includes(l.status) ? l.status : 'Draft',
       reuse: l.reuse !== false, source: l.source === 'ai' ? 'ai' : l.source === 'library' ? 'library' : 'manual', from: str(l.from, 120), by: str(l.by, 80), at: Number(l.at) || Date.now() } : null)).filter((l) => l && (l.title || l.what)),
@@ -370,14 +376,16 @@ export function taskSplit(t, plan) { const m = matsOf(t), own = m.length && m[0]
 // what the work done on a task cost, labour and materials apart: a materials actual entered is used; a task that is all labour or all
 //   materials takes the whole actual; a mixed task with no materials actual assumes its materials cost the BOM price (flagged: assumed)
 export function actualSplit(t, plan) {
-  // 🧱 the BOM is priced and baselined: its materials always count at the BOM price. A price change is a BOM change (recorded in the
-  //    BOM, signed off and re-baselined), not a cost overrun. So the actual over the materials is the labour and services; on a task that
-  //    is materials only, a difference from the BOM price is flagged (bomDiff) as a BOM change not yet recorded, and is not labour.
-  const { lab, mat } = taskSplit(t, plan), f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0, evL = lab * f, evM = mat * f;
-  if (!(act > 0)) return { has: false, lab, mat, evL, evM, acL: evL, acM: evM, bomDiff: 0 };
-  if (lab <= 0.004) return { has: true, lab, mat, evL: 0, evM, acL: 0, acM: evM, bomDiff: act - evM };
-  if (act < evM) return { has: true, lab, mat, evL, evM, acL: 0, acM: evM, bomDiff: act - evM };
-  return { has: true, lab, mat, evL, evM, acL: act - evM, acM: evM, bomDiff: 0 };
+  // 🧱 materials: the BOM v0 baseline is their budget (earned at the baseline price); the current BOM revision is their actual price
+  //    (spent at the current price), so a recorded price change moves CPI. Nothing is inferred: the BOM is the record. The task's
+  //    actual over its materials (at the current BOM price) is the labour and services; on a materials-only task a difference
+  //    from the current BOM price is flagged (bomDiff) as a BOM change not yet recorded.
+  const { lab, mat } = taskSplit(t, plan), B = plan && plan.bomBase && plan.bomBase.byTask, base = B && B[t.id] != null ? Number(B[t.id]) : mat;
+  const f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0, evL = lab * f, evM = mat * f, evMb = base * f;
+  if (!(act > 0)) return { has: false, lab, mat, base, evL, evM, evMb, acL: evL, acM: evM, bomDiff: 0 };
+  if (lab <= 0.004) return { has: true, lab, mat, base, evL: 0, evM, evMb, acL: 0, acM: evM, bomDiff: act - evM };
+  if (act < evM) return { has: true, lab, mat, base, evL, evM, evMb, acL: 0, acM: evM, bomDiff: act - evM };
+  return { has: true, lab, mat, base, evL, evM, evMb, acL: act - evM, acM: evM, bomDiff: 0 };
 }
 // 🧾 the argument behind a profit or loss, in plain words with the project's own figures (Finance and the CEO view show the same sentence)
 const $m = (n) => (n < 0 ? '−$' : '$') + Math.abs(Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1172,11 +1180,15 @@ export async function planPost(action, body, { who, by, audit }) {
   if (action === 'planSave') {
     if (!core || !(await J.find(core))) return out(404, { error: 'Job not found' });
     const before = await get(core);
+    // 🧱 the BOM baseline and revision list belong to the server (they are only changed by a new BOM version), never by the browser
+    if (body.plan && typeof body.plan === 'object') { body.plan.bomBase = before ? before.bomBase : undefined; body.plan.bomRevs = before ? before.bomRevs : undefined; }
     const r = await save(core, body.plan || {}, body.rev, by);
     if (r.conflict) return out(409, { error: 'Someone else changed this plan. Your view has been refreshed with their version.', plan: r.conflict });
     if (body.note && audit) await audit(who, `Plan ${core}: ${str(body.note, 120)}`);
     let low = [];
     // GKH Project Champ: no Inventory, so a plan never sets stock aside
+    // 🧱 a signed-off BOM that changed: a new version (v0 baseline, then v1, v2 …), filed, summarised and learned from
+    try { const BR = await import('./bomrev.mjs'), rv = await BR.check(core, r.plan, by, save); if (rv) return out(200, { plan: rv.plan, low, bomRev: rv.info }); } catch (e) { console.error('BOM revision: ' + e.message); }
     return out(200, { plan: r.plan, low });
   }
   if (action === 'pipelineBoard') {   // the dashboard's big Kanban: every open job (and recently closed ones) in its pipeline column
