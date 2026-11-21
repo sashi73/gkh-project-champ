@@ -3018,11 +3018,15 @@
     if (window.ResizeObserver) { if (S.ro) S.ro.disconnect(); S.ro = new ResizeObserver(function () { window.requestAnimationFrame(sync); }); S.ro.observe(L.querySelector('table')); }
     // the two panes scroll together: the pane you are using leads (wheel, touch, scroll bar, keys), the other follows.
     //   (v228: the old on/off lock lost every other scroll event with a mouse wheel or a touch pad, so the chart fought back)
-    var lead = null, follow = function (from, to) { if (lead && lead !== from) return; if (Math.abs(to.scrollTop - from.scrollTop) > 0.5) to.scrollTop = from.scrollTop; };
-    [L, Rt].forEach(function (el) { ['wheel', 'pointerdown', 'touchstart', 'keydown', 'focusin', 'mouseenter'].forEach(function (ev) { el.addEventListener(ev, function () { lead = el; }, { passive: true }); }); });
+    //   (v239: no 'leading pane' any more: a pane's own scrolling always leads; the other pane's echo of the value we just set is
+    //    recognised and ignored, so a touch pad's momentum or moving the mouse across the divider can never leave them out of step)
+    var follow = function (from, to) {
+      var y = from.scrollTop; if (from._echo != null && Math.abs(y - from._echo) < 1) { from._echo = null; return; }   // our own echo
+      from._echo = null; if (Math.abs(to.scrollTop - y) < 1) return; to._echo = y; to.scrollTop = y;
+    };
     L.addEventListener('scroll', function () { follow(L, Rt); }, { passive: true });
     Rt.addEventListener('scroll', function () { follow(Rt, L); }, { passive: true });
-    box.gScrollTo = function (y) { lead = null; L.scrollTop = y; Rt.scrollTop = y; };   // for the ▲ ▼ rail
+    box.gScrollTo = function (y) { L._echo = Rt._echo = null; L.scrollTop = y; Rt._echo = L.scrollTop; Rt.scrollTop = L.scrollTop; };   // for the ▲ ▼ rail
     if (S.scrollX != null && S.scrollCore === S.core) Rt.scrollLeft = S.scrollX; else { Rt.scrollLeft = Math.max(0, todayX - 140); S.scrollCore = S.core; }
     Rt.addEventListener('scroll', function () { S.scrollX = Rt.scrollLeft; });
     bar.addEventListener('pointerdown', function (e) {

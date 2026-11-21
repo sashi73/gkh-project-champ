@@ -246,4 +246,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 235 | 1.0.235| 2026-11-22 01:49| ccorder| `e3b0681` | Overview: top risks and open issues on the left, redesigned; order price and lead-time changes go straight to change control with a scope, t |
 | 236 | 1.0.236| 2026-11-22 01:51| ordstrike| `0902b92` | Order status: ordered items struck off in the style of their status; Not ordered stays plain (#97) |
 | 237 | 1.0.237| 2026-11-22 01:53| colpanel| `cf98523` | Hide columns panel: a tidy two-column, left-aligned list (#98) |
-| 238 | 1.0.238 | 2026-11-22 01:58 | bomact | _this commit_ | _see git log_ |
+| 238 | 1.0.238| 2026-11-22 01:58| bomact| `491f2b9` | BOM-only rows: actual cost is the BOM / BOQ (× % done), one plain line; typed figures no longer used (#99) |
+| 239 | 1.0.239 | 2026-11-22 02:02 | scrollfix | _this commit_ | _see git log_ |
