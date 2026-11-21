@@ -42,7 +42,9 @@ export function cleanBom(b, taskIds) {
   const lines = (Array.isArray(b.lines) ? b.lines : []).slice(0, 400).map((x) => cleanLine(ms ? { ...x, task: ms } : x, taskIds)).filter(Boolean);
   const signed = b.status === 'Signed off' && lines.length && lines.every((x) => x.checked);
   return { status: signed ? 'Signed off' : 'Draft', lines, signedBy: signed ? str(b.signedBy, 80) : '', signedRole: signed ? str(b.signedRole, 60) : '', signedAt: signed ? Number(b.signedAt) || Date.now() : 0,
-    sig: signed ? str(b.sig, 80) : '', template: str(b.template, 20), orders: cleanOrders(b.orders), milestone: ms, buildStart: taskIds && taskIds.has(b.buildStart) ? b.buildStart : '', log: (Array.isArray(b.log) ? b.log : []).slice(-60).map((x) => ({ at: Number(x && x.at) || Date.now(), what: str(x && x.what, 300) })).filter((x) => x.what) };
+    sig: signed ? str(b.sig, 80) : '', template: str(b.template, 20), orders: cleanOrders(b.orders), milestone: ms, buildStart: taskIds && taskIds.has(b.buildStart) ? b.buildStart : '', log: (Array.isArray(b.log) ? b.log : []).slice(-60).map((x) => ({ at: Number(x && x.at) || Date.now(), what: str(x && x.what, 300) })).filter((x) => x.what),
+    // 🔁 change control: a sign-off waiting for approval (not in the costing yet) and price changes waiting as change requests
+    ccPending: signed && b.ccPending ? str(b.ccPending, 40) : undefined, ccOpen: Array.isArray(b.ccOpen) && b.ccOpen.length ? b.ccOpen.slice(0, 40).map((x) => str(x, 40)).filter(Boolean) : undefined };
 }
 
 // ---------- ✨ the AI drafts the BOM ----------

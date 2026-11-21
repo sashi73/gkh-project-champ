@@ -318,7 +318,7 @@ function clean(p, core) {
   // special orders) go into the task's cost as bomx, so the plan, the budget and the quote include them. Lines not linked to a
   // task are bomLoose: the quote adds them as their own line, so nothing is left out of the price.
   const bx = {}; let loose = 0;
-  const bomIn = !!(res.bom && res.bom.status === 'Signed off');   // GKH Project Champ: the BOM is in the costing once it is signed off (deleted: nothing)
+  const bomIn = !!(res.bom && res.bom.status === 'Signed off' && !res.bom.ccPending);   // 🔁 waiting for change control: not in the costing yet   // GKH Project Champ: the BOM is in the costing once it is signed off (deleted: nothing)
   if (!bomIn) for (const t of res.tasks) t.mats = [];
   for (const l of (bomIn && res.bom.lines) || []) { const v = (Number(l.qty) || 0) * (Number(l.price) || 0); if (!l.task) loose += v; else if (!l.item) bx[l.task] = (bx[l.task] || 0) + v; }
   for (const t of res.tasks) { if (bx[t.id]) t.bomx = r2(bx[t.id]); else delete t.bomx; }
@@ -346,6 +346,9 @@ function crClean(c) {
   const picks = {}; for (const [k, v] of Object.entries(c.picks && typeof c.picks === 'object' ? c.picks : {}).slice(0, 200)) if (/^[tnsrikq]:\d{1,3}$/.test(k)) picks[k] = v ? 1 : 0;
   const d = c.decision && typeof c.decision === 'object' ? c.decision : null;
   return { id: str(c.id, 20).replace(/[^\w-]/g, '') || 'cr' + Math.random().toString(36).slice(2, 8), num: int(c.num, 1, 9999, 1), title: str(c.title, 200) || 'Change request', desc: str(c.desc, 4000), reason: str(c.reason, 2000),
+    // 🧱 a BOM / BOQ change request: the sign-off waiting for approval, or new unit prices for some lines
+    kind: c.kind === 'bom' ? 'bom' : undefined, bom: c.kind === 'bom' && c.bom && typeof c.bom === 'object' ? { action: c.bom.action === 'prices' ? 'prices' : 'signoff', total: r2(c.bom.total), task: str(c.bom.task, 30), from: r2(c.bom.from), to: r2(c.bom.to),
+      prices: Object.fromEntries(Object.entries(c.bom.prices && typeof c.bom.prices === 'object' ? c.bom.prices : {}).slice(0, 400).filter(([k]) => /^[\w-]{1,20}$/.test(k)).map(([k, v]) => [k, r2(v)])) } : undefined,
     source: ['manual', 'meeting', 'intel', 'fit'].includes(c.source) ? c.source : 'manual', direct: !!c.direct, recorded: Number(c.recorded) || 0, recKey: str(c.recKey, 30), srcRef: str(c.srcRef, 30), srcTitle: str(c.srcTitle, 200), raisedBy: str(c.raisedBy, 80), raisedAt: Number(c.raisedAt) || Date.now(),
     priority: ['Low', 'Medium', 'High', 'Urgent'].includes(c.priority) ? c.priority : 'Medium', status: CR_ST.includes(c.status) ? c.status : 'Proposed',
     estDays: int(c.estDays, -999, 999, 0), estCost: r2(c.estCost), ...(Number(c.vo) ? { vo: r2(c.vo), voNum: str(c.voNum, 12) } : {}), items, picks, ccb: ymdOk(c.ccb),
