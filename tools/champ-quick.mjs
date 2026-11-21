@@ -204,6 +204,10 @@ try {
       [cfoAdd.status, pmBill.status, pmAdd.status, cp && cp.name, R.text].join(' | '));
     const up = await api('intelUpload', { core: vc, name: 'old-contract.txt', type: 'text/plain', text: 'Old contract worth $90,000 for the fit-out.', file: b64('Old contract worth $90,000 for the fit-out.'), folder: 'contracts', kind: 'Contract' });
     const mv = await api('vaultMoveIn', {}), ig2 = await api('intelGet', { core: vc }), od = (ig2.j.docs || []).find((d) => d.id === up.j.doc.id), own2 = await api('vaultList', { core: vc });
+    const sr = await api('vaultSearch', { q: 'Old contract' }), sr2 = await api('vaultSearch', { q: 'fit-out', folder: 'contracts' }), sr3 = await as('pm1@example.com', 'Vaultpass2026x', () => api('vaultSearch', { q: 'contract' }));
+    ok('Vault', '🔎 the library: searching finds a document by name and by the words inside, with a snippet; folder filters work; a project manager finds nothing to open but can file',
+      sr.status === 200 && (sr.j.rows || []).some((r) => r.name === 'old-contract.txt') && (sr2.j.rows || []).some((r) => r.name === 'old-contract.txt' && /fit-out/.test(r.snippet || '')) && (sr2.j.rows || []).every((r) => r.folder === 'contracts') && sr3.status === 200 && !(sr3.j.rows || []).length && (sr3.j.fileable || []).length > 0,
+      JSON.stringify([sr.status, (sr.j.rows || []).map((r) => r.name), (sr2.j.rows || []).map((r) => r.snippet), sr3.j.rows && sr3.j.rows.length, (sr3.j.fileable || []).length]).slice(0, 400));
     ok('Vault', '📦 contracts already in the project folders move into the vault; the project keeps a redacted copy', mv.status === 200 && mv.j.moved >= 1 && od && /^REDACTED /.test(od.name) && (own2.j.files || []).some((f) => f.name === 'old-contract.txt'), JSON.stringify([mv.j, od && od.name])); }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));

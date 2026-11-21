@@ -186,3 +186,31 @@ export async function moveIn(ctx, by) {
   }
   return { ok: true, moved };
 }
+
+// 🔎 the library: every document this login may open, across programs and projects, searched by name, project, program and the words inside
+export async function search(ctx, body) {
+  const T = await tree(ctx), q = String(body.q || '').toLowerCase().trim().slice(0, 120), folder = FK.has(body.folder) ? body.folder : '', prog = String(body.program || ''), core0 = String(body.core || '');
+  const words = [...new Set(q.match(/[\p{L}\p{N}$.,-]{2,}/gu) || [])].slice(0, 10);
+  const viewable = [], fileable = [];
+  for (const g of T.programs) for (const p of g.projects) { const x = { core: p.core, ref: p.ref, project: p.name, program: g.name, programId: g.id, color: g.color, folders: p.file }; if (p.view) viewable.push(x); if (p.file.length) fileable.push(x); }
+  const scope = viewable.filter((p) => (!prog || String(p.programId) === prog) && (!core0 || p.core === core0));
+  const idx = await kv.getMany(scope.map((p) => 'vault:' + p.core)), ACC = await import('./accounts.mjs'), ai = await ACC.index().catch(() => ({ invoices: {}, quotes: {} }));
+  let rows = [];
+  scope.forEach((p, i) => {
+    for (const f of ((idx[i] && idx[i].files) || [])) rows.push({ id: f.id, core: p.core, project: p.project, program: p.program, color: p.color, ref: p.ref, folder: f.folder, name: f.name, type: f.type || '', size: f.size || 0, at: f.at, by: f.byName || f.by || '', role: f.role || '', copy: !!f.copy, note: f.note || '' });
+    for (const inv of Object.values(ai.invoices || {})) if (inv.core === p.core && inv.status !== 'void') rows.push({ id: inv.id, champ: 'invoice', core: p.core, project: p.project, program: p.program, color: p.color, ref: p.ref, folder: 'invoices', name: 'Tax invoice ' + inv.id, at: Date.parse(inv.issued || '') || inv.updated || 0, by: 'Champ', inc: inv.inc, status: inv.status, balance: inv.balance });
+    for (const qt of Object.values(ai.quotes || {})) if (qt.core === p.core && qt.status !== 'void') rows.push({ id: qt.id, champ: 'quote', core: p.core, project: p.project, program: p.program, color: p.color, ref: p.ref, folder: 'contracts', name: 'Quote ' + qt.id + (qt.status === 'accepted' ? ' (accepted)' : ''), at: Date.parse(qt.issued || '') || qt.updated || 0, by: 'Champ', inc: qt.inc, status: qt.status });
+  });
+  const counts = Object.fromEntries(FOLDERS.map((f) => [f[0], 0])); for (const r of rows) counts[r.folder] = (counts[r.folder] || 0) + 1;
+  if (folder) rows = rows.filter((r) => r.folder === folder);
+  if (words.length) {
+    const texts = await kv.getMany(rows.map((r) => (r.champ ? 'none:x' : `vaulttext:${r.core}:${r.id}`))).catch(() => []);
+    rows = rows.map((r, i) => {
+      const head = (r.name + ' ' + r.project + ' ' + r.program + ' ' + r.ref + ' ' + (r.note || '') + ' ' + (r.by || '')).toLowerCase(), body = String((texts[i] && texts[i].text) || '');
+      const low = body.toLowerCase(); let sc = 0, hit = '';
+      for (const w of words) { if (head.includes(w)) sc += 3; const k = low.split(w).length - 1; if (k) { sc += 1 + Math.log(1 + k); if (!hit) { const at = low.indexOf(w); hit = body.slice(Math.max(0, at - 90), at + 160).replace(/\s+/g, ' ').trim(); } } }
+      return sc ? { ...r, score: sc, snippet: hit } : null; }).filter(Boolean).sort((a, b) => b.score - a.score || (b.at || 0) - (a.at || 0));
+  } else rows.sort((a, b) => (b.at || 0) - (a.at || 0));
+  return { rows: rows.slice(0, 300), total: rows.length, counts, folders: FOLDERS, programs: T.programs.filter((g) => g.view).map((g) => ({ id: g.id, name: g.name, color: g.color })), projects: viewable.map((p) => ({ core: p.core, name: p.project, programId: p.programId })),
+    fileable, finance: T.finance, canDelete: T.canMove, canMove: T.canMove };
+}

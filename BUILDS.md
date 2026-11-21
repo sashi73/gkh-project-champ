@@ -201,4 +201,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 190 | 1.0.190| 2026-11-20 23:56| read-all| `20a5a5a` | 🔊 Ask Champ on the CEO view reads the whole answer aloud (answer, each option with upside and downside, the decision, what to track); overv |
 | 191 | 1.0.191| 2026-11-20 23:58| greet| `7015ded` | 🎙 Champ says a few words when the CEO view opens (greeting, the headline, cash, where to start); at most once every 10 minutes (#52) |
 | 192 | 1.0.192| 2026-11-21 00:11| ask-fix| `8e11912` | 🧭 Ask Champ (CEO view): follow-up questions no longer break: the conversation goes in as notes, and a plain-words answer is shown instead o |
-| 193 | 1.0.193 | 2026-11-21 00:15 | champ-btn | _this commit_ | _see git log_ |
+| 193 | 1.0.193| 2026-11-21 00:15| champ-btn| `25ec23a` | 👔 CEO view: Champ's button in the same globe-and-colour format (act now / watch / on track, from the portfolio's verdict); Champ folds back |
+| 194 | 1.0.194 | 2026-11-21 11:19 | vault-lib | _this commit_ | _see git log_ |
