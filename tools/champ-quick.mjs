@@ -378,6 +378,8 @@ try {
   }
     { const sd = (await api('sqlData', {})).j, P = ((sd.data || {}).projects || []), cv = (await api('planCeoGet', {})).j, rows = ((cv.view || cv).rows || []), bad = [];
       for (const r of rows) { const q = P.find((x) => x.job === r.core); if (!q) continue; const want = r.internal ? null : r.profit == null ? null : r.profit; if (!((want == null && q.forecast_profit == null) || Math.abs((q.forecast_profit || 0) - want) < 0.011)) bad.push(r.name + ' ' + q.forecast_profit + ' vs ' + want); }
+      const lateBad = rows.filter((r) => { const q = P.find((x) => x.job === r.core); return q && r.baseline && q.days_late !== (r.slip || 0); }).map((r) => r.name);
+      ok('Reports', '⏱ the AI query data has each project\'s delay as the CEO view shows it (days past the baseline, or the forecast past the planned finish), so "delayed more than N days" is answered from it', P.some((x) => x.delayed_days != null) && P.some((x) => x.delayed_days > 10) && !lateBad.length, JSON.stringify([lateBad, P.filter((x) => x.delayed_days != null).slice(0, 4).map((x) => [x.project_name, x.baseline_finish, x.days_late, x.forecast_days_late, x.delayed_days])]));
       ok('Reports', '💹 the AI query data has the same profit per project as the CEO view (forecast_profit, contract value and where it came from), so a profit question is answered from it', P.length > 3 && P.some((x) => x.forecast_profit != null && x.contract_from) && !bad.length, JSON.stringify([bad.slice(0, 5), P.slice(0, 2).map((x) => [x.project_name, x.forecast_profit, x.contract_from, x.contract_value])])); }
     // 🔎 one set of figures: for EVERY project, the plan, the CEO view and Finance (billing and the finance list) agree on
     //    % complete, budget, forecast cost, CPI, SPI and profit
