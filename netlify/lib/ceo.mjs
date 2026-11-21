@@ -66,7 +66,8 @@ export async function ceoView(day) {
     if (x.contract > 0 && vo) x.contract = r2(x.contract + vo);
     // 💹 profit by the contract type, the same calculation as Finance (plan.mjs profitAt)
     const internal = P.isInternal(MO);   // 🏢 an internal project: no price and no profit, only the budget result
-    const price = internal ? 0 : x.contract || x.quoted, PF = price && MO ? P.profitAt(MO, price, eac) : null, profit = price ? (PF ? PF.profit : r2(price - eac)) : null;
+    // 📐 no confirmed contract yet: the same estimate Finance uses (Costing: budget + margin), marked as an estimate, so the CEO and CFO see one profit
+    const estPrice = !internal && !(x.contract || x.quoted) && MO && MO.price > 0, price = internal ? 0 : x.contract || x.quoted || (estPrice ? MO.price : 0), PF = price && MO ? P.profitAt(MO, price, eac) : null, profit = price ? (PF ? PF.profit : r2(price - eac)) : null;
     if (p) for (const t of p.tasks || []) spread(t, P.taskCost(t), (k, v) => addF(k, 'planned', v));
     const was = old && old.map[c.core], trend = !was ? '' : RANK[health] < RANK[was[0]] ? 'up' : RANK[health] > RANK[was[0]] ? 'down'
       : c.SPI != null && was[1] != null && c.SPI - was[1] >= 0.03 ? 'up' : c.SPI != null && was[1] != null && was[1] - c.SPI >= 0.03 ? 'down' : 'flat';
@@ -74,17 +75,18 @@ export async function ceoView(day) {
       pct: c.pct || 0, SPI: c.SPI, CPI: c.CPI, finish: c.finish || '', forecast: PG.forecastFinish(c) || c.finish || '', baseline: n.baseline_finish || '', slip: n.slip_days || 0, late: c.late || 0,
       highRisks: c.highRisks || 0, openIssues: c.openIssues || 0, budget, spent: r2(c.AC), earned: r2(c.EV), evIn: r2(c.cpiEV || 0), acIn: r2(c.cpiAC || 0), eac, vac: r2(budget - eac), over: n.over_pct || 0,
       contract: internal ? 0 : r2(x.contract), quoted: internal || x.contract ? 0 : r2(x.quoted), invoiced: r2(x.invoiced), received: r2(x.received), owed: r2(x.owed), overdue: r2(x.overdue),
+      estimate: estPrice ? r2(price) : 0,   // 📐 the contract value Finance estimates from the Costing (no confirmed contract yet)
       profit, margin: price && profit != null ? Math.round(profit / price * 1000) / 10 : null, ctype: MO ? MO.ctype : 'fixed', internal, pfWhy: MO ? P.profitWhy(MO, price, eac, !!c.complete) : '', timeIdx: p && c.complete ? (P.timeIndex(p, c) || {}).index || null : null, bomDiff: c.split ? c.split.bomDiff : 0, bomRev: p && p.bomRevs && p.bomRevs.length ? p.bomRevs[p.bomRevs.length - 1].syn : '', cpiCover: c.split ? c.split.lab.cover : null, clientSaves: PF ? PF.clientSaves : 0, trend, closed: c.phase === 'close' });
   }
   rows.sort((a, b) => RANK[b.health] - RANK[a.health] || (a.SPI == null) - (b.SPI == null) || (a.SPI || 9) - (b.SPI || 9) || a.name.localeCompare(b.name));
 
   const live = rows.filter((r) => !r.closed), sum = (L, f) => r2(L.reduce((a, r) => a + (Number(r[f]) || 0), 0));
-  const totals = (L) => { const budget = sum(L, 'budget'), eac = sum(L, 'eac'), price = r2(L.reduce((a, r) => a + (r.contract || r.quoted), 0)), priced = L.filter((r) => r.contract || r.quoted), pp = r2(priced.reduce((a, r) => a + (r.profit || 0), 0)), pr = r2(priced.reduce((a, r) => a + (r.contract || r.quoted), 0));
+  const totals = (L) => { const budget = sum(L, 'budget'), eac = sum(L, 'eac'), price = r2(L.reduce((a, r) => a + (r.contract || r.quoted || r.estimate || 0), 0)), priced = L.filter((r) => r.contract || r.quoted || r.estimate), pp = r2(priced.reduce((a, r) => a + (r.profit || 0), 0)), pr = r2(priced.reduce((a, r) => a + (r.contract || r.quoted || r.estimate), 0)), nEst = priced.filter((r) => r.estimate).length;
     const ev = sum(L, 'earned'), ac = sum(L, 'spent'), evIn = sum(L, 'evIn'), acIn = sum(L, 'acIn'), pvL = L.filter((r) => r.SPI != null);
     return { n: L.length, red: L.filter((r) => r.health === 'red').length, amber: L.filter((r) => r.health === 'amber').length, green: L.filter((r) => r.health === 'green').length, grey: L.filter((r) => r.health === 'grey').length,
       budget, spent: ac, earned: ev, eac, vac: r2(budget - eac), CPI: acIn > 0 ? r2(evIn / acIn) : null,   // as each project's CPI: from the costs actually entered SPI: pvL.length ? r2(pvL.reduce((a, r) => a + r.SPI * r.budget, 0) / Math.max(1, pvL.reduce((a, r) => a + r.budget, 0))) : null,
       contract: sum(L, 'contract'), quoted: sum(L, 'quoted'), price, invoiced: sum(L, 'invoiced'), received: sum(L, 'received'), owed: sum(L, 'owed'), overdue: sum(L, 'overdue'),
-      profit: pr ? pp : null, margin: pr ? Math.round(pp / pr * 1000) / 10 : null, priced: priced.length, unpriced: L.filter((r) => !r.internal && !(r.contract || r.quoted) && r.budget > 0).length, internal: L.filter((r) => r.internal).length }; };
+      profit: pr ? pp : null, margin: pr ? Math.round(pp / pr * 1000) / 10 : null, priced: priced.length, estimated: nEst, unpriced: L.filter((r) => !r.internal && !(r.contract || r.quoted || r.estimate) && r.budget > 0).length, internal: L.filter((r) => r.internal).length }; };
   const progs = {}; for (const r of live) (progs[r.program || 'No program'] = progs[r.program || 'No program'] || []).push(r);
   const byProgram = Object.entries(progs).map(([name, L]) => ({ name, key: L[0].programKey, ...totals(L) })).sort((a, b) => (b.red * 10 + b.amber) - (a.red * 10 + a.amber) || b.budget - a.budget);
 

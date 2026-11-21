@@ -86,9 +86,10 @@ function projectBill(plan, bill, docs, today) {
       invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, ...near(t.ef || t.es || '', !!inv) }; });
   const inc = (i) => i.totals.inc, ex = (i) => i.totals.ex, live = invs.filter((i) => i.status !== 'draft');
   const invoiced = r2(live.reduce((a, i) => a + ex(i), 0)), received = r2(live.reduce((a, i) => a + (inc(i) ? Math.min(inc(i), i.paid || 0) * ex(i) / inc(i) : 0), 0));
-  // 📊 where the project stands: work done (earned value ÷ budget) against what has been billed
-  const done = R.BAC > 0 ? Math.min(1, (R.EV || 0) / R.BAC) : Math.min(1, (Number(R.pct) || 0) / 100), overdue = invs.filter((i) => i.status !== 'draft' && i.due && i.due < today && (i.totals.inc - (i.paid || 0)) > 0.005);
-  const stand = { workPct: Math.round(done * 100), billedPct: price ? Math.round(Math.min(1, invoiced / price) * 100) : 0, unbilled: r2(Math.max(0, price * done - invoiced)),
+  // 📊 where the project stands: the work done is the plan's own % complete (the same figure as the plan and the CEO view; earned value
+  //    would count delivered materials as work done), against what has been billed; not billed = the milestones done and not invoiced
+  const done = Math.min(1, (Number(R.pct) || 0) / 100), overdue = invs.filter((i) => i.status !== 'draft' && i.due && i.due < today && (i.totals.inc - (i.paid || 0)) > 0.005);
+  const stand = { workPct: Math.round(done * 100), billedPct: price ? Math.round(Math.min(1, invoiced / price) * 100) : 0, unbilled: r2(rows.filter((x) => x.done && !x.invoice).reduce((a, x) => a + (Number(x.amount) || 0), 0)), valuePct: R.BAC > 0 ? Math.round(Math.min(1, (R.EV || 0) / R.BAC) * 100) : null,
     overdueN: overdue.length, overdue: r2(overdue.reduce((a, i) => a + i.totals.inc - (i.paid || 0), 0)), estimate: C.from === 'estimate', auto };
   const rdy = rows.filter((r) => r.ready), rdyAmt = r2(rdy.reduce((a, r) => a + r.amount, 0));
   if (internal) { stand.internal = true; stand.estimate = false; stand.auto = false; }

@@ -247,4 +247,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 236 | 1.0.236| 2026-11-22 01:51| ordstrike| `0902b92` | Order status: ordered items struck off in the style of their status; Not ordered stays plain (#97) |
 | 237 | 1.0.237| 2026-11-22 01:53| colpanel| `cf98523` | Hide columns panel: a tidy two-column, left-aligned list (#98) |
 | 238 | 1.0.238| 2026-11-22 01:58| bomact| `491f2b9` | BOM-only rows: actual cost is the BOM / BOQ (× % done), one plain line; typed figures no longer used (#99) |
-| 239 | 1.0.239 | 2026-11-22 02:02 | scrollfix | _this commit_ | _see git log_ |
+| 239 | 1.0.239| 2026-11-22 02:02| scrollfix| `fc05664` | Gantt scrolling: panes stay in step under touch-pad momentum and crossing the divider; the chart follows the bars only once scrolling has st |
+| 240 | 1.0.240 | 2026-11-22 02:17 | fincons | _this commit_ | _see git log_ |
