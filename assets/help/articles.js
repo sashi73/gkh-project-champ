@@ -1,5 +1,5 @@
 // GKH Project Champ help centre: one article per feature, one section per sub-feature.
-// The single source for the public help page (help.html), the console's ❓ Help, and Champ's answers (admin.mjs, chat.mjs).
+// The single source for the console's ❓ Help, and Champ's answers (admin.mjs, chat.mjs).
 // Fields: id, a (area), t (title), s (summary), w (where: a console route, or a page), g (Ask Champ guide id), k (search words),
 // subs: [{ id, h (heading), st (steps), tip }]. Keep the button names exactly as they appear on screen.
 export const AREAS = [

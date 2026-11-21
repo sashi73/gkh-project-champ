@@ -1,4 +1,4 @@
-/* GKH Project Champ: ❓ Help in the console. The same articles as gkhpmo.com/help (assets/help/articles.js):
+/* GKH Project Champ: ❓ Help in the console. The help articles (assets/help/articles.js):
    #help (search and areas), #help/<article>/<section> (one article, opened at that section).
    The ? next to each screen's title opens the article for that screen in Champ's panel. */
 (function () {

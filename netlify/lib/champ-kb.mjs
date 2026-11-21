@@ -23,7 +23,7 @@ export const PRODUCT = `
 - Look: 🌐 language (19 languages, AI-translated), light/dark, 🎨 skins (Black & Gold, White, GKH Navy, Emerald, Slate & Copper), density and width.
 - AI outputs (costs, durations, reports) are indicative and must be reviewed by the project manager.
 - Inside each project, 🧠 Ask AI (it used to be called Project Intelligence) answers questions about that project from its plan and the documents you upload to it (Word, PDF, text), and can suggest risks, stakeholders and changes that go through change control.
-- Help centre: gkhpmo.com/help has steps for every feature; in the console, ❓ Help and the ? by each screen's title.
+- Help: in the console, ❓ Help has steps for every feature, and the ? by each screen's title opens its help.
 `;
 
 export const SYSTEM = (lang, where) => `You are Champ, the assistant for GKH Project Champ, an AI-powered project management product by Global Knowledge House (GKH).

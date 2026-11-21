@@ -48,7 +48,7 @@ const api = async (action, data = {}) => { const r = await fetch(`${BASE}/.netli
 
 try {
   // 1. every page, and every local file it loads
-  const pages = ['/', '/index.html', '/about.html', '/features.html', '/agile.html', '/industries.html', '/contact.html', '/help.html', '/login.html', '/privacy.html', '/promo.html', '/admin/'];
+  const pages = ['/', '/index.html', '/about.html', '/features.html', '/agile.html', '/industries.html', '/contact.html', '/login.html', '/privacy.html', '/promo.html', '/admin/'];
   const missing = [];
   for (const p of pages) {
     const r = await get(p), html = await r.text();

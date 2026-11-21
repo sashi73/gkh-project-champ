@@ -17,6 +17,16 @@
   external_node_modules = ["pdf-lib", "pg"]
 
 # Keep server-only files out of the public site
+# ❓ the help centre lives in the console only (❓ Help); the old public page goes to the home page
+[[redirects]]
+  from = "/help.html"
+  to = "/"
+  status = 301
+[[redirects]]
+  from = "/help"
+  to = "/"
+  status = 301
+
 [[redirects]]
   from = "/netlify/*"
   to = "/404.html"
