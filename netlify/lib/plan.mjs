@@ -231,7 +231,7 @@ function clean(p, core) {
     const o = {
     id: uid(t.id, 't'), name: str(t.name, 160) || 'New task', phase: phIds.has(t.phase) ? t.phase : phases[0].id,
     dur: int(t.dur, 0, 365, 1), snet: ymdOk(t.snet), fixed: !!(t.fixed && ymdOk(t.snet)), pred: (Array.isArray(t.pred) ? t.pred : []).map((x) => str(x, 20)).slice(0, 10),
-    item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, actualLog: Array.isArray(t.actualLog) && t.actualLog.length ? t.actualLog.slice(-40).map((e) => ({ at: Number(e && e.at) || 0, by: str(e && e.by, 80), v: r2(e && e.v), ms: str(e && e.ms, 160) })) : undefined, crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
+    item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, actualLog: Array.isArray(t.actualLog) && t.actualLog.length ? t.actualLog.slice(-40).map((e) => ({ at: Number(e && e.at) || 0, by: str(e && e.by, 80), ...(e && e.v != null ? { v: r2(e.v) } : {}), ...(e && e.pct != null ? { pct: int(e.pct, 0, 100, 0) } : {}), ms: str(e && e.ms, 160) })) : undefined, crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
     // v64: the Board: owner (a stakeholder), priority and story points
     desc: str(t.desc, 300), owner: str(t.owner, 80),
     // the Product Backlog (Kanban or Scrum): where the item is ('', 'board' or a sprint id), when it was pulled in and when it was done
