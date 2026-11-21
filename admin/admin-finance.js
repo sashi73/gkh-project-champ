@@ -8,6 +8,7 @@
   var api = M.api, esc = M.esc, toast = M.toast, fail = M.fail;
   var F = null, filt = 'open';
   var money = function (n) { n = Number(n) || 0; return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); };
+  var money2 = function (n) { n = Number(n) || 0; return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); };   // as it is, to the cent
   var day = function (s) { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }) : ''; };
   var today = function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var canEdit = function () { var me = M.me || {}; return !!(me.owner || ((me.mods || {}).accounts === 'edit')); };
@@ -23,31 +24,19 @@
     var d = m.days, t = d == null ? '' : d < 0 ? Math.abs(d) + ' day' + (d === -1 ? '' : 's') + ' overdue' : d === 0 ? 'due today' : d === 1 ? 'due tomorrow' : 'due in ' + d + ' days';
     return '<span class="fin-due ' + (m.alert || 'green') + '" title="Due ' + esc(day(m.due)) + '">📅 ' + esc(day(m.due)) + (t ? ' · ' + t : '') + '</span>';
   }
-  // 🧮 how each figure is worked out, with this project's own numbers
-  function how(K, core) {
-    var gap = K.approved ? K.approved - K.budget : 0, L = [
-      ['Base cost (BAC)', money(K.base), 'Budget at Completion: every task\'s cost on the plan (labour, materials, BOM)'],
-      ['+ Contingency ' + K.contPct + '%', money(K.contingency), 'for known risks'],
-      ['+ Management reserve ' + K.resPct + '%', money(K.reserve), 'for the unknowns'],
-      ['= Budget', money(K.budget), 'what the plan needs to deliver the work']];
-    if (K.contractFrom === 'estimate' || !K.contract) L.push(['+ Margin ' + (K.marginCfg || 0) + '%', money(K.suggested - K.budget), ''], ['= Estimated contract value', money(K.suggested), 'used until the CFO confirms the real one']);
-    return '<details class="fin-how"' + (K.approved && Math.abs(gap) > 1 ? ' open' : '') + '><summary>🧮 How these figures are worked out</summary><table>' + L.map(function (r) { return '<tr' + (/^=/.test(r[0]) ? ' class="tot"' : '') + '><td>' + esc(r[0]) + '</td><td class="num">' + r[1] + '</td><td class="muted">' + esc(r[2]) + '</td></tr>'; }).join('') + '</table>' +
-      (K.approved ? '<p><b>Budget vs the approved ' + money(K.approved) + ':</b> the approved figure is the budget signed off in the project charter. The budget here is the Base cost (BAC) plus contingency and reserve, built up from the plan itself, so it shows what the scheduled work is actually costed at. ' +
-        (gap > 1 ? 'The plan comes to <b>' + money(gap) + ' less</b> than was approved: either some work is not costed on the plan yet (check the tasks with no cost on Costing), or the project needs less than approved.' : gap < -1 ? '<b class="ceo-neg">The plan comes to ' + money(-gap) + ' more than was approved</b>: it needs a budget change or cuts to the work.' : 'They match.') + '</p>' : '') +
-      '<p><a class="fin-lnk" href="#plan/' + encodeURIComponent(core) + '/budget">💰 Open the plan\'s Costing to see each task\'s cost →</a></p><p class="muted">Contingency, reserve, margin and GST rates are set on the project\'s 💰 Costing tab. Forecast cost = the budgeted cost adjusted by how efficiently money is being spent so far (CPI). Margin = contract − budget; forecast profit = contract − forecast cost. Amounts are before GST unless marked.</p></details>';
-  }
   function moneyPanel(B) {
     var K = B.money; if (!K) return '';
     var t = function (l, v, s2, c) { return '<div class="ceo-t ' + (c || '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s2 ? '<span>' + s2 + '</span>' : '') + '</div>'; };
     return '<div class="fin-panel"><div class="ceo-ts">' +
-      t('Contract value', K.contract ? money(K.contract) : '<span class="muted">not set</span>', K.contract ? (K.contractFrom === 'quote' ? 'from the accepted quote' : K.contractFrom === 'estimate' ? '<span class="fin-amb fin-sb">estimate from Costing, not confirmed</span>' : 'confirmed · before GST') : 'Costing suggests ' + money(K.suggested)) +
-      t('GST ' + K.gstPct + '%', money(K.gst), 'with GST: ' + money(K.withGst)) +
-      t('Budget', money(K.budget), 'Base cost (BAC) ' + money(K.base) + ' + contingency ' + money(K.contingency) + ' + reserve ' + money(K.reserve) + (K.approved ? '<br>charter approved ' + money(K.approved) : '') + '<br><a class="fin-lnk" href="#plan/' + encodeURIComponent(B.core) + '/budget" onclick="event.stopPropagation()">See the plan\'s Costing for details →</a>') +
-      t('Reserves', money(K.contingency + K.reserve), 'contingency ' + K.contPct + '% ' + money(K.contingency) + ' · management ' + K.resPct + '% ' + money(K.reserve)) +
-      t('Forecast cost', money(K.eac), 'spent so far ' + money(K.spent) + (K.CPI ? ' · CPI ' + K.CPI.toFixed(2) : ''), K.CPI && K.CPI < 0.9 ? 'neg' : '') +
-      t('Margin', K.margin == null ? '–' : money(K.margin), K.margin == null ? 'set the contract value' : K.marginPct + '% · contract − budget', K.margin != null && K.margin < 0 ? 'neg' : 'pos') +
-      t('Forecast profit', K.profit == null ? '–' : money(K.profit), K.profit == null ? 'set the contract value' : K.profitPct + '% · contract − forecast cost', K.profit != null && K.profit < 0 ? 'neg' : 'pos') +
-      '</div>' + how(K, B.core) + '</div>';
+      t('Contract value', K.contract ? money2(K.contract) : '<span class="muted">not set</span>', K.contract ? (K.variations ? 'original ' + money2(K.contractBase) + ' + variations ' + money2(K.variations) + '<br>' : '') + (K.contractFrom === 'quote' ? 'from the accepted quote' : K.contractFrom === 'estimate' ? '<span class="fin-amb fin-sb">client price from Costing, not confirmed</span>' : 'confirmed · before GST') + (K.variationsWaiting ? '<br><span class="fin-amb fin-sb">' + money2(K.variationsWaiting) + ' in variations waiting</span>' : '') : 'Costing suggests ' + money(K.suggested)) +
+      t('GST ' + K.gstPct + '%', money2(K.gst), 'contract with GST: ' + money2(K.withGst)) +
+      t('Budget', money2(K.budget), 'Base cost (BAC) ' + money2(K.base) + ' + contingency ' + money2(K.contingency) + ' + reserve ' + money2(K.reserve) + (K.approved ? '<br>charter approved ' + money2(K.approved) : '') + '<br><a class="fin-lnk" href="#plan/' + encodeURIComponent(B.core) + '/budget" onclick="event.stopPropagation()">See the plan\'s Costing for details →</a>') +
+      t('Reserves', money2(K.contingency + K.reserve), 'contingency ' + K.contPct + '% ' + money2(K.contingency) + ' · management ' + K.resPct + '% ' + money2(K.reserve)) +
+      t('Forecast cost', money2(K.eac), 'spent so far ' + money2(K.spent) + (K.CPI ? ' · CPI ' + K.CPI.toFixed(2) : ''), K.CPI && K.CPI < 0.9 ? 'neg' : '') +
+      t('Margin', K.margin == null ? '–' : money2(K.margin), K.margin == null ? 'set the contract value' : K.marginPct + '% · contract − budget', K.margin != null && K.margin < 0 ? 'neg' : 'pos') +
+      t('Forecast profit · scenario 1', K.profit1 == null ? '–' : money2(K.profit1), K.profit1 == null ? 'set the contract value' : K.profit1Pct + '% · if contingency and management reserve are both used', K.profit1 != null && K.profit1 < 0 ? 'neg' : 'pos') +
+      t('Forecast profit · scenario 2', K.profit2 == null ? '–' : money2(K.profit2), K.profit2 == null ? 'set the contract value' : K.profit2Pct + '% · if the management reserve is not used', K.profit2 != null && K.profit2 < 0 ? 'neg' : 'pos') +
+      '</div></div>';
   }
   function wb(S) { return '<span class="fin-wbw" title="Work done ' + S.workPct + '% · billed ' + S.billedPct + '%"><span class="fin-wb"><i style="width:' + S.workPct + '%"></i><em style="width:' + S.billedPct + '%"></em></span><small>' + S.workPct + '% done · ' + S.billedPct + '% billed</small></span>'; }
   // 📍 every project: where it stands on billing, worst first
@@ -117,26 +106,55 @@
   // one project's billing: contract value and each milestone's share
   function project(core) {
     return api('acctBillGet', { core: core }).then(function (d) {
-      var B = d.bill, ed = canEdit();
+      var B = d.bill, ed = canEdit(), K = B.money || {}, g = B.gstPct != null ? B.gstPct : 10, est = B.stand && B.stand.estimate, auto = B.stand && B.stand.auto;
       var rows = B.milestones.map(function (m) { return '<tr><td>◆ <b>' + esc(m.name) + '</b><div>' + dueChip(m) + (m.done ? ' <small class="muted">✓ done</small>' : '') + '</div></td><td class="num">' + (ed && !m.invoice ? '<input type="number" class="fin-pc" min="0" max="100" step="0.5" data-ms="' + esc(m.tid) + '" value="' + (m.pct || '') + '">%' : m.pct + '%') + '</td>' +
-        '<td class="num" data-amt="' + esc(m.tid) + '">' + money(m.amount) + '</td><td>' + (m.invoice ? '<b>' + esc(m.invoice.id) + '</b> · ' + (m.invoice.paid >= m.invoice.inc - 0.005 ? 'paid' : 'owed ' + money(m.invoice.inc - m.invoice.paid)) : m.ready && m.confirm ? '<b class="fin-amb">✓ done: confirm the billing (Save) to invoice it</b>' : m.ready ? (ed ? '<button class="btn btn-sm btn-gold" data-raise="' + esc(m.tid) + '" type="button">🧾 Raise invoice</button>' : 'ready to invoice') : m.done ? '<b class="fin-amb">✓ done: set a share to bill it</b>' : '<span class="muted">not done yet</span>') + '</td></tr>'; }).join('');
+        '<td class="num" data-amt="' + esc(m.tid) + '">' + money2(m.amount) + '</td><td class="num" data-gst="' + esc(m.tid) + '">' + money2(m.gst) + '</td><td class="num"><b data-inc="' + esc(m.tid) + '">' + money2(m.inc) + '</b></td><td>' + (m.invoice ? '<b>' + esc(m.invoice.id) + '</b> · ' + (m.invoice.paid >= m.invoice.inc - 0.005 ? 'paid' : 'owed ' + money2(m.invoice.inc - m.invoice.paid)) : m.ready && m.confirm ? '<b class="fin-amb">✓ done: confirm the billing to invoice it</b>' : m.ready ? (ed ? '<button class="btn btn-sm btn-gold" data-raise="' + esc(m.tid) + '" type="button">🧾 Raise invoice</button>' : 'ready to invoice') : m.done ? '<b class="fin-amb">✓ done: set a share to bill it</b>' : '<span class="muted">not done yet</span>') + '</td></tr>'; }).join('');
+      var VS = B.vos || [], wait = function (s) { return ['Proposed', 'Under review', 'CCB meeting'].indexOf(s) >= 0; };
+      var voHtml = '<section class="card ceo-s"><div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">📝 Variation orders</h3>' + (d.canRaiseVO ? '<button class="btn btn-sm btn-gold" id="voNew" type="button">📝 Raise a variation order</button>' : '') + '</div>' +
+        '<p class="ceo-f">The contract value is not changed on this screen. A change to it is raised as a variation order: it goes to the project manager and the program director, it is recorded in the project\'s Change control register, and once the program director approves it, it is added to the contract value.</p>' +
+        (VS.length ? '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>VO</th><th>What for</th><th class="num">Change (before GST)</th><th>Raised</th><th>Status</th><th></th></tr></thead><tbody>' + VS.map(function (x) {
+          return '<tr><td><b>' + esc(x.num) + '</b></td><td>' + esc(x.title) + (x.reason ? '<small>' + esc(x.reason) + '</small>' : '') + '</td><td class="num"><b>' + (x.amount > 0 ? '+' : '') + money2(x.amount) + '</b></td><td>' + esc(x.by || '') + '<small>' + (x.at ? new Date(x.at).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit' }) : '') + '</small></td>' +
+            '<td><span class="fin-pill ' + (wait(x.status) ? 'amber' : x.status === 'Rejected' ? 'red' : 'green') + '">' + esc(wait(x.status) ? 'Waiting for approval' : x.status) + '</span>' + (x.decision ? '<small>' + esc(x.decision.by) + (x.decision.note ? ': ' + esc(x.decision.note) : '') + '</small>' : '') + '</td>' +
+            '<td class="num nowrap">' + (wait(x.status) && d.canDecideVO ? '<button class="btn btn-sm btn-gold" data-vo="' + esc(x.id) + '|Approved" type="button">✓ Approve</button> <button class="btn btn-sm" data-vo="' + esc(x.id) + '|Rejected" type="button">✕ Reject</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+          : '<p class="muted">No variation orders yet.</p>') + '</section>';
       M.view().innerHTML = '<div class="ceo fin"><div class="row ceo-head"><div><a href="#finance" class="btn btn-sm">← Finance</a></div><a class="btn btn-sm" href="#plan/' + encodeURIComponent(core) + '/schedule">📅 Open the plan</a></div>' +
-        '<section class="card ceo-s"><h3>💵 Billing: ' + esc(B.name) + '</h3>' + (B.stand ? '<div class="fin-standline"><span class="fin-pill ' + B.stand.status.tone + '">' + esc(B.stand.status.text) + '</span>' + wb(B.stand) + '<span>Work done, not billed: <b>' + money(B.stand.unbilled) + '</b></span></div>' : '') + moneyPanel(B) +
-        '<div class="fin-form"><label>Contract value (before tax)<input type="number" min="0" step="1" id="bContract" value="' + (B.contractFrom === 'quote' ? B.contract : B.typed || (B.contractFrom === 'estimate' ? B.contract : '')) + '"' + (B.contractFrom === 'quote' || !ed ? ' disabled' : '') + '></label>' + (B.contractFrom === 'quote' ? '<p class="muted" style="align-self:end">Set by the accepted quote.</p>' : '') + '</div>' +
-        (B.stand && (B.stand.estimate || B.stand.auto) ? '<div class="fin-est">📐 <b>' + (B.stand.estimate && B.stand.auto ? 'The contract value and the milestone shares are suggestions' : B.stand.estimate ? 'The contract value is an estimate' : 'The milestone shares are a suggestion') + '.</b> ' +
-          (B.stand.estimate ? 'It comes from this project\'s Costing (budget, reserves and margin) because there is no accepted quote and none has been typed in. ' : '') + (B.stand.auto ? 'The contract is split evenly across the milestones. ' : '') +
-          (ed ? 'Check the figures, change them if the contract says otherwise, and press <b>Save billing</b> to confirm. Invoices can be raised once it is confirmed.' : 'The CFO confirms them before any invoice is raised.') + '</div>' : '') +
-        (B.milestones.length ? '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Milestone</th><th class="num">Share of contract</th><th class="num">Amount</th><th>Invoice</th></tr></thead><tbody>' + rows + '</tbody><tfoot><tr><td><b>Total</b></td><td class="num"><b id="bTot">' + B.planned + '%</b></td><td class="num" id="bTotAmt"></td><td></td></tr></tfoot></table></div>'
+        '<section class="card ceo-s"><h3>💵 Billing: ' + esc(B.name) + '</h3>' + (B.stand ? '<div class="fin-standline"><span class="fin-pill ' + B.stand.status.tone + '">' + esc(B.stand.status.text) + '</span>' + wb(B.stand) + '<span>Work done, not billed: <b>' + money2(B.stand.unbilled) + '</b></span></div>' : '') + moneyPanel(B) +
+        (est || auto ? '<div class="fin-est">📐 <b>' + (est && auto ? 'The contract value and the milestone shares are not confirmed yet' : est ? 'The contract value is not confirmed yet' : 'The milestone shares are a suggestion') + '.</b> ' +
+          (est ? 'The contract value is the client price from this project\'s Costing (' + money2(K.contractBase) + '), as there is no accepted quote. ' : '') + (auto ? 'The contract is split evenly across the milestones. ' : '') +
+          (ed ? 'Check the shares and press <b>✓ Confirm the contract value and shares</b>. After that, the contract value only changes through a variation order. Invoices can be raised once it is confirmed.' : 'The CFO confirms them before any invoice is raised.') + '</div>' : '') +
+        (B.milestones.length ? '<div class="table-wrap"><table class="ceo-tab"><thead><tr><th>Milestone</th><th class="num">Share of contract</th><th class="num">Amount (before GST)</th><th class="num">GST ' + g + '%</th><th class="num">To bill (incl. GST)</th><th>Invoice</th></tr></thead><tbody>' + rows +
+            '</tbody><tfoot><tr><td><b>Total</b></td><td class="num"><b id="bTot">' + B.planned + '%</b></td><td class="num" id="bTotAmt"></td><td class="num" id="bTotGst"></td><td class="num"><b id="bTotInc"></b></td><td></td></tr></tfoot></table></div>'
+          + (B.spread ? '<p class="muted" style="font-size:12.5px;margin:14px 0 0">Invoiced milestones keep the amount they were billed. What is left of the contract value, approved variations included, is spread over the milestones not yet invoiced, by their shares.</p>' : '')
           : '<p class="ceo-none">This plan has no milestones yet. Add milestones (tasks with 0 days) on the Gantt chart, then give each one a share of the contract here.</p>') +
-        (ed ? '<div class="actions"><button class="btn btn-gold" id="bSave" type="button">💾 Save billing</button></div>' : '') + '</section></div>';
-      var v = M.view(), cv = function () { return B.contractFrom === 'quote' ? B.contract : +(document.getElementById('bContract').value || 0); };
-      var sync = function () { var t = 0; v.querySelectorAll('[data-ms]').forEach(function (i) { var p = +i.value || 0; t += p; var a = v.querySelector('[data-amt="' + i.getAttribute('data-ms') + '"]'); if (a) a.textContent = money(cv() * p / 100); });
-        B.milestones.forEach(function (m) { if (m.invoice) t += m.pct; }); var e = document.getElementById('bTot'); if (e) { e.textContent = Math.round(t * 10) / 10 + '%'; e.className = t > 100.05 ? 'ceo-neg' : ''; } var ta = document.getElementById('bTotAmt'); if (ta) ta.textContent = money(cv() * Math.min(t, 100) / 100); };
-      v.querySelectorAll('[data-ms],#bContract').forEach(function (i) { i.oninput = sync; }); sync();
+        (ed ? '<div class="actions"><button class="btn btn-gold" id="bSave" type="button">' + (est || auto ? '✓ Confirm the contract value and shares' : '💾 Save the milestone shares') + '</button></div>' : '') + '</section>' + voHtml + '</div>';
+      var v = M.view(), cv = function () { return B.contract || 0; }, r2 = function (n) { return Math.round(n * 100) / 100; };
+      var sync = function () { var t = 0, rest = 0, inv = { a: 0, g: 0, i: 0 }; v.querySelectorAll('[data-ms]').forEach(function (i) { rest += +i.value || 0; });
+        B.milestones.forEach(function (m) { if (m.invoice) { t += m.pct; inv.a += m.amount; inv.g += m.gst; inv.i += m.inc; } });
+        var pool = B.billedEx > 0 && rest > 0 ? Math.max(0, cv() * Math.min(100, t + rest) / 100 - B.billedEx) : null, sa = 0;
+        v.querySelectorAll('[data-ms]').forEach(function (i) { var p = +i.value || 0, id = i.getAttribute('data-ms'), a = pool != null ? r2(pool * p / rest) : r2(cv() * p / 100); t += p; sa += a;
+          var set = function (k, x) { var e = v.querySelector('[data-' + k + '="' + id + '"]'); if (e) e.textContent = money2(x); }; set('amt', a); set('gst', r2(a * g / 100)); set('inc', r2(a * (1 + g / 100))); });
+        var e = document.getElementById('bTot'); if (e) { e.textContent = Math.round(t * 10) / 10 + '%'; e.className = t > 100.05 ? 'ceo-neg' : ''; }
+        var S = function (id, x) { var el = document.getElementById(id); if (el) el.textContent = money2(x); }; S('bTotAmt', r2(inv.a + sa)); S('bTotGst', r2(inv.g + sa * g / 100)); S('bTotInc', r2(inv.i + sa * (1 + g / 100))); };
+      v.querySelectorAll('[data-ms]').forEach(function (i) { i.oninput = sync; }); sync();
       var sv = document.getElementById('bSave'); if (sv) sv.onclick = function () { var m = {}; B.milestones.forEach(function (x) { if (x.invoice) m[x.tid] = x.pct; }); v.querySelectorAll('[data-ms]').forEach(function (i) { m[i.getAttribute('data-ms')] = +i.value || 0; });
-        api('acctBillSave', { core: core, contract: B.contractFrom === 'quote' ? B.typed : cv(), ms: m }).then(function () { toast('💾 Billing saved'); return project(core); }).catch(fail); };
+        api('acctBillSave', { core: core, contract: B.contractFrom === 'quote' ? B.typed : (K.contractBase || 0), ms: m }).then(function () { toast(est || auto ? '✓ Contract value and shares confirmed' : '💾 Shares saved'); return project(core); }).catch(fail); };
       v.querySelectorAll('[data-raise]').forEach(function (b) { b.onclick = function () { raise(core, b.getAttribute('data-raise'), b).then(function () { return project(core); }).catch(fail); }; });
+      var vn = document.getElementById('voNew'); if (vn) vn.onclick = function () { voModal(core, B); };
+      v.querySelectorAll('[data-vo]').forEach(function (b) { b.onclick = function () { var x = b.getAttribute('data-vo').split('|'), ok = x[1] === 'Approved', vo = VS.filter(function (y) { return y.id === x[0]; })[0] || {};
+        M.modal('<h2>' + (ok ? '✓ Approve ' : '✕ Reject ') + esc(vo.num) + '</h2><p>' + esc(vo.title) + ': <b>' + (vo.amount > 0 ? '+' : '') + money2(vo.amount) + '</b> to the contract value (before GST).' + (ok ? ' The contract value becomes <b>' + money2((B.contract || 0) + vo.amount) + '</b>.' : '') + '</p>' +
+          '<div class="fin-form"><label style="grid-column:1/-1">Note (optional)<input id="voNote" placeholder="' + (ok ? 'e.g. agreed with the client on 21 Nov' : 'why it is rejected') + '"></label></div><div class="actions"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="voGo" type="button">' + (ok ? '✓ Approve' : '✕ Reject') + '</button></div>');
+        document.getElementById('voGo').onclick = function () { api('acctVoDecide', { core: core, id: x[0], outcome: x[1], note: document.getElementById('voNote').value }).then(function () { M.closeModal(); toast(vo.num + (ok ? ' approved: the contract value is updated' : ' rejected')); return project(core); }).catch(fail); }; }; });
     });
+  }
+  function voModal(core, B) {
+    M.modal('<h2>📝 Raise a variation order</h2><p class="muted" style="margin:-4px 0 10px">' + esc(B.name) + ' · contract value now ' + money2(B.contract) + ' (before GST)</p>' +
+      '<div class="fin-form"><label>Change to the contract value (before GST)<input type="number" step="0.01" id="voAmt" placeholder="e.g. 1500, or -500 for a reduction"></label><label>What it is for<input id="voTitle" maxlength="160" placeholder="e.g. 10 extra guests and a second cake"></label>' +
+      '<label style="grid-column:1/-1">Reason and what the client agreed<textarea id="voWhy" rows="3" maxlength="2000"></textarea></label></div>' +
+      '<p class="muted" style="font-size:12.5px">It goes to the project manager and the program director (a note in their Today) and into the project\'s Change control register. The contract value changes once the program director approves it.</p>' +
+      '<div class="actions"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="voSend" type="button">📝 Raise it</button></div>');
+    document.getElementById('voSend').onclick = function () { var b = this; b.disabled = true;
+      api('acctVoRaise', { core: core, amount: document.getElementById('voAmt').value, title: document.getElementById('voTitle').value, reason: document.getElementById('voWhy').value })
+        .then(function (r) { M.closeModal(); toast('📝 ' + r.voNum + ' raised' + (r.told && r.told.length ? ' and sent to ' + r.told.join(' and ') : '') + ' for approval'); return project(core); }).catch(function (e) { b.disabled = false; fail(e); }); };
   }
   function load() { return api('acctFinanceGet', {}).then(function (d) { F = d; }); }
   // 🔴 the red count on the Finance menu: milestones due soon and not billed, milestones ready to invoice, overdue invoices

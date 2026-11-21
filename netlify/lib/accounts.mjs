@@ -26,6 +26,7 @@ export function prettyDate(ymd) { if (!ymd) return ''; const [y, m, d] = ymd.spl
 export function cleanItems(items) {
   return (Array.isArray(items) ? items : []).slice(0, 60).map((i) => ({
     desc: clean(i.desc, 400), qty: r2(i.qty === '' || i.qty == null ? 1 : i.qty) || 0, price: r2(i.price), gst: i.gst !== false,
+    ...(i.gstRate != null && i.gstRate !== '' && isFinite(+i.gstRate) && +i.gstRate >= 0 && +i.gstRate <= 30 && +i.gstRate !== 10 ? { gstRate: r2(i.gstRate) } : {}),   // the project's GST rate (10% when not given)
     ...(/^[\w-]{1,24}$/.test(i.tid || '') ? { tid: i.tid } : {}), ...(i.mats ? { mats: true } : {})   // v87: the plan task a quote line came from
   })).filter((i) => i.desc || i.price);
 }
@@ -34,8 +35,9 @@ export function calc(items, pricesInc = false) {
   const lines = items.map((i) => {
     const amount = r2(i.qty * i.price);
     let lex, lgst, linc;
-    if (pricesInc) { linc = amount; lgst = i.gst ? r2(amount / 11) : 0; lex = r2(linc - lgst); }
-    else { lex = amount; lgst = i.gst ? r2(amount * 0.1) : 0; linc = r2(lex + lgst); }
+    const gr = i.gstRate != null ? Number(i.gstRate) : 10;
+    if (pricesInc) { linc = amount; lgst = i.gst ? r2(amount * gr / (100 + gr)) : 0; lex = r2(linc - lgst); }
+    else { lex = amount; lgst = i.gst ? r2(amount * gr / 100) : 0; linc = r2(lex + lgst); }
     ex += lex; gst += lgst; inc += linc;
     return { ...i, ex: lex, gstAmt: lgst, inc: linc };
   });

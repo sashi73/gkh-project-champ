@@ -296,7 +296,7 @@ function crClean(c) {
   return { id: str(c.id, 20).replace(/[^\w-]/g, '') || 'cr' + Math.random().toString(36).slice(2, 8), num: int(c.num, 1, 9999, 1), title: str(c.title, 200) || 'Change request', desc: str(c.desc, 4000), reason: str(c.reason, 2000),
     source: ['manual', 'meeting', 'intel', 'fit'].includes(c.source) ? c.source : 'manual', direct: !!c.direct, recorded: Number(c.recorded) || 0, recKey: str(c.recKey, 30), srcRef: str(c.srcRef, 30), srcTitle: str(c.srcTitle, 200), raisedBy: str(c.raisedBy, 80), raisedAt: Number(c.raisedAt) || Date.now(),
     priority: ['Low', 'Medium', 'High', 'Urgent'].includes(c.priority) ? c.priority : 'Medium', status: CR_ST.includes(c.status) ? c.status : 'Proposed',
-    estDays: int(c.estDays, -999, 999, 0), estCost: r2(c.estCost), items, picks, ccb: ymdOk(c.ccb),
+    estDays: int(c.estDays, -999, 999, 0), estCost: r2(c.estCost), ...(Number(c.vo) ? { vo: r2(c.vo), voNum: str(c.voNum, 12) } : {}), items, picks, ccb: ymdOk(c.ccb),
     decision: d ? { by: str(d.by, 80), role: str(d.role, 60), at: Number(d.at) || Date.now(), note: str(d.note, 1000), sig: str(d.sig, 80), outcome: ['Approved', 'Rejected', 'Deferred'].includes(d.outcome) ? d.outcome : 'Approved' } : null,
     effect: c.effect && typeof c.effect === 'object' ? { days: int(c.effect.days, -9999, 9999, 0), cost: r2(c.effect.cost), f0: ymdOk(c.effect.f0), f1: ymdOk(c.effect.f1), b0: r2(c.effect.b0), b1: r2(c.effect.b1), est: !!c.effect.est } : null,
     implementedAt: Number(c.implementedAt) || 0, log: (Array.isArray(c.log) ? c.log : []).slice(-40).map((x) => ({ at: Number(x && x.at) || Date.now(), what: str(x && x.what, 300) })).filter((x) => x.what) };
