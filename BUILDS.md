@@ -230,4 +230,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 219 | 1.0.219| 2026-11-21 18:25| champfit| `500db4f` | 📐 Champ's panel always fits on screen wherever the button is (opens on the side with more room, height capped with the conversation scrolli |
 | 220 | 1.0.220| 2026-11-21 18:38| costgrid| `571d2f7` | 💲 Record actual costs on the Gantt chart itself: full screen in the $ Costs view, Actual $ and % highlighted, a banner with Done, scrolled  |
 | 221 | 1.0.221| 2026-11-21 18:49| bomver| `0e19100` | BOM versions: v0 baseline, v1… revisions filed in Project documents, summarised for PM/CFO/CEO, recorded in Lessons learned; materials CPI f |
-| 222 | 1.0.222 | 2026-11-21 18:56 | bomgantt | _this commit_ | _see git log_ |
+| 222 | 1.0.222| 2026-11-21 18:56| bomgantt| `604b562` | Gantt: BOM milestone shows its version (vN, date and time, total, change), markers on the chart and a BOM versions list (#83) |
+| 223 | 1.0.223 | 2026-11-21 19:32 | bomall | _this commit_ | _see git log_ |

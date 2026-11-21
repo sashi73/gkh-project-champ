@@ -1172,3 +1172,5 @@ body.cg-dragging,body.cg-dragging *{user-select:none!important;-webkit-user-sele
 .gbomlab{margin-left:6px;padding:1px 6px;border-radius:8px;background:#fbf6ea;border:1px solid #d9c9a3;color:#6b5420;font-weight:600;font-size:10.5px}
 .gbomv{position:absolute;top:2px;transform:translateX(-50%);padding:0 4px;border-radius:6px;background:#6b5420;color:#fff;font-size:9.5px;line-height:14px;z-index:2;cursor:default}
 .gbomv.up{background:#b42318}.gbomv.down{background:#067647}
+/* ✓ tick all BOM lines in one go */
+.bom-ckall{display:inline-flex;align-items:center;cursor:pointer}.bom-ckall input{width:16px;height:16px;cursor:pointer}
