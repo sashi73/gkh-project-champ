@@ -209,6 +209,24 @@ try {
       sr.status === 200 && (sr.j.rows || []).some((r) => r.name === 'old-contract.txt') && (sr2.j.rows || []).some((r) => r.name === 'old-contract.txt' && /fit-out/.test(r.snippet || '')) && (sr2.j.rows || []).every((r) => r.folder === 'contracts') && sr3.status === 200 && !(sr3.j.rows || []).length && (sr3.j.fileable || []).length > 0,
       JSON.stringify([sr.status, (sr.j.rows || []).map((r) => r.name), (sr2.j.rows || []).map((r) => r.snippet), sr3.j.rows && sr3.j.rows.length, (sr3.j.fileable || []).length]).slice(0, 400));
     ok('Vault', '📦 contracts already in the project folders move into the vault; the project keeps a redacted copy', mv.status === 200 && mv.j.moved >= 1 && od && /^REDACTED /.test(od.name) && (own2.j.files || []).some((f) => f.name === 'old-contract.txt'), JSON.stringify([mv.j, od && od.name])); }
+    // ---------- 💵 billing: the money panel, how close milestones are, and who sees which project's billing ----------
+  { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };
+    const np = await api('planNewProject', { name: 'Garden party', client: 'Pat Family', program: 'Events', manager: 'Pat Manager' }), gc = np.j.core;
+    const d0 = new Date(), ymd = (n) => new Date(d0.getTime() + n * 864e5).toISOString().slice(0, 10);
+    await api('planSave', { core: gc, plan: { name: 'Garden party', start: ymd(-5), charter: { manager: 'Pat Manager' }, budgetCfg: { cont: 10, res: 5, margin: 20, gst: 10 }, phases: [{ id: 'ph1', name: 'Work' }], tasks: [
+      { id: 'k1', phase: 'ph1', name: 'Book venue', dur: 6, pred: [], res: [], qty: 1, rate: 1000, unit: 'lot', pct: 50, status: 'doing' }, { id: 'm1', phase: 'ph1', name: 'Venue booked', dur: 0, pred: ['k1'], res: [], pct: 0, status: 'todo' },
+      { id: 'k2', phase: 'ph1', name: 'Party', dur: 12, pred: ['m1'], res: [], qty: 1, rate: 2000, unit: 'lot', pct: 0, status: 'todo' }, { id: 'm2', phase: 'ph1', name: 'Party done', dur: 0, pred: ['k2'], res: [], pct: 0, status: 'todo' }] } });
+    await api('acctBillSave', { core: gc, contract: 5000, ms: { m1: 50, m2: 50 } });
+    const bg = await api('acctBillGet', { core: gc }), B = bg.j.bill, m1 = B && B.milestones.find((m) => m.tid === 'm1'), m2 = B && B.milestones.find((m) => m.tid === 'm2');
+    ok('Billing', '💰 one money panel: contract, GST, budget = cost + contingency + reserve, forecast cost, margin and profit; a short event scales the due windows (red within its own short window, later ones green or amber)',
+      bg.status === 200 && B.money.contract === 5000 && B.money.gst === 500 && B.money.base === 3000 && B.money.budget === 3450 && B.money.margin === 1550 && B.money.profit != null && B.windows.red < 7 && m1 && m1.alert && m2 && ['green', 'amber', 'red'].includes(m2.alert),
+      JSON.stringify([bg.status, B && B.money, B && B.windows, m1 && [m1.due, m1.days, m1.alert], m2 && [m2.due, m2.days, m2.alert]]).slice(0, 500));
+    const pmB = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmF = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctFinanceGet', {})), pmA = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillAlerts', {}));
+    const d2B = await as('dir2@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmSave = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillSave', { core: gc, contract: 1, ms: {} }));
+    ok('Billing', '🔐 the project\'s own manager sees its billing and Finance (only their projects) and the red count, but cannot change it; another director cannot see it',
+      pmB.status === 200 && pmF.status === 200 && (pmF.j.projects || []).every((p) => p.core === gc) && pmA.status === 200 && pmA.j.projects === 1 && d2B.status === 403 && pmSave.status === 403,
+      [pmB.status, pmF.status, JSON.stringify((pmF.j.projects || []).map((p) => p.name)), JSON.stringify(pmA.j), d2B.status, pmSave.status].join(' '));
+  }
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

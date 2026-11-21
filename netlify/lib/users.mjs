@@ -62,7 +62,8 @@ export const OWNER_MODS = all('edit');
 const READ = /^(dashboard|jobs|job|reminders|report|stores|dataList|dataGet|log|pipelineBoard|aiPing|sqlUsage|sqlAsk|sqlAnswer|sqlData|sqlNarrative|sqlPdf|docForJob|docGet)$|(List|Lists|Get|Log|Status|Setup|Analysis|Info|Jobs|Insights|For|Usage|Analyse|Report|Export|Assign)$/;
 export function need(action) {
   const a = String(action || '');
-  if (/^vault[A-Z]/.test(a)) return null;   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
+  if (/^vault[A-Z]/.test(a)) return null;
+  if (a === 'acctFinanceGet' || a === 'acctBillGet' || a === 'acctBillAlerts') return null;   // 💵 billing: billing.mjs checks (CEO, CFO, the program's director, the project's manager)   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
   if (['me', 'logout', 'login', 'userPassword', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk'].includes(a)) return null;   // My profile: anyone signed in, their own record
   let mod;
   if (a === 'quoteStart' || a === 'planQuote') mod = 'accounts';

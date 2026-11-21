@@ -1047,3 +1047,11 @@ tr.pl-row td:first-child{padding-left:22px}
 tr.pg-row .pg-rowin b{font-size:15.5px}
 tr.pl-new td{background:#FFFDF6}
 .vl-search input,.vl-search input:focus{border:0!important;box-shadow:none!important;outline:0!important;background:none!important;padding-left:0!important}
+/* 💵 billing: the money panel and how close each milestone is */
+.fin-panel{margin:4px 0 16px}.fin-panel .ceo-ts{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.fin-due{display:inline-block;margin-top:3px;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:800;white-space:nowrap}
+.fin-due.green{background:#DCFCE7;color:#166534}.fin-due.amber{background:#FEF3C7;color:#92400E;border:1px solid #FCD34D}
+.fin-due.red{background:#DC2626;color:#fff;animation:finFlash 1s steps(2,start) infinite}
+@keyframes finFlash{50%{background:#7F1D1D}}
+.fin-badge{background:#DC2626}
+.ceo-legend.fin-leg{margin:10px 0 0}
