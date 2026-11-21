@@ -318,6 +318,11 @@ try {
     ok('Finance', '👷🧱 labour and materials apart: forecast $3,800 + $500 labour left ÷ 0.625 = $4,600; CPI = ($500 + $3,000) ÷ ($800 + $3,000) = 0.92 (labour 0.63); a mixed task done for $3,600 = BOM $2,000 + labour $1,600: CPI ($1,000 + $2,000) ÷ $3,600 = 0.83; a materials task $500 over its BOM price is flagged as an unrecorded BOM change and counts in CPI: ($1,000 + $3,000) ÷ ($1,000 + $3,000 + $500) = 0.89',
       L1.eac === 4600 && L1.CPI === 0.92 && L1.split.lab.CPI === 0.63 && L1.SPI === 0.5 && L2.split.lab.acIn === 1600 && L2.CPI === 0.83 && L3.CPI === 0.89 && L3.split.bomDiff === 500 && L3.split.bomDiff === 500 && L3.split.bomDiffTasks === 1 && L3.split.lab.cover === 100 && (L2.overruns || []).length === 1,
       JSON.stringify([L1.eac, L1.CPI, L1.SPI, L1.split, L2.CPI, L2.split, L3.CPI, L3.split]).slice(0, 900));
+    { const r = await api('planNewProject', { name: 'BOM actual', client: 'Acme', program: 'Digital health' }), core = r.j.core;
+      await api('planSave', { core, plan: { name: 'BOM actual', start: '2026-10-01', phases: [{ id: 'ph1', name: 'W' }], tasks: [{ id: 'm', phase: 'ph1', name: '🧱 Bill of Materials', dur: 0, pred: [], res: [], pct: 100, status: 'done', actual: 5000 }, tk('h', { pct: 50, status: 'doing', actual: 50 })],
+        bom: { status: 'Signed off', signedBy: 'S', sig: 'S', milestone: 'm', lines: [{ id: 'b1', task: 'm', name: 'Steel', qty: 10, unit: 't', price: 300, checked: true }, { id: 'b2', task: 'm', name: 'Concrete', qty: 5, unit: 'm3', price: 200, checked: true }] } } });
+      const P = (await api('planGet', { core })).j.plan, mm = P.tasks.find((x) => x.id === 'm');
+      ok('Finance', '🧱 a BOM-only task takes its actual cost from the BOM / BOQ ($4,000 × 100% done), not the $5,000 typed on it', mm.actual === 4000 && P.tasks.find((x) => x.id === 'h').actual === 50, JSON.stringify(P.tasks.map((x) => [x.id, x.actual, x.bomx]))); }
     // 🧱 BOM versions (hand-worked): a mixed task, 10 days at $100 + BOM panels 4 × $500 = $2,000, half done for $1,500 actual.
     //   v0 baseline: materials EV $1,000 = AC $1,000, labour $500 earned for $500 → CPI 1.00. The panels go up to $625 (v1, +$500, +25%):
     //   materials still earned at the baseline $1,000, now cost $1,250; labour = $1,500 − $1,250 = $250 for $500 earned (labour CPI 2.00) →
