@@ -2240,7 +2240,7 @@
         '<td><input data-k="unit" value="' + esc(t.unit || '') + '" placeholder="h, m², lot" style="width:56px"' + estAttr(t) + '></td>' +
         '<td><input data-k="rate" inputmode="decimal" value="' + esc(t.rate || '') + '" style="width:74px"' + estAttr(t) + '></td>' +
         '<td class="num' + (isEst(t) ? ' est-c' : '') + '"' + (isEst(t) ? ' title="' + esc('≈ Indicative benchmark, not reviewed: ' + (t.basis || 'AI estimate') + '. Check the hours actually worked per day, the rate and the quantity, then change it.') + '"' : '') + '>' + (isEst(t) ? '<span class="est-tag">≈ est</span> ' : '') + money(cost(t)) + (isLab(t) && (+t.qty || 0) > 0 && (+t.rate || 0) > 0 ? '<br><small class="muted crewx">' + crewOf(t) + ' × ' + (+t.qty) + ' ' + esc(t.unit) + ' × ' + money(+t.rate) + '</small>' : '') + '</td>' +
-        '<td><input data-k="actual" class="act-in" inputmode="decimal" value="' + esc(Number(t.actual) > 0 ? money(t.actual) : '') + '" data-raw="' + esc(t.actual || '') + '" placeholder="$0.00" title="Actual cost so far, in full (labour, subcontractors, hire and its materials)"></td>' +
+        '<td>' + (bomOnly(t) ? bomActCell(t) : '<input data-k="actual" class="act-in" inputmode="decimal" value="' + esc(Number(t.actual) > 0 ? money(t.actual) : '') + '" data-raw="' + esc(t.actual || '') + '" placeholder="$0.00" title="Actual cost so far, in full (labour, subcontractors, hire and its materials)">') + '</td>' +
         '<td><select data-k="status" class="stsel st-' + t.status + '"' + (subs.length ? ' title="Setting this moves all its sub-tasks too"' : '') + '>' + STATUS.map(function (x) { return '<option value="' + x[0] + '"' + (t.status === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></td>' +
         '<td><input data-k="pct" type="number" min="0" max="100" step="1" value="' + t.pct + '" style="width:54px"' + (subs.length ? ' disabled title="Worked out from the sub-tasks"' : '') + '></td>' +
         '<td class="acts">' + lvlBtns(1, t.dur > 0 && prevL1(p, t) && !(t.subs || []).some(function (x) { return (x.steps || []).length; }), false, t.dur === 0 ? 'A milestone stays at level 1' : !prevL1(p, t) ? 'The first task has nothing above it to go under' : 'Move its steps out first: a sub-task has only one level below it') + '<button class="btn btn-sm" data-rem title="Reminder">🔔</button><button class="btn btn-sm" data-del title="Delete">✕</button></td>' +
@@ -2405,6 +2405,7 @@
     // sub-tasks
     B.querySelectorAll('[data-tog]').forEach(function (b) { b.onclick = function () { var t = task(b); S.closed[t.id] = !S.closed[t.id]; render(); }; });
     B.querySelectorAll('[data-bomver]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); bomVersions(); }; });
+    B.querySelectorAll('[data-bomact]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); bomPrices(b.getAttribute('data-bomact')); }; });
     B.querySelectorAll('[data-addsub]').forEach(function (b) {
       b.onclick = function () {
         var t = task(b), D = Math.max(1, t.dur); t.subs = t.subs || [];
@@ -5250,6 +5251,46 @@
   var q3c = function (n) { return Math.round((Number(n) || 0) * 1000) / 1000; };
   function bomMe() { var m = M.me || {}; return m.name || m.user || 'Admin'; }
   function bomOf() { return S.plan.bom || null; }
+  // 🧱 a task whose cost is only BOM materials (for example the Bill of Materials milestone): its actual cost IS the current BOM.
+  //    In the Gantt it shows the BOM amount and its version; changing it updates the BOM prices, which saves a new BOM version.
+  function bomLinesOf(t) { var b = S.plan.bom; return b && b.status === 'Signed off' ? (b.lines || []).filter(function (l) { return l.task === t.id; }) : []; }
+  function bomOnly(t) { return bomLinesOf(t).length > 0 && !(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) > 0.004); }
+  function bomActCell(t) {
+    var L = bomLinesOf(t), amt = r2(L.reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0)), now = r2(amt * Math.min(100, t.pct || 0) / 100), rv = (S.plan.bomRevs || []).slice(-1)[0], off = Number(t.actual) > 0 && Math.abs(Number(t.actual) - now) > 0.5;
+    return '<button type="button" class="bom-act' + (off ? ' off' : '') + '" data-bomact="' + esc(t.id) + '" title="' + esc('From the BOM' + (rv ? ' v' + rv.v + ' (' + bomStamp(rv.at) + ')' : '') + ': ' + money(amt) + (t.pct < 100 ? ' × ' + t.pct + '% done' : '') + '. Click to change the prices: that saves a new BOM version.' + (off ? ' The actual typed earlier (' + money(t.actual) + ') is not in the BOM yet.' : '')) + '">' + money(now) + ' <span>✎</span>' + (rv ? '<small>BOM v' + rv.v + '</small>' : '') + (off ? '<small class="bad">typed ' + money(t.actual) + ' ⚠</small>' : '') + '</button>';
+  }
+  function bomPrices(tid) {
+    var p = S.plan, b = p.bom, t = p.tasks.filter(function (x) { return x.id === tid; })[0]; if (!t || !b) return;
+    var L = bomLinesOf(t), was = L.map(function (l) { return Number(l.price) || 0; }), tot0 = r2(L.reduce(function (a, l, i) { return a + (Number(l.qty) || 0) * was[i]; }, 0)), rv = (p.bomRevs || []).slice(-1)[0], typed = Number(t.actual) > 0 && Math.abs(Number(t.actual) - r2(tot0 * Math.min(100, t.pct || 0) / 100)) > 0.5 ? Number(t.actual) : 0;
+    var pr = function (n) { return (Math.round(n * 100) / 100).toFixed(2); };
+    M.modal('<h2>🧱 Actual cost from the BOM: ' + esc(t.name) + '</h2><p class="muted" style="margin:-4px 0 10px">This row\'s actual cost is its BOM materials' + (rv ? ' (now <b>BOM v' + rv.v + '</b>, ' + esc(bomStamp(rv.at)) + ')' : '') + '. Change the unit prices that changed, or set the new total and Champ spreads it over the lines. Saving keeps the BOM signed off and records a <b>new BOM version</b> with the date and time: it changes the actual cost, the costing and CPI, goes to Project documents and Lessons learned, and the project manager, CFO and CEO get a note.</p>' +
+      (typed ? '<div class="note warn" style="margin-bottom:8px">⚠ An actual of <b>' + money(typed) + '</b> was typed on this row before; the BOM says ' + money(tot0) + '. <button type="button" class="btn btn-sm" id="bpTyped">Use ' + money(typed) + ' as the new total</button></div>' : '') +
+      '<div class="tblwrap" style="max-height:46vh;overflow:auto"><table class="tbl"><thead><tr><th>Item</th><th class="num">Qty</th><th>Unit</th><th class="num">Unit price (was)</th><th class="num">New unit price</th><th class="num">Amount</th></tr></thead><tbody>' +
+      L.map(function (l, i) { return '<tr><td>' + esc(l.name) + '</td><td class="num">' + esc(l.qty) + '</td><td>' + esc(l.unit || '') + '</td><td class="num muted">' + money(was[i]) + '</td><td class="num"><input data-bp="' + i + '" inputmode="decimal" value="' + pr(was[i]) + '" style="width:110px;text-align:right"></td><td class="num" data-ba="' + i + '">' + money((Number(l.qty) || 0) * was[i]) + '</td></tr>'; }).join('') +
+      '</tbody><tfoot><tr><th colspan="5">New total <small class="muted">(was ' + money(tot0) + ')</small></th><th class="num" id="bpTot">' + money(tot0) + '</th></tr></tfoot></table></div>' +
+      '<div class="row" style="gap:8px;align-items:center;margin:8px 0"><label>Or set the new total $ <input id="bpNew" inputmode="decimal" placeholder="' + pr(tot0) + '" style="width:150px"></label><button type="button" class="btn btn-sm" id="bpSpread">Spread over the lines</button></div>' +
+      '<label style="display:block">Why the price changed <span class="bad">*</span><input id="bpWhy" placeholder="e.g. supplier quote 14 Nov: steel up 6%" style="width:100%"></label>' +
+      '<div class="actions"><button class="btn btn-gold" type="button" id="bpSave">Save as a new BOM version</button><button class="btn" type="button" data-close>Cancel</button></div>');
+    var box = document.getElementById('modalBody') || document, ins = box.querySelectorAll('[data-bp]'), num = function (v) { return Number(String(v).replace(/[$,\s]/g, '')) || 0; };
+    var calc = function () { var tot = 0; ins.forEach(function (x) { var i = +x.getAttribute('data-bp'), a = (Number(L[i].qty) || 0) * num(x.value); tot += a; var c = box.querySelector('[data-ba="' + i + '"]'); if (c) c.textContent = money(a); x.classList.toggle('chg', Math.abs(num(x.value) - was[i]) > 0.004); }); var T = box.querySelector('#bpTot'); T.innerHTML = money(tot) + (Math.abs(tot - tot0) > 0.004 ? '<br><small class="' + (tot > tot0 ? 'bad' : 'good') + '">' + (tot > tot0 ? '+' : '') + money(tot - tot0) + (tot0 ? ' (' + (tot > tot0 ? '+' : '') + Math.round((tot - tot0) / tot0 * 1000) / 10 + '%)' : '') + '</small>' : ''); return tot; };
+    var spread = function (target) { if (!(target > 0) || !(tot0 > 0)) return; var f = target / tot0, acc = 0; ins.forEach(function (x, k) { var i = +x.getAttribute('data-bp'); x.value = pr(was[i] * f); }); calc(); };
+    ins.forEach(function (x) { x.oninput = calc; x.onfocus = function () { x.select(); }; });
+    box.querySelector('#bpSpread').onclick = function () { spread(num(box.querySelector('#bpNew').value)); };
+    var ty = box.querySelector('#bpTyped'); if (ty) ty.onclick = function () { box.querySelector('#bpNew').value = pr(typed / Math.max(0.01, Math.min(100, t.pct || 100) / 100)); spread(typed / Math.max(0.01, Math.min(100, t.pct || 100) / 100)); };
+    box.querySelector('#bpSave').onclick = function () {
+      var why = box.querySelector('#bpWhy').value.trim(), ch = [];
+      ins.forEach(function (x) { var i = +x.getAttribute('data-bp'), v = Math.round(num(x.value) * 100) / 100; if (Math.abs(v - was[i]) > 0.004) ch.push([i, v]); });
+      if (!ch.length) { toast('No price changed', true); return; }
+      if (!why) { toast('Say why the price changed: it goes in the BOM log and Lessons learned', true); box.querySelector('#bpWhy').focus(); return; }
+      ch.forEach(function (c) { L[c[0]].price = c[1]; });
+      var tot = r2(L.reduce(function (a, l) { return a + (Number(l.qty) || 0) * (Number(l.price) || 0); }, 0));
+      bomLog('Price revision from the Gantt by ' + bomMe() + ' (' + ch.length + ' line' + (ch.length === 1 ? '' : 's') + ', ' + money(tot0) + ' → ' + money(tot) + '): ' + why);
+      t.actual = r2(tot * Math.min(100, t.pct || 0) / 100) || ''; (t.actualLog = t.actualLog || []).push({ at: Date.now(), by: bomMe(), v: t.actual, ms: 'bom' });
+      bomSync(); M.closeModal();
+      dirty('BOM prices: ' + t.name + ' ' + money(tot0) + ' → ' + money(tot) + ' (' + why + ')'); render();
+      if (S.timer) saveNow();
+    };
+  }
   function bomStamp(ms) { var d = new Date(ms), z = function (n) { return (n < 10 ? '0' : '') + n; }; return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
   // 🧱 the BOM versions: each with its date and time, total, change and synopsis; the files are in Project documents (BOM.csv)
   function bomVersions() {

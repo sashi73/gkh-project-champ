@@ -20,12 +20,62 @@
   function fit() {
     var g = document.getElementById('gSplit'); if (!g) return;
     var mine = parseInt(get(KEY), 10), full = document.querySelector('.gfull');
-    if (full) { g.style.removeProperty('--gH'); g.classList.remove('gh-on'); opts(g); return; }
+    if (full) { g.style.removeProperty('--gH'); g.classList.remove('gh-on'); opts(g); rail(g); colsBtn(); hideCols(); follow(g); return; }
     var row = g.previousElementSibling, rowH = row && row.offsetHeight < 70 ? row.offsetHeight : 0;
     var auto = Math.max(300, window.innerHeight - topH() - rowH - 30);
     var h = mine > 0 ? Math.max(220, Math.min(mine, 4000)) : short ? auto : 0;
     if (h) { g.style.setProperty('--gH', h + 'px'); g.classList.add('gh-on'); } else { g.style.removeProperty('--gH'); g.classList.remove('gh-on'); }
-    handle(g); opts(g); rail(g);
+    handle(g); opts(g); rail(g); colsBtn(); hideCols(); follow(g);
+  }
+  // ▦ hide the grid columns you do not need (remembered on this computer; the #, ✓ and Task columns always stay)
+  var HK = 'champGanttHide', hidden = function () { try { return JSON.parse(get(HK) || '[]'); } catch (e) { return []; } };
+  var colKey = function (th) { return (th.textContent || '').replace(/[❄(].*$/, '').replace(/[^\w$ %×★]/g, '').trim().toLowerCase(); };
+  function heads() { var L = document.getElementById('gLeft'), tr = L && L.querySelector('thead tr'); return tr ? Array.prototype.slice.call(tr.children) : []; }
+  function hideCols() {
+    var H = hidden(), css = heads().map(function (th, i) { return i > 2 && H.indexOf(colKey(th)) >= 0 ? '#gLeft .gt tr>:nth-child(' + (i + 1) + '){display:none!important}' : ''; }).join('');
+    var st = document.getElementById('champColHide'); if (!st) { st = document.createElement('style'); st.id = 'champColHide'; document.head.appendChild(st); }
+    if (st.textContent !== css) st.textContent = css;
+  }
+  function colsBtn() {
+    var row = document.querySelector('#gCard .pviews'); if (!row || row.querySelector('.gcol-btn')) return;
+    var n = hidden().length, w = document.createElement('div'); w.className = 'tabs'; w.style.margin = '0';
+    w.innerHTML = '<button type="button" class="tab gcol-btn" title="Hide or show the grid columns">▦ Columns' + (n ? ' <b>(' + n + ' hidden)</b>' : '') + '</button>'; row.appendChild(w);
+    w.firstChild.onclick = function (e) { e.stopPropagation(); colsPanel(w.firstChild); };
+  }
+  function colsPanel(bt) {
+    var old = document.getElementById('gColPop'); if (old) { old.remove(); return; }
+    var H = hidden(), list = heads().map(function (th, i) { return { i: i, k: colKey(th), lab: (th.textContent || '').replace(/❄.*$/, '').trim(), shown: getComputedStyle(th).display !== 'none' }; })
+      .filter(function (c) { return c.i > 2 && c.k && (c.shown || H.indexOf(c.k) >= 0); });
+    var p = document.createElement('div'); p.id = 'gColPop'; p.className = 'fit-pop gcol-pop';
+    p.innerHTML = '<button type="button" class="fit-x" aria-label="Close">✕</button><b>▦ Columns</b><small class="muted">Untick what you do not need. #, ✓ and Task always stay. The views (Dates, $ Costs, All columns) still pick their own set; this hides more.</small>' +
+      '<div class="gcol-list">' + list.map(function (c) { return '<label><input type="checkbox" data-ck="' + c.k.replace(/"/g, '') + '"' + (H.indexOf(c.k) < 0 ? ' checked' : '') + '> ' + c.lab.replace(/</g, '&lt;') + '</label>'; }).join('') + '</div>' +
+      '<div class="fit-seg"><button type="button" data-all>Show all</button><button type="button" data-done class="on">Done</button></div>';
+    document.body.appendChild(p);
+    var r = bt.getBoundingClientRect(); p.style.top = Math.min(r.bottom + 6, window.innerHeight - p.offsetHeight - 8) + 'px'; p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left)) + 'px';
+    var save = function () { var hs = []; p.querySelectorAll('[data-ck]').forEach(function (x) { if (!x.checked) hs.push(x.getAttribute('data-ck')); }); var keep = hidden().filter(function (k) { return !p.querySelector('[data-ck="' + k + '"]'); }); put(HK, JSON.stringify(keep.concat(hs))); hideCols();
+      var b2 = document.querySelector('.gcol-btn'), n = hidden().length; if (b2) b2.innerHTML = '▦ Columns' + (n ? ' <b>(' + n + ' hidden)</b>' : ''); };
+    p.querySelectorAll('[data-ck]').forEach(function (x) { x.onchange = save; });
+    p.querySelector('[data-all]').onclick = function () { put(HK, null); p.querySelectorAll('[data-ck]').forEach(function (x) { x.checked = true; }); save(); };
+    p.querySelector('[data-done]').onclick = p.querySelector('.fit-x').onclick = function () { p.remove(); };
+  }
+  // ↔ as you scroll down, the chart follows the bars: if none of the rows in view has its bar on screen, it slides across to them
+  //    (it leaves you alone for a few seconds after you scroll sideways yourself)
+  function follow(g) {
+    var Rt = document.getElementById('gRight'), L = document.getElementById('gLeft'); if (!Rt || Rt.gFollow) return; Rt.gFollow = 1;
+    var mine = false, userX = 0, lastX = Rt.scrollLeft, lastY = Rt.scrollTop, tm = 0;
+    var check = function () {
+      if (Date.now() - userX < 4000 || document.body.classList.contains('gh-dragging')) return;
+      var R = Rt.getBoundingClientRect(), head = Rt.querySelector('thead'), top = R.top + (head ? head.offsetHeight : 0), lo = Infinity, hi = -Infinity, any = false;
+      Rt.querySelectorAll('tbody tr').forEach(function (tr) { var b = tr.getBoundingClientRect(); if (b.bottom < top + 4 || b.top > R.bottom - 4) return;
+        tr.querySelectorAll('.gbar,.gmile').forEach(function (el) { var e = el.getBoundingClientRect(); if (!e.width && !e.height) return; any = true; var x0 = e.left - R.left + Rt.scrollLeft, x1 = e.right - R.left + Rt.scrollLeft; if (x0 < lo) lo = x0; if (x1 > hi) hi = x1; }); });
+      if (!any) return; var v0 = Rt.scrollLeft, v1 = v0 + Rt.clientWidth;
+      if (hi > v0 + 20 && lo < v1 - 20) return;   // a bar in view already
+      mine = true; Rt.scrollTo({ left: Math.max(0, lo - 80), behavior: 'smooth' }); setTimeout(function () { mine = false; lastX = Rt.scrollLeft; }, 700);
+    };
+    Rt.addEventListener('scroll', function () {
+      if (Rt.scrollLeft !== lastX) { if (!mine) userX = Date.now(); lastX = Rt.scrollLeft; }
+      if (Rt.scrollTop !== lastY) { lastY = Rt.scrollTop; clearTimeout(tm); tm = setTimeout(check, 160); }
+    }, { passive: true });
   }
   // ⇅ the rail beside the Gantt chart: ⤒ top, ▲ up a page, a slider for the rows, ▼ down a page, ⤓ end (for touch screens and touch pads)
   function rail(g) {
