@@ -258,4 +258,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 247 | 1.0.247| 2026-11-22 03:27| basepdf| `599b769` | Baselines: each version filed as a PDF (and a spreadsheet), not PowerPoint; pptxgenjs removed (#108) |
 | 248 | 1.0.248| 2026-11-22 03:29| basenames| `21aa198` | Baselines: every version is its own document, Project Baseline vN (PDF and spreadsheet), all listed for audit (#109) |
 | 249 | 1.0.249| 2026-11-22 03:44| aiprofit| `14d1a29` | AI query: projects carry the CEO view's profit, contract value (and whether it is an estimate), approved budget and cost vs budget, with not |
-| 250 | 1.0.250 | 2026-11-22 03:52 | sqlnames | _this commit_ | _see git log_ |
+| 250 | 1.0.250| 2026-11-22 03:52| sqlnames| `7a34266` | Reports: results show names, not IDs (ID columns hidden when a name is there, kept in the CSV), charts labelled by project name, and the AI  |
+| 251 | 1.0.251 | 2026-11-22 03:55 | aidelay | _this commit_ | _see git log_ |
