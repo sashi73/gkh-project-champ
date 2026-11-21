@@ -8,7 +8,7 @@
   var put = function (k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) {} };
   var topH = function () { var t = document.querySelector('header.top'); return t && getComputedStyle(t).position === 'sticky' ? t.offsetHeight : 0; };
   function detect() {
-    var w = window.innerWidth, h = window.innerHeight, mode = get('champFitMode') || 'auto', s = w > 700 && (mode === 'compact' || (mode === 'auto' && (h < 800 || w < 1400)));
+    var w = window.innerWidth, h = window.innerHeight, mode = get('champFitMode') === 'compact' ? 'compact' : 'auto', s = w > 700 && (mode === 'compact' || (mode === 'auto' && (h < 800 || w < 1400)));
     if (s !== short) {
       short = s; b.classList.toggle('is-short', s);
       // fold the menu to icons on a small laptop, unless you have chosen yourself
@@ -64,13 +64,13 @@
       var h = location.hash; if (h !== lastHash) { lastHash = h; setTimeout(function () { bring(false); }, 120); }
     });
   }).observe(document.getElementById('view') || document.body, { childList: true, subtree: true });
-  // 💻 the layout switch in the header: Auto (fits the window), Compact (always) or Full (always)
-  var MODES = { auto: ['💻 Auto', 'Layout: Auto. Compact on a small laptop window (under 800 px high or 1400 px wide), full on a big monitor. Click for Compact.'], compact: ['💻 Compact', 'Layout: always Compact. Click for Full.'], full: ['🖥 Full', 'Layout: always Full. Click for Auto.'] };
+  // 💻 the layout switch in the header: Auto (fits the window) or Compact (always)
+  var MODES = { auto: ['🖥 Auto', 'Layout: Auto. Compact on a small laptop window (under 800 px high or 1400 px wide), full on a big monitor. Click for Compact.'], compact: ['💻 Compact', 'Layout: always Compact. Click for Auto.'] };
   function switcher() {
     var ctl = window.ChampCtl && window.ChampCtl(); if (!ctl) return false; if (document.getElementById('champFitBtn')) return true;
     var bt = document.createElement('button'); bt.type = 'button'; bt.id = 'champFitBtn'; bt.className = 'ct-lang ct-fit';
-    var lab = function () { var m = MODES[get('champFitMode') || 'auto'] || MODES.auto; bt.textContent = m[0]; bt.title = m[1] + ' (this window: ' + window.innerWidth + ' × ' + window.innerHeight + ')'; bt.setAttribute('aria-label', m[1]); };
-    bt.onclick = function () { var m = get('champFitMode') || 'auto', nx = m === 'auto' ? 'compact' : m === 'compact' ? 'full' : 'auto'; put('champFitMode', nx === 'auto' ? null : nx); lab(); detect(); };
+    var lab = function () { var m = get('champFitMode') === 'compact' ? MODES.compact : MODES.auto; bt.textContent = m[0]; bt.title = m[1] + ' (this window: ' + window.innerWidth + ' × ' + window.innerHeight + ')'; bt.setAttribute('aria-label', m[1]); };
+    bt.onclick = function () { var m = get('champFitMode') === 'compact' ? 'compact' : 'auto', nx = m === 'compact' ? 'auto' : 'compact'; put('champFitMode', nx === 'auto' ? null : nx); lab(); detect(); };
     bt.onmouseenter = lab; lab(); ctl.insertBefore(bt, ctl.firstChild); return true;
   }
   (function tries(k) { if (!switcher() && k < 40) setTimeout(function () { tries(k + 1); }, 250); })(0);
