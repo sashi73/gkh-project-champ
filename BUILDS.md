@@ -211,4 +211,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 200 | 1.0.200| 2026-11-21 11:59| budgetwhy| `53cfdac` | 🧮 Finance: show how the budget and the estimated contract are worked out (costed work + contingency + reserve = budget, + margin), and how  |
 | 201 | 1.0.201| 2026-11-21 12:01| bacnote| `c85942e` | 🧮 Finance: Budget = Base cost (BAC) + contingency + reserve, with a link to the plan's Costing (#62) |
 | 202 | 1.0.202| 2026-11-21 12:24| variation| `8c809e7` | 📝 Finance: variation orders (raised to the PM and program director, approved by the program director, recorded in Change control); contract |
-| 203 | 1.0.203 | 2026-11-21 12:45 | modalx | _this commit_ | _see git log_ |
+| 203 | 1.0.203| 2026-11-21 12:45| modalx| `7b4939d` | 🪟 Pop-ups stay open until closed: every pop-up gets a ✕; a click outside no longer shuts them (pop-ups, Today, the sticky-notes panel, phon |
+| 204 | 1.0.204 | 2026-11-21 12:54 | fcnote | _this commit_ | _see git log_ |
