@@ -214,6 +214,16 @@
   var crewOf = function (t) { return isLab(t) ? Math.max(1, Math.min(500, Math.round(+t.crew || 0)) || 1) : 1; };
   var crewAuto = function (t) { if (!t.crewSet) { var n = (t.res || []).length; if (n) t.crew = Math.min(500, n); } };   // the resources say how many, until the people are typed by hand
   var cost = function (t) { return r2(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0) + matCost(t) + (Number(t.bomx) || 0)); };   // v93: + BOM materials not in stock
+  // 👷🧱 a task's cost as labour and services vs materials, and what the work done cost each way (the same rules as the server, plan.mjs actualSplit)
+  var taskSplit = function (p, t) { var own = r2(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0)), lab = catOf(p, t) === 'Materials' ? 0 : own; return { lab: lab, mat: r2(cost(t) - lab) }; };
+  var actualSplit = function (p, t) {
+    var sp = taskSplit(p, t), lab = sp.lab, mat = sp.mat, f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0, m;
+    if (!(act > 0)) return { has: false, lab: lab, mat: mat, evL: lab * f, evM: mat * f, acL: lab * f, acM: mat * f, assumed: false };
+    if (t.actualMat != null && t.actualMat !== '' && !isNaN(Number(t.actualMat))) { m = Math.min(act, Math.max(0, Number(t.actualMat))); return { has: true, lab: lab, mat: mat, evL: lab * f, evM: mat * f, acL: act - m, acM: m, assumed: false }; }
+    if (mat <= 0.004) return { has: true, lab: lab, mat: mat, evL: lab * f, evM: 0, acL: act, acM: 0, assumed: false };
+    if (lab <= 0.004) return { has: true, lab: lab, mat: mat, evL: 0, evM: mat * f, acL: 0, acM: act, assumed: false };
+    m = Math.min(act, mat * f); return { has: true, lab: lab, mat: mat, evL: lab * f, evM: mat * f, acL: act - m, acM: m, assumed: true };
+  };
   function rollup(p, day) {
     schedule(p);
     var T = p.tasks, frac = function (t) { return !t.es ? 0 : day < t.es ? 0 : day >= t.ef ? 1 : workBetween(t.es, day) / Math.max(1, workBetween(t.es, t.ef)); };
@@ -225,8 +235,14 @@
     var durW = T.reduce(function (a, t) { return a + Math.max(1, t.dur); }, 0) || 1;
     var CPI = ACin > 0 ? r2(EVin / ACin) : null, SPI = PV > 0 ? r2(EV / PV) : null;   // CPI from real (entered) costs only
     // 📐 as the server (plan.mjs): the forecast uses the exact CPI, and is spent so far + the work left at today's cost efficiency (= what was spent once it is all done)
-    var CPIx = ACin > 0 && EVin > 0 ? EVin / ACin : null, EAC = CPIx ? r2(AC + Math.max(0, BAC - EV) / CPIx) : null;
-    return { BAC: BAC, PV: PV, EV: EV, AC: AC, ACin: ACin, ACest: ACest, CPI: CPI, CPIx: CPIx, SPI: SPI, EAC: EAC,
+    var CPIx = ACin > 0 && EVin > 0 ? EVin / ACin : null;
+    // 👷🧱 labour and services apart from materials (as the server, plan.mjs): each with its own CPI; the work left is forecast at each one's own efficiency
+    var Sx = { bL: 0, bM: 0, eL: 0, eM: 0, eLi: 0, eMi: 0, aLi: 0, aMi: 0, nAss: 0, ass: 0 };
+    T.forEach(function (t) { var x = actualSplit(p, t); Sx.bL += x.lab; Sx.bM += x.mat; Sx.eL += x.evL; Sx.eM += x.evM; if (x.has) { Sx.eLi += x.evL; Sx.eMi += x.evM; Sx.aLi += x.acL; Sx.aMi += x.acM; if (x.assumed) { Sx.nAss++; Sx.ass += x.acM; } } });
+    var kL = Sx.aLi > 0 && Sx.eLi > 0 ? Sx.eLi / Sx.aLi : null, kM = Sx.aMi > 0 && Sx.eMi > 0 ? Sx.eMi / Sx.aMi : null;
+    var split = { lab: { bac: r2(Sx.bL), ev: r2(Sx.eL), evIn: r2(Sx.eLi), acIn: r2(Sx.aLi), CPI: kL ? r2(kL) : null }, mat: { bac: r2(Sx.bM), ev: r2(Sx.eM), evIn: r2(Sx.eMi), acIn: r2(Sx.aMi), CPI: kM ? r2(kM) : null }, assumedTasks: Sx.nAss, assumedMat: r2(Sx.ass) };
+    var EAC = CPIx ? r2(AC + Math.max(0, Sx.bL - Sx.eL) / (kL || 1) + Math.max(0, Sx.bM - Sx.eM) / (kM || 1)) : null;
+    return { BAC: BAC, PV: PV, EV: EV, AC: AC, ACin: ACin, ACest: ACest, CPI: CPI, CPIx: CPIx, SPI: SPI, EAC: EAC, split: split,
       start: T.reduce(function (m, t) { return !m || (t.es && t.es < m) ? t.es : m; }, ''), finish: T.reduce(function (m, t) { return t.ef > m ? t.ef : m; }, ''),
       done: T.filter(function (t) { return t.pct >= 100; }).length, total: T.length, late: T.filter(function (t) { return t.pct < 100 && t.ef && t.ef < day; }),
       pct: T.length ? Math.round(T.reduce(function (a, t) { return a + Math.max(1, t.dur) * (t.pct || 0); }, 0) / durW) : 0 };
@@ -4174,7 +4190,7 @@
     B.innerHTML = '<div class="card bd"><div class="card-h"><h2>💰 Costing</h2><span class="sp"></span>' +
       (ro ? '' : '<button class="btn btn-sm" id="bdUndo" type="button"' + (bdUndo().length ? ' title="Undo: ' + esc(bdUndo()[bdUndo().length - 1].label) + '"' : ' disabled title="Nothing to undo"') + '>↶ Undo' + (bdUndo().length ? ' (' + bdUndo().length + ')' : '') + '</button>') + '<button class="btn btn-sm" id="bdCsv" type="button">⬇ Costing (CSV)</button><button class="btn btn-sm btn-gold" id="bdSet" type="button"' + (ro ? ' disabled' : '') + '>✍ Approve the budget</button></div>' +
       '<p class="muted" style="margin:-4px 0 12px">Work out the costing from the plan: every task\'s cost (quantity × rate) and the signed-off Bill of Materials, by phase and by category, plus contingency for known risks and a management reserve for the unknown. Change a quantity, rate or category below and the totals follow.</p>' +
-      '<div class="bd-tiles">' + tile(money(K.base), 'Base cost (BAC)', 'dark') + tile(money(K.cont), 'Contingency ' + b.cont + '%') + tile(money(K.res), 'Management reserve ' + b.res + '%') + tile(money(K.total), 'Total budget', 'gold') +
+      '<div class="bd-tiles">' + tile(money(K.base), 'Base cost (BAC)', 'dark') + tile(money(K.cont), 'Contingency ' + b.cont + '%') + tile(money(K.res), 'Management reserve ' + b.res + '%') + tile(money(K.total), 'Project budget', 'gold') +
         (b.ctype === 'internal' ? tile('🏢 Internal', 'No client price or invoicing: judged on staying within the budget') : tile(money(K.price), b.margin ? 'Client price (+' + b.margin + '% margin)' : 'Client price') + tile(money(K.inc), 'Including GST ' + b.gst + '%')) + '</div>' +
       '<div class="bd-cfg">' + pct('cont', 'Contingency', 'For identified risks (known unknowns). PMBOK: part of the cost baseline.') + pct('res', 'Management reserve', 'For unforeseen work (unknown unknowns). Held by the sponsor, outside the cost baseline.') +
         (b.ctype === 'internal' ? '' : pct('margin', 'Margin', 'Mark-up on the total budget, for the price to the client.') + pct('gst', 'GST / tax', 'Tax on the client price (10% GST in Australia, 8% SST in Malaysia).')) +
@@ -4216,7 +4232,7 @@
     $('#bdCsv').onclick = function () {
       var q = function (v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
       var L = [['#', 'Task', 'Phase', 'Category', 'Qty', 'Unit', 'Rate', 'Cost']].concat(K.tasks.map(function (x) { return [x.n, x.t.name, x.ph, x.cat, x.t.qty || 0, x.t.unit || '', x.t.rate || 0, x.c]; }))
-        .concat([[], ['', 'Base cost (BAC)', '', '', '', '', '', K.base], ['', 'Contingency ' + b.cont + '%', '', '', '', '', '', K.cont], ['', 'Management reserve ' + b.res + '%', '', '', '', '', '', K.res], ['', 'Total budget', '', '', '', '', '', K.total], ['', 'Client price', '', '', '', '', '', K.price], ['', 'GST ' + b.gst + '%', '', '', '', '', '', K.gst], ['', 'Including GST', '', '', '', '', '', K.inc]]);
+        .concat([[], ['', 'Base cost (BAC)', '', '', '', '', '', K.base], ['', 'Contingency ' + b.cont + '%', '', '', '', '', '', K.cont], ['', 'Management reserve ' + b.res + '%', '', '', '', '', '', K.res], ['', 'Project budget', '', '', '', '', '', K.total], ['', 'Client price', '', '', '', '', '', K.price], ['', 'GST ' + b.gst + '%', '', '', '', '', '', K.gst], ['', 'Including GST', '', '', '', '', '', K.inc]]);
       M.report.save(new Blob(['﻿' + L.map(function (r) { return r.map(q).join(','); }).join('\r\n')], { type: 'text/csv' }), ((S.job.ref || 'Project') + '-Costing.csv').replace(/[^\w.-]+/g, '-')); };
   }
 
@@ -4441,12 +4457,12 @@
       { t: 'chart', kind: 'gantt', title: 'Gantt chart', data: ganttOf(p, R, F.crit, F.rows, F.t0), max: 40, maxH: 175 },
       { t: 'table', title: 'Milestones', head: ['#', 'Milestone', 'Date', 'Status'], rows: miles, widths: [0.5, 4, 1.8, 1] },
       { t: 'table', title: 'Critical path', head: ['#', 'Task', 'Start', 'Finish', 'Duration'], rows: critRows, widths: [0.5, 3.6, 1.6, 1.6, 1.3], note: 'Any delay to a task on the critical path delays the finish date of ' + fd(R.finish) + '.', empty: 'No critical path yet: link the tasks.' }], '', 'Phases, Gantt chart, milestones and critical path'));
-    X.push(ch('Budget and cost', 'Cost', [{ t: 'stats', items: [{ v: money(K.base), l: 'Base cost (BAC)' }, { v: money(K.cont), l: 'Contingency ' + K.cfg.cont + '%' }, { v: money(K.res), l: 'Reserve ' + K.cfg.res + '%' }, { v: money(c.budget || K.total), l: c.budget ? 'Approved budget' : 'Total budget' }] },
+    X.push(ch('Budget and cost', 'Cost', [{ t: 'stats', items: [{ v: money(K.base), l: 'Base cost (BAC)' }, { v: money(K.cont), l: 'Contingency ' + K.cfg.cont + '%' }, { v: money(K.res), l: 'Reserve ' + K.cfg.res + '%' }, { v: money(c.budget || K.total), l: c.budget ? 'Approved budget' : 'Project budget' }] },
       T(S2.cost_management || 'The budget is built from each task\'s quantity and rate, with contingency for identified risks and a management reserve held by the sponsor.'),
       K.byPh.length ? { t: 'chart', kind: 'bar', title: 'Cost by phase', data: { items: K.byPh.map(function (x) { return { l: x.name, v: x.v, t: money(x.v) }; }) }, maxH: 70 } : null,
       K.base ? { t: 'chart', kind: 'donut', title: 'Cost by category', data: { items: BCATS.map(function (k) { return { l: k, v: K.byCat[k], t: money(K.byCat[k]) }; }), center: money(K.base), centerLabel: 'Base cost' }, maxH: 72 } : null,
       K.months.length ? { t: 'chart', kind: 'scurve', title: 'Cash flow by month (S-curve)', data: { points: K.months.map(function (x) { return { l: mon(x.m), v: x.v }; }) }, maxH: 80 } : null,
-      { t: 'table', title: 'Budget summary', head: ['Item', 'Amount'], rows: [['Base cost (BAC)', { t: money(K.base), right: true }], ['Contingency (' + K.cfg.cont + '%)', { t: money(K.cont), right: true }], ['Management reserve (' + K.cfg.res + '%)', { t: money(K.res), right: true }], [{ t: 'Total budget', total: true }, { t: money(K.total), total: true, right: true }]].concat(K.cfg.margin ? [['Client price (+' + K.cfg.margin + '% margin)', { t: money(K.price), right: true }]] : []).concat(K.cfg.gst ? [['Including GST ' + K.cfg.gst + '%', { t: money(K.inc), right: true }]] : []), widths: [3, 1.4] }], '', 'Cost baseline, contingency and cash flow'));
+      { t: 'table', title: 'Budget summary', head: ['Item', 'Amount'], rows: [['Base cost (BAC)', { t: money(K.base), right: true }], ['Contingency (' + K.cfg.cont + '%)', { t: money(K.cont), right: true }], ['Management reserve (' + K.cfg.res + '%)', { t: money(K.res), right: true }], [{ t: 'Project budget', total: true }, { t: money(K.total), total: true, right: true }]].concat(K.cfg.margin ? [['Client price (+' + K.cfg.margin + '% margin)', { t: money(K.price), right: true }]] : []).concat(K.cfg.gst ? [['Including GST ' + K.cfg.gst + '%', { t: money(K.inc), right: true }]] : []), widths: [3, 1.4] }], '', 'Cost baseline, contingency and cash flow'));
     X.push(ch('Resources and roles', 'People', [T(S2.resource_management), (S2.roles || []).length ? { t: 'table', title: 'Roles and responsibilities', head: ['Role', 'Responsibilities'], rows: S2.roles.map(function (r) { return [{ t: r.role, b: true }, r.responsibilities]; }), widths: [1.4, 4], noTr: nl } : null,
       { t: 'table', title: 'Project team and stakeholders (RACI)', head: ['Name', 'Role', 'RACI'], rows: shStakeRows(p), widths: [2, 3, 0.7], note: 'R = Responsible · A = Accountable · C = Consulted · I = Informed', empty: 'No team members or stakeholders recorded yet.' }], '', 'Who does the work and who decides'));
     X.push(ch('Stakeholders and communications', 'Engagement', [T(S2.stakeholder_engagement), (S2.communication_plan || []).length ? { t: 'table', title: 'Communication plan', head: ['Audience', 'What', 'How', 'When', 'Owner'], rows: S2.communication_plan.map(function (r) { return [{ t: r.audience, b: true }, r.information, r.method, r.frequency, r.owner]; }), widths: [1.4, 2.6, 1.2, 1, 1.1], noTr: nl } : null,
@@ -6839,18 +6855,19 @@
     var p = S.plan, t0 = today(), soon = toS(new Date(toD(t0).getTime() + 6 * 864e5));
     var coming = ordered().filter(function (r) { return r.t.pct < 100 && r.t.es <= soon && r.t.ef >= t0; });
     var evm = [['Budget at completion (BAC)', money(R.BAC), 'Total planned cost'], ['Planned value (PV)', money(R.PV), 'Work that should be done by today'], ['Earned value (EV)', money(R.EV), 'Work actually done (cost × % complete)'],
-      ['Actual cost (AC)', money(R.AC), 'Money spent so far (Actual $ column)'], ['Schedule performance (SPI = EV ÷ PV)', R.SPI == null ? '—' : R.SPI, R.SPI == null ? '' : R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule'],
+      ['Actual cost (AC)', money(R.AC), 'Money spent so far (Actual $ column)'], ['Schedule performance (SPI = EV ÷ PV)', R.SPI == null ? '—' : R.SPI, p.tasks.length && p.tasks.every(function (t) { return (t.pct || 0) >= 100; }) ? 'always 1.00 once all the work is done: for a finished project the time index below is used instead' : R.SPI == null ? '' : R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule'],
       // 🏁 finished: SPI always ends at 1.00, so add the time index (planned ÷ actual duration, as Champ judges it)
     ].concat((function () { var W2 = p.tasks.filter(function (t) { return t.dur > 0; }); if (!W2.length || !p.tasks.every(function (t) { return (t.pct || 0) >= 100; })) return [];
       var fin = W2.reduce(function (m, t) { var d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish, bf = (p.baseline && p.baseline.finish) || R.finish;
       var pl = Math.max(1, workBetween(p.start, bf)), ac = Math.max(1, workBetween(p.start, fin)), ti = Math.round(pl / ac * 100) / 100, late = Math.round((toD(fin) - toD(bf)) / 864e5);
       return [['🏁 Time index (finished: planned ÷ actual duration)', ti.toFixed(2), late > 0 ? 'finished ' + late + ' days late (' + ac + ' working days against ' + pl + ' planned)' : 'finished on time']]; })()).concat([
-      ['Cost performance (CPI = EV ÷ AC)', R.CPI == null ? '—' : R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget'], ['Forecast final cost (EAC = AC + (BAC − EV) ÷ CPI)', R.EAC == null ? '—' : money(R.EAC), '']]);
+      ['Cost performance (CPI = EV ÷ AC)', R.CPI == null ? '—' : R.CPI, R.CPI == null ? '' : R.CPI >= 1 ? 'on or under budget' : 'over budget'], ['Forecast final cost (EAC)', R.EAC == null ? '—' : money(R.EAC), R.EAC == null ? '' : p.tasks.every(function (t) { return (t.pct || 0) >= 100; }) ? 'all the work is done: what was spent' : 'spent + labour and services left ÷ their CPI + materials left ÷ theirs']]);
     $('#planBody').innerHTML = setupSteps(p, R) + estBanner(p) + '<div class="grid two"><div class="grid" style="align-content:start">' +
       '<div class="card"><h2>Time & cost (earned value)</h2><div class="table-wrap"><table><tbody>' + evm.map(function (e) { return '<tr><td>' + esc(e[0]) + '<br><small class="muted">' + esc(e[2]) + '</small></td><td class="num" style="font-weight:800;font-size:15px">' + esc(e[1]) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
         (S.expensesEx ? '<p class="muted" style="margin:10px 0 0">Expenses recorded for this job in Accounts: <b>' + money(S.expensesEx) + '</b> ex GST.</p>' : '') +
         (p.baseline ? '<p class="muted" style="margin:6px 0 0">Baseline set ' + esc(M.day(p.baseline.at)) + ': finish ' + esc(prettyY(p.baseline.finish)) + ', budget ' + money(p.baseline.BAC) + '. Now: finish ' + esc(prettyY(R.finish)) + ' (' + esc(varDays(p.baseline.finish, R.finish)) + ').</p>' : '<p class="muted" style="margin:6px 0 0">Tip: press “Set baseline” once the plan is agreed, so you can track slippage.</p>') + '</div>' +
       '<div class="card"><h2>This week <small class="muted" style="font-weight:500">(' + esc(pretty(t0)) + ' to ' + esc(pretty(soon)) + ')</small></h2>' + (coming.length ? '<div class="list">' + coming.map(function (r) { return '<div class="item"><div><b>#' + r.n + ' ' + esc(r.t.name) + '</b><br><small>' + esc(pretty(r.t.es)) + ' – ' + esc(pretty(r.t.ef)) + (r.t.res && r.t.res.length ? ' · ' + esc(resText(r.t)) : '') + '</small></div><b>' + r.t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing scheduled this week.</div>') + '</div></div>' +
+      cpiCard(p, R) +
       '<div class="grid" style="align-content:start">' +
       materialsCard() +
       '<div class="card"><h2>Late tasks</h2>' + (R.late.length ? '<div class="list">' + R.late.map(function (t) { return '<div class="item"><div><b>' + esc(t.name) + '</b><br><small style="color:#C2410C">was due ' + esc(pretty(t.ef)) + '</small></div><b>' + t.pct + '%</b></div>'; }).join('') + '</div>' : '<div class="empty">Nothing late. 👍</div>') + '</div>' +
@@ -6860,6 +6877,30 @@
       '</div></div>';
     ordWire($('#planBody'));
     estWire($('#planBody'));
+    $('#planBody').querySelectorAll('[data-amat]').forEach(function (i) { i.onchange = function () { var t = p.tasks.filter(function (x) { return x.id === i.getAttribute('data-amat'); })[0]; if (!t) return;
+      var v = i.value.trim(); if (v === '') delete t.actualMat; else t.actualMat = Math.max(0, Math.round((+v || 0) * 100) / 100); dirty('materials actual for ' + t.name); setTimeout(function () { overview(rollup(S.plan, today())); }, 0); }; });
+  }
+  // 🔎 why CPI is what it is: labour and services vs materials (BOM), the time index for a finished project, and the tasks that overran most
+  function cpiCard(p, R) {
+    if (R.CPI == null || !R.split) return '';
+    var S2 = R.split, done = p.tasks.length && p.tasks.every(function (t) { return (t.pct || 0) >= 100; }), ro = !!(M.me && (M.me.scope ? (M.me.mods || {}).projects !== 'edit' : !M.me.owner && (M.me.mods || {}).projects !== 'edit'));
+    var ti = null; if (done) { var W2 = p.tasks.filter(function (t) { return t.dur > 0; }), fin = W2.reduce(function (m, t) { var d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish, bf = (p.baseline && p.baseline.finish) || R.finish;
+      ti = Math.round(Math.max(1, workBetween(p.start, bf)) / Math.max(1, workBetween(p.start, fin)) * 100) / 100; }
+    var c = function (x) { return x == null ? '<span class="muted">no actual yet</span>' : '<b style="color:' + (x < 1 ? '#B42318' : '#1D7A43') + '">' + x.toFixed(2) + '</b>'; };
+    var line = function (l, X) { return '<tr><td>' + l + '</td><td class="num">' + money(X.bac) + '</td><td class="num">' + money(X.evIn) + '</td><td class="num">' + money(X.acIn) + '</td><td class="num">' + money(X.acIn - X.evIn) + '</td><td class="num">' + c(X.CPI) + '</td></tr>'; };
+    var why = [];
+    if (S2.mat.CPI != null && S2.mat.CPI < 0.97 && !S2.assumedTasks) why.push('🧱 Materials cost ' + Math.round((1 / S2.mat.CPI - 1) * 100) + '% more than the BOM price: a price rise or more used than planned (check the supplier invoices: price × quantity).');
+    if (S2.assumedTasks) why.push('🧱 ' + S2.assumedTasks + ' task' + (S2.assumedTasks === 1 ? ' has' : 's have') + ' labour and materials but only one actual: Champ takes the materials at the BOM price (' + money(S2.assumedMat) + ') and puts the rest down to labour. Enter "of which materials" below where you know it.');
+    if (S2.lab.CPI != null && S2.lab.CPI < 0.97) why.push('👷 Labour and services cost ' + Math.round((1 / S2.lab.CPI - 1) * 100) + '% more than the work done was worth' + (ti != null && ti < 0.95 ? ': the project took ' + Math.round((1 / ti - 1) * 100) + '% longer than planned (time index ' + ti.toFixed(2) + '), and time-paid costs (people, supervision, hire) rise with every extra day, the likely cause.' : ': more hours, higher rates, or rework.'));
+    if (!why.length) why.push('Both labour and materials are on or under budget.');
+    var O = p.tasks.map(function (t, i) { var x = actualSplit(p, t); if (!x.has) return null; return { t: t, n: i + 1, x: x, over: x.acL + x.acM - x.evL - x.evM }; }).filter(function (r) { return r && Math.abs(r.over) >= 0.5; }).sort(function (a, b) { return b.over - a.over; }).slice(0, 8);
+    return '<div class="card cpi-card"><h2>🔎 Why CPI is ' + R.CPI.toFixed(2) + '</h2><p class="muted" style="margin:-4px 0 8px">CPI = the value of the work done ÷ what it cost, from the tasks with an actual entered. Labour and materials behave differently, so here they are apart.' + (done ? ' The project is finished: its schedule is judged by the <b>time index ' + (ti != null ? ti.toFixed(2) : '–') + '</b> (planned ÷ actual duration), not SPI, which always ends at 1.00.' : '') + '</p>' +
+      '<div class="table-wrap"><table><thead><tr><th></th><th class="num">Budget</th><th class="num">Earned</th><th class="num">Spent</th><th class="num">Over (+) / under</th><th class="num">CPI</th></tr></thead><tbody>' +
+      line('👷 Labour and services', S2.lab) + line('🧱 Materials (BOM)', S2.mat) + '</tbody></table></div><ul class="cpi-why">' + why.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul>' +
+      (O.length ? '<h3 style="margin:12px 0 6px;font-size:14px">Where it went: the tasks furthest over</h3><div class="table-wrap"><table><thead><tr><th>Task</th><th class="num">Labour budget</th><th class="num">Materials budget</th><th class="num">Earned</th><th class="num">Spent</th><th class="num">Over</th><th class="num">Of which materials</th></tr></thead><tbody>' +
+        O.map(function (r) { var mixed = r.x.lab > 0.004 && r.x.mat > 0.004;
+          return '<tr><td>#' + r.n + ' ' + esc(r.t.name) + '</td><td class="num">' + money(r.x.lab) + '</td><td class="num">' + money(r.x.mat) + '</td><td class="num">' + money(r.x.evL + r.x.evM) + '</td><td class="num">' + money(r.x.acL + r.x.acM) + '</td><td class="num"><b style="color:' + (r.over > 0 ? '#B42318' : '#1D7A43') + '">' + money(r.over) + '</b></td>' +
+            '<td class="num">' + (mixed ? (ro ? (r.t.actualMat != null ? money(r.t.actualMat) : '<span class="muted">BOM price (assumed)</span>') : '<input type="number" min="0" step="0.01" class="cpi-in" data-amat="' + esc(r.t.id) + '" value="' + (r.t.actualMat != null ? r.t.actualMat : '') + '" placeholder="' + Math.round(r.x.acM) + ' (BOM price)">') : '<span class="muted">' + (r.x.mat > 0.004 ? 'all materials' : 'no materials') + '</span>') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '') + '</div>';
   }
 
   // 🛒 things to order (from the BOM, no Inventory): what, how many, order by when; tick when ordered; a note on what is happening (Enter or 💾 saves)

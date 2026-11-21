@@ -169,11 +169,18 @@ export function rollup(plan, today) {
   const durW = tasks.reduce((a, t) => a + Math.max(1, t.dur), 0);
   const pct = tasks.length ? Math.round(tasks.reduce((a, t) => a + Math.max(1, t.dur) * (t.pct || 0), 0) / durW) : 0;
   // 📐 CPI is shown to 2 decimals, but the forecast uses the exact ratio (a rounded CPI moves a $2.6M forecast by ~$10K).
-  //    Forecast cost (EAC) = spent so far + the work still to do at today's cost efficiency: AC + (BAC − EV) ÷ CPI.
-  //    It equals BAC ÷ CPI when every task has its actual cost, and it is exactly what was spent once all the work is done.
+  //    Forecast cost (EAC) = spent so far + the labour still to do ÷ labour CPI + the materials still to buy ÷ materials CPI.
+  //    It is exactly what was spent once all the work is done.
   const CPIx = ACin > 0 && EVin > 0 ? EVin / ACin : null, CPI = ACin > 0 ? r2(EVin / ACin) : null, SPI = PV > 0 ? r2(EV / PV) : null;
-  const EAC = CPIx ? r2(AC + Math.max(0, BAC - EV) / CPIx) : null;
-  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
+  // 👷🧱 labour and materials apart (as EVM by cost element): a CPI for each from the actuals entered, and the forecast for the work left
+  //   at each one's own efficiency, so a labour overrun does not inflate materials bought at a fixed BOM price (and the reverse)
+  const S = { bL: 0, bM: 0, eL: 0, eM: 0, eLi: 0, eMi: 0, aLi: 0, aMi: 0, nAss: 0, ass: 0 };
+  for (const t of tasks) { const x = actualSplit(t, plan); S.bL += x.lab; S.bM += x.mat; S.eL += x.evL; S.eM += x.evM; if (x.has) { S.eLi += x.evL; S.eMi += x.evM; S.aLi += x.acL; S.aMi += x.acM; if (x.assumed) { S.nAss++; S.ass += x.acM; } } }
+  const kL = S.aLi > 0 && S.eLi > 0 ? S.eLi / S.aLi : null, kM = S.aMi > 0 && S.eMi > 0 ? S.eMi / S.aMi : null;
+  const split = { lab: { bac: r2(S.bL), ev: r2(S.eL), evIn: r2(S.eLi), acIn: r2(S.aLi), CPI: kL ? r2(kL) : null }, mat: { bac: r2(S.bM), ev: r2(S.eM), evIn: r2(S.eMi), acIn: r2(S.aMi), CPI: kM ? r2(kM) : null },
+    assumedTasks: S.nAss, assumedMat: r2(S.ass) };
+  const EAC = CPIx ? r2(AC + Math.max(0, S.bL - S.eL) / (kL || 1) + Math.max(0, S.bM - S.eM) / (kM || 1)) : null;
+  return { BAC, PV, EV, AC, ACin, EVin, ACest, CPI, CPIx, SPI, EAC, split, VAC: EAC != null ? r2(BAC - EAC) : null, complete: BAC > 0 && EV >= BAC - 0.005, bomLoose: r2(Number(plan.bomLoose) || 0), start: begin, finish, done, total: tasks.length, late, pct,
     openRisks: (plan.risks || []).filter((r) => r.status !== 'Closed').length, highRisks: (plan.risks || []).filter((r) => r.status !== 'Closed' && r.p * r.i >= 12).length,
     openIssues: (plan.issues || []).filter((x) => x.status !== 'Resolved').length };
 }
@@ -220,7 +227,7 @@ function clean(p, core) {
     const o = {
     id: uid(t.id, 't'), name: str(t.name, 160) || 'New task', phase: phIds.has(t.phase) ? t.phase : phases[0].id,
     dur: int(t.dur, 0, 365, 1), snet: ymdOk(t.snet), fixed: !!(t.fixed && ymdOk(t.snet)), pred: (Array.isArray(t.pred) ? t.pred : []).map((x) => str(x, 20)).slice(0, 10),
-    item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
+    item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, actualMat: t.actualMat === '' || t.actualMat == null || isNaN(Number(t.actualMat)) ? undefined : Math.max(0, r2(t.actualMat)), crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
     // v64: the Board: owner (a stakeholder), priority and story points
     desc: str(t.desc, 300), owner: str(t.owner, 80),
     // the Product Backlog (Kanban or Scrum): where the item is ('', 'board' or a sprint id), when it was pulled in and when it was done
@@ -341,6 +348,62 @@ export function matsOf(t) { return Array.isArray(t.mats) && t.mats.length ? t.ma
 // 👷 labour (hours, days, weeks, shifts) is people × quantity per person × rate; materials and lots are quantity × rate
 export const LABU = /^(h|hr|hrs|hours?|d|days?|wk|weeks?|shifts?)$/i;
 export function crewOf(t) { return LABU.test(String(t.unit || '').trim()) ? Math.max(1, Math.min(500, Math.round(Number(t.crew) || 0)) || 1) : 1; }
+// 👷🧱 a task's cost in two parts: labour (people × quantity × rate) and materials (its material lines and BOM items)
+//    The task's own quantity × rate goes by its Costing category (as the Costing tab): Materials counts as materials, anything else
+//    (labour, subcontractors, equipment, travel, other) as labour and services; its material lines and BOM items are always materials.
+export function catOf(plan, t) {
+  const o = (((plan || {}).budgetCfg || {}).cat || {})[t.id]; if (o) return o;
+  const u = String(t.unit || '').toLowerCase().trim(), n = String(t.name || '').toLowerCase(), who = String(t.resource || '').toLowerCase();
+  if (/travel|flight|airfare|accommodation|hotel|per diem|visa/.test(n)) return 'Travel and expenses';
+  if (/hire|equipment|scaffold|crane|plant|licen[cs]e|software|laptop/.test(n)) return 'Equipment';
+  if (/subcontract|sub-contract|\bsub\b/.test(who + ' ' + n) || u === 'sub') return 'Subcontractors';
+  if (/^(h|hr|hrs|hour|hours|d|day|days|wk|week|weeks|person|ppl|fte|shift)s?$/.test(u)) return 'Labour';
+  if ((t.mats || []).length || /^(m|m2|m²|m3|m³|lm|kg|t|l|item|items|ea|each|sheet|bag|box|roll|unit|pc|pcs)$/.test(u)) return 'Materials';
+  return 'Other';
+}
+export function taskSplit(t, plan) { const m = matsOf(t), own = m.length && m[0].legacy ? 0 : r2(crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0)), all = taskCost(t);
+  const lab = catOf(plan, t) === 'Materials' ? 0 : own; return { lab, mat: r2(all - lab) }; }
+// what the work done on a task cost, labour and materials apart: a materials actual entered is used; a task that is all labour or all
+//   materials takes the whole actual; a mixed task with no materials actual assumes its materials cost the BOM price (flagged: assumed)
+export function actualSplit(t, plan) {
+  const { lab, mat } = taskSplit(t, plan), f = Math.min(100, Number(t.pct) || 0) / 100, act = Number(t.actual) || 0;
+  if (!(act > 0)) return { has: false, lab, mat, evL: lab * f, evM: mat * f, acL: lab * f, acM: mat * f, assumed: false };
+  if (t.actualMat != null && !isNaN(Number(t.actualMat))) { const m = Math.min(act, Math.max(0, Number(t.actualMat))); return { has: true, lab, mat, evL: lab * f, evM: mat * f, acL: act - m, acM: m, assumed: false }; }
+  if (mat <= 0.004) return { has: true, lab, mat, evL: lab * f, evM: 0, acL: act, acM: 0, assumed: false };
+  if (lab <= 0.004) return { has: true, lab, mat, evL: 0, evM: mat * f, acL: 0, acM: act, assumed: false };
+  const m = Math.min(act, mat * f); return { has: true, lab, mat, evL: lab * f, evM: mat * f, acL: act - m, acM: m, assumed: true };
+}
+// 🧾 the argument behind a profit or loss, in plain words with the project's own figures (Finance and the CEO view show the same sentence)
+const $m = (n) => (n < 0 ? '−$' : '$') + Math.abs(Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export function profitWhy(MO, C, cost, complete) {
+  if (!MO || isInternal(MO)) return MO ? 'an internal project: no profit or loss, it is judged on its budget (' + $m(MO.budget) + ') against the ' + (complete ? 'final' : 'forecast') + ' cost ' + $m(cost) + '.' : '';
+  if (!(C > 0)) return 'no contract value or quote yet, so no profit can be worked out.';
+  const P = profitAt(MO, C, cost), t = MO.ctype || 'fixed', word = complete ? 'final cost' : 'forecast cost', R = MO.contA + MO.resA, mg = C - MO.budget, overB = cost - MO.base;
+  if (t === 'cost') return 'cost-plus: the client pays the ' + word + ' ' + $m(cost) + ' + the ' + MO.margin + '% fee, so the fee ' + $m(P.profit) + ' is the profit. Overruns are paid by the client; unused reserves are never billed.';
+  if (t === 'target' || t === 'gmp') { const tgt = C / (1 + MO.margin / 100), fee = C - tgt, d = tgt - cost;
+    return 'target cost ' + $m(tgt) + ', fee ' + $m(fee) + '. The ' + word + ' ' + $m(cost) + ' is ' + $m(Math.abs(d)) + (d >= 0 ? ' under the target: your ' + MO.gain + '% share of that saving is ' + $m(P.yourSaving) + ', so profit = fee + ' + $m(P.yourSaving) + ' = ' + $m(P.profit) + '.'
+      : ' over the target: ' + (t === 'gmp' ? 'the client never pays above ' + $m(C) + ', so the overrun comes off the fee: profit = ' + $m(P.profit) + '.' : 'your ' + MO.pain + '% share of it is ' + $m(P.yourOverrun) + ', so profit = fee − ' + $m(P.yourOverrun) + ' = ' + $m(P.profit) + '.')); }
+  const s = 'fixed price: the client pays ' + $m(C) + ' whatever it costs; the ' + word + ' is ' + $m(cost) + '. ';
+  if (cost <= MO.budget) return s + 'That is within the project budget (' + $m(MO.budget) + '), so the profit is the margin ' + $m(mg) + ' + the contingency and reserve not needed ' + $m(MO.budget - cost) + ' = ' + $m(P.profit) + '.';
+  return s + 'It ran ' + $m(overB) + ' over the base cost (BAC ' + $m(MO.base) + '): the contingency and reserve (' + $m(R) + ') absorbed ' + $m(Math.min(R, overB)) +
+    (mg > 0.5 ? ', the margin (' + $m(mg) + ') absorbed ' + $m(Math.min(mg, Math.max(0, overB - R))) : ', and there was no margin to absorb more') + (P.profit < 0 ? '; the ' + $m(-P.profit) + ' left over is the loss.' : '; ' + $m(P.profit) + ' of the margin is left as profit.');
+}
+// 🏁 a finished project's time index: planned ÷ actual duration in working days (SPI always ends at 1.00 once the work is done,
+//   so it says nothing about lateness; the time index does). Start = the plan start; planned finish = the baseline (else the plan's finish).
+export function timeIndex(plan, R) {
+  if (!R || !R.complete) return null;
+  const A = allDays(plan), fin = (plan.tasks || []).filter((t) => t.dur > 0).reduce((m, t) => { const d = /^\d{4}-\d{2}-\d{2}$/.test(t.doneAt || '') ? t.doneAt : t.ef || ''; return d > m ? d : m; }, '') || R.finish;
+  const start = plan.start || R.start, baseFin = (plan.baseline && plan.baseline.finish) || R.finish; if (!start || !baseFin || !fin) return null;
+  const planned = Math.max(1, workBetween(start, baseFin, A)), actual = Math.max(1, workBetween(start, fin, A));
+  return { index: r2(planned / actual), planned, actual, lateDays: Math.max(0, actual - planned), finish: fin, baselineFinish: baseFin };
+}
+// 🔎 where the money went: the tasks whose actual cost is furthest above the value of the work done, labour and materials apart
+export function overruns(plan, n = 10) {
+  return (plan.tasks || []).map((t, i) => { const x = actualSplit(t, plan); if (!x.has) return null;
+    return { id: t.id, n: i + 1, name: t.name, pct: Number(t.pct) || 0, lab: r2(x.lab), mat: r2(x.mat), earned: r2(x.evL + x.evM), actual: r2(x.acL + x.acM), over: r2(x.acL + x.acM - x.evL - x.evM),
+      labOver: r2(x.acL - x.evL), matOver: r2(x.acM - x.evM), assumed: x.assumed, matEntered: t.actualMat != null }; })
+    .filter((x) => x && Math.abs(x.over) >= 0.5).sort((a, b) => b.over - a.over).slice(0, n);
+}
 export function taskCost(t) {
   const m = matsOf(t), own = m.length && m[0].legacy ? 0 : crewOf(t) * (Number(t.qty) || 0) * (Number(t.rate) || 0);
   return r2(own + m.reduce((a, x) => a + (Number(x.qty) || 0) * (Number(x.price) || 0), 0) + (Number(t.bomx) || 0));   // v93: + BOM materials not in stock

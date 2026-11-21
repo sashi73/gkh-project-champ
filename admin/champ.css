@@ -1119,3 +1119,21 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .fin-ct{font-size:16px;line-height:1.3;display:inline-block}
 .fin-panel .ceo-t.fin-wide{grid-column:1/-1}.fin-wide .fin-scn{flex-direction:row;gap:40px;flex-wrap:wrap}
 .fin-pill.grey{background:#eeece6;color:#5b5747}
+/* 🧮 Finance: the contract value build-up and the CPI basis */
+.fin-panel .ceo-t.fin-w2{grid-column:span 2}
+@media (max-width:760px){.fin-panel .ceo-t.fin-w2{grid-column:1/-1}}
+.fin-build{border-collapse:collapse;width:100%;margin:6px 0 4px;font-size:13px}
+.fin-build td{padding:3px 0;border-bottom:1px solid #f0ece2}.fin-build td.num{text-align:right;font-variant-numeric:tabular-nums}
+.fin-build tr.tot td{font-weight:700;border-top:1px solid #d9d2bf}.fin-build tr.big td{font-size:17px}
+.ceo-t .fin-build b{display:inline;font-size:inherit;margin:0}
+.fin-cpi{border-collapse:collapse;width:100%;margin:8px 0 6px;font-size:12.5px}
+.fin-cpi th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#7a7566;text-align:left;padding:3px 6px 3px 0}
+.fin-cpi td{padding:4px 6px 4px 0;border-top:1px solid #f0ece2;vertical-align:top}.fin-cpi .num{text-align:right;font-variant-numeric:tabular-nums}
+.ceo-t .fin-cpi b{display:inline;font-size:inherit;margin:0}
+.cpi-why{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.5}.cpi-why li{margin:3px 0}
+.cpi-in{width:130px;padding:5px 8px;border:1px solid var(--line,#D6D1C4);border-radius:8px;font:inherit;text-align:right}
+.cpi-card{grid-column:1/-1}
+.fin-why{display:inline;font-size:inherit;margin:0;color:#3d3a30}
+.ceo-info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:4px;padding:0;border:1px solid #c9a227;border-radius:50%;background:#fffaf0;color:#8a6a10;font-size:11px;font-weight:700;line-height:1;cursor:pointer;vertical-align:middle}
+.ceo-info:hover{background:#c9a227;color:#fff}
+.cpi-why{margin-top:12px!important}

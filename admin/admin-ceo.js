@@ -37,12 +37,13 @@
     if (!L.length) return '<tr><td colspan="9" class="muted" style="text-align:center;padding:18px">No projects here.</td></tr>';
     return L.map(function (r) {
       var over = r.vac < -0.5 ? '<b class="ceo-neg">' + money(r.vac) + '</b><small>' + (r.over ? Math.round(r.over) + '% over' : 'over') + '</small>' : r.budget ? '<span class="ceo-pos">' + (r.vac > 0.5 ? money(r.vac) + ' under' : 'on budget') + '</span>' : '<span class="muted">–</span>';
-      var prof = r.internal ? '<span class="muted">🏢 internal</span><small class="' + (r.vac < -0.5 ? 'ceo-neg' : 'ceo-pos') + '">' + (r.vac < -0.5 ? 'over budget' : 'within budget') + '</small>' : r.profit == null ? '<span class="muted" title="No quote yet">no price</span>' : '<b class="' + (r.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + plw(r.profit) + '</b><small>' + r.margin + '%' + (r.quoted ? ' · quoted' : '') + (r.ctype && r.ctype !== 'fixed' ? ' · ' + ({ cost: 'cost-plus', target: 'target cost', gmp: 'GMP' })[r.ctype] : '') + '</small>';
+      var info = r.pfWhy ? ' <button type="button" class="ceo-info" data-why="' + esc(r.pfWhy) + '" data-wn="' + esc(r.name) + '" title="The basis for this figure">ⓘ</button>' : '';
+      var prof = (r.internal ? '<span class="muted">🏢 internal</span><small class="' + (r.vac < -0.5 ? 'ceo-neg' : 'ceo-pos') + '">' + (r.vac < -0.5 ? 'over budget' : 'within budget') + '</small>' : r.profit == null ? '<span class="muted" title="No quote yet">no price</span>' : '<b class="' + (r.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + plw(r.profit) + '</b><small>' + r.margin + '%' + (r.quoted ? ' · quoted' : '') + (r.ctype && r.ctype !== 'fixed' ? ' · ' + ({ cost: 'cost-plus', target: 'target cost', gmp: 'GMP' })[r.ctype] : '') + '</small>') + info;
       return '<tr data-core="' + esc(r.core) + '" class="h-' + r.health + '"><td class="ceo-dot"><i class="' + r.health + '"></i>' + TR[r.trend || ''] + '</td>' +
         '<td><b>' + esc(r.name) + '</b><small>' + esc([r.program, r.client].filter(Boolean).join(' · ')) + '</small>' + (r.why && r.health !== 'green' ? '<small class="ceo-why">' + esc(r.why) + '</small>' : '') + '</td>' +
         '<td class="hide-sm"><small>' + esc(r.phase || '') + '</small></td>' +
         '<td><span class="ceo-bar"><i style="width:' + Math.min(100, r.pct) + '%"></i></span><small>' + r.pct + '%</small></td>' +
-        '<td>' + idx(r.SPI) + '</td><td>' + idx(r.CPI) + '</td><td class="nowrap">' + finish(r) + '</td>' +
+        '<td>' + (r.timeIdx != null ? idx(r.timeIdx) + '<small title="A finished project: the time index (planned ÷ actual duration) is shown instead of SPI, which is always 1.00 once all the work is done">time index</small>' : idx(r.SPI)) + '</td><td>' + idx(r.CPI) + '</td><td class="nowrap">' + finish(r) + '</td>' +
         '<td class="num">' + over + '</td><td class="num">' + prof + '</td></tr>';
     }).join('');
   }
@@ -67,7 +68,7 @@
     var r = '<div class="ceo-ts">' + tile('Contract value', money(A.contract), A.quoted ? '+ ' + money(A.quoted) + ' quoted, not yet accepted' : 'accepted quotes') +
       tile('Invoiced', money(A.invoiced), A.price ? Math.round(A.invoiced / A.price * 100) + '% of the price' : '') + tile('Received', money(A.received), A.invoiced ? Math.round(A.received / A.invoiced * 100) + '% of invoiced' : '') +
       tile('Still owed', money(A.owed), A.overdue ? '<b class="ceo-neg">' + money(A.overdue) + ' overdue</b>' : 'none overdue', A.overdue ? 'neg' : '') +
-      tile('Forecast profit or loss', A.profit == null ? '–' : plw(A.profit), A.margin == null ? 'no prices yet' : A.margin + '% of the contract value' + (A.unpriced ? ' · priced projects only: ' + A.unpriced + ' project' + (A.unpriced === 1 ? '' : 's') + ' not priced yet' : '') + (A.internal ? ' · ' + A.internal + ' internal project' + (A.internal === 1 ? '' : 's') + ' (no profit, judged on budget)' : ''), A.profit != null && A.profit < 0 ? 'neg' : 'pos') + '</div>';
+      tile('Forecast profit or loss', (A.profit == null ? '–' : plw(A.profit)) + ' <button type="button" class="ceo-info" data-wn="Forecast profit or loss" data-why="' + esc('The sum of each priced project\'s profit or loss (' + (A.priced || 0) + ' project' + (A.priced === 1 ? '' : 's') + ' with a contract value or an open quote), each worked out by its own contract type: fixed price = contract − forecast cost (unused contingency and reserve are profit); cost-plus = the fee on the actual cost; target cost and GMP = the fee ± the shared saving or overrun. Forecast cost = spent + the labour left ÷ its CPI + the materials left ÷ theirs (what was spent, once finished). ' + (A.unpriced ? A.unpriced + ' project(s) without a price are not included. ' : '') + (A.internal ? A.internal + ' internal project(s) have no profit and are judged on budget. ' : '') + 'Open a project\'s ⓘ for its own working.') + '" title="How this is worked out">ⓘ</button>', A.margin == null ? 'no prices yet' : A.margin + '% of the contract value' + (A.unpriced ? ' · priced projects only: ' + A.unpriced + ' project' + (A.unpriced === 1 ? '' : 's') + ' not priced yet' : '') + (A.internal ? ' · ' + A.internal + ' internal project' + (A.internal === 1 ? '' : 's') + ' (no profit, judged on budget)' : ''), A.profit != null && A.profit < 0 ? 'neg' : 'pos') + '</div>';
     return '<h4 class="ceo-sub">Cost</h4>' + c + '<h4 class="ceo-sub">Revenue and profit</h4>' + r;
   }
   function pill(c, n, w) { return n ? '<span class="ceo-pill ' + c + '" title="' + n + ' project' + (n === 1 ? '' : 's') + ' ' + w + '">' + n + '</span>' : ''; }
@@ -204,5 +205,8 @@
     var cash = D.cash ? ' ' + D.cash.word + '.' : '';
     M.champGreet(hi + (nm ? ', ' + nm : '') + '. Here is the CEO view: ' + state + '.' + cash + ' Ask me anything about the projects, or tap Get Champ\'s briefing for the full picture.');
   }
+  // ⓘ the basis behind a figure: a click opens it (the same sentence Finance shows), so no number looks like a guess
+  document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('.ceo-info'); if (!b) return; e.preventDefault(); e.stopPropagation();
+    M.modal('<h2>ⓘ ' + esc(b.getAttribute('data-wn') || 'The basis') + '</h2><p style="font-size:14px;line-height:1.6">' + esc(b.getAttribute('data-why') || '') + '</p><div class="actions"><button class="btn" data-close type="button">Close</button></div>'); }, true);
   M.addView('ceo', 'CEO view', function () { M.view().innerHTML = '<div class="empty">Gathering every project…</div>'; return load().then(function () { draw(''); setTimeout(greet, 600); }); }, 'ceo');
 })();

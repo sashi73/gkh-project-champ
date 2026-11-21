@@ -28,6 +28,19 @@
   function pl(n, small) { var p = n >= 0; return '<b class="' + (p ? 'fin-pos' : 'ceo-neg') + (small ? ' fin-plsm' : '') + '">' + (p ? 'Profit ' : 'Loss ') + money2(Math.abs(n)) + '</b>'; }
   function pct(n, of) { return of ? (Math.round(n / of * 1000) / 10) + '%' : ''; }
   // 📜 who keeps the unused contingency and reserve, in words, with this project's figures
+  // 🧾 the argument behind the profit or loss, in plain words with this project's figures
+  function plWhy(K) {
+    var t = K.ctype || 'fixed', cost = K.eac, word = K.complete ? 'final cost' : 'forecast cost', R = K.contingency + K.reserve, mg = K.contract - K.budget, overB = cost - K.base;
+    if (t === 'cost') return 'cost-plus: the client pays the ' + word + ' ' + money2(cost) + ' + the ' + (K.marginCfg || 0) + '% fee, so the fee ' + money2(K.profit) + ' is the profit. Overruns are paid by the client; unused reserves are never billed.';
+    if (t === 'target' || t === 'gmp') { var tgt = K.contract / (1 + (K.marginCfg || 0) / 100), fee = K.contract - tgt, d = tgt - cost;
+      return 'target cost ' + money2(tgt) + ', fee ' + money2(fee) + '. The ' + word + ' ' + money2(cost) + ' is ' + money2(Math.abs(d)) + (d >= 0 ? ' under the target: your ' + K.gain + '% share of that saving is ' + money2(K.yourSaving) + ', so profit = fee + ' + money2(K.yourSaving) + '.' :
+        ' over the target: ' + (t === 'gmp' ? 'the client never pays above ' + money2(K.contract) + ', so the whole overrun comes off the fee: ' : 'your ' + K.pain + '% share of it is ' + money2(K.yourOverrun) + ': ') + 'profit = fee − ' + money2(t === 'gmp' ? -d : K.yourOverrun) + '.'); }
+    var s = 'fixed price: the client pays ' + money2(K.contract) + ' whatever it costs; the ' + word + ' is ' + money2(cost) + '. ';
+    if (cost <= K.budget) return s + 'That is within the project budget, so the profit is the margin ' + money2(mg) + ' + the contingency and reserve not needed ' + money2(K.budget - cost) + ' = ' + money2(K.profit) + '.';
+    return s + 'It ran ' + money2(overB) + ' over the base cost (BAC ' + money2(K.base) + '): the contingency and reserve (' + money2(R) + ') absorbed ' + money2(Math.min(R, overB)) +
+      (mg > 0.5 ? ', the margin (' + money2(mg) + ') absorbed ' + money2(Math.min(mg, Math.max(0, overB - R))) : ', and there was no margin to absorb more') +
+      (K.profit < 0 ? '; the ' + money2(-K.profit) + ' left over is the loss.' : '; ' + money2(K.profit) + ' of the margin is left as profit.');
+  }
   function plHow(K) { var c = K.complete ? 'final cost' : 'forecast cost', t = K.ctype || 'fixed';
     if (t === 'cost') return 'the ' + (K.marginCfg || 0) + '% fee on the ' + c;
     if (t === 'target' || t === 'gmp') return 'the fee' + (K.yourSaving ? ' + your share of the saving' : K.yourOverrun ? ' − ' + (t === 'gmp' ? 'the overrun above the guaranteed maximum' : 'your share of the overrun') : '') + ' (' + c + ' against the target)';
@@ -58,22 +71,40 @@
     var K = B.money; if (!K) return '';
     if (K.internal) return internalPanel(B, K, function (l, v, s2, c) { return '<div class="ceo-t ' + (c || '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s2 ? '<span>' + s2 + '</span>' : '') + '</div>'; });
     var t = function (l, v, s2, c) { return '<div class="ceo-t ' + (c || '') + '"><small>' + l + '</small><b>' + v + '</b>' + (s2 ? '<span>' + s2 + '</span>' : '') + '</div>'; };
+    // 🧮 how the contract value is built, line by line (as the Costing tab): BAC + contingency + reserve = project budget, + margin = contract value, + GST
+    var row = function (l, v, cls) { return '<tr' + (cls ? ' class="' + cls + '"' : '') + '><td>' + l + '</td><td class="num">' + v + '</td></tr>'; };
+    var mg = K.contractFrom === 'quote' || K.contractFrom === 'typed' ? null : K.suggested - K.budget;
+    var build = '<table class="fin-build">' + row('Base cost (BAC)', money2(K.base)) + row('+ Contingency ' + K.contPct + '%', money2(K.contingency)) + row('+ Management reserve ' + K.resPct + '%', money2(K.reserve)) +
+      row('= Project budget', money2(K.budget), 'tot') +
+      (K.ctype === 'cost' ? row('+ Fee ' + (K.marginCfg || 0) + '% (on the actual cost)', money2(K.budget * (K.marginCfg || 0) / 100)) : row('+ Margin ' + (K.marginCfg || 0) + '%', money2(K.contractBase - K.budget))) +
+      (K.variations ? row('= Original contract value', money2(K.contractBase)) + row('+ Approved variations', money2(K.variations)) : '') +
+      row('= Contract value', '<b>' + money2(K.contract) + '</b>', 'tot big') + row('+ GST ' + K.gstPct + '%', money2(K.gst)) + row('= Contract value with GST', money2(K.withGst), 'tot') + '</table>' +
+      '<span>' + (K.contractFrom === 'quote' ? 'From the accepted quote.' : K.contractFrom === 'estimate' ? '<span class="fin-amb fin-sb">The client price from Costing, not confirmed yet.</span>' : 'Confirmed.') +
+      (K.approved ? ' Charter approved budget ' + money2(K.approved) + ' · <b class="' + (K.approved - K.budget >= 0 ? 'fin-pos' : 'ceo-neg') + '">' + (K.approved - K.budget >= 0 ? money2(K.approved - K.budget) + ' to spare' : money2(K.budget - K.approved) + ' over') + '</b>.' : '') +
+      (K.variationsWaiting ? ' <span class="fin-amb fin-sb">' + money2(K.variationsWaiting) + ' in variations waiting.</span>' : '') + ' <a class="fin-lnk" href="#plan/' + encodeURIComponent(B.core) + '/budget">Costing →</a></span>';
     return '<div class="fin-panel"><div class="ceo-ts">' +
-      t('Contract value', K.contract ? money2(K.contract) : '<span class="muted">not set</span>', K.contract ? (K.variations ? 'original ' + money2(K.contractBase) + ' + variations ' + money2(K.variations) + '<br>' : '') + (K.contractFrom === 'quote' ? 'from the accepted quote' : K.contractFrom === 'estimate' ? '<span class="fin-amb fin-sb">client price from Costing, not confirmed</span>' : 'confirmed · before GST') + (K.variationsWaiting ? '<br><span class="fin-amb fin-sb">' + money2(K.variationsWaiting) + ' in variations waiting</span>' : '') : 'Costing suggests ' + money(K.suggested)) +
+      '<div class="ceo-t fin-w2"><small>How the contract value is built</small>' + build + '</div>' +
       t('Contract type', '<span class="fin-ct">📜 ' + esc(K.ctypeName || 'Fixed price (lump sum)') + '</span>', ctWho(K) + '<br><a class="fin-lnk" href="#plan/' + encodeURIComponent(B.core) + '/budget">Set it on the Costing tab →</a>') +
-      t('GST ' + K.gstPct + '%', money2(K.gst), 'contract with GST: ' + money2(K.withGst)) +
-      t('Project budget', money2(K.budget), 'Base cost (BAC) ' + money2(K.base) + ' + contingency ' + money2(K.contingency) + ' + reserve ' + money2(K.reserve) + (K.approved ? '<br>Charter approved budget ' + money2(K.approved) + ' · <b class="' + (K.approved - K.budget >= 0 ? 'fin-pos' : 'ceo-neg') + '">' + (K.approved - K.budget >= 0 ? money2(K.approved - K.budget) + ' to spare' : money2(K.budget - K.approved) + ' over') + '</b>' : '') + '<br><a class="fin-lnk" href="#plan/' + encodeURIComponent(B.core) + '/budget" onclick="event.stopPropagation()">See the plan\'s Costing for details →</a>') +
-      t('Reserves', money2(K.contingency + K.reserve), 'contingency ' + K.contPct + '% ' + money2(K.contingency) + ' · management ' + K.resPct + '% ' + money2(K.reserve)) +
-      t('Forecast cost', money2(K.eac), 'spent so far ' + money2(K.spent) + (K.CPI ? ' · <b class="' + (K.CPI < 1 ? 'ceo-neg' : 'fin-pos') + '">CPI ' + K.CPI.toFixed(2) + '</b>' : '') + (K.SPI ? ' · <b class="' + (K.SPI < 1 ? 'ceo-neg' : 'fin-pos') + '">SPI ' + K.SPI.toFixed(2) + '</b>' : '') +
-        '<br>' + (K.complete ? 'The work is all done, so the forecast cost is the final cost: what was spent.' : K.CPI ? 'Spent ' + money2(K.spent) + ' + work still to do ' + money2(K.toDo) + ' ÷ CPI ' + K.CPI.toFixed(2) + (K.loose ? ' + BOM lines not linked to a task ' + money2(K.loose) : '') + '.' : 'No actual costs entered yet, so the forecast is the base cost.') +
-        (K.CPI ? ' CPI ' + K.CPI.toFixed(2) + ': each $1 spent has done $' + K.CPI.toFixed(2) + ' of work (' + money2(K.earned) + ' earned for ' + money2(K.spent) + ' spent).' : '') +
-        (K.SPI ? ' SPI: ' + Math.round(K.SPI * 100) + '% of the work planned by today is done' + (K.SPI < 1 ? ' (behind schedule).' : '.') : ''), K.CPI && K.CPI < 0.9 ? 'neg' : '') +
-      t(K.ctype === 'cost' ? 'Fee (margin)' : 'Margin', K.margin == null ? '–' : K.ctype === 'cost' ? K.marginCfg + '%' : money2(K.margin), K.margin == null ? 'set the contract value' : K.ctype === 'cost' ? 'of the actual cost: forecast fee ' + money2(K.profit) : K.marginPct + '% · contract − budget', K.margin != null && K.margin < 0 ? 'neg' : 'pos') +
-      t(K.complete ? 'Profit or loss (final)' : 'Forecast profit or loss', K.profit == null ? '–' : pl(K.profit), K.profit == null ? 'set the contract value' : pct(K.profit, K.contract) + ' of the contract · ' + plHow(K), K.profit != null && K.profit < 0 ? 'neg' : 'pos') +
-      t('Profit scenarios', K.profit == null ? '–' : '<span class="fin-scn" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:12px 48px">' +
+      t(K.complete ? 'Profit or loss (final)' : 'Forecast profit or loss', K.profit == null ? '–' : pl(K.profit), K.profit == null ? 'set the contract value' : pct(K.profit, K.contract) + ' of the contract · ' + plHow(K) + '<br><b class="fin-why">Why:</b> ' + esc(K.why || plWhy(K)), K.profit != null && K.profit < 0 ? 'neg' : 'pos') +
+      '<div class="ceo-t fin-w2' + (K.CPI && K.CPI < 0.9 ? ' neg' : '') + '"><small>Forecast cost</small><b>' + money2(K.eac) + '</b><span>spent so far ' + money2(K.spent) +
+        (K.CPI ? ' · <b class="' + (K.CPI < 1 ? 'ceo-neg' : 'fin-pos') + '">CPI ' + K.CPI.toFixed(2) + '</b>' : '') + (K.complete && K.timeIdx ? ' · <b class="' + (K.timeIdx.index < 1 ? 'ceo-neg' : 'fin-pos') + '">time index ' + K.timeIdx.index.toFixed(2) + '</b>' : K.SPI ? ' · <b class="' + (K.SPI < 1 ? 'ceo-neg' : 'fin-pos') + '">SPI ' + K.SPI.toFixed(2) + '</b>' : '') + '</span>' +
+        (K.complete && K.timeIdx ? '<span>🏁 Finished: using the <b>time index</b> (planned ÷ actual duration) rather than SPI, which is always 1.00 once all the work is done. ' + K.timeIdx.actual + ' working days against ' + K.timeIdx.planned + ' planned' + (K.timeIdx.lateDays ? ', ' + K.timeIdx.lateDays + ' days late' : ', on time') + '.</span>' : '') + cpiBasis(K, B.core) + '</div>' +
+      t('Profit scenarios', K.profit == null ? '–' : '<span class="fin-scn" style="display:flex;flex-direction:column;gap:8px">' +
           '<span><small>1 · contingency and management reserve both used</small>' + pl(K.profit1, true) + '</span><span><small>2 · management reserve not used</small>' + pl(K.profit2, true) + '</span></span>',
-        K.profit == null ? 'set the contract value' : K.complete ? 'The project is complete: the cost is final, so these match the profit above.' : 'The reserves pay for overruns, so each scenario costs the forecast cost or what that scenario allows, whichever is higher, and the profit follows the contract type.', 'fin-wide') +
+        K.profit == null ? 'set the contract value' : K.complete ? 'The project is complete: the cost is final, so these match the profit above.' : 'The reserves pay for overruns, so each scenario costs the forecast cost or what that scenario allows, whichever is higher, and the profit follows the contract type.', 'fin-w2') +
       '</div></div>';
+  }
+  // 🔎 on what basis CPI is what it is: labour and services vs materials (BOM), and the forecast built from each
+  function cpiBasis(K, core) {
+    var S = K.split; if (!S || !K.CPI) return '<span>' + (K.complete ? 'The work is all done: this is the final cost.' : 'No actual costs entered yet, so the forecast is the base cost.') + '</span>';
+    var c = function (x) { return x == null ? '<span class="muted">no actual yet</span>' : '<b class="' + (x < 1 ? 'ceo-neg' : 'fin-pos') + '">' + x.toFixed(2) + '</b>'; };
+    var line = function (l, X, note) { return '<tr><td>' + l + '</td><td class="num">' + money2(X.bac) + '</td><td class="num">' + money2(X.evIn) + '</td><td class="num">' + money2(X.acIn) + '</td><td class="num">' + c(X.CPI) + '</td><td>' + (note || '') + '</td></tr>'; };
+    var matNote = S.assumedTasks ? '<span class="fin-amb">' + S.assumedTasks + ' mixed task' + (S.assumedTasks === 1 ? '' : 's') + ': materials taken at the BOM price (' + money2(S.assumedMat) + ') as no materials actual was entered</span>' : S.mat.acIn ? 'from the materials actuals entered' : '';
+    return '<table class="fin-cpi"><thead><tr><th>Where</th><th class="num">Budget</th><th class="num">Earned</th><th class="num">Spent</th><th class="num">CPI</th><th></th></tr></thead><tbody>' +
+      line('👷 Labour and services', S.lab, '') + line('🧱 Materials (BOM)', S.mat, matNote) + '</tbody></table>' +
+      '<span>' + (K.complete ? 'All the work is done, so the forecast is the final cost: what was spent.' : 'Forecast = spent ' + money2(K.spent) + ' + the labour and services still to do at their CPI + the materials still to buy at theirs' + (K.loose ? ' + BOM lines not linked to a task ' + money2(K.loose) : '') + '. A labour overrun does not raise the price of materials bought at the BOM price, unless a materials actual says so.') +
+      (K.timeIdx && K.timeIdx.index < 0.95 && S.lab.CPI != null && S.lab.CPI < 1 ? ' ⏱ The work took ' + Math.round((1 / K.timeIdx.index - 1) * 100) + '% longer than planned (time index ' + K.timeIdx.index.toFixed(2) + '): labour, supervision and hire are paid by time, so a late finish raises them; that is the likely cause of the labour overrun.' : '') +
+      ' <a class="fin-lnk" href="#plan/' + encodeURIComponent(core) + '/overview">Which tasks: the Overview tab →</a></span>';
   }
   function wb(S) { return '<span class="fin-wbw" title="Work done ' + S.workPct + '% · billed ' + S.billedPct + '%"><span class="fin-wb"><i style="width:' + S.workPct + '%"></i><em style="width:' + S.billedPct + '%"></em></span><small>' + S.workPct + '% done · ' + S.billedPct + '% billed</small></span>'; }
   // 📍 every project: where it stands on billing, worst first
