@@ -241,4 +241,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 230 | 1.0.230| 2026-11-22 01:16| gantt3| `a822878` | Gantt: ▦ Columns to hide grid columns, chart follows the bars as you scroll down, BOM rows take their actual cost from the BOM and price cha |
 | 231 | 1.0.231| 2026-11-22 01:25| bomcc| `a40ffc3` | BOM / BOQ: named Bill of Materials and Quantities, every version also as a PDF, sign-off and price changes go through change control (unless |
 | 232 | 1.0.232| 2026-11-22 01:30| evmfix| `1bb2ae8` | EVM panel shows what SPI and CPI are made of; money typed above the BOM price counts in CPI (#93) |
-| 233 | 1.0.233 | 2026-11-22 01:36 | orders | _this commit_ | _see git log_ |
+| 233 | 1.0.233| 2026-11-22 01:36| orders| `6b8e6fa` | Order status replaces Things to order: status per order, price and lead-time changes re-baseline the BOM and the Gantt (critical path) throu |
+| 234 | 1.0.234 | 2026-11-22 01:40 | colbtn | _this commit_ | _see git log_ |

@@ -36,10 +36,12 @@
     var st = document.getElementById('champColHide'); if (!st) { st = document.createElement('style'); st.id = 'champColHide'; document.head.appendChild(st); }
     if (st.textContent !== css) st.textContent = css;
   }
+  function colLab() { var n = hidden().length; return '👁 Hide columns' + (n ? ' <span class="gcol-n">' + n + ' hidden</span>' : ''); }
   function colsBtn() {
     var row = document.querySelector('#gCard .pviews'); if (!row || row.querySelector('.gcol-btn')) return;
-    var n = hidden().length, w = document.createElement('div'); w.className = 'tabs'; w.style.margin = '0';
-    w.innerHTML = '<button type="button" class="tab gcol-btn" title="Hide or show the grid columns">▦ Columns' + (n ? ' <b>(' + n + ' hidden)</b>' : '') + '</button>'; row.appendChild(w);
+    var w = document.createElement('div'); w.className = 'tabs'; w.style.margin = '0';
+    w.innerHTML = '<button type="button" class="tab gcol-btn" title="Choose which grid columns to hide or show">' + colLab() + '</button>';
+    var wb = row.querySelector('.pv-wbs'); if (wb) row.insertBefore(w, wb); else row.appendChild(w);   // 🌳 WBS stays at the far right
     w.firstChild.onclick = function (e) { e.stopPropagation(); colsPanel(w.firstChild); };
   }
   function colsPanel(bt) {
@@ -47,13 +49,13 @@
     var H = hidden(), list = heads().map(function (th, i) { return { i: i, k: colKey(th), lab: (th.textContent || '').replace(/❄.*$/, '').trim(), shown: getComputedStyle(th).display !== 'none' }; })
       .filter(function (c) { return c.i > 2 && c.k && (c.shown || H.indexOf(c.k) >= 0); });
     var p = document.createElement('div'); p.id = 'gColPop'; p.className = 'fit-pop gcol-pop';
-    p.innerHTML = '<button type="button" class="fit-x" aria-label="Close">✕</button><b>▦ Columns</b><small class="muted">Untick what you do not need. #, ✓ and Task always stay. The views (Dates, $ Costs, All columns) still pick their own set; this hides more.</small>' +
+    p.innerHTML = '<button type="button" class="fit-x" aria-label="Close">✕</button><b>👁 Hide columns</b><small class="muted">Untick the columns to hide. #, ✓ and Task always stay. The views (Dates, $ Costs, All columns) still pick their own set; this hides more.</small>' +
       '<div class="gcol-list">' + list.map(function (c) { return '<label><input type="checkbox" data-ck="' + c.k.replace(/"/g, '') + '"' + (H.indexOf(c.k) < 0 ? ' checked' : '') + '> ' + c.lab.replace(/</g, '&lt;') + '</label>'; }).join('') + '</div>' +
       '<div class="fit-seg"><button type="button" data-all>Show all</button><button type="button" data-done class="on">Done</button></div>';
     document.body.appendChild(p);
     var r = bt.getBoundingClientRect(); p.style.top = Math.min(r.bottom + 6, window.innerHeight - p.offsetHeight - 8) + 'px'; p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left)) + 'px';
     var save = function () { var hs = []; p.querySelectorAll('[data-ck]').forEach(function (x) { if (!x.checked) hs.push(x.getAttribute('data-ck')); }); var keep = hidden().filter(function (k) { return !p.querySelector('[data-ck="' + k + '"]'); }); put(HK, JSON.stringify(keep.concat(hs))); hideCols();
-      var b2 = document.querySelector('.gcol-btn'), n = hidden().length; if (b2) b2.innerHTML = '▦ Columns' + (n ? ' <b>(' + n + ' hidden)</b>' : ''); };
+      var b2 = document.querySelector('.gcol-btn'); if (b2) b2.innerHTML = colLab(); };
     p.querySelectorAll('[data-ck]').forEach(function (x) { x.onchange = save; });
     p.querySelector('[data-all]').onclick = function () { put(HK, null); p.querySelectorAll('[data-ck]').forEach(function (x) { x.checked = true; }); save(); };
     p.querySelector('[data-done]').onclick = p.querySelector('.fit-x').onclick = function () { p.remove(); };
