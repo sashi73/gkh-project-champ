@@ -57,16 +57,19 @@ export async function draft({ core, note, only }, by) {
   const cat = [];   // GKH Project Champ: no Inventory
   const work = plan.tasks.filter((t) => t.dur > 0), want = new Set((Array.isArray(only) ? only : []).map(String));
   const tasks = plan.tasks.filter((t) => !/^🧱 Bill of Materials/.test(t.name)).map((t) => ({ n: plan.tasks.indexOf(t) + 1, task: P.scrubTask(t.name, job), days: t.dur, steps: (t.subs || []).slice(0, 8).map((s) => P.scrubTask(s.name, job)) })).filter((t) => !want.size || want.has(String(t.n)));
+  // 🏗 a BIM model behind the project: its quantity take-off (measured from the IFC) is the basis of the quantities
+  const take = await modelTakeoff(job);
   const system = 'You are an experienced estimator for a building and maintenance company in Sydney, NSW. Write ONE Bill of Materials (BOM) for the whole job: only the PHYSICAL materials, fixings and consumables that must be bought to build it ' +
     '(timber, concrete, fixings, sealants, paint, tiles, membranes, hardware and so on), with realistic quantities for the size of the job (from the description and scope), units and a typical Sydney trade price per unit in $ ex tax. ' +
     'Do NOT list services, fees, approvals, permits, reports, inspections, surveys, design, labour, plant or equipment hire, subcontract work, or anything for planning, quoting or admin tasks: those are not materials. ' +
     'Add a sensible waste allowance where it applies (e.g. 10% tiles, 5% timber) and say so in the note. Leave item empty. ' +
     'For items that usually take time to arrive (hardwood, stone benchtops, custom joinery, windows, switchboards, special orders), give lead_days (working days). ' +
     'Also say where the build (the physical work on site) starts: build_starts is the number n of the first task where work on site begins, e.g. site set-out and excavation, demolition or strip-out (not quoting, design, approvals or ordering). ' +
+    (take ? 'model_quantities is the quantity take-off measured from the project\'s BIM model (IFC), by element type with materials, counts, areas, volumes and lengths: base the quantities of the materials it covers on it (convert to what is bought, e.g. concrete m3, plasterboard sheets from wall areas both sides, studs from wall lengths, paint litres from areas; add waste), put "from the model: <type>" in the note, and add the materials the model does not show (fixings, sealants, consumables) as usual. ' : '') +
     'Plain words, no em dashes. ' + (note ? 'The estimator also says: ' + str(note, 300) + '. ' : '') +
     'JSON only: {"build_starts":1,"lines":[{"name":"","qty":0,"unit":"each","item":"","price":0,"lead_days":0,"note":""}],"caveat":"one sentence: what to double-check"}';
   const user = { project: P.privateOut(str(plan.name, 120), job), work: P.privateOut(str(job.service, 120), job), description: P.privateOut(P.jobScope(job), 1500),
-    in_scope: P.privateOut(str((plan.charter || {}).inScope, 2000), job), tasks };
+    in_scope: P.privateOut(str((plan.charter || {}).inScope, 2000), job), tasks, model_quantities: take || undefined };
   let o, used;
   try { ({ data: o, used } = await llmJson([{ role: 'system', content: system }, { role: 'user', content: JSON.stringify(user) }], { maxTokens: 6000, timeoutMs: 300000, temperature: 0.2 })); }
   catch (e) { return { error: e.message }; }
@@ -80,6 +83,20 @@ export async function draft({ core, note, only }, by) {
   if (!lines.length) return { error: 'The AI did not return any materials. Add a bit more to the scope and try again.' };
   const bs = byN(o.build_starts);
   return { lines, buildStart: bs ? bs.id : '', caveat: str(o.caveat, 300), tokens: used, today };
+}
+
+// 🏗 the model quantity take-off of the project's documents (a BIM model read into text when the project was set up, or added to Documents later)
+export function takeoffOf(text) {
+  const t = String(text || ''), i = t.indexOf('MODEL QUANTITY TAKE-OFF'); if (i < 0) return '';
+  const end = t.indexOf('\nNote: the quantities are what the model holds', i);
+  return t.slice(i, end > i ? end : i + 20000).slice(0, 14000);   // the take-off table and the materials, up to the closing note
+}
+async function modelTakeoff(job) {
+  try {
+    const PI = await import('./plan-intel.mjs'), docs = await PI.docList(job.core), ids = [job.docId].concat(docs.map((d) => d.id)).filter((v, i, L) => v && L.indexOf(v) === i).slice(0, 12), out = [];
+    for (const id of ids) { const x = await kv.get(`pdoctext:${job.core}:${id}`).catch(() => null); const s = takeoffOf(x && x.text); if (s) out.push(s); if (out.join('\n').length > 14000) break; }
+    return out.join('\n\n').slice(0, 16000);
+  } catch (e) { return ''; }
 }
 
 // ---------- reusable BOM templates ----------

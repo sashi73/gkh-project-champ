@@ -21,8 +21,10 @@ const dir = path.join(os.tmpdir(), 'champ-quick-blobs'); fs.rmSync(dir, { recurs
 const blobs = new BlobsServer({ directory: dir, token: 'tok', port: 0 }); const { port: bport } = await blobs.start();
 const ctxB64 = Buffer.from(JSON.stringify({ siteID: 'champ', token: 'tok', edgeURL: `http://localhost:${bport}`, uncachedEdgeURL: `http://localhost:${bport}`, apiURL: `http://localhost:${bport}` })).toString('base64');
 // a fake AI: always a short, valid answer
+const LLMSEEN = {};
 const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += d)); q.on('end', () => {
   const j = JSON.parse(b || '{}'), json = j.response_format && j.response_format.type === 'json_object';
+  { const sy0 = ((j.messages || []).find((m) => m.role === 'system') || {}).content || ''; if (/estimator/.test(sy0)) LLMSEEN.bom = j.messages; if (/project document analyst/.test(sy0)) LLMSEEN.ingest = j.messages; }
   s.setHeader('Content-Type', 'application/json');
   const sys = ((j.messages || []).find((m) => m.role === 'system') || {}).content || '';
   const ans = /briefing the CEO/.test(sys) ? { headline: 'Steady the portfolio.', faring: 'Quick check faring.', concerns: [{ title: 'Harbour bridge overspend', detail: 'Over budget.' }], positives: [{ title: 'Clinic fit-out under budget', detail: 'By $93k.' }], strategy: [{ title: 'Focus', detail: 'Back the winners.' }], focus: [{ title: 'Bill the done milestone', detail: 'Raise it.' }], cash_view: 'Cash dips then recovers.', conclusion: 'Steady and bill on time.', plan: [{ when: 'Next 2 weeks', what: 'Stabilise.' }], say: 'Quick check briefing.' }
@@ -396,6 +398,34 @@ try {
         for (const [k, a, b] of want) if (!(a == null && b == null) && !(typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) < 0.011)) bad.push(r.name + ': ' + k + ' CEO ' + a + ' / Finance ' + b);
       }
       ok('Consistency', '🔎 every project (' + rows.length + '): the plan, the CEO view and Finance show the same % complete, budget, forecast cost, CPI, SPI and profit', rows.length > 5 && !bad.length, bad.slice(0, 12).join(' | ')); }
+  // ---------- 🏗 BIM and construction files: an IFC model read into the take-off, the project started from it, the BOM drafted from the model ----------
+  { const vm = await import('node:vm'), ctxB = { window: {} }; vm.createContext(ctxB); vm.runInContext(fs.readFileSync(path.join(SITE, 'admin/champ-bim.js'), 'utf8'), ctxB); const CB = ctxB.window.ChampBIM;
+    const IFC = ["ISO-10303-21;", "HEADER;", "FILE_NAME('Tower.ifc','2026-11-01T10:00:00',('Arch'),('GKH'),'x','Autodesk Revit 2024 (ENU)','');", "FILE_SCHEMA(('IFC4'));", "ENDSEC;", "DATA;",
+      "#1=IFCPROJECT('0a',$,'Harbour Tower',$,$,'Harbour Tower Stage 1','Construction',(#5),#6);", "#7=IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);", "#8=IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);",
+      "#10=IFCSITE('0b',$,'Default',$,$,$,$,'Lot 12',.ELEMENT.,$,$,0.,$,#11);", "#11=IFCPOSTALADDRESS($,$,$,$,('1 Harbour St'),$,'Sydney','NSW','2000','Australia');", "#12=IFCBUILDING('0c',$,'Tower A',$,$,$,$,$,.ELEMENT.,$,$,$);",
+      "#20=IFCBUILDINGSTOREY('0d',$,'Level 1',$,$,$,$,$,.ELEMENT.,3500.);", "#21=IFCBUILDINGSTOREY('0e',$,'Ground',$,$,$,$,$,.ELEMENT.,0.);",
+      "#30=IFCWALL('w1',$,'Basic Wall:Generic - 200mm:1001',$,'Basic Wall:Generic - 200mm',$,$,'1001',.STANDARD.);", "#31=IFCWALL('w2',$,'Basic Wall:Generic - 200mm:1002',$,'Basic Wall:Generic - 200mm',$,$,'1002',.STANDARD.);",
+      "#32=IFCDOOR('d1',$,'Single-Flush:900x2100:2001',$,$,$,$,'2001',2100.,900.,.DOOR.,$,$);", "#33=IFCSLAB('s1',$,'Floor:Concrete 200:3001',$,$,$,$,'3001',.FLOOR.);",
+      "#40=IFCRELCONTAINEDINSPATIALSTRUCTURE('r1',$,$,$,(#30,#32),#21);", "#41=IFCRELCONTAINEDINSPATIALSTRUCTURE('r2',$,$,$,(#31,#33),#20);",
+      "#50=IFCELEMENTQUANTITY('q1',$,'Qto_WallBaseQuantities',$,$,(#51,#52,#53));", "#51=IFCQUANTITYAREA('NetSideArea',$,$,10.5,$);", "#52=IFCQUANTITYVOLUME('NetVolume',$,$,2.1,$);", "#53=IFCQUANTITYLENGTH('Length',$,$,5000.,$);",
+      "#54=IFCRELDEFINESBYPROPERTIES('r4',$,$,$,(#30,#31),#50);", "#58=IFCPROPERTYSET('p2',$,'Dimensions',$,(#59,#60));", "#59=IFCPROPERTYSINGLEVALUE('Area',$,IFCAREAMEASURE(120.),$);", "#60=IFCPROPERTYSINGLEVALUE('Volume',$,IFCVOLUMEMEASURE(24.),$);", "#61=IFCRELDEFINESBYPROPERTIES('r6',$,$,$,(#33),#58);",
+      "#70=IFCMATERIAL('Concrete - Cast-in-Place',$,$);", "#77=IFCRELASSOCIATESMATERIAL('r9',$,$,$,(#33),#70);", "#80=IFCWALLTYPE('t1',$,'Basic Wall:Generic - 200mm',$,$,$,$,$,$,.STANDARD.);", "#81=IFCRELDEFINESBYTYPE('r10',$,$,$,(#30,#31),#80);",
+      "#90=IFCCARTESIANPOINT((0.,0.,0.));", "ENDSEC;", "END-ISO-10303-21;"].join('\n');
+    const R = CB._ifc('Tower.ifc', IFC), G = R.S.groups, wall = G.find((g) => g.cls === 'IFCWALL'), slab = G.find((g) => g.cls === 'IFCSLAB');
+    ok('BIM', '🏗 an IFC model is read into levels, elements by type with their quantities (base quantities and Revit dimensions, millimetres converted) and materials', R.S.storeys.map((x) => x.name).join() === 'Ground,Level 1' && R.S.elements === 4 && wall && wall.n === 2 && wall.area === 21 && wall.len === 10 && slab && slab.area === 120 && slab.vol === 24 && slab.mats[0] === 'Concrete - Cast-in-Place' && /Sydney/.test(R.text) && /MODEL QUANTITY TAKE-OFF/.test(R.text) && /Work breakdown structure by level and trade/.test(R.text), JSON.stringify(G).slice(0, 400));
+    const tl = CB._timeliner('tl.csv', 'Name,Planned Start,Planned End,Task Type\nExcavation,01/12/2026,15/12/2026,Construct');
+    ok('BIM', '🗓 a Navisworks TimeLiner export is read as the schedule (tasks with their planned dates)', /CONSTRUCTION SCHEDULE/.test(tl || '') && /Excavation: planned 2026-12-01 to 2026-12-15/.test(tl || ''), String(tl).slice(0, 200));
+    ok('BIM', '📦 Revit, Navisworks and AutoCAD files are kept as originals with a tip on what to export', CB.keepOnly('A.rvt') && CB.keepOnly('b.NWD') && CB.keepOnly('c.dwg') && !CB.keepOnly('d.ifc') && /IFC/.test(CB.tip('A.rvt')) && /TimeLiner/.test(CB.tip('b.nwd')) && /PDF/.test(CB.tip('c.dwg')));
+    const st = await api('planDocStage', { name: 'Tower.ifc', pages: 0, text: R.text, kind: 'ifc' });
+    const nb = await api('planNewProject', { name: 'BIM tower', client: 'Harbour Co', program: 'Digital health', docSid: st.j.sid, bom: true }), bcore = nb.j.core;
+    await api('planSave', { core: bcore, plan: { name: 'BIM tower', start: d0(5), tasks: [{ id: 't1', name: 'Structure', dur: 10 }, { id: 't2', name: 'Walls', dur: 10, after: ['t1'] }] } });
+    const dl = await api('intelDmsList', { core: bcore }), bdoc = ((dl.j && dl.j.docs) || []).find((d) => d.name === 'Tower.ifc');
+    const bb = await (async () => { const id = 'qbom' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); await fetch(`${BASE}/.netlify/functions/planai-background`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1', cookie }, body: JSON.stringify({ id, mode: 'bom', core: bcore }) });
+      for (let i = 0; i < 40; i++) { const r = await api('planAiStatus', { id }); if (r.j.status === 'done' || r.j.status === 'error') return r.j; await sleep(250); } return {}; })();
+    const sentB = JSON.stringify(LLMSEEN.bom || []);
+    ok('BIM', '🧱 a project started from the model keeps it in Documents (Design) and the AI drafts the BOM / BOQ from the model take-off', st.status === 200 && nb.status === 200 && bdoc && bdoc.folder === 'design' && /model_quantities/.test(sentB) && /Basic Wall:Generic - 200mm/.test(sentB) && /from the model/.test(sentB), JSON.stringify([st.status, st.j.error, nb.status, bdoc && bdoc.folder, sentB.length, bb.status, bb.error]));
+  }
+
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {
