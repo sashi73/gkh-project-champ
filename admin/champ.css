@@ -641,7 +641,9 @@ table.gt td.acts{white-space:nowrap}
 /* v176: the full-screen Gantt editor */
 .gcard.gfull{position:fixed;inset:0;z-index:39;margin:0;border-radius:0;overflow:hidden;display:flex;flex-direction:column;padding:10px 14px!important}
 body.gantt-full{overflow:hidden}
-body.gantt-full #cgBtn,body.gantt-full #cgPanel,body.gantt-full #sideFold,body.gantt-full #champTheme{display:none!important}
+body.gantt-full #sideFold,body.gantt-full #champTheme{display:none!important}
+/* 🤖 Champ is there in full screen too, above the Gantt chart */
+body.gantt-full #cgBtn{z-index:62}body.gantt-full #cgPanel{z-index:63}
 /* full screen sits on layer 39: under dialogs (40), messages (50), pop-ups (70) and the undo bar (95), so they all show over it */
 body.gantt-full #resTip{z-index:45}
 .gfull .phint{display:none!important}
@@ -1159,3 +1161,7 @@ body.cg-dragging,body.cg-dragging *{user-select:none!important;-webkit-user-sele
 #cgBtn{user-select:none;-webkit-user-select:none}
 #cgPanel{overflow:hidden}
 #cgPanel .cgp-log{max-height:none;flex:1 1 auto;min-height:90px}#cgPanel>*:not(.cgp-log){flex:0 0 auto}
+/* 💲 recording progress and actual costs on the Gantt chart: only the columns needed, the two inputs highlighted */
+.gt.v-r input[data-k="actual"],.gt.v-r input[data-k="pct"]:not([disabled]){background:#fff7d6;border:2px solid #C9A227;border-radius:6px;font-weight:700}
+.gt input.act-in{width:118px;text-align:right;font-variant-numeric:tabular-nums}
+.rec-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;padding:10px 14px;border-radius:10px;background:#fff7d6;border:1px solid #e8cf7a;font-size:13.5px;line-height:1.45}
