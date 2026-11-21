@@ -51,15 +51,16 @@
     clearTimeout(toastT); toastT = setTimeout(function () { t.className = 'toast' + (err ? ' err' : ''); }, 3200);
   }
   function fail(e) { toast(e.message || String(e), true); }
-  function modal(html) { $('#modalBody').innerHTML = html; $('#modal').hidden = false; var f = $('#modalBody input,#modalBody button'); if (f) f.focus(); }
+  // 🪟 pop-ups stay open until you close them (✕, Cancel or Esc): a stray click outside no longer shuts them
+  function modal(html) { $('#modalBody').innerHTML = html; var c = $('#modal .modal-card'); if (c && !c.querySelector('.modal-x')) c.insertAdjacentHTML('afterbegin', '<button type="button" class="modal-x" data-close title="Close" aria-label="Close">✕</button>'); $('#modal').hidden = false; var f = $('#modalBody input,#modalBody button'); if (f) f.focus(); }
   function closeModal() { if ($('#modal').getAttribute('data-locked')) return; $('#modal').hidden = true; $('#modalBody').innerHTML = ''; }
-  $('#modal').addEventListener('click', function (e) { if (e.target.id === 'modal' || e.target.hasAttribute('data-close')) closeModal(); });
+  $('#modal').addEventListener('click', function (e) { var x = e.target.closest && e.target.closest('[data-close]'); if (x) closeModal(); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('#modal').hidden) closeModal(); });
   function confirmBox(title, text, okLabel, danger) {
     return new Promise(function (res) {
       modal('<h2>' + esc(title) + '</h2><p>' + text + '</p><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Cancel</button><button class="btn ' + (danger ? 'btn-danger' : 'btn-gold') + '" id="okBtn" type="button">' + esc(okLabel) + '</button></div>');
       $('#okBtn').onclick = function () { closeModal(); res(true); };
-      $('#modal').addEventListener('click', function once(e) { if (e.target.id === 'modal' || e.target.hasAttribute('data-close')) { $('#modal').removeEventListener('click', once); res(false); } });
+      $('#modal').addEventListener('click', function once(e) { if (e.target.closest && e.target.closest('[data-close]')) { $('#modal').removeEventListener('click', once); res(false); } });
     });
   }
 

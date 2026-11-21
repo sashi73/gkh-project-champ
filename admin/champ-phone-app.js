@@ -86,7 +86,7 @@
       '<p class="pa-shn">It goes into your calendar with an alert at that time. Your phone asks you to confirm.</p><button type="button" class="pa-shx">Cancel</button></div>';
     document.body.appendChild(o); requestAnimationFrame(function () { o.classList.add('on'); });
     var close = function () { o.classList.remove('on'); setTimeout(function () { o.remove(); }, 250); };
-    o.onclick = function (e) { if (e.target === o) close(); }; o.querySelector('.pa-shx').onclick = close;
+    o.querySelector('.pa-shx').onclick = close;
     o.querySelector('#paWhen').onfocus = function () { o.querySelector('input[value=c]').checked = true; };
     o.querySelectorAll('[data-app]').forEach(function (b) { b.onclick = function () {
       var v = (o.querySelector('input[name=paw]:checked') || {}).value, when = v === 'c' ? new Date(o.querySelector('#paWhen').value) : opts[+v][1];

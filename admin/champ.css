@@ -1100,3 +1100,4 @@ select.dm-dt{padding:2px 6px;font:800 11.5px inherit;cursor:pointer}
 .ceo-t span b{display:inline;font-size:inherit;line-height:inherit;margin:0}
 .fin-lnk{color:#8a6a10;font-weight:600;text-decoration:none}.fin-lnk:hover{text-decoration:underline}
 .fin-panel .ceo-ts{grid-template-columns:repeat(4,minmax(0,1fr))}@media (max-width:760px){.fin-panel .ceo-ts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fin-form label{justify-content:flex-end}.fin-form input,.fin-form select,.fin-form textarea{width:100%;box-sizing:border-box}

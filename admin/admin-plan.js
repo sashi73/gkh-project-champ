@@ -3299,7 +3299,7 @@
   }
   if (!window.__champStk) { window.__champStk = true;
     document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-stk]'); if (b && S.plan) { e.preventDefault(); e.stopPropagation(); stkPanel(b.getAttribute('data-stk'), b); return; }
-      var pop = document.getElementById('stkPop'); if (pop && !pop.contains(e.target) && !(e.target.closest && e.target.closest('.stk-at')) && !S.stkBig) pop.remove(); }, true);
+      /* the notes panel stays open until ✕ or Esc */ }, true);
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { var pop = document.getElementById('stkPop'); if (pop) pop.remove(); } });
     window.addEventListener('hashchange', function () { var pop = document.getElementById('stkPop'); if (pop && !/^#plan\//.test(location.hash)) pop.remove(); });
   }

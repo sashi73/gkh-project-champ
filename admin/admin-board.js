@@ -71,7 +71,7 @@
       M.modal('<h2>' + title + '</h2><form id="mvForm" class="mvform">' + body + '<div class="actions" style="justify-content:flex-end"><button class="btn" type="button" data-close>Cancel</button><button class="btn btn-gold" id="mvOk">' + okLabel + '</button></div></form>');
       var f = $('#mvForm'), done = false;
       f.onsubmit = function (e) { e.preventDefault(); done = true; var v = f; M.closeModal(); res(v); };
-      $('#modal').addEventListener('click', function once(e) { if (e.target.id === 'modal' || e.target.hasAttribute('data-close')) { $('#modal').removeEventListener('click', once); if (!done) res(null); } });
+      $('#modal').addEventListener('click', function once(e) { if (e.target.closest && e.target.closest('[data-close]')) { $('#modal').removeEventListener('click', once); if (!done) res(null); } });
     });
   }
   var chk = function (name, label, on) { return '<label class="mvchk"><input type="checkbox" name="' + name + '"' + (on ? ' checked' : '') + '> ' + label + '</label>'; };
