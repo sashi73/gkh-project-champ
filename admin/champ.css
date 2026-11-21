@@ -1332,3 +1332,11 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 .ord-row.os-delayed .ord-name{text-decoration:line-through wavy!important;text-decoration-color:#B42318!important;text-decoration-thickness:1.5px!important;color:#B42318}
 .ord-row.os-notordered .ord-name{color:inherit}
 .ord-st.st-intransit{background:#F4EBFF!important;color:#6941C6!important}.ord-st.st-ordered{background:#F2F1EC;color:#5b5547}
+
+/* 👁 the Hide columns panel: one tidy, left-aligned list */
+.gcol-pop{width:240px;text-align:left}
+.gcol-pop .gcol-list{display:grid!important;grid-template-columns:1fr 1fr;gap:2px 8px;margin:4px 0}
+.gcol-pop label.gcol-it{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;gap:8px!important;margin:0!important;padding:5px 6px!important;width:auto!important;text-align:left!important;font-size:13px!important;font-weight:600;text-transform:none!important;border-radius:6px;cursor:pointer;white-space:nowrap}
+.gcol-pop label.gcol-it input{flex:0 0 16px!important;width:16px!important;height:16px!important;margin:0!important;accent-color:#C9A227}
+.gcol-pop label.gcol-it span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.gcol-pop label.gcol-it:hover{background:rgba(201,162,39,.12)}
