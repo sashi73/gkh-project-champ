@@ -278,13 +278,25 @@ try {
     const t1 = (id, cost, pct, actual) => ({ id, phase: 'ph1', name: 'Work ' + id, dur: 10, pred: [], res: [], qty: 1, rate: cost, pct, status: pct >= 100 ? 'done' : pct ? 'doing' : 'todo', ...(actual ? { actual } : {}) });
     const cDone = await mk('Money done', [t1('k1', 2602995, 100, 2902473)]), cHalf = await mk('Money half', [t1('k1', 10000, 100, 11111), t1('k2', 10000, 0)]), cAppr = await mk('Money approved', [t1('k1', 2602995, 100, 2902473)], { budget: 2831648 });
     const KD = (await api('acctBillGet', { core: cDone })).j.bill.money, KH = (await api('acctBillGet', { core: cHalf })).j.bill.money;
-    ok('Finance', '💹 a finished project: forecast cost = what was spent, exactly (no rounded CPI); contract $2,993,444.25 → Profit $90,971.25; scenario 1 $0, scenario 2 $90,971.25',
-      KD.eac === 2902473 && KD.contract === 2993444.25 && KD.profit === 90971.25 && KD.profit1 === 0 && KD.profit2 === 90971.25 && KD.complete === true, JSON.stringify(KD));
+    ok('Finance', '💹 a finished project: forecast cost = what was spent, exactly (no rounded CPI); contract $2,993,444.25 → Profit $90,971.25; the cost is final, so both scenarios are $90,971.25 too',
+      KD.eac === 2902473 && KD.contract === 2993444.25 && KD.profit === 90971.25 && KD.profit1 === 90971.25 && KD.profit2 === 90971.25 && KD.complete === true, JSON.stringify(KD));
     ok('Finance', '💹 half done at CPI 0.90: forecast = spent $11,111 + work left $10,000 ÷ 0.90 = $22,222; Profit $778; scenarios $0 and $778 (the reserves absorb the overrun, no double counting)',
       KH.eac === 22222 && KH.budget === 23000 && KH.profit === 778 && KH.profit1 === 0 && KH.profit2 === 778 && KH.CPI === 0.9, JSON.stringify(KH));
     const CV = (await api('planCeoGet', { today: '2026-11-21' })).j, row = (c) => (CV.rows || CV.view && CV.view.rows || []).find((r) => r.core === c) || {}, rD = row(cDone), rA = row(cAppr);
     ok('CEO', '💹 the CEO view uses the same money: budget = approved, or else base + contingency + reserve; forecast = what was spent when done; under/over budget agrees with Finance',
       rD.budget === 2993444.25 && rD.eac === 2902473 && rD.vac === 90971.25 && rA.budget === 2831648 && rA.vac === -70825, JSON.stringify([rD.budget, rD.eac, rD.vac, rA.budget, rA.eac, rA.vac, Object.keys(CV).slice(0, 8)]));
+    // 📜 contract types, hand-worked: base $20,000, contingency 10%, reserve 5%, margin 20% → contract $27,600, target $23,000
+    const ctp = async (name, ctype, each) => { const r = await api('planNewProject', { name, client: 'Acme', program: 'Digital health' }); await api('planSave', { core: r.j.core, plan: { name, start: '2026-10-01', budgetCfg: { cont: 10, res: 5, margin: 20, gst: 10, ctype, gain: 50, pain: 50 }, phases: [{ id: 'ph1', name: 'Work' }],
+      tasks: [t1('k1', 10000, 100, each), t1('k2', 10000, 100, each)] } }); return r.j.core; };
+    const CT = {}; for (const [ty, ea] of [['fixed', 10000], ['cost', 10000], ['target', 10000], ['gmp', 10000], ['fixed', 13000], ['cost', 13000], ['target', 13000], ['gmp', 13000]]) { const c = await ctp('CT ' + ty + ' ' + ea, ty, ea); CT[ty + ea] = { core: c, K: (await api('acctBillGet', { core: c })).j.bill.money }; }
+    const pr = (k) => CT[k].K.profit;
+    ok('Finance', '📜 contract types (hand-worked): under budget fixed $7,600, cost-plus $4,000 (client keeps $3,600), target $6,100, GMP $6,100; over budget fixed $1,600, cost-plus $5,200, target $3,100, GMP $1,600',
+      CT.fixed10000.K.contract === 27600 && pr('fixed10000') === 7600 && pr('cost10000') === 4000 && CT.cost10000.K.clientSaves === 3600 && pr('target10000') === 6100 && pr('gmp10000') === 6100 &&
+      pr('fixed13000') === 1600 && pr('cost13000') === 5200 && pr('target13000') === 3100 && pr('gmp13000') === 1600 && CT.cost10000.K.ctype === 'cost',
+      JSON.stringify(Object.fromEntries(Object.entries(CT).map(([k, v]) => [k, [v.K.contract, v.K.profit, v.K.profit1, v.K.profit2, v.K.clientSaves, v.K.ctype]]))));
+    await api('acctBillSave', { core: CT.target13000.core, contract: 27600, ms: {} });
+    const CV2 = (await api('planCeoGet', { today: '2026-11-21' })).j, rT = (CV2.rows || []).find((r) => r.core === CT.target13000.core) || {};
+    ok('CEO', '📜 the CEO view works profit out by the contract type, the same as Finance (target cost, overrun shared: $3,100)', rT.profit === 3100 && rT.ctype === 'target', JSON.stringify([rT.profit, rT.ctype, rT.eac, rT.contract]));
     ok('Projects', '🔒 a planned project that started more than a week ago (even with a new record) cannot be deleted, not even by the super user', odOwn.status === 403 && odPm.status === 403, JSON.stringify([odOwn.status, odOwn.j.error, odPm.status]));
     ok('Projects', '🗄 a project in the Archived projects vault can only be deleted by the super user, and the delete stays in the audit register', vdCeo.status === 403 && vdOwn.status === 200 && vdReg, JSON.stringify([vdCeo.status, vdOwn.status, vdOwn.j.error, vdReg]));
     ok('Projects', '🗄 archive: needs a reason and a signature; only the super user, CEO or site administrator; leaves every list, is kept in the Project archive and comes back whole; a planned project in its first week can still be deleted',

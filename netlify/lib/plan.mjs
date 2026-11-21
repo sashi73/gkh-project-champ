@@ -122,10 +122,30 @@ export function schedule(plan) {
 // 💰 one place for a project's money, so Finance, the CEO view, the briefing and reports always agree.
 //   base = every task's cost + BOM lines not linked to a task (as the Costing tab); budget = base + contingency + management reserve;
 //   forecast = the EVM forecast cost (EAC) + the unlinked BOM lines; approved = the charter's signed-off budget (0 when none)
+// 📜 the contract type decides who keeps what (set on the Costing tab; fixed price unless the project manager picks another)
+export const CTYPES = { fixed: 'Fixed price (lump sum)', cost: 'Cost-plus (cost reimbursable)', target: 'Target cost (shared savings and overruns)', gmp: 'Guaranteed maximum price (GMP), shared savings' };
+// 💹 revenue and profit at a given final cost, for the contract type. C = the contract value (the client price, + approved variations).
+//   fixed:  the client pays C whatever it costs: profit = C − cost (unused contingency and reserve are profit)
+//   cost:   the client pays the actual cost + the fee (margin %): profit = cost × margin %; what is not spent is never billed (the client keeps it)
+//   target: target cost = C ÷ (1 + margin), fee = C − target; the client pays cost + fee, ± your share of the saving (gain %) or of the overrun (pain %)
+//   gmp:    as target for savings, but the client never pays more than C (the guaranteed maximum): overruns beyond the target come out of the fee, then yours
+export function profitAt(MO, C, cost) {
+  const m = (MO.margin || 0) / 100, t = MO.ctype || 'fixed', r = (n) => Math.round(n * 100) / 100;
+  let revenue, clientSaves = 0, sharedSaving = 0, sharedOverrun = 0;
+  if (t === 'cost') { revenue = cost * (1 + m); clientSaves = Math.max(0, C - revenue); }
+  else if (t === 'target' || t === 'gmp') {
+    const target = C / (1 + m), fee = C - target, save = Math.max(0, target - cost), over = Math.max(0, cost - target);
+    sharedSaving = save * (MO.gain || 0) / 100; clientSaves = save - sharedSaving;
+    if (t === 'target') { sharedOverrun = over * (MO.pain || 0) / 100; revenue = cost + fee + sharedSaving - sharedOverrun; }
+    else { revenue = Math.min(C, cost + fee + sharedSaving); sharedOverrun = Math.max(0, cost + fee - C); }
+  } else revenue = C;
+  return { revenue: r(revenue), profit: r(revenue - cost), clientSaves: r(clientSaves), yourSaving: r(sharedSaving), yourOverrun: r(sharedOverrun) };
+}
 export function moneyOf(plan, R) {
   const cfg = plan.budgetCfg || {}, pc = (k, d) => (cfg[k] == null || isNaN(+cfg[k]) ? d : +cfg[k]), cont = pc('cont', 10), res = pc('res', 5), margin = pc('margin', 0), gst = pc('gst', 10);
+  const ctype = CTYPES[cfg.ctype] ? cfg.ctype : 'fixed', gain = pc('gain', 50), pain = pc('pain', 50);
   const loose = r2(Number(plan.bomLoose) || 0), base = r2(R.BAC + loose), contA = r2(base * cont / 100), resA = r2(base * res / 100), budget = r2(base + contA + resA);
-  return { cont, res, margin, gst, loose, base, contA, resA, budget, price: r2(budget * (1 + margin / 100)), approved: Number((plan.charter || {}).budget) || 0,
+  return { cont, res, margin, gst, ctype, ctypeName: CTYPES[ctype], gain, pain, loose, base, contA, resA, budget, price: r2(budget * (1 + margin / 100)), approved: Number((plan.charter || {}).budget) || 0,
     eac: r2((R.EAC != null ? R.EAC : R.BAC) + loose), spent: r2(R.AC), earned: r2(R.EV), complete: !!R.complete };
 }
 export function rollup(plan, today) {
@@ -268,7 +288,7 @@ function clean(p, core) {
     budgetCfg: (() => { const b = p.budgetCfg && typeof p.budgetCfg === 'object' ? p.budgetCfg : null; if (!b) return undefined; const pc = (v, d) => (isNaN(Number(v)) ? d : Math.max(0, Math.min(100, Number(v))));   // 💰 Budget settings
       const cats = ['Labour', 'Materials', 'Subcontractors', 'Equipment', 'Travel and expenses', 'Other'], cat = {};
       for (const [k, v] of Object.entries(b.cat && typeof b.cat === 'object' ? b.cat : {}).slice(0, 600)) if (/^[\w-]{1,30}$/.test(k) && cats.includes(v)) cat[k] = v;
-      return { cont: pc(b.cont, 10), res: pc(b.res, 5), margin: pc(b.margin, 0), gst: pc(b.gst, 10), cat, setAt: Number(b.setAt) || 0, setBy: str(b.setBy, 80), setRole: str(b.setRole, 60), setSig: str(b.setSig, 80), setAmt: Math.round((Number(b.setAmt) || 0) * 100) / 100 }; })(),
+      return { cont: pc(b.cont, 10), res: pc(b.res, 5), margin: pc(b.margin, 0), gst: pc(b.gst, 10), ctype: CTYPES[b.ctype] ? b.ctype : 'fixed', gain: pc(b.gain, 50), pain: pc(b.pain, 50), cat, setAt: Number(b.setAt) || 0, setBy: str(b.setBy, 80), setRole: str(b.setRole, 60), setSig: str(b.setSig, 80), setAmt: Math.round((Number(b.setAmt) || 0) * 100) / 100 }; })(),
     baseline: p.baseline && typeof p.baseline === 'object' ? { at: Number(p.baseline.at) || Date.now(), finish: ymdOk(p.baseline.finish), BAC: r2(p.baseline.BAC),
       tasks: Object.fromEntries(Object.entries(p.baseline.tasks || {}).slice(0, 300).map(([k, v]) => [str(k, 20), { es: ymdOk(v.es), ef: ymdOk(v.ef), cost: r2(v.cost) }])) } : null
   };

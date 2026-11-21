@@ -53,6 +53,14 @@ function projectBill(plan, bill, docs, today) {
     //   1) contingency and management reserve both used: cost up to the whole project budget; 2) the management reserve not used: up to base + contingency
     profit1: price ? r2(price - Math.max(eac, budget)) : null, profit2: price ? r2(price - Math.max(eac, base + contA)) : null, complete };
   for (const k of ['profit1', 'profit2']) money[k + 'Pct'] = price ? Math.round(money[k] / price * 1000) / 10 : null;
+  // 📜 profit by the contract type (plan.mjs profitAt): fixed price keeps unused reserves as profit; cost-plus earns the fee on actual cost
+  //    (the client keeps what is not spent); target cost and GMP share the saving (and target cost the overrun) by the agreed split
+  // a finished project's cost is final: the reserves no longer come into it, so both scenarios are the actual result
+  if (price) { const at = (c) => P.profitAt(MO, price, c), F0 = at(eac), F1 = complete ? F0 : at(Math.max(eac, budget)), F2 = complete ? F0 : at(Math.max(eac, base + contA));
+    Object.assign(money, { ctype: MO.ctype, ctypeName: MO.ctypeName, gain: MO.gain, pain: MO.pain, revenue: F0.revenue, profit: F0.profit, profitPct: Math.round(F0.profit / price * 1000) / 10,
+      profit1: F1.profit, profit2: F2.profit, profit1Pct: Math.round(F1.profit / price * 1000) / 10, profit2Pct: Math.round(F2.profit / price * 1000) / 10,
+      clientSaves: F0.clientSaves, yourSaving: F0.yourSaving, yourOverrun: F0.yourOverrun, unused: r2(Math.max(0, budget - eac)) }); }
+  else Object.assign(money, { ctype: MO.ctype, ctypeName: MO.ctypeName, gain: MO.gain, pain: MO.pain });
   // 📅 how close each milestone is: red and flashing within a week, amber within a month, green after; a short project (an event) scales the windows down
   const span = Math.max(1, Math.round((Date.parse((R.finish || today) + 'T00:00:00Z') - Date.parse((R.start || plan.start || today) + 'T00:00:00Z')) / 864e5));
   const redW = span >= 70 ? 7 : Math.max(1, Math.round(span / 10)), ambW = span >= 90 ? 30 : Math.max(redW + 2, Math.round(span / 3));

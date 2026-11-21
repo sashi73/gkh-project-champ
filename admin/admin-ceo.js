@@ -37,7 +37,7 @@
     if (!L.length) return '<tr><td colspan="9" class="muted" style="text-align:center;padding:18px">No projects here.</td></tr>';
     return L.map(function (r) {
       var over = r.vac < -0.5 ? '<b class="ceo-neg">' + money(r.vac) + '</b><small>' + (r.over ? Math.round(r.over) + '% over' : 'over') + '</small>' : r.budget ? '<span class="ceo-pos">' + (r.vac > 0.5 ? money(r.vac) + ' under' : 'on budget') + '</span>' : '<span class="muted">–</span>';
-      var prof = r.profit == null ? '<span class="muted" title="No quote yet">no price</span>' : '<b class="' + (r.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + plw(r.profit) + '</b><small>' + r.margin + '%' + (r.quoted ? ' · quoted' : '') + '</small>';
+      var prof = r.profit == null ? '<span class="muted" title="No quote yet">no price</span>' : '<b class="' + (r.profit < 0 ? 'ceo-neg' : 'ceo-pos') + '">' + plw(r.profit) + '</b><small>' + r.margin + '%' + (r.quoted ? ' · quoted' : '') + (r.ctype && r.ctype !== 'fixed' ? ' · ' + ({ cost: 'cost-plus', target: 'target cost', gmp: 'GMP' })[r.ctype] : '') + '</small>';
       return '<tr data-core="' + esc(r.core) + '" class="h-' + r.health + '"><td class="ceo-dot"><i class="' + r.health + '"></i>' + TR[r.trend || ''] + '</td>' +
         '<td><b>' + esc(r.name) + '</b><small>' + esc([r.program, r.client].filter(Boolean).join(' · ')) + '</small>' + (r.why && r.health !== 'green' ? '<small class="ceo-why">' + esc(r.why) + '</small>' : '') + '</td>' +
         '<td class="hide-sm"><small>' + esc(r.phase || '') + '</small></td>' +
@@ -176,7 +176,7 @@
       '<section class="card ceo-s"><h3>2 · Where\'s the money?</h3>' + money2(A) +
       '<h4 class="ceo-sub">Biggest forecast overspends</h4>' + ov +
       '<h4 class="ceo-sub">By program</h4><p class="ceo-legend">Health: how many of the program\'s projects are <span class="ceo-pill red">n</span> in trouble, <span class="ceo-pill amber">n</span> at risk and <span class="ceo-pill green">n</span> on track. Over / under: forecast cost against budget.</p>' + programs(D.byProgram) + '</section>' + cashHtml() +
-      '<p class="muted ceo-note">Red: SPI or CPI under 0.90, or serious slippage, overspend, late work or risks (the same rules as Champ\'s watch). Amber: slipping. Forecast cost (EAC) = spent so far + the work still to do ÷ CPI (what was spent, once the work is done). Budget = the approved budget, or else base cost + contingency + reserve. Profit = contract value (or the open quote) − forecast cost. Amounts exclude tax.</p></div>';
+      '<p class="muted ceo-note">Red: SPI or CPI under 0.90, or serious slippage, overspend, late work or risks (the same rules as Champ\'s watch). Amber: slipping. Forecast cost (EAC) = spent so far + the work still to do ÷ CPI (what was spent, once the work is done). Profit follows each project\'s contract type (set on its Costing tab): fixed price keeps unused contingency and reserve as profit; cost-plus earns its fee on the actual cost; target cost and GMP share the saving. Budget = the approved budget, or else base cost + contingency + reserve. Profit uses the contract value (or the open quote). Amounts exclude tax.</p></div>';
     var v = M.view();
     v.querySelectorAll('[data-hf]').forEach(function (b) { b.onclick = function () { draw(filter === b.getAttribute('data-hf') ? '' : b.getAttribute('data-hf')); }; });
     var a = v.querySelector('#ceoAll'); if (a) a.onclick = function (e) { e.preventDefault(); draw(''); };
