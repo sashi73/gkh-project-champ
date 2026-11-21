@@ -165,7 +165,7 @@
     var G = {}, cls = {}, rooms = [], matT = {}, elN = 0, withQ = 0;
     Object.keys(where).concat(Object.keys(elems)).filter(function (v, i, L) { return L.indexOf(v) === i; }).forEach(function (k) {
       var e = +k, x = E[e]; if (!x) return; var t = x.t, ax = a(e), st = stBy[where[e]] || null;
-      if (t === 'IFCSPACE') { var ar = pick(Q[e], 'A', ['NetFloorArea', 'GrossFloorArea', 'NetArea', 'GrossArea', 'Area']); rooms.push({ name: cleanName([ax[2], ax[7]].filter(Boolean).join(' ') || 'Room'), level: st ? st.name : '', area: ar == null ? null : ar * f.A }); if (st) { st.rooms++; st.roomArea += ar ? ar * f.A : 0; } return; }
+      if (t === 'IFCSPACE') { var ar = pick(Q[e], 'A', ['NetFloorArea', 'GrossFloorArea', 'NetArea', 'GrossArea', 'Area']); rooms.push({ name: cleanName([ax[2], ax[7]].filter(Boolean).join(' ') || 'Room'), kind: cleanName(ax[7] || ax[3] || ax[2] || 'Room').replace(/\s*\d+$/, '') || 'Room', level: st ? st.name : '', area: ar == null ? null : ar * f.A }); if (st) { st.rooms++; st.roomArea += ar ? ar * f.A : 0; } return; }
       if (NOT_ELEM.test(t) || !/^IFC/.test(t)) return;
       elN++;
       var tn = typeOf[e] || cleanName(ax[4]) || cleanName(ax[2]) || niceClass(t), key = t + '|' + tn, ms = mat[e] || (typeId[e] && mat[typeId[e]]) || [];
@@ -173,7 +173,7 @@
       if (ar2 != null || vo != null || le != null) withQ++;
       var g = G[key] = G[key] || { cls: t, type: tn, mats: {}, n: 0, area: 0, vol: 0, len: 0, wt: 0, levels: {}, ext: 0 };
       g.n++; if (ar2) g.area += ar2 * f.A; if (vo) g.vol += vo * f.V; if (le) g.len += le * f.L; if (we) g.wt += we * f.M;
-      ms.forEach(function (m) { g.mats[m] = 1; var mt = matT[m] = matT[m] || { n: 0, vol: 0, area: 0 }; mt.n++; if (vo) mt.vol += vo * f.V / ms.length; if (ar2) mt.area += ar2 * f.A / ms.length; });
+      ms.forEach(function (m) { g.mats[m] = 1; var mt = matT[m] = matT[m] || { n: 0, vol: 0, area: 0 }; mt.n++; if (vo && ms.length === 1) mt.vol += vo * f.V; if (ar2) mt.area += ar2 * f.A; });   // a layered element: each layer covers the whole area; its volume is not split by layer
       if (flags[e] && flags[e].isexternal) g.ext++;
       if (st) { g.levels[st.name] = (g.levels[st.name] || 0) + 1; st.n++; var tr = tradeOf(t); st.trades[tr] = st.trades[tr] || {}; st.trades[tr][niceClass(t)] = (st.trades[tr][niceClass(t)] || 0) + 1; }
       var c = cls[t] = cls[t] || { n: 0, area: 0, vol: 0, len: 0 }; c.n++; if (ar2) c.area += ar2 * f.A; if (vo) c.vol += vo * f.V; if (le) c.len += le * f.L;
@@ -214,11 +214,11 @@
     });
     if (S.groups.length > 220) L.push('(' + (S.groups.length - 220) + ' smaller types not listed)');
     var M = Object.keys(S.materials).sort(function (p, x) { return S.materials[x].vol - S.materials[p].vol || S.materials[x].n - S.materials[p].n; });
-    if (M.length) { L.push('\nMaterials in the model:'); M.slice(0, 60).forEach(function (m) { var o = S.materials[m]; L.push('- ' + m + ': ' + fmt(o.n, 0) + ' elements' + (o.vol ? ', ' + fmt(o.vol, 2) + ' m³' : '') + (o.area ? ', ' + fmt(o.area) + ' m²' : '')); }); }
+    if (M.length) { L.push('\nMaterials in the model:'); M.slice(0, 60).forEach(function (m) { var o = S.materials[m]; L.push('- ' + m + ': ' + fmt(o.n, 0) + ' element' + (o.n === 1 ? '' : 's') + (o.vol ? ', ' + fmt(o.vol, 2) + ' m³' : '') + (o.area ? ', ' + fmt(o.area) + ' m²' : '')); }); }
     if (S.rooms.length) {
       L.push('\nRooms (spaces):');
-      var RL = {}; S.rooms.forEach(function (r) { var k = r.name.replace(/\s*\d+$/, '') || 'Room'; var o = RL[k] = RL[k] || { n: 0, area: 0 }; o.n++; o.area += r.area || 0; });
-      Object.keys(RL).sort(function (p, x) { return RL[x].area - RL[p].area; }).slice(0, 60).forEach(function (k) { L.push('- ' + k + ': ' + RL[k].n + (RL[k].area ? ' (' + fmt(RL[k].area) + ' m²)' : '')); });
+      var RL = {}; S.rooms.forEach(function (r) { var k = r.kind || 'Room'; var o = RL[k] = RL[k] || { n: 0, area: 0 }; o.n++; o.area += r.area || 0; });
+      Object.keys(RL).sort(function (p, x) { return RL[x].area - RL[p].area; }).slice(0, 60).forEach(function (k) { L.push('- ' + k + ': ' + RL[k].n + (RL[k].area ? ' (' + fmt(RL[k].area) + ' m² in all)' : '')); });
     }
     L.push('\nNote: the quantities are what the model holds; check them against the drawings and specifications before ordering, and add waste allowances.');
     return L.join('\n');

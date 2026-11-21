@@ -745,7 +745,7 @@
       '<div class="cn-doc" id="cnDoc"><div class="cn-dh"><span class="cn-ic">📄</span><div><b>Start from a document</b> <small class="muted">(optional)</small><p class="muted">Usually a <b>requirements document</b>, a <b>feasibility study</b> or <b>part of an RFP</b> (or a brief, business case or deck): Word, PowerPoint, Excel or PDF, 100+ pages is fine. The AI reads all of it (retrieval over vectors of every part, up to 80,000 tokens), fills in the project below and plans it from the document. No document? Just type the details.</p>' +
         '<p class="muted cn-bim">🏗 <b>BIM and construction files:</b> an <b>IFC model</b> (any size: read here in your browser) gives the levels, the elements by trade and the <b>quantity take-off</b> the BOM / BOQ is drafted from; ' +
         'a <b>Navisworks TimeLiner</b> export (CSV or MS Project XML) gives the schedule; a <b>Clash Detective report</b> (XML) gives the coordination issues; DXF gives the drawing notes. ' +
-        '<b>Revit, Navisworks and AutoCAD</b> files (.rvt .nwd .nwc .dwg .dwf) are kept with the project as originals, with a tip on what to export. You can pick several files at once.</p></div>' +
+        '<b>Revit, Navisworks and AutoCAD</b> files (.rvt .nwd .nwc .dwg .dwf) are kept with the project as originals, with a tip on what to export. You can pick several files at once. <a href="#" id="cnSample">▶ Try a sample</a>: an imaginary 3-level allied health clinic (IFC model, TimeLiner schedule and clash report).</p></div>' +
         '<label class="btn btn-gold cn-pick">Choose a file<input type="file" id="cnFile" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.ifc,.xml,.dxf,.rvt,.rfa,.nwd,.nwc,.nwf,.dwg,.dwf,.dwfx" hidden></label></div><div id="cnDocOut"></div></div>' +
       '<form id="champNew" class="champ-form">' +
       '<div class="champ-2"><label>Program <small class="muted">(every project belongs to one)</small><select name="progPick" required><option value="">Loading programs…</option></select></label>' +
@@ -846,6 +846,10 @@
       }).catch(function (e) { CN.sid = ''; cnSay('<p class="bad">' + esc(e.message || String(e)) + '</p>'); });
     };
     var fi = $('#cnFile'); fi.onchange = function () { cnPick([].slice.call(fi.files)); fi.value = ''; };
+    // ▶ the sample: an imaginary project's IFC model, TimeLiner schedule and clash report, read the same way as your own files
+    var smp = $('#cnSample'); if (smp) smp.onclick = function (e) { e.preventDefault(); cnSay('<p class="ask-think">Fetching the sample files…</p>');
+      Promise.all(['Riverbend-Allied-Health-Hub.ifc', 'Riverbend-TimeLiner-schedule.csv', 'Riverbend-Clash-Detective-report.xml'].map(function (n) { return fetch('samples/' + n + '?v=1').then(function (r) { if (!r.ok) throw new Error('The sample ' + n + ' could not be fetched (' + r.status + ').'); return r.blob(); }).then(function (b) { return new File([b], n, { type: /\.csv$/.test(n) ? 'text/csv' : /\.xml$/.test(n) ? 'application/xml' : 'application/x-step' }); }); }))
+        .then(cnPick).catch(function (er) { cnSay('<p class="bad">' + esc(er.message) + '</p>'); }); };
     var dz = $('#cnDoc');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); }); });
@@ -6768,7 +6772,7 @@
       return { text: parts.join('\n\n'), pages: n };
     });
   }
-  function piBim() { return piLoad('champ-bim.js?v=1', function () { return !!window.ChampBIM; }); }
+  function piBim() { return piLoad('champ-bim.js?v=2', function () { return !!window.ChampBIM; }); }
   M.bim = piBim;
   function piExtract(f, onProg) {
     var name = f.name.toLowerCase();
