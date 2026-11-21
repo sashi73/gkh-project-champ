@@ -325,6 +325,13 @@ try {
         bom: { status: 'Signed off', signedBy: 'S', sig: 'S', milestone: 'm', lines: [{ id: 'b1', task: 'm', name: 'Steel', qty: 10, unit: 't', price: 300, checked: true }, { id: 'b2', task: 'm', name: 'Concrete', qty: 5, unit: 'm3', price: 200, checked: true }] } } });
       const P = (await api('planGet', { core })).j.plan, mm = P.tasks.find((x) => x.id === 'm');
       ok('Finance', '🧱 a BOM-only task takes its actual cost from the BOM / BOQ ($4,000 × 100% done), not the $5,000 typed on it', mm.actual === 4000 && P.tasks.find((x) => x.id === 'h').actual === 50, JSON.stringify(P.tasks.map((x) => [x.id, x.actual, x.bomx]))); }
+    { const r = await api('planNewProject', { name: 'PV from baseline', client: 'Acme', program: 'Digital health' }), core = r.j.core;
+      const T = [tk('a', { unit: 'days', qty: 10, rate: 100, pct: 100, status: 'done', actual: 1000 }), tk('b', { unit: 'days', qty: 10, rate: 100, pred: ['a'], pct: 50, status: 'doing', actual: 500 })];
+      await api('planSave', { core, plan: { name: 'PV from baseline', start: '2026-10-05', phases: [{ id: 'ph1', name: 'W' }], tasks: T } });
+      const g = (await api('planGet', { core })).j.plan, base = { at: Date.now(), finish: '2026-10-16', BAC: 2000, tasks: { a: { es: '2026-10-05', ef: '2026-10-09', cost: 1000 }, b: { es: '2026-10-12', ef: '2026-10-16', cost: 1000 } } };
+      await api('planSave', { core, plan: Object.assign(g, { baseline: base }), rev: g.rev }); const S0 = (await api('acctBillGet', { core })).j.bill.money.SPI;
+      const g2 = (await api('planGet', { core })).j.plan; g2.tasks[0].snet = '2027-03-01'; await api('planSave', { core, plan: g2, rev: g2.rev }); const S1 = (await api('acctBillGet', { core })).j.bill.money.SPI;
+      ok('Finance', '📌 SPI follows the baseline: moving tasks (here a done task pushed to March) does not move SPI; only an approved re-baseline does', S0 === 0.75 && S0 === S1, JSON.stringify([S0, S1])); }
     // 🧱 BOM versions (hand-worked): a mixed task, 10 days at $100 + BOM panels 4 × $500 = $2,000, half done for $1,500 actual.
     //   v0 baseline: materials EV $1,000 = AC $1,000, labour $500 earned for $500 → CPI 1.00. The panels go up to $625 (v1, +$500, +25%):
     //   materials still earned at the baseline $1,000, now cost $1,250; labour = $1,500 − $1,250 = $250 for $500 earned (labour CPI 2.00) →

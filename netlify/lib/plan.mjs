@@ -154,7 +154,9 @@ export function rollup(plan, today) {
   schedule(plan);
   const tasks = plan.tasks;
   bomActuals(plan);   // 🧱 every figure everywhere (plan, CEO, CFO) reads a BOM-only task's actual cost from the BOM, saved or not
-  const A = allDays(plan), frac = (t) => (!t.es ? 0 : today < t.es ? 0 : today >= t.ef ? 1 : workBetween(t.es, today, A) / Math.max(1, workBetween(t.es, t.ef, A)));
+  // 📌 v244: planned value follows the BASELINE dates (as PMI): moving tasks never moves SPI; only an approved re-baseline does
+  const BT = (plan.baseline && plan.baseline.tasks) || {}, pes = (t) => (BT[t.id] && BT[t.id].es) || t.es, pef = (t) => (BT[t.id] && BT[t.id].ef) || t.ef;
+  const A = allDays(plan), frac = (t) => { const a = pes(t), b = pef(t); return !a ? 0 : today < a ? 0 : today >= b ? 1 : workBetween(a, today, A) / Math.max(1, workBetween(a, b, A)); };
   const cost = taskCost;
   const BAC = r2(tasks.reduce((a, t) => a + cost(t), 0));
   const PV = r2(tasks.reduce((a, t) => a + cost(t) * frac(t), 0));
@@ -234,7 +236,7 @@ function clean(p, core) {
   const tasks = (Array.isArray(p.tasks) ? p.tasks : []).slice(0, 300).map((t) => {
     const o = {
     id: uid(t.id, 't'), name: str(t.name, 160) || 'New task', phase: phIds.has(t.phase) ? t.phase : phases[0].id,
-    dur: int(t.dur, 0, 365, 1), snet: ymdOk(t.snet), fixed: !!(t.fixed && ymdOk(t.snet)), pred: (Array.isArray(t.pred) ? t.pred : []).map((x) => str(x, 20)).slice(0, 10),
+    dur: int(t.dur, 0, 365, 1), snet: ymdOk(t.snet), snetWhy: t.snetWhy === 'order' && ymdOk(t.snet) ? 'order' : undefined, fixed: !!(t.fixed && ymdOk(t.snet)), pred: (Array.isArray(t.pred) ? t.pred : []).map((x) => str(x, 20)).slice(0, 10),
     item: str(t.item, 12), ...people(t), status: STAT.includes(t.status) ? t.status : statusOf(int(t.pct, 0, 100, 0)), qty: r2(t.qty), crew: int(t.crew, 0, 500, 0) || undefined, actualLog: Array.isArray(t.actualLog) && t.actualLog.length ? t.actualLog.slice(-40).map((e) => ({ at: Number(e && e.at) || 0, by: str(e && e.by, 80), ...(e && e.v != null ? { v: r2(e.v) } : {}), ...(e && e.pct != null ? { pct: int(e.pct, 0, 100, 0) } : {}), ms: str(e && e.ms, 160) })) : undefined, crewSet: t.crewSet ? true : undefined, unit: str(t.unit, 20), rate: r2(t.rate), actual: r2(t.actual), pct: int(t.pct, 0, 100, 0), notes: str(t.notes, 1000),
     // v64: the Board: owner (a stakeholder), priority and story points
     desc: str(t.desc, 300), owner: str(t.owner, 80),
@@ -310,8 +312,9 @@ function clean(p, core) {
       const cats = ['Labour', 'Materials', 'Subcontractors', 'Equipment', 'Travel and expenses', 'Other'], cat = {};
       for (const [k, v] of Object.entries(b.cat && typeof b.cat === 'object' ? b.cat : {}).slice(0, 600)) if (/^[\w-]{1,30}$/.test(k) && cats.includes(v)) cat[k] = v;
       return { cont: pc(b.cont, 10), res: pc(b.res, 5), margin: pc(b.margin, 0), gst: pc(b.gst, 10), ctype: CTYPES[b.ctype] ? b.ctype : 'fixed', gain: pc(b.gain, 50), pain: pc(b.pain, 50), cat, setAt: Number(b.setAt) || 0, setBy: str(b.setBy, 80), setRole: str(b.setRole, 60), setSig: str(b.setSig, 80), setAmt: Math.round((Number(b.setAmt) || 0) * 100) / 100 }; })(),
-    baseline: p.baseline && typeof p.baseline === 'object' ? { at: Number(p.baseline.at) || Date.now(), finish: ymdOk(p.baseline.finish), BAC: r2(p.baseline.BAC),
-      tasks: Object.fromEntries(Object.entries(p.baseline.tasks || {}).slice(0, 300).map(([k, v]) => [str(k, 20), { es: ymdOk(v.es), ef: ymdOk(v.ef), cost: r2(v.cost) }])) } : null
+    baseline: cleanBase(p.baseline),
+    baselineHist: Array.isArray(p.baselineHist) && p.baselineHist.length ? p.baselineHist.slice(0, 5).map(cleanBase).filter(Boolean) : undefined,   // v244: earlier baselines, restorable
+    baselineSuspect: Number(p.baselineSuspect) || undefined
   };
   // v75: the RACI map: for each activity (task), each stakeholder's R / A / C / I
   const tSet = new Set(res.tasks.map((t) => t.id)), sSet = new Set(res.stakeholders.map((x) => x.id)), rm = p.raciMap && typeof p.raciMap === 'object' ? p.raciMap : {};
@@ -343,6 +346,8 @@ function meetLink(u) { const s = str(u, 600); return /^https:\/\/([a-z0-9-]+\.)*
 export async function get(core) { return kv.get('plan:' + core); }
 // v82: one change request
 const CR_ST = ['Proposed', 'Under review', 'CCB meeting', 'Approved', 'Implemented', 'Rejected', 'Deferred'];
+function cleanBase(b) { return b && typeof b === 'object' ? { at: Number(b.at) || Date.now(), finish: ymdOk(b.finish), BAC: r2(b.BAC), by: str(b.by, 80) || undefined,
+  tasks: Object.fromEntries(Object.entries(b.tasks || {}).slice(0, 300).map(([k, v]) => [str(k, 20), { es: ymdOk(v.es), ef: ymdOk(v.ef), cost: r2(v.cost) }])) } : null; }
 function crClean(c) {
   if (!c || typeof c !== 'object') return null;
   let items = null;
@@ -351,7 +356,7 @@ function crClean(c) {
   const d = c.decision && typeof c.decision === 'object' ? c.decision : null;
   return { id: str(c.id, 20).replace(/[^\w-]/g, '') || 'cr' + Math.random().toString(36).slice(2, 8), num: int(c.num, 1, 9999, 1), title: str(c.title, 200) || 'Change request', desc: str(c.desc, 4000), reason: str(c.reason, 2000),
     // 🧱 a BOM / BOQ change request: the sign-off waiting for approval, or new unit prices for some lines
-    kind: c.kind === 'bom' ? 'bom' : undefined, eval: c.kind === 'bom' && c.eval && typeof c.eval === 'object' ? { scope: str(c.eval.scope, 1000), time: str(c.eval.time, 1000), cost: str(c.eval.cost, 1000), quality: str(c.eval.quality, 1000) } : undefined, bom: c.kind === 'bom' && c.bom && typeof c.bom === 'object' ? { action: ['prices', 'order'].includes(c.bom.action) ? c.bom.action : 'signoff', total: r2(c.bom.total), task: str(c.bom.task, 30), from: c.bom.action === 'order' ? str(c.bom.from, 10) : r2(c.bom.from), to: c.bom.action === 'order' ? str(c.bom.to, 10) : r2(c.bom.to),
+    kind: c.kind === 'bom' || c.kind === 'baseline' ? c.kind : undefined, eval: c.kind === 'bom' && c.eval && typeof c.eval === 'object' ? { scope: str(c.eval.scope, 1000), time: str(c.eval.time, 1000), cost: str(c.eval.cost, 1000), quality: str(c.eval.quality, 1000) } : undefined, bom: c.kind === 'bom' && c.bom && typeof c.bom === 'object' ? { action: ['prices', 'order'].includes(c.bom.action) ? c.bom.action : 'signoff', total: r2(c.bom.total), task: str(c.bom.task, 30), from: c.bom.action === 'order' ? str(c.bom.from, 10) : r2(c.bom.from), to: c.bom.action === 'order' ? str(c.bom.to, 10) : r2(c.bom.to),
       line: str(c.bom.line, 20), price: r2(c.bom.price), lead: Math.max(0, Math.min(999, Math.round(Number(c.bom.lead) || 0))), snetTask: str(c.bom.snetTask, 30), snetDate: /^\d{4}-\d\d-\d\d$/.test(c.bom.snetDate || '') ? c.bom.snetDate : '', crit: !!c.bom.crit,
       prices: Object.fromEntries(Object.entries(c.bom.prices && typeof c.bom.prices === 'object' ? c.bom.prices : {}).slice(0, 400).filter(([k]) => /^[\w-]{1,20}$/.test(k)).map(([k, v]) => [k, r2(v)])) } : undefined,
     source: ['manual', 'meeting', 'intel', 'fit'].includes(c.source) ? c.source : 'manual', direct: !!c.direct, recorded: Number(c.recorded) || 0, recKey: str(c.recKey, 30), srcRef: str(c.srcRef, 30), srcTitle: str(c.srcTitle, 200), raisedBy: str(c.raisedBy, 80), raisedAt: Number(c.raisedAt) || Date.now(),
@@ -417,8 +422,8 @@ export function profitWhy(MO, C, cost, complete) {
 //   as SPI is (the BOM is held at its price); a plan with no labour uses all the work. Needs the plan scheduled (es/ef set).
 export function scheduleLag(plan, R, today) {
   if (!R || R.complete || !today) return null;
-  const A = allDays(plan), T = (plan.tasks || []).filter((t) => t.es && t.ef), useLab = R.split && R.split.lab.bac > 0.004;
-  const w = (t) => (useLab ? taskSplit(t, plan).lab : taskCost(t)), ev = useLab ? R.split.lab.ev : R.EV;
+  const BT = (plan.baseline && plan.baseline.tasks) || {}, A = allDays(plan), T = (plan.tasks || []).filter((t) => t.es && t.ef).map((t) => ({ t, es: (BT[t.id] && BT[t.id].es) || t.es, ef: (BT[t.id] && BT[t.id].ef) || t.ef })), useLab = R.split && R.split.lab.bac > 0.004;
+  const w = (x) => (useLab ? taskSplit(x.t, plan).lab : taskCost(x.t)), ev = useLab ? R.split.lab.ev : R.EV;
   const fr = (t, d) => (d < t.es ? 0 : d >= t.ef ? 1 : workBetween(t.es, d, A) / Math.max(1, workBetween(t.es, t.ef, A)));
   const pvAt = (d) => T.reduce((a, t) => a + w(t) * fr(t, d), 0), pvNow = pvAt(today);
   if (!(pvNow > 0.5)) return null;
