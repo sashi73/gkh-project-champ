@@ -915,7 +915,7 @@
   function planHere(core, job) { if (!/^#plan\//.test(location.hash)) return false; var h = decodeURIComponent(location.hash.split('/')[1] || ''); return h === core || (job && (h === job.core || h === job.ref)); }
   function planView(args) {
     var core = args[0], tab = args[1] || S.tab;
-    if (S.plan && S.job && (core === S.core || core === S.job.ref) && args[1] && !S.away) { S.tab = tab; render(); loadChain(); return; }   // just a tab change (the quote/invoice may have moved on)
+    if (S.plan && S.job && (core === S.core || core === S.job.ref) && args[1] && !S.away) { S.tab = tab; if (tab !== 'schedule') S.recAc = null; render(); loadChain(); return; }   // just a tab change (the quote/invoice may have moved on)
     var seq = ++planSeq;   // a new plan load: an older one still loading is dropped
     var pending = S.timer ? saveNow() : (S.q || Promise.resolve());
     return pending.then(function () { return api('planGet', { core: core }); }).then(function (d) {
@@ -1931,7 +1931,7 @@
     if (a === 'clr') { fmt(function (f) { Object.keys(f).forEach(function (k) { delete f[k]; }); }); return; }
     if (a === 'open' || a === 'close') { p.tasks.forEach(function (x) { if ((x.subs || []).length) S.closed[x.id] = a === 'close'; (x.subs || []).forEach(function (y) { if ((y.steps || []).length) S.stClosed[y.id] = a === 'close'; }); }); render(); }
   }
-  function gFull(on) { S.gfull = !!on; document.body.classList.toggle('gantt-full', S.gfull); render(); }
+  function gFull(on) { S.gfull = !!on; if (!on) S.recAc = null; document.body.classList.toggle('gantt-full', S.gfull); render(); }
   function gWire(p) {
     var L = $('#gLeft'); if (!L) return;
     var pick = function (e) { var tr = e.target.closest && e.target.closest('tbody tr'); var s = gSelOf(tr); if (!s) return; S.gsel = s; gMark(p); };
@@ -2197,7 +2197,8 @@
       '<div class="tabs" style="margin:0" title="Which columns to show"><button class="tab' + (S.cols === 's' ? ' on' : '') + '" data-cols="s">📅 Dates</button><button class="tab' + (S.cols === 'c' ? ' on' : '') + '" data-cols="c">$ Costs</button><button class="tab' + (S.cols === 'a' ? ' on' : '') + '" data-cols="a">All columns</button></div>' +
       '<div class="tabs" style="margin:0"><button class="tab' + (S.zoom === 'day' ? ' on' : '') + '" data-zoom="day">Days</button><button class="tab' + (S.zoom === 'week' ? ' on' : '') + '" data-zoom="week">Weeks</button><button class="tab' + (S.links ? ' on' : '') + '" data-links title="Show the dependency arrows between the bars">🔗 Links</button>' + (gGap > 7 ? '<button class="tab' + (gFit ? ' on' : '') + '" data-gfit type="button" title="' + (gFit ? 'The chart starts at the plan (' + esc(dmy(R.start)) + ', ' + gGap + ' days from today). Click to show from today.' : 'Hide the ' + gGap + ' empty days before the plan starts (' + esc(dmy(R.start)) + ')') + '">⇥ Fit to the plan</button>' : '') + '</div>' +
       '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button></div></div></div>' +
-      '<div class="gsplit" id="gSplit"><div class="gpane gleft" id="gLeft"' + (S.split ? ' style="flex:0 0 ' + S.split + 'px;max-width:none"' : '') + '><table class="gt v-' + S.cols + '"><thead><tr><th>#</th><th title="Done">✓</th><th style="min-width:160px">Task <button type="button" class="gfz-chip" id="gFreezeBtn" title="Freeze columns (like Excel) and column widths">❄ ' + esc(gfzName()) + '</button></th><th style="min-width:136px">Resources <span class="muted" style="text-transform:none;letter-spacing:0">(★ lead)</span></th><th>Days</th><th>Start</th><th>Finish</th><th>After #</th><th title="Labour: people × hours (or days) each. Materials: quantity">People × Qty</th><th>Unit</th><th>Unit $</th><th>Cost</th><th>Actual $</th><th>Status</th><th>%</th><th></th></tr></thead><tbody>';
+      (S.recAc ? '<div class="rec-bar"><span>💲 <b>Recording progress and actual costs' + (S.recAc.ms ? ': up to ' + esc(S.recAc.ms) : '') + '.</b> For each task, type its <b>Actual $</b> so far, in full (labour, subcontractors, hire and its materials), and check its <b>%</b> done. BOM materials count at their baselined price; CPI is measured on the rest. Each entry is logged with who and when.</span><button class="btn btn-sm btn-gold" type="button" id="recDone">✓ Done</button></div>' : '') +
+      '<div class="gsplit" id="gSplit"><div class="gpane gleft" id="gLeft"' + (S.split ? ' style="flex:0 0 ' + S.split + 'px;max-width:none"' : '') + '><table class="gt v-' + S.cols + (S.recAc ? ' v-r' : '') + '"><thead><tr><th>#</th><th title="Done">✓</th><th style="min-width:160px">Task <button type="button" class="gfz-chip" id="gFreezeBtn" title="Freeze columns (like Excel) and column widths">❄ ' + esc(gfzName()) + '</button></th><th style="min-width:136px">Resources <span class="muted" style="text-transform:none;letter-spacing:0">(★ lead)</span></th><th>Days</th><th>Start</th><th>Finish</th><th>After #</th><th title="Labour: people × hours (or days) each. Materials: quantity">People × Qty</th><th>Unit</th><th>Unit $</th><th>Cost</th><th>Actual $</th><th>Status</th><th>%</th><th></th></tr></thead><tbody>';
     var G = '';   // rows of the Gantt pane (kept the same height as the grid rows)
     rows.forEach(function (r) {
       var t = r.t, late = t.pct < 100 && t.ef < t0, base = p.baseline && p.baseline.tasks ? p.baseline.tasks[t.id] : null;
@@ -2215,7 +2216,7 @@
         '<td><input data-k="unit" value="' + esc(t.unit || '') + '" placeholder="h, m², lot" style="width:56px"' + estAttr(t) + '></td>' +
         '<td><input data-k="rate" inputmode="decimal" value="' + esc(t.rate || '') + '" style="width:74px"' + estAttr(t) + '></td>' +
         '<td class="num' + (isEst(t) ? ' est-c' : '') + '"' + (isEst(t) ? ' title="' + esc('≈ Indicative benchmark, not reviewed: ' + (t.basis || 'AI estimate') + '. Check the hours actually worked per day, the rate and the quantity, then change it.') + '"' : '') + '>' + (isEst(t) ? '<span class="est-tag">≈ est</span> ' : '') + money(cost(t)) + (isLab(t) && (+t.qty || 0) > 0 && (+t.rate || 0) > 0 ? '<br><small class="muted crewx">' + crewOf(t) + ' × ' + (+t.qty) + ' ' + esc(t.unit) + ' × ' + money(+t.rate) + '</small>' : '') + '</td>' +
-        '<td><input data-k="actual" inputmode="decimal" value="' + esc(t.actual || '') + '" style="width:80px"></td>' +
+        '<td><input data-k="actual" class="act-in" inputmode="decimal" value="' + esc(Number(t.actual) > 0 ? money(t.actual) : '') + '" data-raw="' + esc(t.actual || '') + '" placeholder="$0.00" title="Actual cost so far, in full (labour, subcontractors, hire and its materials)"></td>' +
         '<td><select data-k="status" class="stsel st-' + t.status + '"' + (subs.length ? ' title="Setting this moves all its sub-tasks too"' : '') + '>' + STATUS.map(function (x) { return '<option value="' + x[0] + '"' + (t.status === x[0] ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></td>' +
         '<td><input data-k="pct" type="number" min="0" max="100" step="1" value="' + t.pct + '" style="width:54px"' + (subs.length ? ' disabled title="Worked out from the sub-tasks"' : '') + '></td>' +
         '<td class="acts">' + lvlBtns(1, t.dur > 0 && prevL1(p, t) && !(t.subs || []).some(function (x) { return (x.steps || []).length; }), false, t.dur === 0 ? 'A milestone stays at level 1' : !prevL1(p, t) ? 'The first task has nothing above it to go under' : 'Move its steps out first: a sub-task has only one level below it') + '<button class="btn btn-sm" data-rem title="Reminder">🔔</button><button class="btn btn-sm" data-del title="Delete">✕</button></td>' +
@@ -2254,7 +2255,7 @@
     });
     if (!rows.length) { html += '<tr><td colspan="16"><div class="empty">No tasks yet. Press “＋ Task”.</div></td></tr>'; G += '<tr><td class="gcol"></td></tr>'; }
     if (rows.length) { html += '<tr class="taddrow"><td></td><td></td><td colspan="14"><button class="btn btn-sm" type="button" data-addend>＋ Task (level 1)</button> <button class="btn btn-sm" type="button" data-addendm>◆ Milestone</button> <small class="muted">A level-1 task carries the costing: Qty × Unit $ = Cost, and Actual $.</small></td></tr>'; G += '<tr class="taddrow"><td class="gcol"></td></tr>'; }
-    html += '</tbody><tfoot><tr><td></td><td></td><td><b>Total (budget at completion)</b></td><td></td><td></td><td>' + esc(pretty(R.start)) + '</td><td>' + esc(pretty(R.finish)) + '</td><td></td><td></td><td></td><td></td><td class="num"><b>' + money(R.BAC) + '</b></td><td class="num"><b>' + money(R.AC) + '</b></td><td></td><td><b>' + R.pct + '%</b></td><td></td></tr></tfoot></table></div>' +
+    html += '</tbody><tfoot><tr><td></td><td></td><td><b>Total (budget at completion)</b></td><td></td><td></td><td>' + esc(pretty(R.start)) + '</td><td>' + esc(pretty(R.finish)) + '</td><td></td><td></td><td></td><td></td><td class="num"><b>' + money(R.BAC) + '</b></td><td class="num nowrap"><b>' + money(R.AC) + '</b></td><td></td><td><b>' + R.pct + '%</b></td><td></td></tr></tfoot></table></div>' +
       '<div class="gsplitter" id="gSplitter" title="Drag to make the task list or the Gantt chart wider (double-click to reset)"><span></span></div>' +
       '<div class="gpane gright" id="gRight"><table class="gt gtr"><thead><tr><th class="gcol">' + scale + '</th></tr></thead><tbody>' + G + '</tbody><tfoot><tr><td class="gcol"><div class="gleg" title="Bar colours: how far each task and sub-task has got">' + [0, 25, 50, 75, 100].map(function (n) { return '<span><i class="pb-' + n + '"></i>' + (n === 100 ? '100% done' : n + '%') + '</span>'; }).join('') + '<span><i class="pb-late"></i>Late</span><span><i class="pb-mile"></i>Milestone</span></div></td></tr></tfoot></table></div></div>' +
       '<div class="res-tip" id="resTip" hidden><b>Tip:</b> people come from the 👥 Stakeholder register only. Add more than one: Press <kbd>Enter</kbd> or type a comma after each name. <b>★</b> = the lead: the first one added is the lead; click another name to make them the lead.</div>' +
@@ -2267,7 +2268,11 @@
     if (S.gOrigin !== gKey) { S.gReset = S.gOrigin != null; S.gOrigin = gKey; S.scrollX = null; }
     splitPanes(gFit ? x(R.start) - 2 * dayW + 140 : x(t0));
     $('#gFreezeBtn').onclick = function (e) { e.stopPropagation(); gFreezeMenu(this); };
-    B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
+    B.querySelectorAll('[data-cols]').forEach(function (b) { b.onclick = function () { S.recAc = null; S.cols = b.getAttribute('data-cols'); try { localStorage.setItem('mbsPlanCols', S.cols); } catch (e) {} render(); }; });
+    B.querySelectorAll('input.act-in').forEach(function (i) { i.addEventListener('focus', function () { i.value = i.getAttribute('data-raw') || ''; i.select(); });
+      i.addEventListener('blur', function () { var v = r2(String(i.value).replace(/[$,\s]/g, '')); i.setAttribute('data-raw', v ? v : ''); i.value = v ? money(v) : ''; }); });   // 💲 $ 0,000.00, the plain number while typing
+    var rd = B.querySelector('#recDone'); if (rd) rd.onclick = function () { S.recAc = null; gFull(false); location.hash = '#plan/' + encodeURIComponent(S.core) + '/overview'; toast('💲 Progress and actual costs saved: CPI and SPI are up to date'); };
+    if (S.recAc && S.recAc.first && !S.recAc.scrolled) { S.recAc.scrolled = true; setTimeout(function () { var tr = B.querySelector('tr[data-tid="' + S.recAc.first + '"]'); if (tr) { tr.scrollIntoView({ block: 'center' }); var i = tr.querySelector('input[data-k="actual"]'); if (i) i.focus(); } }, 60); }
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
     B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { S.gfit = S.gfit === false;   // the range key changes, so the chart opens at the plan (fitted) or at today (not fitted)
       try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
@@ -2317,7 +2322,8 @@
         }
         else if (k === 'pred') { t.pred = el.value.split(/[,\s]+/).map(function (s) { return idOf[+s]; }).filter(function (id) { return id && id !== t.id; }); }
         else if (k === 'crew') { var cv = Math.round(+el.value || 0); if (cv > 0) { t.crew = Math.min(500, cv); t.crewSet = true; } else { t.crewSet = false; t.crew = Math.max(1, (t.res || []).length); } if (t.est) t.est = false; }
-        else if (['qty', 'rate', 'actual'].indexOf(k) >= 0) { t[k] = r2(String(el.value).replace(/[$,]/g, '')); if (k !== 'actual' && t.est) t.est = false; }
+        else if (['qty', 'rate', 'actual'].indexOf(k) >= 0) { t[k] = r2(String(el.value).replace(/[$,]/g, '')); if (k !== 'actual' && t.est) t.est = false;
+          if (k === 'actual') (t.actualLog = t.actualLog || []).push({ at: Date.now(), by: (M.me && (M.me.name || M.me.user)) || 'Admin', v: t.actual, ms: S.recAc && S.recAc.ms || '' }); }   // 💲 who recorded what, when
         else { t[k] = el.value; if (k === 'unit' && t.est) { t.est = false; var tr = el.closest('tr'); tr.querySelectorAll('.est-in').forEach(function (i) { i.classList.remove('est-in'); i.removeAttribute('title'); }); var tg = tr.querySelector('.est-tag'); if (tg) { tg.parentNode.classList.remove('est-c'); tg.parentNode.removeAttribute('title'); tg.remove(); } } }
         dirty(k === 'done' || k === 'status' ? stName[t.status] + ': ' + t.name : '');
         if (!live) setTimeout(render, 0);
@@ -6875,42 +6881,31 @@
       '</div></div>';
     ordWire($('#planBody'));
     estWire($('#planBody'));
-    $('#planBody').querySelectorAll('[data-costin]').forEach(function (b) { b.onclick = function () { costCheckIn(''); }; });
+    $('#planBody').querySelectorAll('[data-costin]').forEach(function (b) { b.onclick = function () { recordActuals(''); }; });
   }
   // 🔎 why CPI is what it is: labour and services vs materials (BOM), the time index for a finished project, and the tasks that overran most
   // 💲 who may record actual costs: the super user or anyone with edit access to Projects
   function canCost() { var me = M.me || {}; return !!(me.owner || (me.mods || {}).projects === 'edit'); }
   // 💲 the cost check-in: the actual cost to date of each task in a phase (the work up to a milestone), logged with who and when.
   //    It is what CPI is measured from: without actual costs, CPI would be a guess, so Champ asks at every milestone.
-  function costCheckIn(msId) {
-    var p = S.plan, L = ordered(), groups = [], cur = [];
-    L.forEach(function (x) { if (x.t.dur === 0) { groups.push({ ms: x.t, rows: cur }); cur = []; } else cur.push(x); });
-    if (cur.length) groups.push({ ms: null, rows: cur });
-    var gi = groups.map(function (g) { return g.ms && g.ms.id; }).indexOf(msId);
-    if (gi < 0) { gi = 0; groups.forEach(function (g, k) { if (g.rows.some(function (x) { return (x.t.pct || 0) > 0; })) gi = k; }); }   // no milestone given: the latest phase with work done
-    var pick = function (i) { return groups[i] || { ms: null, rows: [] }; };
-    var draw = function (i) { var g = pick(i), rows = g.rows.filter(function (x) { return x.t.dur > 0; });
-      M.modal('<div class="ci-wide"><h2>💲 Progress and actual costs</h2><p class="muted ci-intro">CPI = the value of the work done (EV = budget × % done) ÷ what it cost (AC). ' + (g.ms ? (/^milestone\b/i.test(g.ms.name) ? '' : 'Milestone ') + '<b>' + esc(g.ms.name) + '</b>' + (g.ms.pct >= 100 ? ' is reached. ' : '. ') : '') + 'Confirm each task\'s <b>% done</b> and what it has cost <b>so far, in full</b>. BOM materials count at their baselined price; CPI is measured on the rest. Leave a cost blank if it is not known yet.</p>' +
-        '<label class="qchk" style="display:block;margin:0 0 8px">Phase <select id="ciPh">' + groups.map(function (x, k) { return '<option value="' + k + '"' + (k === i ? ' selected' : '') + '>' + esc(x.ms ? 'Up to ' + x.ms.name : 'After the last milestone') + '</option>'; }).join('') + '</select></label>' +
-        '<div class="ci-scroll"><table class="ci-tab"><thead><tr><th>Task</th><th class="num">Budget</th><th class="num">% done</th><th class="num">Earned (EV)</th><th class="num">Actual cost to date (AC)</th></tr></thead><tbody>' +
-        (rows.length ? rows.map(function (x) { var t = x.t, c = cost(t), sub = (t.subs || []).length > 0; return '<tr><td>#' + x.n + ' ' + esc(t.name) + '</td><td class="num">' + money(c) + '</td>' +
-          '<td class="num">' + (sub ? (t.pct || 0) + '%<small class="muted" style="display:block">from its sub-tasks</small>' : '<input type="number" min="0" max="100" step="5" class="cpi-in ci-pct" data-cp="' + esc(t.id) + '" data-cost="' + c + '" value="' + (t.pct || 0) + '"> %') + '</td>' +
-          '<td class="num" data-ev="' + esc(t.id) + '">' + money(c * (t.pct || 0) / 100) + '</td>' +
-          '<td class="num"><input type="number" min="0" step="0.01" class="cpi-in" data-ci="' + esc(t.id) + '" value="' + (Number(t.actual) > 0 ? t.actual : '') + '" placeholder="not recorded"></td></tr>'; }).join('') : '<tr><td colspan="5" class="muted">No tasks in this phase.</td></tr>') +
-        '</tbody></table></div><div class="actions ci-act"><button class="btn" data-close type="button">Later</button><button class="btn btn-gold" id="ciGo" type="button">💲 Save progress and costs</button></div></div>');
-      document.getElementById('ciPh').onchange = function () { draw(+this.value); };
-      document.querySelectorAll('[data-cp]').forEach(function (inp) { inp.oninput = function () { var e = document.querySelector('[data-ev="' + inp.getAttribute('data-cp') + '"]'); if (e) e.textContent = money((+inp.getAttribute('data-cost') || 0) * Math.max(0, Math.min(100, +inp.value || 0)) / 100); }; });
-      document.getElementById('ciGo').onclick = function () { var me = (M.me && (M.me.name || M.me.user)) || 'Admin', n = 0, np = 0;
-        // % done first (EV), then the actual costs (AC)
-        document.querySelectorAll('[data-cp]').forEach(function (inp) { var t = p.tasks.filter(function (x) { return x.id === inp.getAttribute('data-cp'); })[0]; if (!t || (t.subs || []).length) return;
-          var v = Math.max(0, Math.min(100, Math.round(+inp.value || 0))); if (v === (t.pct || 0)) return; t.pct = v; setStatus(t, statusFromPct(v)); t.pct = v; (t.actualLog = t.actualLog || []).push({ at: Date.now(), by: me, pct: v, ms: g.ms ? g.ms.name : '' }); np++; });
-        document.querySelectorAll('[data-ci]').forEach(function (inp) { var t = p.tasks.filter(function (x) { return x.id === inp.getAttribute('data-ci'); })[0]; if (!t) return; var raw = inp.value.trim(); if (raw === '') return;
-          var v = Math.max(0, Math.round((+raw || 0) * 100) / 100); if (v === (Number(t.actual) || 0)) return; t.actual = v; (t.actualLog = t.actualLog || []).push({ at: Date.now(), by: me, v: v, ms: g.ms ? g.ms.name : '' }); n++; });
-        M.closeModal(); if (n || np) { dirty((np ? 'progress updated on ' + np + ' task' + (np === 1 ? '' : 's') : '') + (np && n ? ' and ' : '') + (n ? 'actual costs recorded for ' + n + ' task' + (n === 1 ? '' : 's') : '') + (g.ms ? ' (' + g.ms.name + ')' : ''));
-          toast('💲 ' + [np ? np + ' progress update' + (np === 1 ? '' : 's') : '', n ? n + ' actual cost' + (n === 1 ? '' : 's') : ''].filter(Boolean).join(' and ') + ' saved: EV and AC are up to date'); render(); } }; };
-    draw(gi);
+  // 💲 recording progress and actual costs happens on the Gantt chart itself: full screen, the cost columns, Actual $ and % highlighted,
+  //    scrolled to the phase (the work up to the milestone). From a milestone ticked done, Champ asks first.
+  function recordActuals(msId) {
+    var L = ordered(), first = '', name = '', prevMs = -1, idx = -1;
+    L.forEach(function (x, i) { if (x.t.id === msId) idx = i; });
+    if (idx >= 0) { name = L[idx].t.name; for (var k = idx - 1; k >= 0; k--) if (L[k].t.dur === 0) { prevMs = k; break; } first = (L[prevMs + 1] || L[idx]).t.id; }
+    else { var w = L.filter(function (x) { return x.t.dur > 0 && (x.t.pct || 0) > 0 && !(Number(x.t.actual) > 0); })[0] || L.filter(function (x) { return x.t.dur > 0 && (x.t.pct || 0) > 0; }).pop(); first = w ? w.t.id : ''; }
+    S.recAc = { ms: name, first: first, scrolled: false }; S.cols = 'c'; try { localStorage.setItem('mbsPlanCols', 'c'); } catch (e) {} S.gfull = true; document.body.classList.add('gantt-full');   // the $ Costs view, full screen
+    if (S.tab !== 'schedule') location.hash = '#plan/' + encodeURIComponent(S.core) + '/schedule'; else render();
   }
-  // ⏱ earned schedule, as the server (plan.mjs scheduleLag): the date by which the work done was planned, and the working days behind or ahead
+  function costCheckIn(msId) {
+    if (!msId) return recordActuals('');
+    var ms = S.plan.tasks.filter(function (x) { return x.id === msId; })[0];
+    M.modal('<h2>💲 ' + esc(ms ? ms.name : 'Milestone') + ' reached</h2><p>Record the progress and actual costs of the work up to this milestone now? It opens the Gantt chart full screen with the cost columns, so you type straight into each task. CPI is measured from these actual costs.</p>' +
+      '<div class="actions"><button class="btn" data-close type="button">Later</button><button class="btn btn-gold" type="button" id="recGo">💲 Record now</button></div>');
+    document.getElementById('recGo').onclick = function () { M.closeModal(); recordActuals(msId); };
+  }
+
   function lagText(L, R, p) {
     var slip = p.baseline && p.baseline.finish && R.finish ? Math.round((toD(R.finish) - toD(p.baseline.finish)) / 864e5) : null, sl = slip ? '; forecast finish ' + Math.abs(slip) + ' day' + (Math.abs(slip) === 1 ? '' : 's') + (slip > 0 ? ' behind' : ' ahead of') + ' the baseline' : '';
     if (!L) return (R.SPI >= 1 ? 'on or ahead of schedule' : 'behind schedule') + sl;
