@@ -2183,11 +2183,27 @@
     }
     scale += '</div>';
     var todayLine = t0 < from ? '' : '<i class="gtoday" style="left:' + (x(t0) + dayW / 2) + 'px"></i>';
+    // 🧱 the BOM milestone carries the BOM version it refers to: v0 (the baseline) and every revision, each with its date and time
+    var isBomMs = function (t) { var b = p.bom; return !!b && t.dur === 0 && (t.id === b.milestone || (!b.milestone && /Bill of Materials/.test(t.name))); };
+    var bomRv = function () { var L = p.bomRevs || []; return L.length ? L[L.length - 1] : null; };
+    var stamp = bomStamp;
+    var bomChip = function (t) {
+      if (!isBomMs(t)) return ''; var r = bomRv();
+      if (!r) return '<button class="bomver pend" type="button" data-bomver title="The BOM gets its version (v0 = the baseline) when it is signed off and saved">🧱 BOM ' + (p.bom.status === 'Signed off' ? 'signed off · v0 on the next save' : esc(p.bom.status || 'draft') + ': no version yet') + '</button>';
+      return '<button class="bomver' + (r.delta > 0 && r.v ? ' up' : r.delta < 0 ? ' down' : '') + '" type="button" data-bomver title="' + esc((p.bomRevs || []).slice().reverse().map(function (x) { return 'v' + x.v + ' · ' + stamp(x.at) + ' · ' + money(x.total) + (x.v ? ' (' + (x.delta >= 0 ? '+' : '') + money(x.delta) + ')' : ' baseline'); }).join('\n') + '\nClick for the versions and their files') + '">🧱 BOM <b>v' + r.v + '</b> · ' + esc(stamp(r.at)) + ' · ' + money(r.total) +
+        (r.v ? ' <span>(' + (r.delta >= 0 ? '+' : '') + money(r.delta) + ', ' + (r.pct >= 0 ? '+' : '') + r.pct + '%)</span>' : ' <span>(baseline)</span>') + '</button>';
+    };
+    var bomMarks = function (t) {   // a marker on the Gantt chart on each day a BOM version was made (versions on the same day share one marker)
+      if (!isBomMs(t)) return ''; var D = {}, ord = [];
+      (p.bomRevs || []).forEach(function (r) { var d = new Date(r.at), iso = d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); if (!D[iso]) { D[iso] = []; ord.push(iso); } D[iso].push(r); });
+      return ord.map(function (iso) { var L = D[iso], px = x(iso) + dayW / 2, up = L.some(function (r) { return r.v && r.delta > 0; }), dn = !up && L.some(function (r) { return r.v && r.delta < 0; });
+        return isFinite(px) && px >= 0 && px <= W ? '<span class="gbomv' + (up ? ' up' : dn ? ' down' : '') + '" style="left:' + px + 'px" title="' + esc(L.map(function (r) { return 'BOM v' + r.v + ' · ' + stamp(r.at) + ' · ' + money(r.total) + (r.v ? ' (' + (r.delta >= 0 ? '+' : '') + money(r.delta) + ')' : ' baseline'); }).join('\n')) + '">' + L.map(function (r) { return 'v' + r.v; }).join('·') + '</span>' : ''; }).join('');
+    };
     var bar = function (t, base) {
       if (!t.es) return '';
       var late = t.pct < 100 && t.ef < t0, left = x(t.es), w = (daysBetween(t.es, t.ef) + 1) * dayW;
       var b = base && base.es ? '<span class="gbase" style="left:' + x(base.es) + 'px;width:' + ((daysBetween(base.es, base.ef) + 1) * dayW) + 'px" title="Baseline"></span>' : '';
-      var lab = '<span class="glab" style="left:' + ((t.dur === 0 ? left + dayW : left + w) + 4) + 'px">' + stkBtn(t, 'pin') + (t.dur === 0 ? esc(pretty(t.es)) + ' ' : '') + '<b class="gpct">' + t.pct + '%</b> ' + esc(resShort(t)) + '</span>';
+      var lab = '<span class="glab" style="left:' + ((t.dur === 0 ? left + dayW : left + w) + 4) + 'px">' + stkBtn(t, 'pin') + (t.dur === 0 ? esc(pretty(t.es)) + ' ' : '') + '<b class="gpct">' + t.pct + '%</b> ' + esc(resShort(t)) + (isBomMs(t) && bomRv() ? ' <b class="gbomlab">🧱 BOM v' + bomRv().v + ' · ' + esc(stamp(bomRv().at)) + '</b>' : '') + '</span>';
       if (t.dur === 0) return b + '<span class="gmile' + (t.pct >= 100 ? ' done' : '') + '" style="left:' + (left + dayW / 2 - 7) + 'px" title="' + esc(t.name + ' · ' + pretty(t.es) + ' · ' + stName[t.status]) + '"></span>' + lab;
       return b + '<span class="gbar st-' + t.status + ' pb-' + pband(t.pct) + (late ? ' late' : '') + '" style="left:' + left + 'px;width:' + w + 'px" title="' + esc(t.name + ' · ' + pretty(t.es) + ' – ' + pretty(t.ef) + ' · ' + stName[t.status] + ' ' + t.pct + '%') + '"><span class="gfill" style="width:' + t.pct + '%"></span></span>' + lab;
     };
@@ -2213,7 +2229,7 @@
       var subs = t.subs || [], open = subs.length && !S.closed[t.id];
       html += '<tr data-tid="' + esc(t.id) + '" class="' + (t.pct >= 100 ? 'tdone' : '') + (late ? ' tlate' : '') + (t.dur === 0 ? ' tmile' : '') + (subs.length ? ' tparent' : '') + '"><td class="muted nowrap">' + '<span class="grip" data-grip title="Drag up or down to move this task">⠿</span>' + (subs.length ? '<button class="subtog" type="button" data-tog title="' + (open ? 'Hide' : 'Show') + ' sub-tasks">' + (open ? '▾' : '▸') + '</button>' : '') + '<input class="posin" data-pos inputmode="numeric" value="' + r.n + '" title="Type a number to move this task there (1 = first)">' + stkBtn(t, 'row') + '</td>' +
         '<td><input type="checkbox" data-k="done"' + (t.pct >= 100 ? ' checked' : '') + ' title="Done" style="width:auto"></td>' +
-        '<td><div class="tname"><input data-k="name" value="' + esc(t.name) + '" title="' + esc(t.name) + (t.dur === 0 ? ' (milestone)' : '') + (late ? ' · LATE: was due ' + pretty(t.ef) : '') + '"><button class="tdel" type="button" data-del title="Delete this task' + (subs.length ? ' and its ' + pl(subs.length, 'sub-task') : '') + '" aria-label="Delete task">🗑</button><button class="tins" type="button" data-ins title="Add a level-1 task below this one" aria-label="Add a task below">＋</button><button class="pkbtn" type="button" data-pick title="' + (matsOf(t).length ? 'Materials from stock (' + matsOf(t).length + '): change them' : 'Add materials from stock (any number, each with a quantity)') + '">📦</button></div>' + stockChip(t) +
+        '<td><div class="tname"><input data-k="name" value="' + esc(t.name) + '" title="' + esc(t.name) + (t.dur === 0 ? ' (milestone)' : '') + (late ? ' · LATE: was due ' + pretty(t.ef) : '') + '"><button class="tdel" type="button" data-del title="Delete this task' + (subs.length ? ' and its ' + pl(subs.length, 'sub-task') : '') + '" aria-label="Delete task">🗑</button><button class="tins" type="button" data-ins title="Add a level-1 task below this one" aria-label="Add a task below">＋</button><button class="pkbtn" type="button" data-pick title="' + (matsOf(t).length ? 'Materials from stock (' + matsOf(t).length + '): change them' : 'Add materials from stock (any number, each with a quantity)') + '">📦</button></div>' + stockChip(t) + bomChip(t) +
           (t.dur === 0 ? '' : '<button class="subadd" type="button" data-addsub title="Break this task into smaller steps (they stay inside its dates)">＋ sub-task' + (subs.length ? ' · ' + subs.filter(function (x) { return x.status === 'done'; }).length + '/' + subs.length + ' done' : '') + '</button>') + '</td>' +
         '<td>' + resCell(t) + '</td>' +
         '<td><input data-k="dur" type="number" min="0" max="365" value="' + t.dur + '" style="width:50px" title="0 days = milestone"></td>' +
@@ -2229,7 +2245,7 @@
         '<td><input data-k="pct" type="number" min="0" max="100" step="1" value="' + t.pct + '" style="width:54px"' + (subs.length ? ' disabled title="Worked out from the sub-tasks"' : '') + '></td>' +
         '<td class="acts">' + lvlBtns(1, t.dur > 0 && prevL1(p, t) && !(t.subs || []).some(function (x) { return (x.steps || []).length; }), false, t.dur === 0 ? 'A milestone stays at level 1' : !prevL1(p, t) ? 'The first task has nothing above it to go under' : 'Move its steps out first: a sub-task has only one level below it') + '<button class="btn btn-sm" data-rem title="Reminder">🔔</button><button class="btn btn-sm" data-del title="Delete">✕</button></td>' +
         '</tr>';
-      G += '<tr data-gtid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack" style="width:' + W + 'px;' + weekendBg + '">' + holMarks + todayLine + bar(t, base) + '</div></td></tr>';
+      G += '<tr data-gtid="' + esc(t.id) + '"><td class="gcol"><div class="gtrack" style="width:' + W + 'px;' + weekendBg + '">' + holMarks + todayLine + bomMarks(t) + bar(t, base) + '</div></td></tr>';
       if (open) subs.forEach(function (sb, j) {
         var d = subDates(t, sb), sl = sb.status !== 'done' && d.ef && d.ef < t0, maxDur = Math.max(1, t.dur) - sb.off;
         var left = d.es ? x(d.es) : 0, sw = d.es ? (daysBetween(d.es, d.ef) + 1) * dayW : 0;
@@ -2388,6 +2404,7 @@
     dragRows(B, p);
     // sub-tasks
     B.querySelectorAll('[data-tog]').forEach(function (b) { b.onclick = function () { var t = task(b); S.closed[t.id] = !S.closed[t.id]; render(); }; });
+    B.querySelectorAll('[data-bomver]').forEach(function (b) { b.onclick = function (e) { e.preventDefault(); bomVersions(); }; });
     B.querySelectorAll('[data-addsub]').forEach(function (b) {
       b.onclick = function () {
         var t = task(b), D = Math.max(1, t.dur); t.subs = t.subs || [];
@@ -5229,6 +5246,16 @@
   var q3c = function (n) { return Math.round((Number(n) || 0) * 1000) / 1000; };
   function bomMe() { var m = M.me || {}; return m.name || m.user || 'Admin'; }
   function bomOf() { return S.plan.bom || null; }
+  function bomStamp(ms) { var d = new Date(ms), z = function (n) { return (n < 10 ? '0' : '') + n; }; return z(d.getDate()) + '/' + z(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + z(d.getHours()) + ':' + z(d.getMinutes()); }
+  // 🧱 the BOM versions: each with its date and time, total, change and synopsis; the files are in Project documents (BOM.csv)
+  function bomVersions() {
+    var p = S.plan, L = (p.bomRevs || []).slice().reverse();
+    M.modal('<h2>🧱 BOM versions</h2><p class="muted" style="margin:-4px 0 10px">v0 is the baseline signed off first: materials are budgeted at it. Each later version is the current price: it is the actual cost of the materials, so it moves the costing and CPI. Every version is a file (BOM.csv) in Project documents.</p>' +
+      (L.length ? '<div class="tblwrap"><table class="tbl bomv-t"><thead><tr><th>Version</th><th>Date and time</th><th>By</th><th class="num">Total (ex GST)</th><th class="num">Change</th><th>What changed</th></tr></thead><tbody>' +
+        L.map(function (r, i) { return '<tr><td class="nowrap"><b>v' + r.v + '</b>' + (r.v === 0 ? ' <small class="muted">baseline</small>' : '') + (i === 0 ? ' <small class="good">current</small>' : '') + '</td><td class="nowrap">' + esc(bomStamp(r.at)) + '</td><td>' + esc(r.by || '') + '</td><td class="num">' + money(r.total) + '</td><td class="num ' + (r.v && r.delta > 0 ? 'bad' : r.v && r.delta < 0 ? 'good' : '') + '">' + (r.v ? (r.delta >= 0 ? '+' : '') + money(r.delta) + '<br><small>' + (r.pct >= 0 ? '+' : '') + r.pct + '%</small>' : '—') + '</td><td style="font-size:12.5px">' + esc(r.syn || '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+        : '<p>No version yet: the BOM gets v0 when it is signed off and the plan is saved.</p>') +
+      '<div class="actions"><a class="btn btn-gold" href="#plan/' + esc(S.core) + '/docs" data-close>📁 Open the files in Project documents</a><a class="btn" href="#plan/' + esc(S.core) + '/bom" data-close>🧱 Open the BOM</a><button class="btn" type="button" data-close>Close</button></div>');
+  }
   function bomHas() { var b = bomOf(); return !!(b && (b.lines || []).length); }
   function bomLocked() { var b = bomOf(); return !!(b && b.status === 'Signed off'); }
   function bomLog(what) { var b = bomOf(); b.log = (b.log || []).concat([{ at: Date.now(), what: what }]).slice(-60); }
