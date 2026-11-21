@@ -63,7 +63,7 @@ const READ = /^(dashboard|jobs|job|reminders|report|stores|dataList|dataGet|log|
 export function need(action) {
   const a = String(action || '');
   if (/^vault[A-Z]/.test(a)) return null;
-  if (a === 'acctFinanceGet' || a === 'acctBillGet' || a === 'acctBillAlerts') return null;   // 💵 billing: billing.mjs checks (CEO, CFO, the program's director, the project's manager)   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
+  if (a === 'acctFinanceGet' || a === 'acctBillGet' || a === 'acctBillAlerts' || a === 'acctVoRaise' || a === 'acctVoDecide') return null;   // 💵 billing: billing.mjs checks (CEO, CFO, the program's director, the project's manager)   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
   if (['me', 'logout', 'login', 'userPassword', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk'].includes(a)) return null;   // My profile: anyone signed in, their own record
   let mod;
   if (a === 'quoteStart' || a === 'planQuote') mod = 'accounts';

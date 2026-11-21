@@ -24,8 +24,9 @@ export async function saveBill(core, body, by) {
   let tot = 0;
   for (const [k, v] of Object.entries((body && body.ms) || {})) { const pc = Math.max(0, Math.min(100, Math.round((Number(v) || 0) * 10) / 10)); if (ids.has(k) && pc > 0) { m[k] = pc; tot += pc; } }
   if (tot > 100.05) return { error: 'The milestones add up to ' + Math.round(tot * 10) / 10 + '% of the contract: keep it to 100% or less.', code: 400 };
-  const contract = Math.max(0, r2(body && body.contract));
-  const b = await kv.update('billing:' + core, (x) => ({ ...(x || {}), contract, ms: m, by, at: Date.now() }), () => ({ contract: 0, ms: {} }));
+  const typed = Math.max(0, r2(body && body.contract));
+  // 🔒 once confirmed, the contract value is not changed here: a change goes through a variation order (raiseVO)
+  const b = await kv.update('billing:' + core, (x) => ({ ...(x || {}), contract: x && x.contract > 0 ? x.contract : typed, confirmedAt: (x && x.confirmedAt) || Date.now(), confirmedBy: (x && x.confirmedBy) || by, ms: m, by, at: Date.now() }), () => ({ contract: 0, ms: {} }));
   return { ok: true, bill: b };
 }
 
@@ -39,10 +40,17 @@ function projectBill(plan, bill, docs, today) {
   const R = P.rollup(JSON.parse(JSON.stringify(plan)), today), base = r2(R.BAC), contA = r2(base * cont / 100), resA = r2(base * res / 100), budget = r2(base + contA + resA), eac = r2(R.EAC || base);
   const suggested = r2(budget * (1 + mg / 100));
   // 📐 no accepted quote and nothing typed in: estimate the contract from Costing (budget + margin), clearly marked, until the CFO confirms it
-  const C = C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
+  const C1 = C0.value > 0 ? C0 : suggested > 0 ? { value: suggested, from: 'estimate' } : C0;
+  // 📝 variation orders: change requests that carry a change to the contract value; approved ones add to it
+  const vos = (plan.changes || []).filter((c) => c.vo).map((c) => ({ id: c.id, num: c.voNum || ('VO-' + c.num), title: String(c.title || '').replace(/^Variation order:\s*/i, ''), reason: c.reason || c.desc || '', amount: c.vo, status: c.status, by: c.raisedBy, at: c.raisedAt, decision: c.decision || null }));
+  const voOk = r2(vos.filter((v) => v.status === 'Approved' || v.status === 'Implemented').reduce((a, v) => a + v.amount, 0)), voWait = r2(vos.filter((v) => ['Proposed', 'Under review', 'CCB meeting'].includes(v.status)).reduce((a, v) => a + v.amount, 0));
+  const C = { ...C1, base: C1.value || 0, value: r2((C1.value || 0) + voOk) };
   const price = C.value || 0, gst = r2(price * gstp / 100);
-  const money = { contract: price, contractFrom: C.from, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
-    spent: r2(R.AC), eac, CPI: R.CPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null };
+  const money = { contract: price, contractFrom: C.from, contractBase: C.base, variations: voOk, variationsWaiting: voWait, suggested, marginCfg: mg, gstPct: gstp, gst, withGst: r2(price + gst), base, contPct: cont, contingency: contA, resPct: res, reserve: resA, budget, approved: r2((plan.charter || {}).budget || 0),
+    spent: r2(R.AC), eac, CPI: R.CPI, margin: price ? r2(price - budget) : null, marginPct: price ? Math.round((price - budget) / price * 1000) / 10 : null, profit: price ? r2(price - eac) : null, profitPct: price ? Math.round((price - eac) / price * 1000) / 10 : null,
+    // 📈 forecast profit, two scenarios: 1) contingency and management reserve both spent; 2) the management reserve not needed
+    profit1: price ? r2(price - eac - contA - resA) : null, profit2: price ? r2(price - eac - contA) : null };
+  for (const k of ['profit1', 'profit2']) money[k + 'Pct'] = price ? Math.round(money[k] / price * 1000) / 10 : null;
   // 📅 how close each milestone is: red and flashing within a week, amber within a month, green after; a short project (an event) scales the windows down
   const span = Math.max(1, Math.round((Date.parse((R.finish || today) + 'T00:00:00Z') - Date.parse((R.start || plan.start || today) + 'T00:00:00Z')) / 864e5));
   const redW = span >= 70 ? 7 : Math.max(1, Math.round(span / 10)), ambW = span >= 90 ? 30 : Math.max(redW + 2, Math.round(span / 3));
@@ -50,8 +58,13 @@ function projectBill(plan, bill, docs, today) {
   // 📐 no milestone shares set yet: split the contract evenly across the milestones (marked "suggested") until the CFO saves them
   const M0 = ms(plan), typedMs = Object.keys(bill.ms || {}).length > 0, auto = !typedMs && M0.length > 0, even = {};
   if (auto) { const n = M0.length, e = Math.floor(1000 / n) / 10; M0.forEach((t, i) => { even[t.id] = i === n - 1 ? r2(100 - e * (n - 1)) : e; }); }
-  const rows = M0.map((t) => { const pc = auto ? even[t.id] : (bill.ms || {})[t.id] || 0, inv = lineOf[t.id];
-    return { tid: t.id, name: String(t.name || 'Milestone').replace(/^[✓◆\s]+/, ''), due: t.ef || t.es || '', done: (t.pct || 0) >= 100, pct: pc, amount: r2(C.value * pc / 100),
+  // 🧾 invoiced milestones keep what they were billed; what is left of the contract (approved variations included) is spread over the rest by their shares
+  const shareOf = (t) => (auto ? even[t.id] : (bill.ms || {})[t.id] || 0), billedEx = r2(M0.filter((t) => lineOf[t.id]).reduce((a, t) => a + ((lineOf[t.id].items || []).filter((l) => l.tid === t.id).reduce((b, l) => b + (Number(l.qty) || 1) * (Number(l.price) || 0), 0)), 0));
+  const restPct = M0.filter((t) => !lineOf[t.id]).reduce((a, t) => a + shareOf(t), 0), allPct = M0.reduce((a, t) => a + shareOf(t), 0);
+  const restPool = billedEx > 0 && restPct > 0 ? Math.max(0, C.value * Math.min(100, allPct) / 100 - billedEx) : null;
+  const amtOf = (t, pc) => { const inv = lineOf[t.id]; if (inv) return r2((inv.items || []).filter((l) => l.tid === t.id).reduce((b, l) => b + (Number(l.qty) || 1) * (Number(l.price) || 0), 0)); return restPool != null ? r2(restPool * pc / restPct) : r2(C.value * pc / 100); };
+  const rows = M0.map((t) => { const pc = shareOf(t), inv = lineOf[t.id];
+    return { tid: t.id, name: String(t.name || 'Milestone').replace(/^[✓◆\s]+/, ''), due: t.ef || t.es || '', done: (t.pct || 0) >= 100, pct: pc, amount: amtOf(t, pc), gstPct: gstp, gst: inv ? r2(inv.totals.gst) : r2(amtOf(t, pc) * gstp / 100), inc: inv ? r2(inv.totals.inc) : r2(amtOf(t, pc) * (1 + gstp / 100)),
       invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, ...near(t.ef || t.es || '', !!inv) }; });
   const inc = (i) => i.totals.inc, ex = (i) => i.totals.ex, live = invs.filter((i) => i.status !== 'draft');
   const invoiced = r2(live.reduce((a, i) => a + ex(i), 0)), received = r2(live.reduce((a, i) => a + (inc(i) ? Math.min(inc(i), i.paid || 0) * ex(i) / inc(i) : 0), 0));
@@ -68,7 +81,7 @@ function projectBill(plan, bill, docs, today) {
     : !rows.length ? { tone: 'amber', text: 'No milestones to bill against' }
     : stand.unbilled > price * 0.05 ? { tone: 'amber', text: 'Work is ahead of billing' }
     : { tone: 'green', text: 'Billing up to date' };
-  return { core, name: plan.name, money, stand, windows: { red: redW, amber: ambW, span }, contract: C.value, contractFrom: C.from, typed: r2(bill.contract), milestones: rows, planned: r2(rows.reduce((a, r) => a + r.pct, 0)),
+  return { core, name: plan.name, money, stand, vos, gstPct: gstp, billedEx, restPct, spread: restPool != null, windows: { red: redW, amber: ambW, span }, contract: C.value, contractFrom: C.from, typed: r2(bill.contract), milestones: rows, planned: r2(rows.reduce((a, r) => a + r.pct, 0)),
     invoiced, received, owed: r2(invoiced - received), ready: rows.filter((r) => r.ready) };
 }
 
@@ -89,7 +102,7 @@ export async function raise(core, tid, by, today) {
   if (m.confirm) return { error: 'This project\'s billing is still an estimate: check the contract value and each milestone\'s share, then press Save billing to confirm before invoicing.', code: 400 };
   const job = await J.find(core).catch(() => null);
   const d = await ACC.createDoc('invoice', { core, customer: job ? { name: job.name, email: job.email, phone: job.phone, address: job.suburb } : { name: plan.name }, title: plan.name + ': ' + m.name,
-    items: [{ desc: 'Milestone: ' + m.name + ' (' + m.pct + '% of the contract value ' + ACC.money(B.contract) + ')', qty: 1, price: m.amount, gst: true, tid: m.tid }] }, by);
+    items: [{ desc: 'Milestone: ' + m.name + ' (' + m.pct + '% of the contract value ' + ACC.money(B.contract) + ')', qty: 1, price: m.amount, gst: m.gstPct > 0, gstRate: m.gstPct, tid: m.tid }] }, by);
   await ACC.setStatus(d.id, 'sent', by, 'Raised from milestone ' + m.name);
   return { ok: true, id: d.id, amount: m.amount };
 }
@@ -152,4 +165,55 @@ export async function alerts(ctx, today) {
   const F = await finance(today, cores);
   let red = 0, amber = 0; for (const x of F.coming || []) { if (x.alert === 'red') red++; else if (x.alert === 'amber') amber++; }
   return { projects: cores ? cores.size : F.projects.length, count: red + F.totals.readyN + F.totals.overdueN, red, amber, ready: F.totals.readyN, overdue: F.totals.overdueN };
+}
+
+// 📝 a variation order: a change to the contract value, raised on the Finance screen as a change request (Change control register),
+//   flagged to the project manager and the program director with a sticky note (it shows in their Today), and approved by the
+//   program director (or the CEO / super user). Once approved, it adds to the contract value.
+async function people(core) {
+  const PG = await import('./programs.mjs'), U = await import('./users.mjs');
+  const [plan, job, progs] = await Promise.all([P.get(core), J.find(core).catch(() => null), PG.list()]);
+  const g = progs.find((x) => x.name && x.name === ((job || {}).program || '')), dir = g && g.director ? await U.get(g.director).catch(() => null) : null;
+  return { plan, job, program: g || null, pm: ((plan || {}).charter || {}).manager || (job || {}).manager || '', director: dir ? dir.name : '', directorId: g ? g.director : '' };
+}
+export async function canDecideVO(ctx, core) {
+  if (!ctx || ctx.scope) return false; if (ctx.owner || ctx.role === 'CEO') return true;
+  const W = await people(core); return !!(ctx.uid && W.directorId === ctx.uid);
+}
+export async function raiseVO(core, body, ctx, today) {
+  const amount = r2(body && body.amount), title = String((body && body.title) || '').trim().slice(0, 160), reason = String((body && body.reason) || '').trim().slice(0, 2000);
+  if (!amount) return { error: 'Type the change to the contract value (use a minus for a reduction).', code: 400 };
+  if (!title) return { error: 'Say what the variation is for.', code: 400 };
+  const W = await people(core); if (!W.plan) return { error: 'That project is not there any more.', code: 404 };
+  const by = ctx.name || ctx.user || 'owner';
+  for (let tries = 0; tries < 3; tries++) {
+    const plan = await P.get(core), ch = plan.changes || [], num = ch.reduce((a, c) => Math.max(a, c.num || 0), 0) + 1, voNum = 'VO-' + String(ch.filter((c) => c.vo).length + 1).padStart(3, '0');
+    const sign = (amount > 0 ? '+' : '−') + ACC.money(Math.abs(amount));
+    ch.push({ id: 'cr' + Date.now().toString(36), num, title: 'Variation order: ' + title, desc: reason, reason, source: 'manual', raisedBy: by, raisedAt: Date.now(), priority: 'High', status: 'Proposed', estCost: amount, vo: amount, voNum,
+      log: [{ at: Date.now(), what: voNum + ' raised from Finance by ' + by + ': ' + sign + ' to the contract value' }] });
+    plan.changes = ch;
+    // 📌 a sticky note on the next milestone (or the first task): it @mentions the project manager and the program director, so it is in their Today
+    const at = (plan.tasks || []).find((t) => t.dur === 0 && (t.pct || 0) < 100) || (plan.tasks || [])[0];
+    const who = [W.pm, W.director].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).map((n) => '@' + n).join(' ');
+    if (at) { at.stickies = at.stickies || []; at.stickies.push({ id: 'n' + Date.now().toString(36), c: 'A', text: (who ? who + ' ' : '') + 'Variation order ' + voNum + ' raised by ' + by + ': ' + sign + ' to the contract value (' + title + '). Please review and approve it on the Finance screen (project billing). #waiting', by, at: Date.now(), due: today || '', linked: 'vo:' + voNum }); }
+    const r = await P.save(core, plan, plan.rev, by);
+    if (!r.conflict) return { ok: true, voNum, num, told: [W.pm, W.director].filter(Boolean) };
+  }
+  return { error: 'Someone was saving the plan at the same moment: try again.', code: 409 };
+}
+export async function decideVO(core, id, outcome, note, ctx) {
+  if (!['Approved', 'Rejected'].includes(outcome)) return { error: 'Approve or reject.', code: 400 };
+  if (!(await canDecideVO(ctx, core))) return { error: 'Only the program director for this project (or the CEO) can approve a variation order.', code: 403 };
+  const by = ctx.name || ctx.user || 'owner';
+  for (let tries = 0; tries < 3; tries++) {
+    const plan = await P.get(core); if (!plan) return { error: 'That project is not there any more.', code: 404 };
+    const c = (plan.changes || []).find((x) => x.id === id && x.vo); if (!c) return { error: 'That variation order is not there any more.', code: 404 };
+    if (!['Proposed', 'Under review', 'CCB meeting'].includes(c.status)) return { error: (c.voNum || 'It') + ' is already ' + c.status.toLowerCase() + '.', code: 400 };
+    c.status = outcome; c.decision = { by, role: ctx.owner ? 'Super user' : ctx.role || '', at: Date.now(), note: String(note || '').slice(0, 1000), outcome };
+    c.log = (c.log || []).concat([{ at: Date.now(), what: (c.voNum || 'Variation') + ' ' + outcome.toLowerCase() + ' by ' + by + (note ? ': ' + String(note).slice(0, 200) : '') }]);
+    for (const t of plan.tasks || []) for (const n of t.stickies || []) if (n.linked === 'vo:' + c.voNum && !n.done) { n.done = true; n.doneBy = by; }
+    const r = await P.save(core, plan, plan.rev, by);
+    if (!r.conflict) return { ok: true };
+  }
+  return { error: 'Someone was saving the plan at the same moment: try again.', code: 409 };
 }

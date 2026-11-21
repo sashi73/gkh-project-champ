@@ -209,4 +209,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 198 | 1.0.198| 2026-11-21 11:42| pause| `2bb716b` | 🎙 CEO briefing: ▾ Hide / ▸ Show (remembered), 📄 Download PDF (a one-page note), ⏸ Pause / ▶ Carry on while it reads; Champ's panel gets ⏸  |
 | 199 | 1.0.199| 2026-11-21 11:54| billfix| `197bdca` | 💵 Finance: every project shows where it stands on billing; no contract yet = an estimate from Costing (split evenly across milestones) unti |
 | 200 | 1.0.200| 2026-11-21 11:59| budgetwhy| `53cfdac` | 🧮 Finance: show how the budget and the estimated contract are worked out (costed work + contingency + reserve = budget, + margin), and how  |
-| 201 | 1.0.201 | 2026-11-21 12:01 | bacnote | _this commit_ | _see git log_ |
+| 201 | 1.0.201| 2026-11-21 12:01| bacnote| `c85942e` | 🧮 Finance: Budget = Base cost (BAC) + contingency + reserve, with a link to the plan's Costing (#62) |
+| 202 | 1.0.202 | 2026-11-21 12:24 | variation | _this commit_ | _see git log_ |
