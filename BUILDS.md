@@ -252,4 +252,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 241 | 1.0.241| 2026-11-22 02:19| bomgo| `8d943d1` | Gantt: the BOM row's Actual $ opens the BOM / BOQ directly (no price pop-up) (#102) |
 | 242 | 1.0.242| 2026-11-22 02:26| consist| `c0bdde7` | One set of figures for every project: BOM-only actuals read from the BOM at every calculation (no save needed), the plan's budget and foreca |
 | 243 | 1.0.243| 2026-11-22 02:36| ovorder| `5ecea31` | Overview: left column is Time & cost, Late tasks, This week, Top risks, Open issues; late tasks redesigned (#104) |
-| 244 | 1.0.244 | 2026-11-22 02:55 | spifix | _this commit_ | _see git log_ |
+| 244 | 1.0.244| 2026-11-22 02:55| spifix| `0c0b327` | Never re-baseline automatically: order changes never move delivered materials or started work, keep the order date, and never touch the base |
+| 245 | 1.0.245 | 2026-11-22 03:02 | basever | _this commit_ | _see git log_ |
