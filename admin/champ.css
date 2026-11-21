@@ -1285,3 +1285,14 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 
 .bom-act .cr-wait,.cr-wait{color:#9a5b00!important;font-weight:700}
 .cr-bom{padding:10px 12px;border:1px solid #d9c9a3;border-radius:10px;background:#fbf6ea;margin-top:8px}.cr-bom p{margin:6px 0}
+
+/* 📦 order status */
+.ord-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.ord-st{width:auto;padding:2px 6px;font-size:12px;border-radius:8px}
+.ord-st.st-delivered{background:#E7F6EC;color:#067647}.ord-st.st-delayed{background:#FDECEC;color:#B42318}.ord-st.st-intransit,.ord-st.st-confirmed{background:#EEF4FF;color:#1849A9}
+.ord-edit{display:flex;gap:6px;align-items:flex-end;flex-wrap:wrap;margin-top:6px}
+.ord-edit label{display:flex;flex-direction:column;font-size:10.5px;color:#6b6656;gap:2px}
+.ord-edit [data-oprice]{width:110px;text-align:right}.ord-edit [data-olead]{width:70px}
+.ord-edit [data-onote]{flex:1;min-width:180px}
+.ord-row.warnrow{border-color:#f1b4b4!important;background:#fff7f6!important}
+.ord-edit input.ord-ok{box-shadow:0 0 0 2px #16A34A}

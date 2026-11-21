@@ -24,7 +24,8 @@ export function cleanLine(x, taskIds) {
     item: /^I-\d{3,6}$/.test(x.item || '') ? x.item : '', qty: Math.max(0, Math.min(1e7, q3(x.qty))), unit: str(x.unit, 12) || 'each', price: Math.max(0, Math.min(1e9, r2(x.price))),
     lead: int(x.lead, 0, 365, 0), note: str(x.note, 240), source: ['ai', 'manual', 'template', 'plan'].includes(x.source) ? x.source : 'manual',
     est: !!x.est, checked: !!x.checked, checkedBy: str(x.checkedBy, 80),
-    ordered: !!x.ordered, orderedBy: str(x.orderedBy, 80), orderedAt: Number(x.orderedAt) || 0, orderNote: str(x.orderNote, 300), orderNoteBy: str(x.orderNoteBy, 80), orderNoteAt: Number(x.orderNoteAt) || 0 };   // 🛒 things to order
+    ordered: !!x.ordered, orderedBy: str(x.orderedBy, 80), orderedAt: Number(x.orderedAt) || 0, orderNote: str(x.orderNote, 300), orderNoteBy: str(x.orderNoteBy, 80), orderNoteAt: Number(x.orderNoteAt) || 0,
+    ordStatus: ['Not ordered', 'Ordered', 'Confirmed', 'In transit', 'Delivered', 'Delayed'].includes(x.ordStatus) ? x.ordStatus : undefined, ordStatusAt: Number(x.ordStatusAt) || undefined };   // 🛒 things to order
 }
 // v92: re-orders made from the BOM: per stock item, how it was ordered (phone, email, online, other), how many, from whom, when due
 const VIA = ['phone', 'email', 'online', 'in person', 'other'];

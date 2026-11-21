@@ -50,14 +50,14 @@ export async function pdfOf(plan, job, v, at, by, lines, prevById, changes, tota
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const $ = (n) => (n < 0 ? '−$' : '$') + Math.abs(r2(n)).toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const amt = (l) => r2((Number(l.qty) || 0) * (Number(l.price) || 0));
-const pick = (l) => ({ id: l.id, name: l.name, unit: l.unit || 'each', qty: Number(l.qty) || 0, price: Number(l.price) || 0, task: l.task || '' });
+const pick = (l) => ({ id: l.id, name: l.name, unit: l.unit || 'each', qty: Number(l.qty) || 0, price: Number(l.price) || 0, lead: Number(l.lead) || 0, task: l.task || '' });
 
 // what changed between two versions, line by line (price, quantity, added, removed)
 export function diff(prev, cur) {
   const A = Object.fromEntries(prev.map((l) => [l.id, l])), B = Object.fromEntries(cur.map((l) => [l.id, l])), out = [];
   for (const l of cur) { const o = A[l.id];
     if (!o) out.push({ id: l.id, name: l.name, kind: 'added', oldQty: 0, newQty: l.qty, oldPrice: 0, newPrice: l.price, delta: amt(l) });
-    else if (o.qty !== l.qty || o.price !== l.price) out.push({ id: l.id, name: l.name, kind: o.price !== l.price ? (o.qty !== l.qty ? 'price and quantity' : 'price') : 'quantity', oldQty: o.qty, newQty: l.qty, oldPrice: o.price, newPrice: l.price, delta: r2(amt(l) - amt(o)) }); }
+    else if (o.qty !== l.qty || o.price !== l.price || (o.lead != null && o.lead !== l.lead)) out.push({ id: l.id, name: l.name, oldLead: o.lead || 0, newLead: l.lead, kind: o.price !== l.price ? (o.qty !== l.qty ? 'price and quantity' : 'price') : o.qty !== l.qty ? 'quantity' : 'lead time', oldQty: o.qty, newQty: l.qty, oldPrice: o.price, newPrice: l.price, delta: r2(amt(l) - amt(o)) }); }
   for (const o of prev) if (!B[o.id]) out.push({ id: o.id, name: o.name, kind: 'removed', oldQty: o.qty, newQty: 0, oldPrice: o.price, newPrice: 0, delta: -amt(o) });
   return out.sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
 }
@@ -66,14 +66,14 @@ function csv(plan, job, v, at, by, lines, prevById, changes, total, prevTotal) {
   const head = [['Bill of Materials and Quantities (BOM / BOQ)'], ['Project', plan.name], ['Reference', job ? J.refFor(job) : plan.core], ['Version', 'v' + v + (v === 0 ? ' (baseline)' : '')], ['Date and time', when(at) + ' (Sydney)'], ['Signed off by', (plan.bom && plan.bom.signedBy) || by],
     ['Total (before tax)', $(total)], ...(v ? [['Change from v' + (v - 1), (total - prevTotal >= 0 ? '+' : '') + $(total - prevTotal) + (prevTotal ? ' (' + (Math.round((total - prevTotal) / prevTotal * 1000) / 10) + '%)' : '')]] : []), []];
   const T = Object.fromEntries((plan.tasks || []).map((t, i) => [t.id, '#' + (i + 1) + ' ' + t.name]));
-  const rows = [['Item', 'Unit', 'Quantity', 'Unit price', 'Amount', 'Task', ...(v ? ['Previous unit price', 'Previous quantity', 'Change'] : [])]].concat(lines.map((l) => { const o = prevById[l.id];
-    return [l.name, l.unit, l.qty, r2(l.price).toFixed(2), amt(l).toFixed(2), T[l.task] || '', ...(v ? [o ? r2(o.price).toFixed(2) : 'new', o ? o.qty : 'new', o ? (amt(l) - amt(o)).toFixed(2) : amt(l).toFixed(2)] : [])]; }));
-  const gone = changes.filter((c) => c.kind === 'removed').map((c) => [c.name + ' (removed)', '', 0, '0.00', '0.00', '', r2(c.oldPrice).toFixed(2), c.oldQty, r2(c.delta).toFixed(2)]);
+  const rows = [['Item', 'Unit', 'Quantity', 'Unit price', 'Amount', 'Task', 'Lead time (days)', ...(v ? ['Previous unit price', 'Previous quantity', 'Change'] : [])]].concat(lines.map((l) => { const o = prevById[l.id];
+    return [l.name, l.unit, l.qty, r2(l.price).toFixed(2), amt(l).toFixed(2), T[l.task] || '', l.lead || 0, ...(v ? [o ? r2(o.price).toFixed(2) : 'new', o ? o.qty : 'new', o ? (amt(l) - amt(o)).toFixed(2) : amt(l).toFixed(2)] : [])]; }));
+  const gone = changes.filter((c) => c.kind === 'removed').map((c) => [c.name + ' (removed)', '', 0, '0.00', '0.00', '', '', r2(c.oldPrice).toFixed(2), c.oldQty, r2(c.delta).toFixed(2)]);
   return head.concat(rows, gone).map((r) => r.map(csvQ).join(',')).join('\r\n');
 }
 function synopsis(v, total, prevTotal, changes) {
   if (v === 0) return 'BOM / BOQ v0 signed off: the materials baseline is ' + $(total) + '.';
-  const d = total - prevTotal, pc = prevTotal ? Math.round(d / prevTotal * 1000) / 10 : 0, top = changes.slice(0, 4).map((c) => c.name + (c.kind === 'added' ? ' added ' + $(c.delta) : c.kind === 'removed' ? ' removed ' + $(c.delta) : ' ' + (c.oldPrice !== c.newPrice ? $(c.oldPrice) + ' → ' + $(c.newPrice) + ' each' : 'qty ' + c.oldQty + ' → ' + c.newQty) + ' (' + (c.delta >= 0 ? '+' : '') + $(c.delta) + ')'));
+  const d = total - prevTotal, pc = prevTotal ? Math.round(d / prevTotal * 1000) / 10 : 0, top = changes.slice(0, 4).map((c) => c.name + (c.kind === 'added' ? ' added ' + $(c.delta) : c.kind === 'removed' ? ' removed ' + $(c.delta) : ' ' + (c.oldPrice !== c.newPrice ? $(c.oldPrice) + ' → ' + $(c.newPrice) + ' each' : c.oldQty !== c.newQty ? 'qty ' + c.oldQty + ' → ' + c.newQty : 'lead time ' + c.oldLead + ' → ' + c.newLead + ' days') + (c.delta ? ' (' + (c.delta >= 0 ? '+' : '') + $(c.delta) + ')' : '')));
   return 'BOM / BOQ v' + v + ': ' + changes.length + ' change' + (changes.length === 1 ? '' : 's') + ', materials ' + (d >= 0 ? '+' : '') + $(d) + ' (' + (d >= 0 ? '+' : '') + pc + '%) to ' + $(total) + '. ' + top.join('; ') + (changes.length > 4 ? '; and ' + (changes.length - 4) + ' more' : '') + '. This changes the actual cost, the costing and CPI.';
 }
 
