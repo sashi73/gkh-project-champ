@@ -49,8 +49,8 @@
     var H = hidden(), list = heads().map(function (th, i) { return { i: i, k: colKey(th), lab: (th.textContent || '').replace(/❄.*$/, '').trim(), shown: getComputedStyle(th).display !== 'none' }; })
       .filter(function (c) { return c.i > 2 && c.k && (c.shown || H.indexOf(c.k) >= 0); });
     var p = document.createElement('div'); p.id = 'gColPop'; p.className = 'fit-pop gcol-pop';
-    p.innerHTML = '<button type="button" class="fit-x" aria-label="Close">✕</button><b>👁 Hide columns</b><small class="muted">Untick the columns to hide. #, ✓ and Task always stay. The views (Dates, $ Costs, All columns) still pick their own set; this hides more.</small>' +
-      '<div class="gcol-list">' + list.map(function (c) { return '<label><input type="checkbox" data-ck="' + c.k.replace(/"/g, '') + '"' + (H.indexOf(c.k) < 0 ? ' checked' : '') + '> ' + c.lab.replace(/</g, '&lt;') + '</label>'; }).join('') + '</div>' +
+    p.innerHTML = '<button type="button" class="fit-x" aria-label="Close">✕</button><b>👁 Hide columns</b><small class="muted">Untick a column to hide it. #, ✓ and Task always stay.</small>' +
+      '<div class="gcol-list">' + list.map(function (c) { var nm = c.lab.replace(/\s*\(.*?\)\s*/g, ' ').replace(/\s+/g, ' ').trim(); nm = nm.charAt(0).toUpperCase() + nm.slice(1).toLowerCase(); if (nm === '%') nm = '% done'; return '<label class="gcol-it"><input type="checkbox" data-ck="' + c.k.replace(/"/g, '') + '"' + (H.indexOf(c.k) < 0 ? ' checked' : '') + '><span>' + nm.replace(/</g, '&lt;') + '</span></label>'; }).join('') + '</div>' +
       '<div class="fit-seg"><button type="button" data-all>Show all</button><button type="button" data-done class="on">Done</button></div>';
     document.body.appendChild(p);
     var r = bt.getBoundingClientRect(); p.style.top = Math.min(r.bottom + 6, window.innerHeight - p.offsetHeight - 8) + 'px'; p.style.left = Math.max(8, Math.min(window.innerWidth - p.offsetWidth - 8, r.left)) + 'px';

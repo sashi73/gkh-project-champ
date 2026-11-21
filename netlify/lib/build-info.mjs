@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 236,
+  "build": 237,
   "commit": "",
-  "branch": "ordstrike",
+  "branch": "colpanel",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 01:51",
+  "builtAt": "2026-11-22 01:53",
   "site": ""
 };
