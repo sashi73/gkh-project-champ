@@ -394,6 +394,27 @@ export function profitWhy(MO, C, cost, complete) {
   return s + 'It ran ' + $m(overB) + ' over the base cost (BAC ' + $m(MO.base) + '): the contingency and reserve (' + $m(R) + ') absorbed ' + $m(Math.min(R, overB)) +
     (mg > 0.5 ? ', the margin (' + $m(mg) + ') absorbed ' + $m(Math.min(mg, Math.max(0, overB - R))) : ', and there was no margin to absorb more') + (P.profit < 0 ? '; the ' + $m(-P.profit) + ' left over is the loss.' : '; ' + $m(P.profit) + ' of the margin is left as profit.');
 }
+// ⏱ earned schedule: SPI in days. The work done so far (EV) was planned to be done by some date (when the planned value reached EV);
+//   the working days from that date to today are how far behind (or ahead) the project is. Measured on the labour and services work,
+//   as SPI is (the BOM is held at its price); a plan with no labour uses all the work. Needs the plan scheduled (es/ef set).
+export function scheduleLag(plan, R, today) {
+  if (!R || R.complete || !today) return null;
+  const A = allDays(plan), T = (plan.tasks || []).filter((t) => t.es && t.ef), useLab = R.split && R.split.lab.bac > 0.004;
+  const w = (t) => (useLab ? taskSplit(t, plan).lab : taskCost(t)), ev = useLab ? R.split.lab.ev : R.EV;
+  const fr = (t, d) => (d < t.es ? 0 : d >= t.ef ? 1 : workBetween(t.es, d, A) / Math.max(1, workBetween(t.es, t.ef, A)));
+  const pvAt = (d) => T.reduce((a, t) => a + w(t) * fr(t, d), 0), pvNow = pvAt(today);
+  if (!(pvNow > 0.5)) return null;
+  // the planned value only rises with time, so a binary search over days finds the last day it was still within the work done
+  const D0 = (x) => Date.parse(x + 'T00:00:00Z'), at = (base, n) => new Date(D0(base) + n * 864e5).toISOString().slice(0, 10);
+  const last = (from, n) => { let lo = 0, hi = n; while (lo < hi) { const mid = Math.ceil((lo + hi) / 2); if (pvAt(at(from, mid)) <= ev + 0.5) lo = mid; else hi = mid - 1; } return at(from, lo); };
+  if (ev >= pvNow - 0.5) {   // on or ahead: the work done is planned up to some day after today
+    const end = T.reduce((m, t) => (t.ef > m ? t.ef : m), ''), d = end > today ? last(today, Math.round((D0(end) - D0(today)) / 864e5)) : today;
+    return { days: d > today ? workBetween(at(today, 1), d, A) : 0, date: d, ahead: true };   // the working days after today that the work done covers
+  }
+  const start = T.reduce((m, t) => (!m || t.es < m ? t.es : m), ''), d = pvAt(start) > ev ? start : last(start, Math.round((D0(today) - D0(start)) / 864e5));
+  let shown = d; for (let k = 0; k < 14 && off(new Date(D0(shown)), A); k++) shown = at(shown, -1);   // shown as the last working day
+  return { days: workBetween(at(d, 1), today, A), date: shown, ahead: false };   // the working days after that date, up to today, whose planned work is not done
+}
 // 🏁 a finished project's time index: planned ÷ actual duration in working days (SPI always ends at 1.00 once the work is done,
 //   so it says nothing about lateness; the time index does). Start = the plan start; planned finish = the baseline (else the plan's finish).
 export function timeIndex(plan, R) {

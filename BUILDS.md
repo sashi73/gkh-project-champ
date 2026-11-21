@@ -225,4 +225,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 214 | 1.0.214| 2026-11-21 17:53| bomfixed| `2e5424b` | 🧱 The BOM is held at its baselined price; CPI and SPI measure labour and services; actual costs captured at every milestone (#75) |
 | 215 | 1.0.215| 2026-11-21 17:57| evcheck| `ad22dbb` | 💲 Check-in confirms progress and cost together: % done (EV) and actual cost to date (AC) per task, at each milestone and from Overview; bot |
 | 216 | 1.0.216| 2026-11-21 18:08| champdrag| `70dff33` | ✋ Move Champ anywhere: drag the button (remembered), the panel opens beside it, double-click puts it back; 'Total budget' renamed Project bu |
-| 217 | 1.0.217 | 2026-11-21 18:10 | ciwide | _this commit_ | _see git log_ |
+| 217 | 1.0.217| 2026-11-21 18:10| ciwide| `532352d` | 💲 Check-in box: wide (up to 1100px), full task names, short headings, scrolling list with a sticky header, the save button always in view ( |
+| 218 | 1.0.218 | 2026-11-21 18:16 | spidays | _this commit_ | _see git log_ |
