@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 202,
+  "build": 203,
   "commit": "",
-  "branch": "variation",
+  "branch": "modalx",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-21 12:24",
+  "builtAt": "2026-11-21 12:45",
   "site": ""
 };

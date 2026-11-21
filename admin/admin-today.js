@@ -66,7 +66,6 @@
     o._gen = 0;
     o.innerHTML = '<div class="tdy-stage"><div class="tdy-rod" aria-hidden="true"></div><div class="tdy-box"><div class="tdy-load"><span class="tdy-spark">✦</span> Unrolling your day…</div></div><div class="tdy-rod tdy-rod-b" aria-hidden="true"></div></div>';
     document.body.appendChild(o); document.body.classList.add('tdy-open'); document.addEventListener('keydown', onKey, true);
-    o.addEventListener('mousedown', function (e) { if (e.target === o) close(); });
     return api('planMyDayGet', {}).then(function (d) { if (!document.body.contains(o)) return; draw(o, d); }).catch(function (e) {
       if (!document.body.contains(o) || o.classList.contains('tdy-out')) return;   // that screen is closed already
       if (auto) return close(true);   // no access to projects: no start screen
