@@ -714,7 +714,7 @@
         if (S.core !== core) return;
         if (M.watchCheck) setTimeout(function () { M.watchCheck(true); }, 300);   // 🩺 Champ's colour follows the change
         S.rev = r.plan.rev; plan.rev = r.plan.rev;
-        if (r.baseRev) { plan.baseRevs = r.plan.baseRevs; S.dms = null; toast('📌 Baseline v' + r.baseRev.v + ' recorded: its PowerPoint and spreadsheet are being filed in Project documents'); baseFiles(); }
+        if (r.baseRev) { plan.baseRevs = r.plan.baseRevs; S.dms = null; toast('📌 Baseline v' + r.baseRev.v + ' recorded: its PDF and spreadsheet are being filed in Project documents'); baseFiles(); }
         if (r.bomRev) S.dms = null;
         if (r.bomRev) {   // 🧱 a new BOM version: take the server's baseline, revision list, lesson and the note into the plan on screen
           plan.bomBase = r.plan.bomBase; plan.bomRevs = r.plan.bomRevs; plan.lessons = r.plan.lessons;
@@ -1619,7 +1619,7 @@
     };
     $('#planBase').onclick = function () {
       if (!ccOff()) return baseWhy(p.baseline ? 'Re-baseline: send to change control' : 'Set the first baseline: send to change control', 'A new baseline goes to the change control board. Once it is approved and signed, the plan as it stands then becomes the next baseline version.', function (why) { var R4 = rollup(p, today()), cb = crNew({ title: 'Re-baseline: finish ' + dmy((p.baseline || {}).finish || R4.finish) + ' → ' + dmy(R4.finish) + ', budget ' + money((p.baseline || {}).BAC || R4.BAC) + ' → ' + money(R4.BAC), desc: 'Make the plan as it stands today the new performance baseline (dates and costs). SPI, the slip and the variance are then measured against it.', reason: '', source: 'manual', srcTitle: '📌 Re-set baseline', raisedBy: bomMe(), priority: 'High' }); cb.reason = why; cb.kind = 'baseline'; dirty('Re-baseline sent to change control: ' + crNo(cb)); toast('📌 Sent to 🔁 Change control: ' + crNo(cb) + '. Once approved and signed, the plan as it stands then becomes the next baseline version.'); location.hash = '#plan/' + S.core + '/change'; });
-      baseWhy(p.baseline ? 'Re-set the baseline' : 'Set the baseline', 'Change control is switched off for this project, so it is committed straight away. It is still kept as the next baseline version (PowerPoint and spreadsheet in Project documents), so it can be rolled back and audited.', function (why) {
+      baseWhy(p.baseline ? 'Re-set the baseline' : 'Set the baseline', 'Change control is switched off for this project, so it is committed straight away. It is still kept as the next baseline version (PDF and spreadsheet in Project documents), so it can be rolled back and audited.', function (why) {
         schedule(p); var tasks = {}; p.tasks.forEach(function (t) { tasks[t.id] = { es: t.es, ef: t.ef, cost: cost(t) }; });
         p.baseline = { at: Date.now(), finish: R.finish, BAC: R.BAC, tasks: tasks, by: bomMe(), why: why, direct: true }; saveNow('baseline set'); toast('📌 Baseline set and filed'); render();
       });
@@ -5374,12 +5374,12 @@
       '<div class="actions"><button class="btn btn-gold" type="button" id="bwGo">' + (ccOff() ? '✓ Commit the baseline' : '🔁 Send to change control') + '</button><button class="btn" type="button" data-close>Cancel</button></div>');
     $('#bwGo').onclick = function () { var w = $('#bwWhy').value.trim(); if (w.length < 5) { toast('Say why: it goes on the audit trail', true); $('#bwWhy').focus(); return; } M.closeModal(); go(w); };
   }
-  // 📄 the baseline versions' files are made in their own step (so a slow PowerPoint never holds up a save); it runs until all are filed
+  // 📄 the baseline versions' files are made in their own step (so a slow file never holds up a save); it runs until all are filed
   function baseFiles(n) {
     var core = S.core, p = S.plan; if (!p || !(p.baseRevs || []).some(function (x) { return x.files !== 'ok'; }) || S.baseFilesBusy) return;
     S.baseFilesBusy = true;
     api('planBaseFiles', { core: core }).then(function (d) { S.baseFilesBusy = false; if (S.core !== core) return;
-      (d.results || []).forEach(function (x) { (p.baseRevs || []).forEach(function (y) { if (y.v === x.v) { y.files = x.ok ? 'ok' : 'failed'; y.filesErr = x.err || undefined; } }); if (x.ok) toast('📄 Baseline v' + x.v + ' filed in Project documents (PowerPoint and spreadsheet)'); else toast('Baseline v' + x.v + ': the files could not be made (' + x.err + '). Open 📌 Baselines to try again.', true); });
+      (d.results || []).forEach(function (x) { (p.baseRevs || []).forEach(function (y) { if (y.v === x.v) { y.files = x.ok ? 'ok' : 'failed'; y.filesErr = x.err || undefined; } }); if (x.ok) toast('📄 Baseline v' + x.v + ' filed in Project documents (PDF and spreadsheet)'); else toast('Baseline v' + x.v + ': the files could not be made (' + x.err + '). Open 📌 Baselines to try again.', true); });
       if ((d.results || []).length) { S.dms = null; if (S.tab === 'docs') docsTab(); }
       if (d.left && (n || 0) < 10) baseFiles((n || 0) + 1); }, function () { S.baseFilesBusy = false; });
   }
@@ -5390,11 +5390,11 @@
   }
   function baseVersions() {
     var p = S.plan, L = (p.baseRevs || []).slice().reverse(), cur = L[0];
-    M.modal('<h2>📌 Baselines: the audit trail</h2><p class="muted" style="margin:-4px 0 10px">Every baseline is kept: v0 is the first, and every re-baseline (approved through change control, or committed straight when it is off) is the next version. Each is filed in Project documents as a PowerPoint deck and a spreadsheet (Baseline.pptx and Baseline.csv), so any version can be rolled back to and the history audited.</p>' +
+    M.modal('<h2>📌 Baselines: the audit trail</h2><p class="muted" style="margin:-4px 0 10px">Every baseline is kept: v0 is the first, and every re-baseline (approved through change control, or committed straight when it is off) is the next version. Each is filed in Project documents as a PDF and a spreadsheet (Baseline.pdf and Baseline.csv), so any version can be rolled back to and the history audited.</p>' +
       (L.length ? '<div class="tblwrap" style="max-height:48vh;overflow:auto"><table class="tbl"><thead><tr><th>Version</th><th>Set</th><th>By</th><th>Finish</th><th class="num">Budget</th><th>Change from the one before</th><th>Why</th><th>Approval</th><th></th></tr></thead><tbody>' +
         L.map(function (x, i) { return '<tr><td class="nowrap"><b>v' + x.v + '</b>' + (i === 0 ? ' <small class="good">current</small>' : '') + (x.rollback != null ? '<br><small class="muted">roll back to v' + x.rollback + '</small>' : '') + '</td><td class="nowrap">' + esc(bomStamp(x.at)) + '</td><td>' + esc(x.by || '') + '</td><td class="nowrap">' + esc(dmy(x.finish)) + '</td><td class="num">' + money(x.BAC) + '</td>' +
           '<td class="nowrap">' + (x.v ? '<span class="' + (x.dFinish > 0 ? 'bad' : x.dFinish < 0 ? 'good' : '') + '">' + (x.dFinish > 0 ? '+' : '') + x.dFinish + ' days</span> · <span class="' + (x.dBAC > 0 ? 'bad' : x.dBAC < 0 ? 'good' : '') + '">' + (x.dBAC > 0 ? '+' : '') + money(x.dBAC) + '</span>' : '<span class="muted">first</span>') + '</td>' +
-          '<td style="font-size:12.5px;min-width:180px">' + esc(x.why || '') + (x.files === 'ok' ? '<br><small class="good">📄 PowerPoint and spreadsheet filed</small>' : x.files === 'failed' ? '<br><small class="bad">⚠ files not made' + (x.filesErr ? ': ' + esc(x.filesErr) : '') + '</small>' : '<br><small class="muted">📄 files being made…</small>') + '</td><td class="nowrap">' + esc(x.cr || (x.direct ? 'direct (change control off)' : x.v === 0 ? '' : '')) + '</td><td>' + (i > 0 ? '<button class="btn btn-sm" type="button" data-bback="' + x.v + '">↶ Roll back to v' + x.v + '</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+          '<td style="font-size:12.5px;min-width:180px">' + esc(x.why || '') + (x.files === 'ok' ? '<br><small class="good">📄 PDF and spreadsheet filed</small>' : x.files === 'failed' ? '<br><small class="bad">⚠ files not made' + (x.filesErr ? ': ' + esc(x.filesErr) : '') + '</small>' : '<br><small class="muted">📄 files being made…</small>') + '</td><td class="nowrap">' + esc(x.cr || (x.direct ? 'direct (change control off)' : x.v === 0 ? '' : '')) + '</td><td>' + (i > 0 ? '<button class="btn btn-sm" type="button" data-bback="' + x.v + '">↶ Roll back to v' + x.v + '</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
         : '<p>The baseline is recorded as v0 the next time the plan is saved.</p>') +
       '<div id="baAi"></div><div class="actions">' + ((p.baseRevs || []).some(function (x) { return x.files !== 'ok'; }) ? '<button class="btn" type="button" id="baFiles">📄 Make the missing files</button>' : '') + '<button class="btn btn-gold" type="button" id="baAiGo"' + (L.length ? '' : ' disabled') + '>✨ Analyse the baseline history with AI</button><a class="btn" href="#plan/' + esc(S.core) + '/docs" data-close>📁 The files in Project documents</a><button class="btn" type="button" data-close>Close</button></div>');
     var box = document.getElementById('modalBody');
