@@ -199,7 +199,7 @@
       tile('On track', H.green, 'SPI and CPI 1.00+, nothing late', 'cs-green') +
       tile('Watch', H.amber, 'slipping a little or open risks', 'cs-amber') +
       tile('At risk', H.red, 'act now: see Champ\'s watch below', 'cs-red') +
-      tile('Total budget', money(BAC), 'earned ' + money(EV) + ' · spent ' + money(AC)) +
+      tile('Total base cost (BAC)', money(BAC), 'earned ' + money(EV) + ' · spent ' + money(AC)) +
       tile('Portfolio SPI', spi == null ? '–' : spi.toFixed(2), 'schedule: work done ÷ planned', 'ev-' + evC(spi)) +
       tile('Portfolio CPI', cpi == null ? '–' : cpi.toFixed(2), 'cost: value of work ÷ cost', 'ev-' + evC(cpi)) +
       tile('Late tasks', late, hr + ' high risk' + (hr === 1 ? '' : 's') + ' · ' + iss + ' open issue' + (iss === 1 ? '' : 's'), late ? 'cs-red' : '');
