@@ -463,7 +463,8 @@ async function handle(req, context) {
         // 🔒 a planned project more than a week old is never deleted, by anyone (the super user too): it is archived instead.
         //    For now the super user can still delete a project from the Archived projects vault.
         if (job.archived) { if (!ctx.owner) return bad('Only the super user can delete a project from the Archived projects vault.', 403); }
-        else if (plan && Date.now() - (job.created || 0) > 7 * 864e5) return bad('This project was planned more than a week ago, so it can\'t be deleted, not even by the super user. Archive it instead (the super user, the CEO or the site administrator can).', 403);
+        // how old: the earlier of when the record was made and when the project started (a project started in April is old, even if its record is new)
+        else if (plan && Date.now() - Math.min(job.created || Date.now(), /^\d{4}-\d\d-\d\d$/.test(plan.start || '') ? Date.parse(plan.start + 'T00:00:00Z') : Date.now()) > 7 * 864e5) return bad('This project was planned more than a week ago, so it can\'t be deleted, not even by the super user. Archive it instead (the super user, the CEO or the site administrator can).', 403);
         if (arch) { await kv.del('archive-plan:' + job.core).catch(() => {}); await logArchive({ what: 'Deleted for good', at: Date.now(), by, role: 'Super user', sig: '', reason: clean(body.reason, 600), user: who, project: arch.name || job.service || job.core, core: job.core, ref: J.refFor(job), client: job.name || '', program: job.program || '' }); }
         if (plan) await planPost('planDelete', { core: job.core }, { who, by, audit: null }).catch(() => {});
         await J.removeJob(job.core);

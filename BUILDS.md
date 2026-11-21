@@ -215,4 +215,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 204 | 1.0.204| 2026-11-21 12:54| fcnote| `09f2ead` | 💵 Finance: forecast cost explained (BAC ÷ CPI, what CPI and SPI mean, earned vs spent); Project budget with the charter approved budget and |
 | 205 | 1.0.205| 2026-11-21 15:16| delunplanned| `76c4805` | 🗑 Projects: a Delete button on every project not planned yet (same confirm, edit access to Projects) (#66) |
 | 206 | 1.0.206| 2026-11-21 15:24| archive| `b78f3fc` | 🗄 Archived projects vault: planned projects over a week old can only be deleted by the super user; others are archived (super user, CEO, si |
-| 207 | 1.0.207 | 2026-11-21 15:27 | nodelete | _this commit_ | _see git log_ |
+| 207 | 1.0.207| 2026-11-21 15:27| nodelete| `23b1c6d` | 🔒 A planned project over a week old can't be deleted by anyone (super user too): archive it; for now the super user can delete from the Arc |
+| 208 | 1.0.208 | 2026-11-21 16:07 | agefix | _this commit_ | _see git log_ |
