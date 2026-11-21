@@ -1301,3 +1301,24 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 #gCard .pviews{flex:1 1 100%!important;width:100%}#gCard .pviews .pv-wbs{margin-left:auto!important}
 .gcol-btn{display:inline-flex;align-items:center;gap:6px}
 .gcol-n{display:inline-block;padding:1px 7px;border-radius:999px;background:#C9A227;color:#1C1A16;font-size:10.5px;font-weight:800;line-height:16px}
+
+/* ⚠ ❗ top risks and open issues on the overview */
+.ov-reg .card-h{margin-bottom:8px}
+.ov-list{display:grid;gap:6px}
+.ov-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:9px 11px;border:1px solid var(--line,#E5E2DA);border-radius:10px;background:var(--card,#fff)}
+.ov-row:hover{border-color:#d9c9a3;background:#fffdf7}
+.ov-body{display:grid;gap:2px;min-width:0}.ov-body b{font-size:13.5px;line-height:1.3}.ov-body small{font-size:12px;line-height:1.4;color:#5b5547}
+.ov-score{min-width:30px;text-align:center}
+.ov-tag{display:inline-block;margin-right:6px;padding:0 6px;border-radius:6px;background:#EEF4FF;color:#1849A9;font-size:10.5px;font-weight:700}
+.ov-pri{min-width:62px;text-align:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:800;background:#F2F1EC;color:#5b5547}
+.ov-pri.pri-critical{background:#B42318;color:#fff}.ov-pri.pri-high{background:#FDECEC;color:#B42318}.ov-pri.pri-medium{background:#FFF4E0;color:#9a5b00}.ov-pri.pri-low{background:#EEF6F0;color:#1D7A43}
+.ov-st{padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#F2F1EC;color:#5b5547;white-space:nowrap}.ov-st.st-inprogress{background:#EEF4FF;color:#1849A9}.ov-st.st-open{background:#FFF4E0;color:#9a5b00}
+.ov-more{font-size:12px;padding:2px 4px}
+
+/* 🔁 the impact evaluation on a BOM / BOQ change request */
+.cr-eval{margin-top:10px;padding:10px 12px;border:1px solid var(--line,#E5E2DA);border-radius:10px;background:var(--card,#fff)}
+.cr-eval-g{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.cr-eval-g label{display:grid;gap:3px;font-size:12px;font-weight:700}.cr-eval-g textarea{font-weight:400;font-size:12.5px;min-height:52px}
+.cr-eval-g textarea[data-bev="quality"]:placeholder-shown{border-color:#C9A227;background:#fffaf0}
+@media (max-width:760px){.cr-eval-g{grid-template-columns:1fr}}
+.ord-cc{margin-top:5px;padding:4px 8px;border-radius:8px;background:#FFF4E0;color:#9a5b00;font-size:12px;font-weight:600}.ord-cc a{color:#9a5b00;text-decoration:underline}
