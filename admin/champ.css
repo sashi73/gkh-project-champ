@@ -1296,3 +1296,8 @@ body.is-short .db-legend{font-size:11.5px;gap:4px 10px}
 .ord-edit [data-onote]{flex:1;min-width:180px}
 .ord-row.warnrow{border-color:#f1b4b4!important;background:#fff7f6!important}
 .ord-edit input.ord-ok{box-shadow:0 0 0 2px #16A34A}
+
+/* 👁 Hide columns button, and 🌳 WBS at the far right of the view bar */
+#gCard .pviews{flex:1 1 100%!important;width:100%}#gCard .pviews .pv-wbs{margin-left:auto!important}
+.gcol-btn{display:inline-flex;align-items:center;gap:6px}
+.gcol-n{display:inline-block;padding:1px 7px;border-radius:999px;background:#C9A227;color:#1C1A16;font-size:10.5px;font-weight:800;line-height:16px}
