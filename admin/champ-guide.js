@@ -212,8 +212,9 @@
   function btn() {
     if ($('#cgBtn') || !document.getElementById('app')) return;
     var b = document.createElement('button'); b.id = 'cgBtn'; b.type = 'button'; b.title = 'Ask Champ: how do I…?'; b.innerHTML = '<img src="../assets/gkh-globe.webp" alt=""><span>Ask Champ</span>';
-    b.onclick = function () { if ($('#cgPanel') && !$('#cgPanel').hidden) closePanel(); else openPanel(); };
-    document.body.appendChild(b); watchCheck();
+    b.title = 'Ask Champ (drag to move it anywhere; double-click to put it back)';
+    b.onclick = function () { if (b._dragged) { b._dragged = false; return; } if ($('#cgPanel') && !$('#cgPanel').hidden) closePanel(); else openPanel(); };
+    document.body.appendChild(b); watchCheck(); dragBtn(b);
   }
   // 🩺 Champ watches the project you are in: the button takes its health colour (red, amber, green) and, when you open Champ
   // in a project, the first thing it says is how the project is doing and what it would do about it
@@ -352,6 +353,34 @@
     }).catch(function () { if (wait) wait.remove(); delete W.told[core]; greet(false); });
     return true;
   }
+  // ✋ move Champ anywhere: drag the button (it remembers the spot, as a share of the screen); double-click puts it back bottom right.
+  //    The panel opens beside wherever the button is, so it never sits over the same corner of the page.
+  var POS_KEY = 'champBtnPos';
+  function savedPos() { try { var v = JSON.parse(localStorage.getItem(POS_KEY) || 'null'); return v && isFinite(v.x) && isFinite(v.y) ? v : null; } catch (e) { return null; } }
+  function putBtn(b, x, y) { var w = b.offsetWidth || 140, h = b.offsetHeight || 44; x = Math.max(6, Math.min(innerWidth - w - 6, x)); y = Math.max(6, Math.min(innerHeight - h - 6, y));
+    b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.right = 'auto'; b.style.bottom = 'auto'; }
+  function applyPos(b) { var v = savedPos(); if (!v) { b.style.left = b.style.top = b.style.right = b.style.bottom = ''; return; } putBtn(b, v.x * innerWidth, v.y * innerHeight); }
+  function dragBtn(b) {
+    applyPos(b); window.addEventListener('resize', function () { applyPos(b); placePanel(); });
+    b.addEventListener('dragstart', function (e) { e.preventDefault(); });   // the globe image must not start a browser drag (it cancels the move)
+    Array.prototype.forEach.call(b.querySelectorAll('img'), function (i) { i.draggable = false; });
+    var st = null;
+    b.addEventListener('pointerdown', function (e) { if (e.button !== 0) return; var r = b.getBoundingClientRect(); st = { x: e.clientX, y: e.clientY, dx: e.clientX - r.left, dy: e.clientY - r.top, moved: false }; });
+    window.addEventListener('pointermove', function (e) { if (!st) return; if (!st.moved && Math.abs(e.clientX - st.x) + Math.abs(e.clientY - st.y) < 6) return;
+      if (!st.moved) { st.moved = true; b.classList.add('cg-drag'); try { b.setPointerCapture(e.pointerId); } catch (er) {} }
+      putBtn(b, e.clientX - st.dx, e.clientY - st.dy); placePanel(); });
+    var end = function () { if (!st) return; if (st.moved) { b._dragged = true; b.classList.remove('cg-drag'); var r = b.getBoundingClientRect();
+        try { localStorage.setItem(POS_KEY, JSON.stringify({ x: r.left / innerWidth, y: r.top / innerHeight })); } catch (e) {} setTimeout(function () { b._dragged = false; }, 50); } st = null; };
+    window.addEventListener('pointerup', end); window.addEventListener('pointercancel', end);
+    b.addEventListener('dblclick', function () { try { localStorage.removeItem(POS_KEY); } catch (e) {} applyPos(b); placePanel(); });
+  }
+  function placePanel() {
+    var p = $('#cgPanel'), b = $('#cgBtn'); if (!p || p.hidden || !b) return;
+    if (!savedPos()) { p.style.left = p.style.top = p.style.right = p.style.bottom = ''; return; }
+    var r = b.getBoundingClientRect(), pw = p.offsetWidth || 360, ph = p.offsetHeight || 400;
+    var x = r.left + r.width / 2 > innerWidth / 2 ? r.right - pw : r.left, y = r.top + r.height / 2 > innerHeight / 2 ? r.top - ph - 10 : r.bottom + 10;
+    p.style.left = Math.max(6, Math.min(innerWidth - pw - 6, x)) + 'px'; p.style.top = Math.max(6, Math.min(innerHeight - ph - 6, y)) + 'px'; p.style.right = 'auto'; p.style.bottom = 'auto';
+  }
   function openPanel() {
     var p = $('#cgPanel');
     if (!p) {
@@ -377,7 +406,7 @@
       $('#cgMic').onclick = mic; $('#cgMenuBtn').onclick = function () { menu(); };
       chipsFill(p);
     }
-    p.hidden = false; watchBtn(); stratMode();
+    p.hidden = false; watchBtn(); stratMode(); placePanel();
     var core = planHash();
     if (core && !W.told[core]) watchBrief(false);   // in a project: Champ's view of it comes first
     else if (!core) greet(false);   // in a project, Champ's view of it is the hello

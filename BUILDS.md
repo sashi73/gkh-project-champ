@@ -223,4 +223,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 212 | 1.0.212| 2026-11-21 16:47| internal| `95d8c76` | 🏢 Internal projects (no billing): a contract type for a department's own project; no contract value, GST, invoices, variation orders or pro |
 | 213 | 1.0.213| 2026-11-21 17:46| cpibasis| `5d95460` | 🔎 CPI on a clear basis: labour and services vs materials (BOM); forecast by cost element; time index for finished projects; ⓘ basis behind  |
 | 214 | 1.0.214| 2026-11-21 17:53| bomfixed| `2e5424b` | 🧱 The BOM is held at its baselined price; CPI and SPI measure labour and services; actual costs captured at every milestone (#75) |
-| 215 | 1.0.215 | 2026-11-21 17:57 | evcheck | _this commit_ | _see git log_ |
+| 215 | 1.0.215| 2026-11-21 17:57| evcheck| `ad22dbb` | 💲 Check-in confirms progress and cost together: % done (EV) and actual cost to date (AC) per task, at each milestone and from Overview; bot |
+| 216 | 1.0.216 | 2026-11-21 18:08 | champdrag | _this commit_ | _see git log_ |

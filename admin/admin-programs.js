@@ -64,7 +64,7 @@
       el.innerHTML = head('programs') +
         '<div class="cs-tiles">' + tile('Programs', D.programs.length, R.filter(function (x) { return x.p.status === 'active'; }).length + ' active') +
         tile('Projects', all.length, 'every one in a program') + tile('Programs at risk', red, 'a project at risk, SPI/CPI under 0.90 or a clash', red ? 'cs-red' : 'cs-green') +
-        tile('Total budget', money(BAC), 'earned ' + money(EV) + ' · spent ' + money(AC)) +
+        tile('Total base cost (BAC)', money(BAC), 'earned ' + money(EV) + ' · spent ' + money(AC)) +
         tile('Portfolio SPI', spi == null ? '–' : spi.toFixed(2), 'schedule', 'ev-' + evC(spi)) + tile('Portfolio CPI', cpi == null ? '–' : cpi.toFixed(2), 'cost', 'ev-' + evC(cpi)) +
         tile('Dependencies', D.deps.length, probs.length ? '<a href="#deps">' + probs.length + ' need attention →</a>' : 'all clear', probs.length ? 'cs-amber' : '') + '</div>' +
         '<div id="pgWatch"></div>' +
