@@ -271,4 +271,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 260 | 1.0.260| 2026-11-22 11:11| mobile| `e431755` | Phone website: menu (Home, About with Sashi, Who it's for, Contact), short sections, language in the menu (all languages), best-on-a-compute |
 | 261 | 1.0.261| 2026-11-22 11:18| mobile| `5c235bc` | Phone website remodel: short sections, menu, languages, desktop note (#122) |
 | 262 | 1.0.262| 2026-11-22 11:34| phoneonly| `42d618d` | Phones always get the phone website: no Full website switch, stored opt-outs cleared, other website pages open their short section on the ph |
-| 263 | 1.0.263 | 2026-11-22 11:40 | phonedesign | _this commit_ | _see git log_ |
+| 263 | 1.0.263| 2026-11-22 11:40| phonedesign| `e6968ca` | Phone website redesigned: warm graphite and gold, Archivo and Manrope, a live plan in the hero that draws itself, founder portrait and quote |
+| 264 | 1.0.264 | 2026-11-22 11:51 | phonepolish | _this commit_ | _see git log_ |

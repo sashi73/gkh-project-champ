@@ -269,3 +269,13 @@ html.p2-noscroll,html.p2-noscroll body{overflow:hidden}
 .p2-bar{height:9px;border-radius:5px}
 .p2-dock{background:rgba(20,18,16,.94);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid var(--ln);padding-top:10px}
 .p2-signin{min-height:50px}
+/* p2: how it works (a real sequence), and a touch response on everything tappable */
+.p2 .p2-h3{margin:26px 0 12px;font-size:26px}
+.p2-steps{list-style:none;margin:0;padding:0;counter-reset:st}
+.p2-steps li{position:relative;padding:0 0 18px 44px;counter-increment:st}
+.p2-steps li::before{content:counter(st);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;border:1.5px solid var(--gd);color:var(--gs);display:grid;place-items:center;font:800 14px Archivo,sans-serif}
+.p2-steps li:not(:last-child)::after{content:"";position:absolute;left:14px;top:32px;bottom:4px;border-left:1.5px dashed rgba(216,178,74,.4)}
+.p2-steps b{display:block;color:#fff;font:700 16px/1.3 Manrope,sans-serif}
+.p2-steps span{display:block;font-size:14px;color:var(--mu);line-height:1.5;margin-top:2px}
+.p2-btn,.p2-links a,.p2-langs button,.p2-langbtn{transition:transform .12s ease,background .2s}
+.p2-btn:active,.p2-langs button:active,.p2-langbtn:active{transform:scale(.97)}
