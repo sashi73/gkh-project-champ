@@ -1,5 +1,5 @@
 /* 🧭 The PMO view (Persona: the PMO Director, third in charge after the CEO and the CFO).
-   Runs delivery across every program and project; the project directors, managers, consultants and contractors report in.
+   Runs delivery across every program and project; the program and project managers, consultants and contractors report in.
    One screen, worst first: what needs a decision, how each program is doing, the projects to watch, milestones, escalations,
    the team's load and the governance gaps. Every line opens the right place. Data: planPmoGet (netlify/lib/pmo.mjs). */
 (function () {
@@ -78,7 +78,7 @@
     var pms = T.pms.length ? '<div class="table-wrap"><table class="ceo-tab pmo-tab"><thead><tr><th>Project manager</th><th class="num">Projects</th><th class="num">In trouble</th><th class="num">At risk</th><th class="num">Late tasks</th></tr></thead><tbody>' + T.pms.map(function (p) {
       return '<tr><td><b>' + esc(p.name) + '</b></td><td class="num">' + p.projects + '</td><td class="num' + (p.red ? ' ceo-late' : '') + '">' + p.red + '</td><td class="num">' + p.amber + '</td><td class="num">' + p.late + '</td></tr>'; }).join('') + '</tbody></table></div>' : none('No project managers are named on the plans yet.');
     var col = function (title, L) { return '<div><h4 class="ceo-sub">' + esc(title) + ' (' + L.length + ')</h4>' + (L.length ? '<ul class="pmo-pp">' + L.slice(0, 12).map(person).join('') + '</ul>' + (L.length > 12 ? '<p class="muted pmo-more"><a href="#people/workload">' + (L.length - 12) + ' more in Workload</a></p>' : '') : '<p class="muted">None in the People register.</p>') + '</div>'; };
-    return (!T.logins ? '<p class="pmo-lg"><a href="#people">People on your projects</a> · <a href="#people/workload">Workload</a></p>' : '<p class="pmo-lg">Logins: ' + pl(T.logins.directors, 'project director') + ', ' + pl(T.logins.managers, 'project manager') + ', ' + pl(T.logins.contractors, 'contractor') + ', ' + T.logins.personnel + ' project personnel · <a href="#users">Users &amp; access</a> · <a href="#people/workload">Workload</a></p>') +
+    return (!T.logins ? '<p class="pmo-lg"><a href="#people">People on your projects</a> · <a href="#people/workload">Workload</a></p>' : '<p class="pmo-lg">Logins: ' + pl(T.logins.directors, 'PMO Director') + ', ' + pl(T.logins.programs || 0, 'program manager') + ', ' + pl(T.logins.managers, 'project manager') + ', ' + pl(T.logins.contractors, 'contractor') + ', ' + T.logins.personnel + ' project personnel · <a href="#users">Users &amp; access</a> · <a href="#people/workload">Workload</a></p>') +
       '<h4 class="ceo-sub">Project managers</h4>' + pms + '<div class="pmo-ms2">' + col('Consultants', T.consultants) + col('Contractors', T.contractors) + '</div>';
   }
   function gaps() {

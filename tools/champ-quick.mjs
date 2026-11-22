@@ -206,9 +206,10 @@ try {
     ok('CEO', '🧭 Ask Champ on the CEO view: a strategy decision report (answer, options, decision, measures)', a.status === 'done' && a.answer && a.answer.answer && a.answer.decision && a.answer.options.length, JSON.stringify(a).slice(0, 300)); }
     // ---------- 🔒 the Finance vault ----------
   { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };
-    for (const [e, n, r] of [['pm1@example.com', 'Pat Manager', 'Project manager'], ['dir1@example.com', 'Dana Director', 'Project director'], ['dir2@example.com', 'Dev Director', 'Project director']]) await api('userCreate', { user: { email: e, name: n, password: 'Vaultpass2026x', role: r } });
+    for (const [e, n, r] of [['pm1@example.com', 'Pat Manager', 'Project manager'], ['dir1@example.com', 'Dana Director', 'PMO Director'], ['dir2@example.com', 'Dev Director', 'PMO Director']]) await api('userCreate', { user: { email: e, name: n, password: 'Vaultpass2026x', role: r } });
     const ul = await api('userList'), id1 = (ul.j.users || []).find((u) => u.username === 'dir1@example.com').id;
     const pl = await api('planProgramList', {}), dh = (pl.j.programs || []).find((g) => g.name === 'Digital health'), bcard = (pl.j.cards || []).find((c) => c.name === 'Billing test'), vc = bcard.core;
+    { const pmU = (ul.j.users || []).find((u) => u.username === 'pm1@example.com'); await api('userSave', { user: { id: pmU.id, name: pmU.name, role: 'Project manager', projAll: false, projects: [vc], active: true } }); }   // 📁 a project manager sees only the projects given to them
     const sv = await api('planProgramSave', { id: dh.id, name: dh.name, director: id1, manager: dh.manager || '', sponsor: dh.sponsor || '', status: dh.status || 'active' });
     const b64 = (t) => Buffer.from(t).toString('base64'), secret = 'Contract sum $250,000 plus GST. Pay to BSB 062-000 Account no 12345678. Contact pat@client.com or 0412 345 678. Scope: build the clinic.';
     const cfoAdd = await as('cfo1@example.com', 'Cfopass2026x', () => api('vaultAdd', { core: vc, folder: 'billing', name: 'billing-schedule.txt', type: 'text/plain', size: 40, file: b64('Billing schedule $100,000'), text: 'Billing schedule $100,000' }));
@@ -217,8 +218,8 @@ try {
     const pmList = await as('pm1@example.com', 'Vaultpass2026x', () => api('vaultList', { core: vc })), pmFin = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctFinanceGet', {}));
     const d1 = await as('dir1@example.com', 'Vaultpass2026x', () => api('vaultList', { core: vc })), d2 = await as('dir2@example.com', 'Vaultpass2026x', () => api('vaultList', { core: vc }));
     const ceo = await as('ceo1@example.com', 'Ceopass2026x', () => api('vaultList', { core: vc })), own = await api('vaultList', { core: vc });
-    ok('Vault', '🔒 who opens it: the super user, the CEO, the CFO and the named program director; not another director, not a project manager (who also loses Finance)',
-      sv.status === 200 && own.status === 200 && ceo.status === 200 && d1.status === 200 && d2.status === 403 && pmList.status === 403 && pmFin.status === 403 && (own.j.files || []).some((f) => f.folder === 'billing') && (own.j.files || []).some((f) => f.champ === 'invoice'),
+    ok('Vault', '🔒 who opens it: the super user, the CEO, the CFO and PMO Directors; not a project manager (who sees Finance for their own projects only)',
+      sv.status === 200 && own.status === 200 && ceo.status === 200 && d1.status === 200 && d2.status === 200 && pmList.status === 403 && pmFin.status === 200 && (own.j.files || []).some((f) => f.folder === 'billing') && (own.j.files || []).some((f) => f.champ === 'invoice'),
       [sv.status, own.status, ceo.status, d1.status, d2.status, pmList.status, pmFin.status].join(' '));
     const ig = await api('intelGet', { core: vc }), cp = (ig.j.docs || []).find((d) => pmAdd.j.copy && d.id === pmAdd.j.copy.id);
     const V = await import(pathToFileURL(path.join(SITE, 'netlify/lib/vault.mjs')).href), R = V.redact(secret);
@@ -247,15 +248,15 @@ try {
     const pmB = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmF = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctFinanceGet', {})), pmA = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillAlerts', {}));
     const btc = ((await api('planProgramList', {})).j.cards || []).find((c) => c.name === 'Billing test').core;
     const d2B = await as('dir2@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: btc })), d2E = await as('dir2@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmSave = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillSave', { core: gc, contract: 1, ms: {} }));
-    ok('Billing', '🔐 the project\'s own manager sees its billing and Finance (only their projects) and the red count, but cannot change it; another director cannot see a program that has its own director, but sees one with no director yet (the milestone bill on the Gantt)',
-      pmB.status === 200 && pmF.status === 200 && (pmF.j.projects || []).every((p) => p.core === gc) && pmA.status === 200 && pmA.j.projects === 1 && d2B.status === 403 && d2E.status === 200 && pmSave.status === 403,
+    ok('Billing', '🔐 the project\'s own manager sees its billing and Finance (only their projects) and the red count, but cannot change it; PMO Directors see every program\'s billing (the milestone bill on the Gantt)',
+      pmB.status === 200 && pmF.status === 200 && (pmF.j.projects || []).every((p) => p.core === gc || p.core === btc) && pmA.status === 200 && pmA.j.projects === 2 && d2B.status === 200 && d2E.status === 200 && pmSave.status === 403,
       [pmB.status, pmF.status, JSON.stringify((pmF.j.projects || []).map((p) => p.name)), JSON.stringify(pmA.j), d2B.status, d2E.status, pmSave.status].join(' '));
     // 🧭 the PMO Director: one per company; the PMO view; sees every project's billing (read-only); makes the project managers' and directors' logins
     { const mk = await api('userCreate', { user: { email: 'pmo1@example.com', name: 'Priya Ops', password: 'Vaultpass2026x', role: 'PMO Director' } }), two = await api('userCreate', { user: { email: 'pmo2@example.com', name: 'Second Pmo', password: 'Vaultpass2026x', role: 'PMO Director' } });
       const r = await as('pmo1@example.com', 'Vaultpass2026x', async () => { const me = await api('me'), v = await api('planPmoGet', {}), b = await api('acctBillGet', { core: gc }), bs = await api('acctBillSave', { core: gc, contract: 1, ms: {} }), u1 = await api('userCreate', { user: { email: 'pm9@example.com', name: 'New Manager', password: 'Vaultpass2026x', role: 'Project manager' } }), u2 = await api('userCreate', { user: { email: 'ceo9@example.com', name: 'Not Ceo', password: 'Vaultpass2026x', role: 'CEO' } }); return { me: me.j, v, b: b.status, bs: bs.status, u1: u1.status, u1r: u1.j.user && u1.j.user.role, u2: u2.status }; });
       const pmV = await as('pm1@example.com', 'Vaultpass2026x', () => api('planPmoGet', {})), ownV = await api('planPmoGet', {}), V = r.v.j;
-      ok('PMO', '🧭 the PMO Director: one per company; lands with every project and the money; the PMO view (programs, decisions, milestones, escalations, team, gaps); every project\'s billing read-only; makes a project manager but not a CEO; a project manager has no PMO view',
-        mk.status === 200 && two.status === 400 && r.me.role === 'PMO Director' && r.me.money === true && !r.me.scope && r.v.status === 200 && Array.isArray(V.programs) && V.programs.length > 0 && V.all && V.all.n > 0 && V.team && Array.isArray(V.team.pms) && V.milestones && Array.isArray(V.gaps) && Array.isArray(V.decisions)
+      ok('PMO', '🧭 the PMO Director (several allowed); lands with every project and the money; the PMO view (programs, decisions, milestones, escalations, team, gaps); every project\'s billing read-only; makes a project manager but not a CEO; a project manager has no PMO view',
+        mk.status === 200 && two.status === 200 && r.me.role === 'PMO Director' && r.me.money === true && !r.me.scope && r.v.status === 200 && Array.isArray(V.programs) && V.programs.length > 0 && V.all && V.all.n > 0 && V.team && Array.isArray(V.team.pms) && V.milestones && Array.isArray(V.gaps) && Array.isArray(V.decisions)
         && r.b === 200 && r.bs === 403 && r.u1 === 200 && r.u1r === 'Project manager' && r.u2 === 403 && pmV.status === 403 && ownV.status === 200,
         JSON.stringify([mk.status, two.status, r.me.role, r.me.money, r.v.status, V && V.error, r.b, r.bs, r.u1, r.u1r, r.u2, pmV.status, ownV.status]).slice(0, 600)); }
     // 🗺 the Program manager: only their programs, the projects in them and the people on them; makes programs and projects (which become theirs); no money
@@ -276,6 +277,17 @@ try {
         && r.V === 200 && r.Vp.join() === 'Digital health' && r.Vbud == null && r.oth === 403 && r.mine === 200 && r.bill === 403 && r.nO === 403 && r.nM === 200 && r.nP === 200 && r.afterP.join() === 'Community outreach,Digital health'
         && r.ppl === 200 && r.pplScoped && r.sq === 200 && r.sqP.length > 0 && r.sqP.every((p) => p === 'Digital health' || p === 'Community outreach') && !r.sqMoney.length && r.ul === 403 && r.cu === 403 && r.pmo === 403 && r.gaveOwn === 403,
         JSON.stringify(r).slice(0, 900)); }
+    // 📁 a Project manager sees only their projects; 🔗 a person's Role follows their login, and Job title is their own
+    { const cards = (await api('planProgramList', {})).j.cards || [], notMine = cards.find((c) => c.name === 'Estimate test').core;
+      const r = await as('pm1@example.com', 'Vaultpass2026x', async () => { const a = await api('planGet', { core: notMine }), l = await api('planList'), me = await api('me'); return { a: a.status, cores: (l.j.plans || []).map((p) => p.core), me: me.j }; });
+      const pp = await api('pplList'), per = (pp.j.people || []).find((p) => String(p.email || '').toLowerCase() === 'pgm1@example.com');
+      const full = per ? (await api('pplGet', { id: per.id })).j.person : null;
+      const sv = full ? await api('pplSave', { person: { ...full, role: 'Contractor', jobTitle: 'Head of health programs' } }) : { status: 0, j: {} };
+      const after = per ? (await api('pplGet', { id: per.id })).j.person : null, bad = await api('userCreate', { user: { email: 'old1@example.com', name: 'Old Director', password: 'Vaultpass2026x', role: 'Project director' } });
+      ok('Roles', '📁 a project manager sees only their projects (not another project); 🔗 People shows each person\'s login and its role, the role cannot be changed in People, and Job title is saved; Project director is no longer offered (it is PMO Director)',
+        r.a === 403 && !r.cores.includes(notMine) && r.cores.length >= 1 && r.me.role === 'Project manager' && r.me.money === true && !r.me.scope && per && per.role === 'Program manager' && per.login && per.login.role === 'Program manager'
+        && sv.status === 200 && after && after.role === 'Program manager' && after.jobTitle === 'Head of health programs' && (bad.status >= 400 || (bad.j.user && bad.j.user.role !== 'Project director')),
+        JSON.stringify([r.a, r.cores.length, r.me.role, r.me.money, per && per.role, per && per.login, sv.status, sv.j.error, after && [after.role, after.jobTitle], bad.status]).slice(0, 700)); }
   }
     // ---------- 🏁 deliverables: final / interim, Draft / Final, versions with notes, and a log of uploads and downloads ----------
   { const b64 = (t) => Buffer.from(t).toString('base64'), tx = 'Selangor transport masterplan. Chapter 1 vision and objectives for the corridor plan.';
@@ -296,7 +308,7 @@ try {
     const inList = async () => ((await api('planList', { today: '2026-11-21' })).j.plans || []).some((x) => x.core === ac);
     const gone = !(await inList()), arl = await as('site1@example.com', 'Sitepass2026x', () => api('planArchiveList', {})), hit = (arl.j.list || []).find((x) => x.core === ac) || {}, pmL = await as('pm1@example.com', 'Vaultpass2026x', () => api('planArchiveList', {}));
     const back0 = await api('planProjectRestore', { core: ac, sig: 'x', reason: '' }); const back = await as('site1@example.com', 'Sitepass2026x', () => api('planProjectRestore', { core: ac, by: 'Sam Site', reason: 'Client restarted the work', sig: 'Sam Site' })), again = await inList();
-    const fresh = await api('planNewProject', { name: 'Fresh delete', client: 'Acme', program: 'Digital health' }), pmDel = await as('pm1@example.com', 'Vaultpass2026x', () => api('planProjectDelete', { core: fresh.j.core }));
+    const fresh = await as('pm1@example.com', 'Vaultpass2026x', () => api('planNewProject', { name: 'Fresh delete', client: 'Acme', program: 'Digital health' })), pmDel = await as('pm1@example.com', 'Vaultpass2026x', () => api('planProjectDelete', { core: fresh.j.core }));   // a project they made is theirs
     const vd = await api('planNewProject', { name: 'Vault delete', client: 'Acme', program: 'Digital health' }), vdc = vd.j.core;
     await api('planSave', { core: vdc, plan: { name: 'Vault delete', start: '2026-10-01', phases: [{ id: 'ph1', name: 'Work' }], tasks: [{ id: 'k1', phase: 'ph1', name: 'Design', dur: 5, pred: [], res: [], qty: 1, rate: 100, pct: 0, status: 'todo' }] } });
     await api('planProjectArchive', { core: vdc, by: 'Sashi', sig: 'Sashi', reason: 'Duplicate project' });

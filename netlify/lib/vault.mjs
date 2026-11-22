@@ -17,10 +17,10 @@ const MAX_FILE = 3.5 * 1024 * 1024, MAX_TEXT = 400000;
 
 // ---------- who may do what ----------
 export const isFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO' || ctx.role === 'PMO Director');
-const isPM = (ctx) => !!ctx && !ctx.scope && ['Project manager', 'Project director'].includes(ctx.role);
+const isPM = (ctx) => !!ctx && (!ctx.scope || !!(ctx.pgm && ctx.pgm.kind === 'project')) && ctx.role === 'Project manager';   // a Project manager files on their own projects (the request's project is checked first)
 async function programOf(core) { const j = await J.find(core).catch(() => null); if (!j) return null; const L = await PG.list(); return L.find((p) => p.name === (j.program || '')) || null; }
 export async function canView(ctx, core, prog) { if (isFinance(ctx)) return true; if (!ctx || ctx.scope || !ctx.uid) return false; const p = prog === undefined ? await programOf(core) : prog; return !!(p && p.director && p.director === ctx.uid); }
-export function canFile(ctx, folder, viewer) { if (!ctx || ctx.scope) return false; if (ctx.owner || ctx.role === 'CFO') return true; return (isPM(ctx) || viewer) && PM_FOLDERS.includes(folder); }
+export function canFile(ctx, folder, viewer) { if (!ctx || (ctx.scope && !isPM(ctx))) return false; if (ctx.owner || ctx.role === 'CFO') return true; return (isPM(ctx) || viewer) && PM_FOLDERS.includes(folder); }
 
 // ---------- 🖍 redaction: money, rates, bank and tax numbers, cards, emails and phone numbers ----------
 const CUR = '(?:A\\$|US\\$|S\\$|NZ\\$|RM|AUD|USD|SGD|MYR|NZD|IDR|Rp|EUR|GBP|INR|AED|SAR|[$€£¥₹])';

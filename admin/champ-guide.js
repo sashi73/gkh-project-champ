@@ -37,7 +37,7 @@
     { id: 'user', t: 'Create a new user (login)', k: 'new user|create user|add user|login|access|password|pengguna', owner: 1, steps: [
       { go: '#users', sel: '#usNew', say: 'In Users & access press “＋ New user”.', click: 1 },
       { sel: '#nuF [name=email]', say: 'Type their email: it is their username.' },
-      { sel: '#nuF .us-rpick', say: 'Pick the role: Project director, Contractor or Project personnel.' },
+      { sel: '#nuF .us-rpick', say: 'Pick the role: PMO Director, Program manager, Project manager, Contractor or Project personnel.' },
       { sel: '#nuF [name=pw]', say: 'Choose their password (10 characters or more, letters and a number) and type it again.' },
       { sel: '#nuF [type=submit]', say: '“Next: confirm” shows a summary. Check it, press “Confirm and create”, then set the projects and modules they can use.' }] },
     { id: 'project', t: 'Start a new project', k: 'new project|create project|start project|projek baru', steps: [

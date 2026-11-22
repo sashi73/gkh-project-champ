@@ -38,7 +38,8 @@
     var users = canUsers() ? api('userList').then(function (u) { S.users = u.users; }).catch(function () { S.users = null; }) : Promise.resolve();
     return Promise.all([load(), users]).then(function () { draw(); });
   }
-  function loginOf(id) { return (S.users || []).filter(function (u) { return u.personId === id; })[0]; }
+  function loginOf(id) { var p = ((S.data && S.data.people) || []).filter(function (x) { return x.id === id; })[0] || {}, em = String(p.email || '').toLowerCase();
+    return (S.users || []).filter(function (u) { return u.kind !== 'google' && u.kind !== 'subbie' && (u.personId === id || (em && String(u.email || u.username || '').toLowerCase() === em)); })[0] || (p.login ? Object.assign({ username: p.login.username }, p.login) : null); }
   function draw() {
     navOn();
     var d = S.data, act = d.people.filter(function (p) { return !p.archived; });
@@ -207,7 +208,7 @@
     navOn();
     V().innerHTML = '<div class="empty">Loading…</div>';
     Promise.all([api('pplGet', { id: id }), canUsers() ? api('userList').then(function (u) { S.users = u.users; }).catch(function () {}) : null]).then(function (res) {
-      var r = res[0], p = r.person, a = r.assign || { list: [] }, c = r.comp, lg = loginOf(p.id), tk = p.tickets || {}, tel = String(p.phone || '').replace(/[^\d+]/g, '');
+      var r = res[0], p = r.person, a = r.assign || { list: [] }, c = r.comp, lg = loginOf(p.id) || (p.login ? Object.assign({ username: p.login.username }, p.login) : null), tk = p.tickets || {}, tel = String(p.phone || '').replace(/[^\d+]/g, '');
       var T = S.data.tickets, row = function (k, v) { return v ? '<tr><td class="muted">' + k + '</td><td>' + v + '</td></tr>' : ''; };
       var proj = {}; a.list.forEach(function (x) { (proj[x.core] = proj[x.core] || { plan: x.plan, rows: [] }).rows.push(x); });
       V().innerHTML = '<div class="row" style="margin-bottom:12px"><a class="btn btn-sm" href="#people">← People</a><span class="sp"></span>' +
@@ -216,7 +217,7 @@
         (p.archived ? '<div class="pp-archived">🗄 <b>Archived</b>' + (p.archivedAt ? ' on ' + esc(new Date(p.archivedAt).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })) : '') + (p.archivedWhy ? ': ' + esc(p.archivedWhy) : '') + '. Not in the lists or pickers, and cannot log in. Restore them to use them again.</div>' : '') +
         '<div class="grid two"><div class="grid" style="align-content:start">' +
           '<div class="card pp-head"><span class="pp-av big pp-' + (p.type === 'Contractor' ? 'c' : 'e') + '">' + esc(ini(p.name)) + '</span><div><h2 style="margin:0">' + esc(p.name) + ' <small class="muted">' + esc(p.id) + '</small></h2>' +
-            '<div class="muted">' + esc([p.role, p.type === 'Contractor' ? 'Contractor' + (p.business ? ', ' + p.business : '') : p.employment + ' employee', tradeName(p.trade)].filter(Boolean).join(' · ')) + '</div>' +
+            '<div class="muted">' + (p.jobTitle ? '<b style="color:var(--ink,#1F2328)">' + esc(p.jobTitle) + '</b> · ' : '') + esc([p.role + (p.login ? ' (login)' : ''), p.type === 'Contractor' ? 'Contractor' + (p.business ? ', ' + p.business : '') : p.employment + ' employee', tradeName(p.trade)].filter(Boolean).join(' · ')) + '</div>' +
             '<div style="margin-top:6px">' + schip(p.status) + ' ' + cchip(c.worst) + ' ' + stars(p.rating) + '</div></div></div>' +
           '<div class="card"><h2>Contact &amp; work</h2><table class="pp-kv"><tbody>' + row('Phone', tel ? '<a href="tel:' + esc(tel) + '">' + esc(p.phone) + '</a>' : '') + row('Email', p.email ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a>' : '') +
             row('Address', esc([p.address, p.suburb].filter(Boolean).join(', '))) + row('Started', esc(dmy(p.start))) + row('Hours a week', p.hours ? String(p.hours) : '') + row('Availability', esc(p.availability)) +
@@ -280,8 +281,10 @@
       '<div class="full"><b>Which projects do you work on?</b><div class="us-rpick">' + d.groups.map(function (g) { return '<label class="us-rcard"><input type="radio" name="pfGroup" value="' + esc(g) + '"' + (grp === g ? ' checked' : '') + '><span><b>' + GI[g][0] + ' ' + esc(g) + '</b><small>' + esc(GI[g][1]) + '</small></span></label>'; }).join('') + '</div></div>' +
       '<h3 class="full">Person</h3>' + f('name', 'Full name', p.name, 'e.g. Priya Shah') +
       (self ? '<label>Role<input value="' + esc(p.role || o.role || '') + '" disabled title="Set by the project manager"></label>'
+        : p.login ? '<label>Role <small class="muted">from their login</small><input value="' + esc(p.login.role) + '" disabled title="The role follows the login: change it in Users &amp; access"><input type="hidden" data-k="roleT" value="' + esc(p.login.role) + '"><input type="hidden" data-k="roleC" value="' + esc(p.login.role) + '"><small class="muted"><a href="#users/' + esc(p.login.id) + '">Change it in Users &amp; access</a></small></label>'
         : '<div data-g="Technical & general">' + sel('roleT', 'Role', d.techRoles.indexOf(p.role) >= 0 ? p.role : 'Project personnel', d.techRoles) + '</div>' +
           '<div data-g="Construction"><label>Role<input data-k="roleC" list="ppRoles" value="' + esc(p.role || '') + '" placeholder="e.g. Site supervisor"></label><datalist id="ppRoles">' + d.roles.map(function (r) { return '<option value="' + esc(r) + '">'; }).join('') + '</datalist></div>') +
+      f('jobTitle', 'Job title <small class="muted">optional</small>', p.jobTitle, 'e.g. Senior consultant, Head of delivery') +
       '<div class="full" data-g="Construction"><div class="pp-type">' + d.types.map(function (t) { return '<label class="pp-tbtn"><input type="radio" name="ppType" value="' + t + '"' + ((p.type || 'Employee') === t ? ' checked' : '') + '><span><b>' + (t === 'Employee' ? '🧑‍🔧 Employee' : '🧾 Contractor') + '</b><small>' + (t === 'Employee' ? 'On the team\'s books' : 'Own business: ABN, insurance') + '</small></span></label>'; }).join('') + '</div></div>' +
       '<div data-g="Construction">' + sel('trade', 'Trade ' + opt, p.trade || '', [['', '–']].concat(d.trades.map(function (t) { return [t.key, t.name]; }))) + '</div>' +
       f('phone', 'Mobile', p.phone, '04xx xxx xxx', 'tel') + (self ? '<label>Email (your login)<input value="' + esc(o.email || p.email || '') + '" disabled></label>' : f('email', 'Email (also their login)', p.email, 'name@company.com', 'email')) +
@@ -330,10 +333,10 @@
     var apply = function (d) {
       var n = 0, g = d.group || 'Technical & general', gr = box.querySelector('[name=pfGroup][value="' + g + '"]'); if (gr && !o.id) { gr.checked = true; }
       show();
-      if (!self && d.role) { if (g === 'Construction') n += setv(box.querySelector('[data-k=roleC]'), d.role); else { var rs = box.querySelector('[data-k=roleT]'); if (rs && !o.id && Array.prototype.some.call(rs.options, function (x) { return x.value === d.role; })) { rs.value = d.role; rs.classList.add('pp-auto'); n++; } } }
+      if (!self && d.role) { if (g === 'Construction') n += setv(box.querySelector('[data-k=roleC]'), d.role); else { var rs = box.querySelector('[data-k=roleT]'); if (rs && rs.options && !o.id && Array.prototype.some.call(rs.options, function (x) { return x.value === d.role; })) { rs.value = d.role; rs.classList.add('pp-auto'); n++; } } }
       if (g === 'Construction' && d.type && !o.id) { var ty = box.querySelector('[name=ppType][value="' + d.type + '"]'); if (ty) ty.checked = true; }
       show();
-      ['name', 'phone', 'suburb', 'linkedin', 'availability', 'hours', 'costRate', 'business', 'abn'].concat(self ? [] : ['email']).forEach(function (k) { n += setv(box.querySelector('[data-k=' + k + ']'), d[k]); });
+      ['name', 'jobTitle', 'phone', 'suburb', 'linkedin', 'availability', 'hours', 'costRate', 'business', 'abn'].concat(self ? [] : ['email']).forEach(function (k) { n += setv(box.querySelector('[data-k=' + k + ']'), d[k]); });
       var tr = box.querySelector('[data-k=trade]'); if (tr && d.trade && !tr.value) { tr.value = d.trade; tr.classList.add('pp-auto'); n++; }
       Object.keys(d.tickets || {}).forEach(function (k) { ['number', 'class', 'expiry'].forEach(function (f) { n += setv(box.querySelector('[data-k="tk.' + k + '.' + f + '"]'), (d.tickets[k] || {})[f]); }); });
       ['education', 'quals', 'certs', 'permits'].forEach(function (k) {
