@@ -152,7 +152,7 @@
 .fx-nav [data-go]:hover{color:var(--ft)}
 .fx-nav [data-go]:focus-visible,.fx-pp:focus-visible{outline:2px solid var(--fg);outline-offset:4px}
 .fx-pp{flex:none;align-self:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--fl);background:rgba(20,19,17,.7);color:var(--ft);font-size:11px;cursor:pointer}
-@media (max-width:980px){.fx-nav{padding-right:0}.fx-sc{grid-template-columns:1fr;gap:28px}.fx-stage{min-height:0}.fx-nav [data-go] span{display:none}.fx-nav [data-go]{min-width:20px}}
+@media (max-width:980px){.fx-nav{padding-right:0}.fx-sc{grid-template-columns:1fr;gap:28px}.fx-stage{min-height:0}.fx-nav [data-go] span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}.fx-nav [data-go]{min-width:20px}}
 @media (prefers-reduced-motion:reduce){.fx-sc,.fx-sc.on{transition:none}.fx .fx-mosaic span,.fx .fx-flag,.fx .fd-out span,.fx .fa p,.fx .fk .nw,.fx .fp-l path{opacity:1;transform:none;animation:none!important}
   .fx .fg-b,.fx .fp-b{transform:none;transition:none}.fx .fg-m{transform:rotate(45deg)}.fx .fe path{stroke-dashoffset:0;animation:none}.fx .fr-dot{opacity:1;transform:translate(-50%,50%);animation:none!important}.fx .fc-stamp{opacity:1;transform:rotate(-10deg);animation:none}.fx .fb-p i{width:var(--w)}.fx .fk .mv{display:none}}
 /* 5: BIM, from the model to the plan */
@@ -215,3 +215,15 @@
 @media (max-width:980px){.fai-s{grid-template-columns:64px 1fr;gap:18px}.fai-s .fai-o{grid-column:2;margin-left:44px}.fai-day::before{left:80px}.fai-s::before{left:74px}.fai-tg{grid-template-columns:1fr 1fr}}
 @media (max-width:600px){.fai-tg{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.fai-s{opacity:1;transform:none;transition:none}.fai-day::before{transform:none;transition:none}}
+
+/* reduced motion: beat the active-scene rules (higher specificity) */
+@media (prefers-reduced-motion:reduce){
+  .fx .fx-sc.on *,.fx .fx-sc *{animation:none!important;transition:none!important}
+  .fx .fx-sc.on .fg-b,.fx .fx-sc.on .fp-b{transform:none!important}
+  .fx .fx-sc.on .fe path{stroke-dashoffset:0!important}
+  .fx .fx-sc.on .fc-stamp{opacity:1!important;transform:rotate(-10deg)!important}
+  .fx .fx-sc.on .fm-clash{opacity:1!important;transform:none!important}
+  .fx .fx-sc.on .fm-f,.fx .fx-sc.on .fm-out span,.fx .fx-sc.on .fd-out span,.fx .fx-sc.on .fa p,.fx .fx-sc.on .fx-flag,.fx .fx-sc.on .fx-ai,.fx .fx-sc.on .fx-mosaic span,.fx .fx-sc.on .fk .nw,.fx .fx-sc.on .fp-l path{opacity:1!important;transform:none!important}
+  .fx .fx-sc.on .fr-dot{opacity:1!important;transform:translate(-50%,50%)!important}
+  .fx .fx-sc.on .fb-p i{width:var(--w)!important}
+}

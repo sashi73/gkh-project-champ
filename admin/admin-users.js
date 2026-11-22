@@ -26,6 +26,7 @@
   var isSuper = function () { return !!(M.me || {}).owner; };
   var isTeam = function () { return !!(S.data && S.data.team); };   // a project manager or director: adds and looks after contractors and project personnel
   var canTouch = function (u) { return isSuper() || (isTeam() && u.kind === 'email' && (S.data.pick || ['Contractor', 'Project personnel']).indexOf(u.role) >= 0 && u.id !== (M.me || {}).uid); };
+  var scoped = function () { var p = (M.me || {}).pgm; return !!(p && p.kind === 'project'); };   // 📁 a project manager: logins only on their own projects
   var pickRoles = function () { return isSuper() ? ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Contractor', 'Project personnel'] : ((S.data && S.data.pick) || ['Contractor', 'Project personnel']); };
   var when = function (t) { return t ? new Date(t).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never'; };
   var roleMods = function (r) { var x = (S.data.roles || []).filter(function (y) { return y.name === r; })[0]; return Object.assign({}, x && x.mods); };
@@ -89,6 +90,7 @@
       '<label>Password (you choose it)<span class="us-pwrow"><input name="pw" type="password" required minlength="10" autocomplete="new-password" value="' + esc(f.pw) + '"><button class="btn btn-sm" type="button" id="nuShow">Show</button></span><small class="muted">At least 10 characters, with letters and a number</small></label>' +
       '<label>Password again<input name="pw2" type="password" required autocomplete="new-password" value="' + esc(f.pw) + '"></label>' +
       '<label class="full us-chk"><input type="checkbox" name="must"' + (f.must ? ' checked' : '') + '> <span>Ask them to choose their own password the first time they sign in</span></label>' +
+      (scoped() ? '<div class="full"><b>Their projects</b> <small class="muted">tick at least one of your projects</small><div class="us-projs" id="pmProjs">' + S.plans.map(function (p) { return '<label><input type="checkbox" data-np value="' + esc(p.core) + '"' + ((f.projects || []).indexOf(p.core) >= 0 ? ' checked' : '') + '> <span><b>' + esc(p.name) + '</b><br><small class="muted">' + esc(p.ref || p.core) + '</small></span></label>'; }).join('') + '</div></div>' : '') +
       '<div class="full actions"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" type="submit">Next: confirm →</button></div></form>');
     $('#modal .modal-card').classList.add('sc-wide');
     var F = $('#nuF');
@@ -96,7 +98,8 @@
     setTimeout(function () { F.email.focus(); }, 30);
     F.onsubmit = function (e) {
       e.preventDefault();
-      var o = { email: F.email.value.trim().toLowerCase(), name: F.name.value.trim(), role: (F.querySelector('[name=role]:checked') || {}).value || 'Project personnel', pw: F.pw.value, must: F.must.checked };
+      var o = { email: F.email.value.trim().toLowerCase(), name: F.name.value.trim(), role: (F.querySelector('[name=role]:checked') || {}).value || 'Project personnel', pw: F.pw.value, must: F.must.checked, projects: [].map.call(F.querySelectorAll('[data-np]:checked'), function (x) { return x.value; }) };
+      if (scoped() && !o.projects.length) return toast('Tick at least one of your projects for this login', true);
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.email)) return toast('Type their email address', true);
       if (S.data.users.some(function (u) { return u.username === o.email; })) return toast(o.email + ' already has a login', true);
       var bad = pwBad(o.pw); if (bad) return toast(bad, true);
@@ -116,7 +119,7 @@
     $('#cnBack').onclick = function () { newUser(o); };
     $('#cnGo').onclick = function () {
       var b = this; b.disabled = true;
-      api('userCreate', { user: { email: o.email, name: o.name, role: o.role, password: o.pw, mustChange: o.must } }).then(function (r) {
+      api('userCreate', { user: { email: o.email, name: o.name, role: o.role, password: o.pw, mustChange: o.must, projects: o.projects || [] } }).then(function (r) {
         toast('Login made: ' + r.user.username);
         return load().then(function () { draw(); perms(S.data.users.filter(function (u) { return u.id === r.user.id; })[0] || r.user, true); });
       }).catch(function (e) { b.disabled = false; fail(e); });

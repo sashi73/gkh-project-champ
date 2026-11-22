@@ -219,19 +219,12 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   ok('Site', 'login page hides the project-code box', !(await p.isVisible('#loginProj')));
   await p.goto(`${BASE}/index.html`);
   const nav = await p.$$eval('header .menu a', (as) => as.map((a) => a.getAttribute('href')));
-  ok('Site', 'menu has the 7 pages (with Help)', JSON.stringify(nav) === JSON.stringify(['index.html', 'about.html', 'features.html', 'agile.html', 'industries.html', 'contact.html', 'help.html']), nav.join(','));
-  // ❓ the public help centre: areas, search to a sub-feature, the article opened at that section
+  ok('Site', 'menu has the 6 pages (Help lives in the console now)', JSON.stringify(nav) === JSON.stringify(['index.html', 'about.html', 'features.html', 'agile.html', 'industries.html', 'contact.html']), nav.join(','));
+  // ❓ the public help page is retired: /help and /help.html go to the home page (Help is in the console)
   {
-    const ph = await ctx.newPage(); await ph.goto(`${BASE}/help.html`); await ph.waitForSelector('.hc-area', { timeout: 8000 }).catch(() => {});
-    const areas = await ph.$$eval('.hc-area', (x) => x.length), arts = await ph.$$eval('.hc-area a', (x) => x.length);
-    await ph.fill('#hcQ', 'bold'); await ph.press('#hcQ', 'Enter'); await ph.waitForSelector('.hc-res a', { timeout: 5000 }).catch(() => {});
-    const first = await ph.getAttribute('.hc-res a', 'href').catch(() => '');
-    await ph.click('.hc-res a').catch(() => {}); await ph.waitForSelector('.hc-sub.hit', { timeout: 5000 }).catch(() => {});
-    const hit = await ph.textContent('.hc-sub.hit h2').catch(() => ''), steps = await ph.$$eval('.hc-sub.hit li', (x) => x.length).catch(() => 0), ttl = await ph.title();
-    await ph.goto(`${BASE}/help.html#dod`); await sleep(300); const dod = await ph.textContent('.hc-art h1').catch(() => '');
-    const footer = await ph.getAttribute('footer a[href="help.html"]', 'href').catch(() => '');
-    ok('Help', 'help centre: 14 areas, 80+ articles; searching "bold" finds Gantt > Bold, italic, underline and opens the article at that section with its steps; DoD has its own article; Help is in the menu and footer',
-      areas === 14 && arts >= 80 && first === '#gantt-format/bold' && hit === 'Bold, italic, underline' && steps >= 2 && /Bold, italics/.test(ttl) && /Definition of Done/.test(dod) && footer === 'help.html', JSON.stringify({ areas, arts, first, hit, steps, ttl, dod, footer }));
+    const ph = await ctx.newPage(); const r1 = await ph.goto(`${BASE}/help.html`); const u1 = ph.url(); const r2 = await ph.goto(`${BASE}/help`); const u2 = ph.url();
+    const home = (u) => { const x = new URL(u); return x.origin === new URL(BASE).origin && x.pathname === '/'; };
+    ok('Help', 'the old public help page goes to the home page (/help and /help.html)', r1 && r1.ok() && r2 && r2.ok() && home(u1) && home(u2), JSON.stringify([u1, u2]));
     await ph.close();
   }
   ok('Site', 'header has a Login link to login.html', (await p.getAttribute('header .nav-login', 'href')) === 'login.html');

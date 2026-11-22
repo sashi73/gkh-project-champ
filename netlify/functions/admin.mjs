@@ -72,7 +72,7 @@ async function auditAction(action, body, ctx, by, res0) {
   if (body.set && typeof body.set === 'object') det.push('set: ' + JSON.stringify(body.set).slice(0, 300));
   await (await import('../lib/paudit.mjs')).record(core, { who: ctx.who || by, name: ctx.name, role: ctx.owner ? 'Super user' : ctx.role, ip: ctx.ip, kind: lab[0], what: lab[1], lines: det });
 }
-const MONEY_KEYS = new Set(['BAC', 'PV', 'EV', 'AC', 'ACin', 'EVin', 'ACest', 'CPI', 'CPIx', 'EAC', 'ETC', 'VAC', 'TCPI', 'split', 'budget', 'cost', 'costs', 'rate', 'price', 'amount', 'money', 'profit', 'margin', 'contract', 'contractValue', 'invoiced', 'received', 'owed', 'bomx', 'bomLoose', 'budgetCfg', 'bom', 'bomBase', 'bomRevs', 'forecastCost', 'forecast_cost', 'actual', 'actualCost', 'basis', 'b0', 'b1', 'BACbase']);
+const MONEY_KEYS = new Set(['extra', 'extra_cost', 'forecast_cost_EAC', 'approved_budget', 'budget_BAC', 'spent_AC', 'spent', 'BAC', 'PV', 'EV', 'AC', 'ACin', 'EVin', 'ACest', 'CPI', 'CPIx', 'EAC', 'ETC', 'VAC', 'TCPI', 'split', 'budget', 'cost', 'costs', 'rate', 'price', 'amount', 'money', 'profit', 'margin', 'contract', 'contractValue', 'invoiced', 'received', 'owed', 'bomx', 'bomLoose', 'budgetCfg', 'bom', 'bomBase', 'bomRevs', 'forecastCost', 'forecast_cost', 'actual', 'actualCost', 'basis', 'b0', 'b1', 'BACbase']);
 function scrubMoney(v, d = 0) { if (d > 30 || v == null || typeof v !== 'object') return v; if (Array.isArray(v)) return v.map((x) => scrubMoney(x, d + 1)); const o = {}; for (const [k, x] of Object.entries(v)) if (!MONEY_KEYS.has(k)) o[k] = scrubMoney(x, d + 1); return o; }
 const out = (status, body, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...H, ...extra } });
 const bad = (msg, status = 400) => out(status, { error: msg });
@@ -531,7 +531,8 @@ async function handle(req, context) {
       case 'planWatchGet': {   // 🩺 Champ's health check of one project (rules) and its brief (AI, kept until the numbers change)
         const core = clean(body.core, 40), pl = core ? await getPlan(core) : null; if (!pl) return bad('Project not found', 404);
         const W = await import('../lib/watch.mjs'), j = await J.find(core);
-        if (body.quick) { const h = W.check(pl); return out(200, { rag: h.rag, word: h.word, reasons: h.reasons, n: h.n }); }
+        const noM = !U.seesMoney(ctx), mReason = (x) => !/cost|budget|cpi|\$|spend|spent|price|invoice|bill/i.test((x && x.text) || String(x || ''));
+        if (body.quick || noM) { const h = W.check(pl); return out(200, { rag: h.rag, word: h.word, reasons: noM ? h.reasons.filter(mReason) : h.reasons, n: noM ? scrubMoney(h.n) : h.n, brief: noM ? '' : undefined }); }   // 💰 no money, no AI brief
         const r = await W.brief(core, pl, { refresh: !!body.refresh, name: pl.name || (j && j.service) || '', lang: clean(body.lang, 5) || 'en' });
         return out(200, { rag: r.rag, word: r.word, reasons: r.reasons, n: r.n, brief: r.brief, at: r.at, cached: !!r.cached, stale: !!r.stale, name: pl.name || '' });
       }
@@ -552,7 +553,8 @@ async function handle(req, context) {
               dependencies: (d.deps || []).filter((x) => inScope(x.from) || inScope(x.to)).slice(0, 120).map((x) => ({ from: nm[x.from] || x.from, from_core: x.from, to: nm[x.to] || x.to, to_core: x.to, type: x.type, lag_days: x.lag || 0, status: x.status || '', why: x.why || '', note: x.note || '', cross_program: !!x.cross })),
             };
           }
-          if (can('people')) { const L = await PPL.list(); portfolio = portfolio || {}; portfolio.people = (L.people || []).filter((x) => !x.archived).slice(0, 80).map((x) => ({ name: x.name, group: x.group, role: x.role, rate: x.costRate || 0, status: x.status, problems: (x.comp || {}).problems || [] })); }
+          let pplOk = null; if (ctx.scope) { const as0 = await PPL.assignments().catch(() => ({})); pplOk = (id) => Object.keys((as0[id] || {}).by || {}).some((c) => ctx.scope.includes(c)); }   // 🔒 their team, chosen before the 80-person cap
+          if (can('people')) { const L = await PPL.list(); portfolio = portfolio || {}; portfolio.people = (L.people || []).filter((x) => !x.archived && (!ctx.scope || (pplOk && pplOk(x.id)))).slice(0, 80).map((x) => ({ name: x.name, group: x.group, role: x.role, rate: x.costRate || 0, status: x.status, problems: (x.comp || {}).problems || [] })); }
         } catch (e) { console.error('Ask Champ portfolio context: ' + e.message); }
         let project = null;   // asked from inside a project: its facts, so "my project is running late" gets an answer about this project
         const core = clean(body.core, 40);
@@ -563,7 +565,7 @@ async function handle(req, context) {
             // everything about the open project, so "who is the project manager?", "who is on the team?", "what is late?" get a straight answer
             project = { name: pl.name, ref: jb ? J.refFor(jb) : core, client: (jb && jb.name) || ch.customer || '', program: (jb && jb.program) || '', project_manager: ch.manager || (jb && jb.manager) || '', sponsor: (jb && jb.sponsor) || '', site: (jb && jb.suburb) || '',
               summary: cut((jb && jb.summary) || ch.background, 700), objective: cut(ch.objective, 400), in_scope: cut(ch.inScope, 500), out_of_scope: cut(ch.outScope, 300), deliverables: cut(ch.deliverables, 400), acceptance: cut(ch.acceptance, 200), assumptions: cut(ch.assumptions, 300),
-              approved_budget: Number(ch.budget) || 0, charter_status: ch.docStatus || '', health: hc.rag, health_reasons: hc.reasons.map((x) => x.text), forecast_cost_EAC: hc.n.EAC, baseline_finish: hc.n.baseline_finish, days_past_baseline: hc.n.slip_days,
+              approved_budget: Number(ch.budget) || 0, charter_status: ch.docStatus || '', health: hc.rag, health_reasons: hc.reasons.filter((x) => U.seesMoney(ctx) || !/cost|budget|cpi|\$|spend|spent|price|invoice|bill/i.test((x && x.text) || '')).map((x) => x.text), forecast_cost_EAC: hc.n.EAC, baseline_finish: hc.n.baseline_finish, days_past_baseline: hc.n.slip_days,
               start: R.start, finish: R.finish, finish_by: pl.finishBy || '', today, pct_complete: R.pct, tasks_total: R.total, tasks_done: R.done, late_tasks_count: R.late, SPI: R.SPI, CPI: R.CPI, budget_BAC: R.BAC, spent_AC: R.AC,
               stakeholders: (pl.stakeholders || []).filter((x) => x.name || x.role).slice(0, 40).map((x) => ({ name: x.name, role: x.role, raci: x.raci, email: x.email || undefined, phone: x.phone || undefined })),
               phases: (pl.phases || []).map((f) => f.name),
@@ -572,6 +574,14 @@ async function handle(req, context) {
               issues: (pl.issues || []).filter((x) => x.title).slice(0, 25).map((x) => ({ title: x.title, priority: x.priority, owner: x.owner, due: x.due, status: x.status })),
               lessons_logged: (pl.lessons || []).slice(0, 20).map((l) => ({ title: l.title, impact: l.impact, recommendation: cut(l.rec, 200) })),
               lessons_from_past_projects: ((await (await import('../lib/lessons.mjs')).library({ forCore: core, limit: 4 }).catch(() => ({ lessons: [] }))).lessons || []).map((l) => ({ lesson: l.title, from: l.project, recommendation: cut(l.rec, 200) })) }; } } catch (e) { console.error('Ask Champ project facts: ' + e.message); project = null; } }
+        // 🔒 only what this login may see: their programs, their projects, the people on them, and no money without money access
+        if (ctx.scope && portfolio) {
+          const okP = new Set((portfolio.projects || []).map((p) => p.program)), mine = (c) => ctx.scope.includes(c);
+          if (portfolio.programs) portfolio.programs = portfolio.programs.filter((g) => okP.has(g.name) || (ctx.pgm && ctx.pgm.names.includes(g.name)));
+          if (portfolio.dependencies) portfolio.dependencies = portfolio.dependencies.map((x) => ({ ...x, from: mine(x.from_core) ? x.from : 'another project', from_core: mine(x.from_core) ? x.from_core : '', to: mine(x.to_core) ? x.to : 'another project', to_core: mine(x.to_core) ? x.to_core : '' }));
+          if (portfolio.people) { const as = await PPL.assignments().catch(() => ({})), L2 = (await PPL.list()).people || [], ok = new Set(L2.filter((p) => Object.keys((as[p.id] || {}).by || {}).some((c) => mine(c))).map((p) => p.name)); portfolio.people = portfolio.people.filter((p) => ok.has(p.name)); }
+        }
+        if (!U.seesMoney(ctx)) { if (portfolio) portfolio = scrubMoney(portfolio); if (project) project = scrubMoney(project); }
         const kbHits = await KB.search(q, 2500).catch(() => []), course_notes = kbHits.length ? KB.forPrompt(kbHits) : undefined;
         // ❓ the help centre (assets/help/articles.js): the official how-to, so Champ's steps match the help word for word
         const HC = await import('../../assets/help/articles.js'), hHits = HC.search(q, 4), hSeen = {};
@@ -608,7 +618,7 @@ async function handle(req, context) {
         // 📄 started from a document: it becomes the project's first Ask AI document, and the plan builder reads it
         let docId = '';
         if (body.docSid) {
-          const d = await DOCI.staged(body.docSid);
+          const d0 = await DOCI.staged(body.docSid), d = d0 && (!d0.by || d0.by === who) ? d0 : null;   // 🔒 only the person who uploaded it
           if (d) { const r = await intelUpload(core, { name: d.name, text: d.text, pages: d.pages, kind: 'Project document' }, by); if (r.doc) { docId = r.doc.id; await J.update(core, { docId, docName: d.name }); job = await J.find(core); } }
         }
         if (body.bom === false) await setModule(core, 'bom', false);     // optional modules chosen on the form
@@ -709,10 +719,10 @@ async function handle(req, context) {
       }
       case 'log': if (!ctx.owner) return bad('Only the super user sees the activity log.', 403); return out(200, { log: await A.auditLog() });
       default: {
-        const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by, ctx })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit, ctx })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
+        const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by, ctx })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit, ctx })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit, money: U.seesMoney(ctx) })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
         // 💰 a login without money (contractors, project personnel ...): the money taken out of every project answer (lists, programs, boards, reports);
         //    planGet and planSave do it themselves (and keep the money when such a login saves)
-        if (a && !U.seesMoney(ctx) && /^(plan|pipeline|intel)/.test(action) && !['planGet', 'planSave'].includes(action) && a.headers.get('content-type') && /json/.test(a.headers.get('content-type'))) {
+        if (a && !U.seesMoney(ctx) && /^(plan|pipeline|intel|comms)/.test(action) && !['planGet', 'planSave'].includes(action) && a.headers.get('content-type') && /json/.test(a.headers.get('content-type'))) {
           const j = await a.clone().json().catch(() => null); if (j) return out(a.status, scrubMoney(j));
         }
         return a || bad('Unknown action');
@@ -733,9 +743,10 @@ async function handle(req, context) {
       if (ctx.pgm.kind === 'project' && action === 'planNewProject') { const j0 = await res.clone().json().catch(() => ({})); if (j0.core) await U.addProject(ctx.uid, j0.core); }   // 📁 a project a Project manager makes is theirs
       // 👥 people: only those on their projects (from the plans), and no rates or pay
       if (['pplList', 'pplGet', 'pplAssign'].includes(action)) {
-        const as = await PPL.assignments(), inMine = (id) => ((as[id] || {}).list || []).some((x) => ctx.scope.includes(x.core));
+        const as = await PPL.assignments(), inMine = (id) => Object.keys((as[id] || {}).by || {}).some((c) => ctx.scope.includes(c));
         const clean = (p) => Object.fromEntries(Object.entries(p || {}).filter(([k]) => !(ctx.pgm.kind === 'project' ? /pay|salary|bank|tfn|super|abn/i : /rate|pay|salary|cost|bank|tfn|super|abn/i).test(k)));
-        const trimA = (a) => a ? { ...a, list: (a.list || []).filter((x) => ctx.scope.includes(x.core)) } : a;
+        const trimA = (a) => { if (!a) return a; const by = Object.fromEntries(Object.entries(a.by || {}).filter(([c]) => ctx.scope.includes(c))), sum = (k) => Object.values(by).reduce((t, n) => t + (n[k] || 0), 0);
+          return { ...a, list: (a.list || []).filter((x) => ctx.scope.includes(x.core)), by, projects: Object.keys(by).length, now: sum('now'), next: sum('next'), late: sum('late') }; };   // 🔒 only their projects, and the counts from those
         const j = await res.clone().json();
         if (action === 'pplList') return out(200, { ...j, people: (j.people || []).filter((p) => inMine(p.id)).map(clean), scoped: true });
         if (action === 'pplGet') return j.person && inMine(j.person.id) ? out(200, { ...j, person: clean(j.person), assign: trimA(j.assign) }) : bad('That person is not on your projects.', 403);

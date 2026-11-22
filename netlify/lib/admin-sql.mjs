@@ -17,6 +17,7 @@ import { regionOf } from './sydney-regions.mjs';
 import * as CU from './customers.mjs';
 import { statsFor } from './admin-cust.mjs';
 import { llmSetup, llmJson, usage, usageToday, tokCap, checkLimit, ping } from './ai.mjs';
+import { seesMoney } from './users.mjs';
 export { usageToday };
 
 const H = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
@@ -272,7 +273,7 @@ export async function tables() {
   const TY = { FS: 'finish to start', SS: 'start to start', FF: 'finish to finish' }, DSN = { conflict: 'Clash', risk: 'At risk', unknown: 'No dates', ok: 'OK', done: 'Done' };
   const dependencies = (await PGM.deps().catch(() => [])).filter((d) => cardBy[d.from] && cardBy[d.to]).map((d) => {
     const A = cardBy[d.from], B = cardBy[d.to], st = PGM.depStatus(d, A, B);
-    return { id: d.id, from_project: A.name, from_program: A.program || '', to_project: B.name, to_program: B.program || '', type: TY[d.type] || d.type, lag_days: d.lag || 0,
+    return { id: d.id, from_job: d.from, to_job: d.to, from_project: A.name, from_program: A.program || '', to_project: B.name, to_program: B.program || '', type: TY[d.type] || d.type, lag_days: d.lag || 0,
       status: DSN[st.status] || st.status, buffer_days: st.slack == null ? null : st.slack, cross_program: (A.program || '') !== (B.program || ''), explanation: st.why || '', note: d.note || '' };
   });
   const programs = (await PGM.list().catch(() => [])).map((p) => {
@@ -539,11 +540,13 @@ const MONEY_COL = /budget|cost|price|amount|value|_inc$|invoice|quote|paid|payme
 function scoped(data, g) {
   const money = g.kind === 'project';   // 📁 a Project manager keeps the money columns of their own projects
   const cores = new Set(g.cores), names = new Set(g.names), out = {};
+  const mine = new Set((data.projects || []).filter((r) => cores.has(r.job_id || r.job)).map((r) => r.project_name));   // their own projects, by name (for the links between projects)
   for (const [t, rows] of Object.entries(data)) {
     if (t === 'subcontractors' || t === 'sub_trades' || !Array.isArray(rows)) continue;
     let R = rows;
-    if (t === 'programs') R = rows.filter((r) => names.has(r.program_id || r.program));
-    else if (t === 'dependencies') R = rows.filter((r) => names.has(r.from_program) && names.has(r.to_program));
+    // 🔒 a program's roll-up covers every project in it: a project manager (who sees only some of them) does not get it
+    if (t === 'programs') { if (money) continue; R = rows.filter((r) => names.has(r.program_id || r.program)); }
+    else if (t === 'dependencies') R = rows.filter((r) => cores.has(r.from_job) && cores.has(r.to_job));   // 🔒 both ends must be their own projects (checked by project code, never by name)
     else R = rows.filter((r) => cores.has(r.job_id || r.job || r.core));
     out[t] = money ? R : R.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k))));
   }
@@ -553,6 +556,10 @@ const noMoneyCols = (o) => Object.fromEntries(Object.entries(o).map(([t, c]) => 
 export async function sqlPost(action, body, { who, ctx }) {
   if (action === 'sqlData' && ctx && ctx.pgm) { const data = scoped(champOnly(await tables()), ctx.pgm), keep = (o) => Object.fromEntries(Object.entries(champOnly(o)).filter(([t]) => data[t]));
     return out(200, { schema: ctx.pgm.kind === 'project' ? keep(SCHEMA) : noMoneyCols(keep(SCHEMA)), describe: keep(DESCRIBE), keys: keep(Object.fromEntries(Object.entries(KEYS).map(([t, K]) => [t, { pk: K.pk, fk: K.fk || {} }]))), data, scoped: true }); }
+  if (action === 'sqlData' && ctx && !ctx.owner && !seesMoney(ctx)) {   // 🔒 a login without money access (site administrator, view only): the money columns are removed
+    const data = Object.fromEntries(Object.entries(champOnly(await tables())).map(([t, R]) => [t, Array.isArray(R) ? R.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k)))) : R]));
+    return out(200, { schema: noMoneyCols(champOnly(SCHEMA)), describe: champOnly(DESCRIBE), keys: champOnly(Object.fromEntries(Object.entries(KEYS).map(([t, K]) => [t, { pk: K.pk, fk: K.fk || {} }]))), data });
+  }
   if (action === 'sqlData') return out(200, { schema: champOnly(SCHEMA), describe: champOnly(DESCRIBE), keys: champOnly(Object.fromEntries(Object.entries(KEYS).map(([t, K]) => [t, { pk: K.pk, fk: K.fk || {} }]))), data: champOnly(await tables()) });
   if (action === 'sqlNarrative') {
     const columns = (Array.isArray(body.columns) ? body.columns : []).map(String).slice(0, 40), rows = Array.isArray(body.rows) ? body.rows.slice(0, 200) : [];

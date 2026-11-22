@@ -11,10 +11,16 @@
   var day = function (s) { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : ''; };
   var idx = function (v) { return v == null ? '<span class="muted">–</span>' : '<b class="ceo-i ' + (v < 0.9 ? 'r' : v < 1 ? 'a' : 'g') + '">' + Number(v).toFixed(2) + '</b>'; };
   var pl = function (n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); };
-  var go = function (core, tab) { return 'data-go="#plan/' + esc(core) + '/' + (tab || 'overview') + '"'; };
+  var go = function (core, tab) { return 'data-go="#plan/' + esc(core) + '/' + (tab || 'overview') + '" tabindex="0" role="link"'; };
   var ICO = { decide: '⚖', prog: '🗂', watch: '🚦', ms: '◆', esc: '🚨', team: '👥', gaps: '🧾' };
 
-  function load() { return api(MODE === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { D = d; }); }
+  var here = function () { var v = M.view(); return !!(v && (v.querySelector('[data-pmo-wait="' + MODE + '"]') || v.querySelector('.pmo[data-mode="' + MODE + '"]'))); };   // still on this page (its placeholder or itself is showing)?
+  function drawIfHere(ok) { if (ok !== false && here()) draw(); }
+  var REQ = 0;
+  function load() {   // only the latest request for the open page may update it: earlier answers, or answers for another page, are dropped
+    var mode = MODE, me = ++REQ;
+    return api(mode === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { if (mode !== MODE || me !== REQ) return false; D = d; return true; });
+  }
 
   function tile(k, icon, label, value, sub, tone) {
     return '<button type="button" class="pmo-k t-' + (tone || 'ok') + (TAB === k ? ' on' : '') + '" data-tab="' + k + '"><i>' + icon + '</i><span><small>' + esc(label) + '</small><b>' + value + '</b><em>' + sub + '</em></span></button>';
@@ -84,12 +90,12 @@
   function gaps() {
     if (!D.gaps.length) return none('Every program has a director, and every project has a manager, a baseline and an approved charter.');
     return '<ul class="pmo-gp">' + D.gaps.map(function (g) {
-      return '<li ' + (g.core ? go(g.core, 'overview') : 'data-go="#programs"') + '><b>' + esc(g.project || g.program) + '</b>' + (g.core && g.pm ? '<small>' + esc(g.pm) + '</small>' : '') + '<span>' + g.why.map(function (w) { return '<em>' + esc(w) + '</em>'; }).join('') + '</span></li>'; }).join('') + '</ul>';
+      return '<li ' + (g.core ? go(g.core, 'overview') : 'data-go="#programs" tabindex="0" role="link"') + '><b>' + esc(g.project || g.program) + '</b>' + (g.core && g.pm ? '<small>' + esc(g.pm) + '</small>' : '') + '<span>' + g.why.map(function (w) { return '<em>' + esc(w) + '</em>'; }).join('') + '</span></li>'; }).join('') + '</ul>';
   }
 
   function draw() {
     var A = D.all;
-    M.view().innerHTML = '<div class="ceo pmo">' +
+    M.view().innerHTML = '<div class="ceo pmo" data-mode="' + MODE + '">' +
       '<div class="row ceo-head"><div><p class="muted">' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + (MODE === 'pgm' ? ' · your ' + pl(D.programs.length, 'program') + ' and ' + pl(A.n, 'live project') + (D.programs.length ? ': ' + esc(D.programs.map(function (g) { return g.name; }).join(', ')) : '') : ' · delivery across ' + pl(D.programs.length, 'program') + ' and ' + pl(A.n, 'live project')) + '</p></div>' +
       '<div class="row" style="gap:6px;align-items:center"><span class="pmo-ix">Portfolio SPI ' + idx(A.SPI) + ' · CPI ' + idx(A.CPI) + '</span><button class="btn btn-sm" id="pmoRe" type="button">⟳ Refresh</button><button class="btn btn-sm" id="pmoPr" type="button">🖨 Print / PDF</button></div></div>' +
       tiles() + (TAB !== 'all' ? '<p class="ceo-f">Showing one section · <a href="#" id="pmoAll">show everything</a></p>' : '') +
@@ -103,15 +109,17 @@
         sec('gaps', 'Governance gaps', 'What the PMO standard expects and is missing.', gaps(), D.gapsN) + '</div>' +
       '</div></div>';
     var V = M.view();
-    V.querySelector('#pmoRe').onclick = function () { this.disabled = true; load().then(draw).catch(fail); };
+    V.querySelector('#pmoRe').onclick = function () { var b = this; b.disabled = true; load().then(drawIfHere).catch(function (e) { b.disabled = false; fail(e); }); };
     V.querySelector('#pmoPr').onclick = function () { window.print(); };
     var all = V.querySelector('#pmoAll'); if (all) all.onclick = function (e) { e.preventDefault(); TAB = 'all'; draw(); };
     Array.prototype.forEach.call(V.querySelectorAll('[data-tab]'), function (b) { b.onclick = function () { TAB = TAB === b.getAttribute('data-tab') ? 'all' : b.getAttribute('data-tab'); draw(); }; });
-    V.querySelector('.pmo').addEventListener('click', function (e) { var r = e.target.closest('[data-go]'); if (r && !e.target.closest('a')) location.hash = r.getAttribute('data-go'); });
+    var root = V.querySelector('.pmo');
+    root.addEventListener('click', function (e) { var r = e.target.closest('[data-go]'); if (r && !e.target.closest('a')) location.hash = r.getAttribute('data-go'); });
+    root.addEventListener('keydown', function (e) { if (e.key !== 'Enter' && e.key !== ' ') return; var r = e.target.closest('[data-go]'); if (r && r === e.target) { e.preventDefault(); location.hash = r.getAttribute('data-go'); } });
   }
-  M.addView('pmo', 'PMO view', function () { MODE = 'pmo'; TAB = 'all'; M.view().innerHTML = '<div class="empty">Gathering every program and project…</div>'; return load().then(draw); }, 'pmo');
+  M.addView('pmo', 'PMO view', function () { MODE = 'pmo'; TAB = 'all'; M.view().innerHTML = '<div class="empty" data-pmo-wait="pmo">Gathering every program and project…</div>'; return load().then(drawIfHere); }, 'pmo');
   M.addView('pgm', 'Program view', function () {   // 🗺 a Program manager's home: the same view, for their programs only
-    MODE = 'pgm'; TAB = 'all'; M.view().innerHTML = '<div class="empty">Gathering your programs…</div>';
-    return load().then(function () { if (!D.programs.length) { M.view().innerHTML = '<div class="empty"><p><b>No program yet.</b></p><p>Ask the super user or the PMO Director to give you a program (People › Program managers), or create one in <a href="#programs">Programs</a>.</p></div>'; return; } draw(); });
+    MODE = 'pgm'; TAB = 'all'; M.view().innerHTML = '<div class="empty" data-pmo-wait="pgm">Gathering your programs…</div>';
+    return load().then(function (ok) { if (ok === false || !here()) return; if (!D.programs.length) { M.view().innerHTML = '<div class="empty"><p><b>No program yet.</b></p><p>Ask the super user or the PMO Director to give you a program (People › Program managers), or create one in <a href="#programs">Programs</a>.</p></div>'; return; } draw(); });
   }, 'pgm');
 })();

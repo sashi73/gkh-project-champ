@@ -75,9 +75,10 @@ export async function pmoView(day, opt = {}) {
   // 6. 👥 the team: project managers (from the plans), and the consultants and contractors (the People register, with their work on the plans)
   const pms = {};
   for (const r of live) { const n = pmOf(r.core); if (!n) continue; const k = n.toLowerCase(); const x = (pms[k] = pms[k] || { name: n, projects: 0, red: 0, amber: 0, late: 0 }); x.projects++; if (r.health === 'red') x.red++; if (r.health === 'amber') x.amber++; x.late += r.late || 0; }
-  const onMine = (id) => !GC || ((asg[id] || {}).list || []).some((x) => GC.has(x.core));
+  // 🔒 a program manager: each person's counts come from their own projects only
+  const onMine = (id) => !GC || Object.keys((asg[id] || {}).by || {}).some((c) => GC.has(c));   // the complete index, not the shortened list
   const people = (reg.people || []).filter((p) => !p.archived && p.status !== 'Inactive' && onMine(p.id)).map((p) => {
-    const a = asg[p.id] || { projects: 0, now: 0, next: 0, late: 0 }, bad = ((p.comp && p.comp.items) || []).filter((c) => ['missing', 'expired'].includes(c[1])).length;
+    const a = G ? within(asg[p.id], GC) : (asg[p.id] || { projects: 0, now: 0, next: 0, late: 0 }), bad = ((p.comp && p.comp.items) || []).filter((c) => ['missing', 'expired'].includes(c[1])).length;
     return { id: p.id, name: p.name, role: p.role || '', type: p.type || 'Employee', status: p.status || 'Active', projects: a.projects, now: a.now, next: a.next, late: a.late, comp: bad, load: a.now >= 5 ? 'over' : a.now >= 3 ? 'busy' : a.now ? 'ok' : 'free' };
   }).sort((a, b) => b.late - a.late || b.now - a.now || a.name.localeCompare(b.name));
   const logins = {}; for (const u of users) if (u.active !== false) logins[u.role] = (logins[u.role] || 0) + 1;
@@ -95,6 +96,10 @@ export async function pmoView(day, opt = {}) {
     escalations: escal.slice(0, 30), escalN: escal.length, team, gaps: gaps.slice(0, 40), gapsN: gaps.length, at: Date.now() };
 }
 
+// 🗺 one person's work, counted only on the projects given (the PMO view keeps the full counts)
+function within(a, C) {   // from the per-project counts, which cover every assignment (the list is shortened for display)
+  const o = { projects: 0, now: 0, next: 0, late: 0 }; for (const [c, n] of Object.entries((a && a.by) || {})) if (C.has(c)) { o.projects++; o.now += n.now; o.next += n.next; o.late += n.late; } return o;
+}
 const avgOf = (L, f) => { const X = L.filter((r) => r[f] != null); return X.length ? Math.round(X.reduce((a, r) => a + r[f], 0) / X.length * 100) / 100 : null; };
 function progRow(name, key, color, status, director, L, day) {
   const w = L.filter((r) => r.SPI != null), c = L.filter((r) => r.CPI != null), avg = (X, f) => X.length ? Math.round(X.reduce((a, r) => a + r[f], 0) / X.length * 100) / 100 : null;
