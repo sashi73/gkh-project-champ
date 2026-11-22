@@ -58,6 +58,8 @@ import { lvPost } from '../lib/leave.mjs';
 import * as ACC from '../lib/accounts.mjs';
 
 const H = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
+const MONEY_KEYS = new Set(['BAC', 'PV', 'EV', 'AC', 'ACin', 'EVin', 'ACest', 'CPI', 'CPIx', 'EAC', 'ETC', 'VAC', 'TCPI', 'split', 'budget', 'cost', 'costs', 'rate', 'price', 'amount', 'money', 'profit', 'margin', 'contract', 'contractValue', 'invoiced', 'received', 'owed', 'bomx', 'bomLoose', 'budgetCfg', 'bom', 'bomBase', 'bomRevs', 'forecastCost', 'forecast_cost', 'actual', 'actualCost', 'basis', 'b0', 'b1', 'BACbase']);
+function scrubMoney(v, d = 0) { if (d > 30 || v == null || typeof v !== 'object') return v; if (Array.isArray(v)) return v.map((x) => scrubMoney(x, d + 1)); const o = {}; for (const [k, x] of Object.entries(v)) if (!MONEY_KEYS.has(k)) o[k] = scrubMoney(x, d + 1); return o; }
 const out = (status, body, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...H, ...extra } });
 const bad = (msg, status = 400) => out(status, { error: msg });
 const num = (x) => { const n = Number(String(x ?? '').replace(/[$,\s]/g, '').replace(/k$/i, '000')); return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0; };
@@ -665,7 +667,12 @@ async function handle(req, context) {
       }
       case 'log': if (!ctx.owner) return bad('Only the super user sees the activity log.', 403); return out(200, { log: await A.auditLog() });
       default: {
-        const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
+        const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit, ctx })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
+        // 💰 a login without money (contractors, project personnel ...): the money taken out of every project answer (lists, programs, boards, reports);
+        //    planGet and planSave do it themselves (and keep the money when such a login saves)
+        if (a && !U.seesMoney(ctx) && /^(plan|pipeline|intel)/.test(action) && !['planGet', 'planSave'].includes(action) && a.headers.get('content-type') && /json/.test(a.headers.get('content-type'))) {
+          const j = await a.clone().json().catch(() => null); if (j) return out(a.status, scrubMoney(j));
+        }
         return a || bad('Unknown action');
       }
     }

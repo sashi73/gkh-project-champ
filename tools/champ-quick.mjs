@@ -24,7 +24,7 @@ const ctxB64 = Buffer.from(JSON.stringify({ siteID: 'champ', token: 'tok', edgeU
 const LLMSEEN = {};
 const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += d)); q.on('end', () => {
   const j = JSON.parse(b || '{}'), json = j.response_format && j.response_format.type === 'json_object';
-  { const sy0 = ((j.messages || []).find((m) => m.role === 'system') || {}).content || ''; if (/estimator/.test(sy0)) LLMSEEN.bom = j.messages; if (/project document analyst/.test(sy0)) LLMSEEN.ingest = j.messages; }
+  { const sy0 = ((j.messages || []).find((m) => m.role === 'system') || {}).content || ''; if (/estimator/.test(sy0)) LLMSEEN.bom = j.messages; if (/project document analyst/.test(sy0)) LLMSEEN.ingest = j.messages; if (/DOES NOT SEE MONEY/.test(sy0)) LLMSEEN.nomoney = j.messages; }
   s.setHeader('Content-Type', 'application/json');
   const sys = ((j.messages || []).find((m) => m.role === 'system') || {}).content || '';
   const ans = /briefing the CEO/.test(sys) ? { headline: 'Steady the portfolio.', faring: 'Quick check faring.', concerns: [{ title: 'Harbour bridge overspend', detail: 'Over budget.' }], positives: [{ title: 'Clinic fit-out under budget', detail: 'By $93k.' }], strategy: [{ title: 'Focus', detail: 'Back the winners.' }], focus: [{ title: 'Bill the done milestone', detail: 'Raise it.' }], cash_view: 'Cash dips then recovers.', conclusion: 'Steady and bill on time.', plan: [{ when: 'Next 2 weeks', what: 'Stabilise.' }], say: 'Quick check briefing.' }
@@ -438,6 +438,15 @@ try {
       return { money: me.money, rates: (pl.tasks || []).reduce((a, t) => a + (t.rate || 0), 0), cfg: !!pl.budgetCfg, hidden: pl.moneyHidden, saved: sv.status, savedRates: ((sv.j.plan || {}).tasks || []).reduce((a, t) => a + (t.rate || 0), 0), bill: bill.status }; });
     const own1 = (await api('planGet', { core: bcx })).j.plan, after = (own1.tasks || []).map((t) => t.rate || 0).reduce((a, b) => a + b, 0), me0 = (await api('me')).j;
     ok('Money', '💰 a contractor gets the plan without money (rates, budget settings), cannot open billing, and a save by them keeps the money as it was', bcx && paidRate > 0 && seen.money === false && seen.rates === 0 && !seen.cfg && seen.hidden === true && seen.saved === 200 && seen.savedRates === 0 && seen.bill === 403 && after === paidRate && /\(site note\)$/.test(own1.tasks[0].name) && me0.money === true, JSON.stringify([bcx, paidRate, after, seen]));
+    const sub2 = await as('sub9@example.com', 'Subpass2026x', async () => {
+      const bgRun = async (b) => { const id = 'qmon' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); const r = await fetch(`${BASE}/.netlify/functions/planai-background`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1', cookie }, body: JSON.stringify({ id, ...b }) });
+        if (r.status === 403) return { status: 403 }; for (let i = 0; i < 40; i++) { const x = await api('planAiStatus', { id }); if (x.j.status === 'done' || x.j.status === 'error') return x.j; await sleep(250); } return {}; };
+      const bom = await bgRun({ mode: 'bom', core: bcx }), ask = await bgRun({ mode: 'intel', core: bcx, question: 'What does this project cost?' });
+      const lst = (await api('planList', {})).j, ig = (await api('intelGet', { core: bcx })).j;
+      return { bom: bom.status, ask: ask.status, listMoney: /"(BAC|CPI|EAC)"/.test(JSON.stringify(lst)), logMoney: (ig.log || []).some((e) => e.m !== 0) };
+    });
+    const seenAi = JSON.stringify(LLMSEEN.nomoney || []);
+    ok('Money', '🧠 a contractor\'s Ask AI gets no costs (no budget, cost or earned value sent, told not to discuss money), money AI work is refused, lists carry no money', sub2.bom === 'error' && sub2.ask === 'done' && seenAi.length > 50 && !/budget_BAC|actual_cost|earned_value|forecast_EAC|\\"cost\\":/.test(seenAi) && !sub2.listMoney && !sub2.logMoney, JSON.stringify([sub2, seenAi.length, (seenAi.match(/budget_BAC|actual_cost|earned_value|forecast_EAC|\\"cost\\":/) || [])[0]]));
     const bg = (await api('acctBillGet', { core: bill0 })).j, inv = ((bg.bill || {}).milestones || []).find((m) => m.invoice);
     ok('Money', '🧾 each milestone carries its invoice with the issue and due dates (for the bill on the Gantt)', inv && 'due' in inv.invoice && 'issued' in inv.invoice, JSON.stringify(inv && inv.invoice));
   }

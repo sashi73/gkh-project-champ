@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 270,
+  "build": 271,
   "commit": "",
-  "branch": "msbill",
+  "branch": "aimoney",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 13:07",
+  "builtAt": "2026-11-22 13:23",
   "site": ""
 };

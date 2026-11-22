@@ -42,6 +42,9 @@ async function run(req) {
     id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40);
     if (id.length < 12) return new Response('', { status: 400 });
     if (!U.allowsBg(ctx, body.mode)) return new Response('', { status: 403 });
+    // 💰 AI work that reads or writes money (costing, BOM, reports, the project plan document, change impacts, the watch, document reviews, the CEO's briefing):
+    //    not for a login without money (contractors, project personnel ...)
+    if (!U.seesMoney(ctx) && ['bom', 'cost', 'report', 'plandoc', 'charter', 'cr', 'fit', 'watch', 'watchAll', 'docAnalyse', 'docReview', 'ceoBrief', 'ceoAsk', 'vaultRedact', 'lessonsReport'].includes(body.mode)) { await kv.set('aiplan:' + id, { status: 'error', error: 'Cost and billing work is only for the project manager and the finance team.', at: Date.now() }); return ok(); }
     if (ctx.scope && !ctx.scope.includes(String(body.core || ''))) return new Response('', { status: 403 });   // v91: a sub-contractor: their own project only
     await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
     if (body.mode === 'docIngest') {   // 📄 read a project document (RAG) to fill in a new project
@@ -127,7 +130,7 @@ async function run(req) {
       return ok();
     }
     if (body.mode === 'intel') {   // v52: 🧠 Project Intelligence question
-      const r = await INTEL.ask({ core: body.core, question: body.question, history: body.history }, `Admin (${session.u})`);
+      const r = await INTEL.ask({ core: body.core, question: body.question, history: body.history, money: U.seesMoney(ctx) }, `Admin (${session.u})`);
       await kv.set('aiplan:' + id, { intel: r, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
       if (!r.error) await A.audit(session.u, `Project Intelligence question on ${String(body.core || '').slice(0, 20)} (${r.tokens || 0} tokens)`);
       return ok();

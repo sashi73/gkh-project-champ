@@ -122,7 +122,9 @@ function pickChunks(all, question) {
   keep.sort((a, b) => all.indexOf(a) - all.indexOf(b));
   return { chunks: keep, partial: true };
 }
-export async function context(job, plan, question) {
+// 💰 a document with money in it (contracts, BOM / BOQ, baselines, budgets, invoices, change records): not for a login without money
+export const isMoneyDoc = (d) => !!d && (d.folder === 'contracts' || d.folder === 'changes' || /\b(BOM|BOQ|baseline|costing|budget|invoice|quote|quotation|variation|payment|change register|change record|cost plan|price|pricing|CR-\d+)\b/i.test([d.name, d.title, d.kind].filter(Boolean).join(' ')));
+export async function context(job, plan, question, { money = true } = {}) {
   const today = sydToday(), R = P.rollup(JSON.parse(JSON.stringify(plan)), today);
   const crit = R.finish ? P.critTasks(JSON.parse(JSON.stringify(plan)), R) : new Set();
   const people = plan.stakeholders || [];
@@ -150,7 +152,7 @@ export async function context(job, plan, question) {
     change_records: [],
     documents: []
   };
-  const docs = (await docList(job.core)).filter((d) => !d.superseded);   // 📁 the current version of each document
+  const docs = (await docList(job.core)).filter((d) => !d.superseded && (money || !isMoneyDoc(d)));   // 📁 the current version of each document (no money documents for a login without money)
   const texts = await kv.getMany(docs.map((d) => `pdoctext:${job.core}:${d.id}`));
   const all = [];
   docs.forEach((d, i) => { const t = texts[i] && texts[i].text; if (t) all.push(...chunks(d, scrub(t, job, people))); });
@@ -165,6 +167,13 @@ export async function context(job, plan, question) {
   try { ctx.change_records = (await crRecords(job.core)).slice(-60).map((r) => ({ cr: r.cr, title: sc(r.title), decision: r.outcome, by: r.by, role: r.role, signed: !!r.sig, date: new Date(r.at).toISOString().slice(0, 10),
     finish_before: r.f0, finish_after: r.f1, budget_before: r.b0, budget_after: r.b1, applied_directly: r.direct, signed_pdf_kept: r.hasPdf, note: sc(r.note).slice(0, 300) })); } catch { ctx.change_records = []; }
   try { ctx.program = await programContext(job, today, sc); } catch { ctx.program = null; }
+  if (!money) {   // 💰 nothing about money reaches the AI for this login
+    for (const k of ['budget_BAC', 'actual_cost', 'earned_value', 'planned_value', 'CPI', 'forecast_EAC']) delete ctx.project[k];
+    delete ctx.scope.budget; ctx.tasks.forEach((t) => { delete t.cost; delete t.materials; });
+    ctx.change_requests.forEach((c) => { if (c.effect) { delete c.effect.budget_before; delete c.effect.budget_after; delete c.effect.cost; } });
+    ctx.change_records.forEach((r) => { delete r.budget_before; delete r.budget_after; });
+    ctx.contracts = []; ctx.program = ctx.program ? { name: ctx.program.name } : null; ctx.money_hidden = true;
+  }
   return { ctx, stakeholders: people };
 }
 
@@ -213,7 +222,7 @@ const SYSTEM = 'You are "Ask AI", the project intelligence assistant of GKH Proj
   '"replan":null or {"weeks":0,"finish":"","budget":0,"gates":[{"after":3,"name":"","days":2}],"why":""},"sources":["document names used"],"follow_ups":["2-3 short next questions"]}';
 
 const capOut = () => Math.max(800, Math.min(4000, Number(process.env.AI_INTEL_MAX_TOKENS || 2500) || 2500));
-export async function ask({ core, question, history }, by) {
+export async function ask({ core, question, history, money = true }, by) {
   const job = await J.find(core); if (!job) return { error: 'Job not found' };
   const plan = await P.get(job.core); if (!plan) return { error: 'This job has no plan yet. Make the plan first.' };
   const q = str(question, 800); if (!q) return { error: 'Type a question first' };
@@ -243,13 +252,14 @@ export async function ask({ core, question, history }, by) {
     return save({ answer: a.report, risks: [], stakeholders: [], meeting: null, sources: [(await docList(job.core)).find((d) => d.id === m.doc)?.name || 'Meeting transcript'], follow_ups: a.follow_ups, tokens: a.tokens, today: a.today, impact: a });
   }
   try { await checkLimit(); } catch (e) { return { error: e.message }; }
-  const { ctx, stakeholders } = await context(job, plan, q);
+  const { ctx, stakeholders } = await context(job, plan, q, { money });
   const earlier = (Array.isArray(history) ? history : []).slice(-3).map((h) => ({ q: str(h.q, 300), a: str(h.a, 600) }));
   const KB = await import('./kb.mjs'), kbHits = await KB.search(q, Number(process.env.KB_CHARS) || 3500).catch(() => []);   // 📚 Sashi's class notes: a second reference, after the AI's own knowledge
   const user = { question: scrub(q, job, stakeholders), earlier, ...ctx };
   if (kbHits.length) user.course_notes = KB.forPrompt(kbHits);
   let o, used;
-  try { ({ data: o, used } = await llmJson([{ role: 'system', content: SYSTEM + (kbHits.length ? KB.RULE : '') }, { role: 'user', content: JSON.stringify(user) }], { maxTokens: capOut(), timeoutMs: 120000, temperature: 0.2 })); }
+  const NOMONEY = money ? '' : ' THIS PERSON DOES NOT SEE MONEY (a contractor or project personnel): never state, estimate or hint at any cost, price, rate, budget, earned value, CPI, invoice, payment, profit or margin, from the data or from general knowledge; if they ask, say that cost and billing information is only for the project manager and the finance team, and help with the work instead. Do not propose a re-plan with a budget.';
+  try { ({ data: o, used } = await llmJson([{ role: 'system', content: SYSTEM + NOMONEY + (kbHits.length ? KB.RULE : '') }, { role: 'user', content: JSON.stringify(user) }], { maxTokens: capOut(), timeoutMs: 120000, temperature: 0.2 })); }
   catch (e) { return { error: e.message }; }
   const todayUse = await usage(true, used);
   const refs = Object.fromEntries(stakeholders.map((x, i) => ['S' + (i + 1), x.id]));
@@ -293,18 +303,22 @@ export async function ask({ core, question, history }, by) {
       attendees: (Array.isArray(m.attendees) ? m.attendees : []).map((a) => refs[str(a, 6).toUpperCase()]).filter(Boolean),
       agenda: (Array.isArray(m.agenda) ? m.agenda : String(m.agenda || '').split('\n')).map((s) => str(s, 200).replace(/^[-*\d.\s]+/, '')).filter(Boolean).slice(0, 10).join('\n') };
   }
-  await kv.update('pchat:' + job.core, (x) => { x.log = (x.log || []).concat([{ at: Date.now(), by: str(by, 60), q, r }]).slice(-30); return x; }, () => ({ log: [] }));
+  if (!money && r.replan) r.replan.budget = 0;
+  r.m = money ? 1 : 0;   // 💰 an answer made with the money in it: shown only to logins that see money
+  await kv.update('pchat:' + job.core, (x) => { x.log = (x.log || []).concat([{ at: Date.now(), by: str(by, 60), q, r, m: r.m }]).slice(-30); return x; }, () => ({ log: [] }));
   return r;
 }
 
-export async function intelPost(action, body, { who, by, audit }) {
+export async function intelPost(action, body, { who, by, audit, ctx }) {
   if (!/^intel/.test(action)) return null;
   const job = await J.find(str(body.core, 30)); if (!job) return out(404, { error: 'Job not found' });
-  const core = job.core;
+  const core = job.core, money = !ctx || (await import('./users.mjs')).seesMoney(ctx);   // 💰 a login without money: no money documents, no answers made with money
+  if (!money && (action === 'intelDocFile' || action === 'intelDmsHistoryGet' || action === 'intelDmsAnalysisGet' || action === 'intelDmsUpdate')) { const d = (await docList(core)).find((x) => x.id === str(body.id, 20)); if (isMoneyDoc(d)) return out(403, { error: 'This document holds cost information: it is only for the project manager and the finance team.' }); }
+  if (!money && (action === 'intelDmsReviewGet' || action === 'intelCrList' || action === 'intelCrGet')) return out(403, { error: 'Cost and change records are only for the project manager and the finance team.' });
   switch (action) {
     case 'intelGet': {
       const [docs, chat] = await Promise.all([docList(core), kv.get('pchat:' + core)]);
-      return out(200, { docs, log: (chat && chat.log) || [] });
+      return out(200, { docs: money ? docs : docs.filter((d) => !isMoneyDoc(d)), log: ((chat && chat.log) || []).filter((e) => money || e.m === 0) });
     }
     case 'intelUpload': {
       const r = await upload(core, body, by); if (r.error) return out(400, r);
@@ -348,14 +362,14 @@ export async function intelPost(action, body, { who, by, audit }) {
       return out(200, { name: ((await docList(core)).find((d) => d.id === id) || {}).name + '.txt', type: 'text/plain', file: Buffer.from(t.text).toString('base64') });
     }
     // 📁 the project's document repository
-    case 'intelDmsList': { const D = await import('./dms.mjs'); return out(200, await D.list(core)); }
+    case 'intelDmsList': { const D = await import('./dms.mjs'), L = await D.list(core); if (!money) { L.docs = (L.docs || []).filter((d) => !isMoneyDoc(d)); L.records = []; L.review = null; } return out(200, L); }
     case 'intelDmsUpdate': {
       const D = await import('./dms.mjs'), r = await D.update(core, str(body.id, 20), Object.assign({}, body.set || {}, { by: by || who })); if (r.error) return out(404, r);
       if (audit && body.set && body.set.status) await audit(who, `Project ${core}: document ${str(body.id, 20)} marked ${str(body.set.status, 20)}`);
       return out(200, r);
     }
     case 'intelDmsHistoryGet': { const D = await import('./dms.mjs'), r = await D.history(core, str(body.id, 20)); return r.error ? out(404, r) : out(200, r); }
-    case 'intelDmsSearchGet': { const D = await import('./dms.mjs'); return out(200, await D.search(core, str(body.q, 200))); }
+    case 'intelDmsSearchGet': { const D = await import('./dms.mjs'), r = await D.search(core, str(body.q, 200)); if (!money) { const bad = new Set((await docList(core)).filter(isMoneyDoc).map((d) => d.id)); for (const k of Object.keys(r)) if (Array.isArray(r[k])) r[k] = r[k].filter((h) => !bad.has(h.id)); } return out(200, r); }
     case 'intelDmsAnalysisGet': { const D = await import('./dms.mjs'); return out(200, { analysis: await D.analysis(core, str(body.id, 20)) }); }
     case 'intelDmsReviewGet': { const D = await import('./dms.mjs'); return out(200, { review: await D.reviewGet(core) }); }
     // 📘 lessons learned: the report, and the library of lessons from every project (ranked for this one)
