@@ -329,11 +329,11 @@ export async function intelPost(action, body, { who, by, audit }) {
       const d = (await docList(core)).find((x) => x.id === id); if (!d) return out(404, { error: 'Document not found' });
       if (body.r2Key) {   // ☁️ already in R2: just note where
         const R2 = await import('./r2.mjs'); if (!R2.ready() || !R2.keyOk(String(body.r2Key), `projects/${core}/`)) return out(400, { error: 'That file is not in this project\'s storage.' });
-        await kv.update('pdocs:' + core, (x) => { (x.docs || []).forEach((y) => { if (y.id === id) { y.hasFile = true; y.r2 = String(body.r2Key); y.size = Math.max(0, Number(body.size) || 0) || y.size; y.type = str(body.type, 100) || y.type; } }); return x; }, () => ({ docs: [] }));
+        await kv.update('pdocs:' + core, (x) => { (x.docs || []).forEach((y) => { if (y.id === id) { y.hasFile = true; y.r2 = String(body.r2Key); if (body.name) y.fileName = str(body.name, 160).replace(/[\\/]/g, '-'); y.size = Math.max(0, Number(body.size) || 0) || y.size; y.type = str(body.type, 100) || y.type; } }); return x; }, () => ({ docs: [] }));
         return out(200, { ok: true });
       }
       if (!buf.length || buf.length > MAX_FILE) return out(400, { error: 'The file is too big to keep (3.5 MB at most); its text is kept.' });
-      await kv.putFile(`pdocfile:${core}:${id}`, buf, { name: d.name, type: str(body.type, 100) });
+      await kv.putFile(`pdocfile:${core}:${id}`, buf, { name: body.name ? str(body.name, 160).replace(/[\\/]/g, '-') : d.name, type: str(body.type, 100) });
       await kv.update('pdocs:' + core, (x) => { (x.docs || []).forEach((y) => { if (y.id === id) { y.hasFile = true; y.size = buf.length; y.type = str(body.type, 100) || y.type; } }); return x; }, () => ({ docs: [] }));
       return out(200, { ok: true });
     }
@@ -341,7 +341,7 @@ export async function intelPost(action, body, { who, by, audit }) {
     case 'intelDocFile': {
       const id = str(body.id, 20), dd = (await docList(core)).find((d) => d.id === id);
       if (dd) { const D = await import('./dms.mjs'); await D.logEvent(core, { act: 'download', id, group: dd.group || dd.id, version: dd.version || 1, by: by || who }); }   // 🕘 every download is logged
-      if (dd && dd.r2) { const R2 = await import('./r2.mjs'); const url = R2.presign('GET', dd.r2, { expires: 600, download: dd.name }); if (url) return out(200, { name: dd.name, url }); }   // ☁️ straight from R2
+      if (dd && dd.r2) { const R2 = await import('./r2.mjs'); const fn = dd.fileName || dd.name, url = R2.presign('GET', dd.r2, { expires: 600, download: fn }); if (url) return out(200, { name: fn, url }); }   // ☁️ straight from R2
       const f = await kv.getFile(`pdocfile:${core}:${id}`);
       if (f) return out(200, { name: f.metadata.name || 'document', type: f.metadata.type || 'application/octet-stream', file: f.buf.toString('base64') });
       const t = await kv.get(`pdoctext:${core}:${id}`); if (!t) return out(404, { error: 'Document not found' });
