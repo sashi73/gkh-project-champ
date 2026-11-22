@@ -289,4 +289,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 278 | 1.0.278| 2026-11-22 15:56| askclean| `8bee8a3` | Ask AI: one menu entry (Reports & data removed), tables list only on Wizard and SQL editor, Sashi's photo by the title (#139) |
 | 279 | 1.0.279| 2026-11-22 16:03| askname| `6d15d95` | Menu: Ask AI is now Ask AI & reports (#140) |
 | 280 | 1.0.280| 2026-11-22 16:06| askface| `6c81a1a` | Ask AI & reports: Sashi's portrait (cream studio) beside the title (#141) |
-| 281 | 1.0.281 | 2026-11-23 01:21 | feathero | _this commit_ | _see git log_ |
+| 281 | 1.0.281| 2026-11-23 01:21| feathero| `27c4faa` | Features page: a ten-scene stage (overview, Gantt, board, from a document, earned value, risks, change control, billing, programs, any langu |
+| 282 | 1.0.282 | 2026-11-23 01:26 | featbim | _this commit_ | _see git log_ |

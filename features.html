@@ -11,8 +11,8 @@
 <link rel="stylesheet" href="assets/champ-site.css?v=12">
 <link rel="stylesheet" href="assets/champ-scripts.css?v=1">
 <link rel="stylesheet" href="assets/champ-theme.css?v=13">
-<link rel="stylesheet" href="assets/champ-feat.css?v=2">
-<script src="assets/champ-feat.js?v=1" defer></script>
+<link rel="stylesheet" href="assets/champ-feat.css?v=3">
+<script src="assets/champ-feat.js?v=2" defer></script>
 <script src="assets/champ-phone.js?v=15"></script>
 <script src="assets/champ-theme.js?v=10"></script>
 <script src="assets/champ-i18n.js?v=5" defer></script>
@@ -66,7 +66,7 @@
   <h1 class="display">Everything a project<br><span class="grad-text">needs to finish.</span></h1>
   <p class="lead">From the first idea to sign-off: scope, schedule, cost, risk, people and reporting, in one tool your whole team can use.</p>
   <div class="c-cta-row"><a class="btn btn-gold" href="contact.html"><span>Book a demo</span></a><a class="btn btn-ghost" href="login.html"><span>Login</span></a></div></div>
-    <div class="fx-mosaic" aria-hidden="true"><span>📅 Gantt</span><span>🗂 Board</span><span>✨ From a document</span><span>💰 Earned value</span><span>⚠ Risks</span><span>🔁 Change control</span><span>🧾 Billing</span><span>🗺 Programs</span><span>🌐 Any language</span></div>
+    <div class="fx-mosaic" aria-hidden="true"><span>📅 Gantt</span><span>🗂 Board</span><span>✨ From a document</span><span>🏗 BIM model</span><span>💰 Earned value</span><span>⚠ Risks</span><span>🔁 Change control</span><span>🧾 Billing</span><span>🗺 Programs</span><span>🌐 Any language</span></div>
   </div>
 <div class="fx-sc" data-n="1" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">Plan</span><h2 class="display">Gantt and critical path.</h2><p class="lead">Tasks, milestones and links, with the path that sets your finish date in red.</p><ul class="fx-ticks"><li>Dependencies and working days</li><li>Baselines to compare against</li><li>Flags the moment a task slips</li></ul></div>
@@ -104,19 +104,31 @@
 </div></div></div>
   </div>
 <div class="fx-sc" data-n="4" aria-hidden="true">
+    <div class="fx-tx"><span class="eyebrow">BIM</span><h2 class="display">From the model to the plan.</h2><p class="lead">Upload an IFC, Revit, Navisworks or AutoCAD model. Champ reads the take-off and builds the schedule, costs and clashes into the plan.</p><ul class="fx-ticks"><li>Quantities into the Bill of Materials</li><li>4D schedule, level by level</li><li>Clashes become issues, and the model opens in 3D</li></ul></div>
+    <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>Riverbend health hub · BIM</span></div><div class="fx-body"><div class="fm"><div class="fm-m"><svg class="fm-svg" viewBox="0 0 220 240"><g class="fm-f" style="--d:0.30s"><polygon class="top" points="30,150 110,110 190,150 110,190"/><polygon class="l" points="30,150 110,190 110,216 30,176"/><polygon class="r" points="110,190 190,150 190,176 110,216"/><line x1="58" y1="178" x2="58" y2="192"/><line x1="82" y1="190" x2="82" y2="204"/><line x1="138" y1="190" x2="138" y2="204"/><line x1="162" y1="178" x2="162" y2="192"/></g><g class="fm-f" style="--d:0.75s"><polygon class="top" points="30,124 110,84 190,124 110,164"/><polygon class="l" points="30,124 110,164 110,190 30,150"/><polygon class="r" points="110,164 190,124 190,150 110,190"/><line x1="58" y1="152" x2="58" y2="166"/><line x1="82" y1="164" x2="82" y2="178"/><line x1="138" y1="164" x2="138" y2="178"/><line x1="162" y1="152" x2="162" y2="166"/></g><g class="fm-f" style="--d:1.20s"><polygon class="top" points="30,98 110,58 190,98 110,138"/><polygon class="l" points="30,98 110,138 110,164 30,124"/><polygon class="r" points="110,138 190,98 190,124 110,164"/><line x1="58" y1="126" x2="58" y2="140"/><line x1="82" y1="138" x2="82" y2="152"/><line x1="138" y1="138" x2="138" y2="152"/><line x1="162" y1="126" x2="162" y2="140"/></g><g class="fm-f" style="--d:1.65s"><polygon class="top" points="30,72 110,32 190,72 110,112"/><polygon class="l" points="30,72 110,112 110,138 30,98"/><polygon class="r" points="110,112 190,72 190,98 110,138"/><line x1="58" y1="100" x2="58" y2="114"/><line x1="82" y1="112" x2="82" y2="126"/><line x1="138" y1="112" x2="138" y2="126"/><line x1="162" y1="100" x2="162" y2="114"/></g><circle class="fm-clash" cx="150" cy="128" r="9"/></svg><span class="fm-tag">📐 Riverbend.ifc · 4 levels · 2,384 elements</span><span class="fm-lv">Level <b class="fm-n"></b> of 4 · 4D</span></div>
+  <div class="fm-out">
+    <span style="--d:.8s">🧱 <b>Concrete 1,240 m³</b> · slabs and columns</span>
+    <span style="--d:1.2s">🔩 <b>Steel 186 t</b> · beams and rebar</span>
+    <span style="--d:1.6s">🚪 <b>142 doors · 318 windows</b></span>
+    <span style="--d:2s">🗓 <b>Schedule by level</b> from TimeLiner</span>
+    <span class="bad" style="--d:2.4s">⚠ <b>3 clashes</b> · duct vs beam, Level 2</span>
+  </div>
+  <div class="fx-flag ok" style="--d:3s">Bill of Materials drafted from the take-off: $17.0M, ready for the estimator to check</div></div></div></div>
+  </div>
+  <div class="fx-sc" data-n="5" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">Cost</span><h2 class="display">Earned value, live.</h2><p class="lead">Planned, earned and actual cost side by side, with SPI, CPI and a forecast.</p><ul class="fx-ticks"><li>Red, amber, green per project</li><li>Forecast at completion</li><li>Cost by task and resource</li></ul></div>
     <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>Hospital wing fit-out</span></div><div class="fx-body"><div class="fe"><svg viewBox="0 0 300 150" preserveAspectRatio="none"><path class="pv" d="M0,140 C60,130 120,95 180,62 S260,18 300,10"/><path class="ev" d="M0,140 C60,134 110,110 160,88 S210,74 220,72"/><path class="ac" d="M0,140 C60,128 110,98 160,76 S210,60 220,56"/><line class="now" x1="220" y1="0" x2="220" y2="150"/></svg>
   <div class="fe-k"><span><small>SPI</small><b class="a">0.92</b></span><span><small>CPI</small><b class="r">0.87</b></span><span><small>Forecast</small><b>$18.6M</b></span><span><small>Budget</small><b>$17.0M</b></span></div>
   <div class="fe-l"><i class="pv"></i>Planned <i class="ev"></i>Earned <i class="ac"></i>Actual cost</div>
   <div class="fx-flag" style="--d:2.4s">Cost is running 13% over the work done: fit-out labour</div></div></div></div>
   </div>
-<div class="fx-sc" data-n="5" aria-hidden="true">
+<div class="fx-sc" data-n="6" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">Risk</span><h2 class="display">See risk before it lands.</h2><p class="lead">A RAID register with a heat map, owners and review dates.</p><ul class="fx-ticks"><li>Likelihood × impact scoring</li><li>Owners and mitigations</li><li>Escalates the high ones</li></ul></div>
     <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>Solar mini-grids · Rwanda</span></div><div class="fx-body"><div class="fr"><div class="fr-g"><i class="md"></i><i class="hi"></i><i class="hi"></i><i class="hi"></i><i class="hi"></i><i class="lo"></i><i class="md"></i><i class="hi"></i><i class="hi"></i><i class="hi"></i><i class="lo"></i><i class="md"></i><i class="md"></i><i class="hi"></i><i class="hi"></i><i class="lo"></i><i class="lo"></i><i class="md"></i><i class="md"></i><i class="hi"></i><i class="lo"></i><i class="lo"></i><i class="lo"></i><i class="md"></i><i class="md"></i><span class="fr-dot" style="--x:2;--y:2;--d:.5s">Permits</span><span class="fr-dot" style="--x:4;--y:2;--d:.8s">Supplier</span><span class="fr-dot up" style="--x:2;--y:3;--d:1.1s">Rainy season</span><span class="fr-dot" style="--x:3;--y:4;--d:1.4s">Grid link</span></div>
   <div class="fr-ax"><span>Likelihood →</span><span>Impact ↑</span></div>
   <div class="fx-flag" style="--d:2.8s">Rainy season moved to high: mitigation due Friday, owner Grace</div></div></div></div>
   </div>
-<div class="fx-sc" data-n="6" aria-hidden="true">
+<div class="fx-sc" data-n="7" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">Control</span><h2 class="display">Change, under control.</h2><p class="lead">Every change request shows its effect on time and cost, and waits for approval.</p><ul class="fx-ticks"><li>Impact on time, cost and risk</li><li>Variation orders and contract value</li><li>The baseline keeps the original</li></ul></div>
     <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>Riverbend health hub</span></div><div class="fx-body"><div class="fc"><div class="fc-card"><div class="fc-h"><b>CR-014 · Add a second lift core</b><em class="fc-st">Under review</em></div>
   <div class="fc-im"><span><small>Time</small><b>+6 days</b></span><span><small>Cost</small><b>+$124,000</b></span><span><small>Risk</small><b>Medium</b></span></div>
@@ -124,7 +136,7 @@
   <div class="fc-g"><span>Structure</span><i class="a"></i><i class="b"></i></div>
   <div class="fx-flag ok" style="--d:3s">Plan, budget and contract value updated: the baseline keeps the original</div></div></div></div>
   </div>
-<div class="fx-sc" data-n="7" aria-hidden="true">
+<div class="fx-sc" data-n="8" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">Finance</span><h2 class="display">Milestones that get paid.</h2><p class="lead">Tie payments to milestones and watch each one from ready to bill, to invoiced, to paid.</p><ul class="fx-ticks"><li>Billing state on the Gantt</li><li>Only finance roles see money</li><li>Overdue invoices flagged</li></ul></div>
     <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>ESG strategy · national airline</span></div><div class="fx-body"><div class="fb">
   <div class="fb-r"><i class="fb-m"></i><span>Discovery report signed off</span><em class="col">Paid</em><b>$48,000</b></div>
@@ -134,7 +146,7 @@
   <div class="fb-t"><span>Contract $300,000</span><span class="fb-p"><i style="--w:16%"></i><i class="b" style="--w:24%"></i></span><span>40% billed</span></div>
   <div class="fx-flag ok" style="--d:2.4s">Milestone met: the CFO is asked to raise invoice INV-0042</div></div></div></div>
   </div>
-<div class="fx-sc" data-n="8" aria-hidden="true">
+<div class="fx-sc" data-n="9" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">Programs</span><h2 class="display">Programs and their links.</h2><p class="lead">Group projects into programs and catch clashes between them early.</p><ul class="fx-ticks"><li>Dependencies across projects</li><li>Program health and directors</li><li>A PMO view of everything</li></ul></div>
     <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>National digital ID program</span></div><div class="fx-body"><div class="fp">
   <div class="fp-r"><span>Card production</span><i class="fp-b ok" style="--l:2%;--w:40%;--d:.3s"></i></div>
@@ -144,7 +156,7 @@
   <svg class="fp-l" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M42,16 C48,16 46,40 26,40"/><path class="bad" d="M66,64 C72,64 50,88 54,88"/></svg>
   <div class="fx-flag" style="--d:2.4s">Clash: Border systems start 3 weeks before the database it needs is ready</div></div></div></div>
   </div>
-<div class="fx-sc" data-n="9" aria-hidden="true">
+<div class="fx-sc" data-n="10" aria-hidden="true">
     <div class="fx-tx"><span class="eyebrow">AI</span><h2 class="display">Ask in any language.</h2><p class="lead">Ask Champ about your projects in plain words, in 19 languages, and get the answer with the numbers behind it.</p><ul class="fx-ticks"><li>Plain-language questions</li><li>Charts and tables on request</li><li>Your data stays private</li></ul></div>
     <div class="fx-app"><div class="fx-bar"><i></i><i></i><i></i><span>Ask Champ</span></div><div class="fx-body"><div class="fa">
   <p class="fa-q" style="--d:.4s">Projek mana yang melebihi bajet?</p>
@@ -154,7 +166,7 @@
   <div class="fa-l"><span>English</span><span>Bahasa Melayu</span><span>中文</span><span>தமிழ்</span><span>العربية</span><span>Español</span><span>+13</span></div></div></div></div>
   </div>
   </div>
-  <div class="fx-nav" role="tablist" aria-label="Choose a feature"><button type="button" data-go="0" class="on" aria-current="true"><i></i><span>Overview</span></button><button type="button" data-go="1"><i></i><span>Gantt</span></button><button type="button" data-go="2"><i></i><span>Board</span></button><button type="button" data-go="3"><i></i><span>From a document</span></button><button type="button" data-go="4"><i></i><span>Earned value</span></button><button type="button" data-go="5"><i></i><span>Risks</span></button><button type="button" data-go="6"><i></i><span>Change control</span></button><button type="button" data-go="7"><i></i><span>Billing</span></button><button type="button" data-go="8"><i></i><span>Programs</span></button><button type="button" data-go="9"><i></i><span>Any language</span></button><button type="button" class="fx-pp" aria-label="Pause">❚❚</button></div>
+  <div class="fx-nav" role="tablist" aria-label="Choose a feature"><button type="button" data-go="0" class="on" aria-current="true"><i></i><span>Overview</span></button><button type="button" data-go="1"><i></i><span>Gantt</span></button><button type="button" data-go="2"><i></i><span>Board</span></button><button type="button" data-go="3"><i></i><span>Document</span></button><button type="button" data-go="4"><i></i><span>BIM</span></button><button type="button" data-go="5"><i></i><span>Earned value</span></button><button type="button" data-go="6"><i></i><span>Risks</span></button><button type="button" data-go="7"><i></i><span>Change control</span></button><button type="button" data-go="8"><i></i><span>Billing</span></button><button type="button" data-go="9"><i></i><span>Programs</span></button><button type="button" data-go="10"><i></i><span>Any language</span></button><button type="button" class="fx-pp" aria-label="Pause">❚❚</button></div>
   </div>
 </section>
 <section class="sec" style=""><div class="wrap"><div style="display:flex;flex-direction:column;gap:14px;margin-bottom:36px"><span class="eyebrow rv">Plan</span><h2 class="display rv" style="font-size:clamp(2.4rem,5vw,4.2rem);color:var(--text)">Scope to schedule.</h2></div><div class="c-grid"><div class="c-card rv "><i>🧭</i><h3>Project charter</h3><p>Objective, scope in and out, deliverables, budget and sign-off with typed signatures.</p></div><div class="c-card rv "><i>📅</i><h3>Gantt chart</h3><p>Tasks, sub-tasks, milestones and dependencies, with the critical path highlighted.</p></div><div class="c-card rv "><i>🧩</i><h3>Templates</h3><p>Start from a ready template, a blank plan, or let the AI draft one from your description.</p></div><div class="c-card rv "><i>🗓</i><h3>Working days</h3><p>Weekends and public holidays handled; flex weekend work where the job needs it.</p></div></div></div></section>
