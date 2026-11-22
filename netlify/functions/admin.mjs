@@ -553,7 +553,8 @@ async function handle(req, context) {
               dependencies: (d.deps || []).filter((x) => inScope(x.from) || inScope(x.to)).slice(0, 120).map((x) => ({ from: nm[x.from] || x.from, from_core: x.from, to: nm[x.to] || x.to, to_core: x.to, type: x.type, lag_days: x.lag || 0, status: x.status || '', why: x.why || '', note: x.note || '', cross_program: !!x.cross })),
             };
           }
-          if (can('people')) { const L = await PPL.list(); portfolio = portfolio || {}; portfolio.people = (L.people || []).filter((x) => !x.archived).slice(0, 80).map((x) => ({ name: x.name, group: x.group, role: x.role, rate: x.costRate || 0, status: x.status, problems: (x.comp || {}).problems || [] })); }
+          let pplOk = null; if (ctx.scope) { const as0 = await PPL.assignments().catch(() => ({})); pplOk = (id) => Object.keys((as0[id] || {}).by || {}).some((c) => ctx.scope.includes(c)); }   // 🔒 their team, chosen before the 80-person cap
+          if (can('people')) { const L = await PPL.list(); portfolio = portfolio || {}; portfolio.people = (L.people || []).filter((x) => !x.archived && (!ctx.scope || (pplOk && pplOk(x.id)))).slice(0, 80).map((x) => ({ name: x.name, group: x.group, role: x.role, rate: x.costRate || 0, status: x.status, problems: (x.comp || {}).problems || [] })); }
         } catch (e) { console.error('Ask Champ portfolio context: ' + e.message); }
         let project = null;   // asked from inside a project: its facts, so "my project is running late" gets an answer about this project
         const core = clean(body.core, 40);
