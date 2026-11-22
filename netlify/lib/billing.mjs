@@ -177,7 +177,9 @@ export async function billCores(ctx) {   // null = every project
   if (allFinance(ctx)) return null;
   if (!ctx || ctx.scope) return new Set();
   const PG = await import('./programs.mjs'), [plans, jobs, progs] = await Promise.all([P.list(), J.all(), PG.list()]), jb = Object.fromEntries(jobs.map((j) => [j.core, j]));
-  const mine = new Set(progs.filter((g) => ctx.uid && g.director === ctx.uid).map((g) => g.name)), out = new Set();
+  // 💵 a project director sees the programs they direct, and any program (or project outside a program) with no director yet: nobody else is accountable for its billing
+  const pd = ctx.role === 'Project director', mine = new Set(progs.filter((g) => (ctx.uid && g.director === ctx.uid) || (pd && !g.director)).map((g) => g.name)), out = new Set();
+  if (pd) { const named = new Set(progs.map((g) => g.name)); for (const p of plans) { const j = jb[p.core] || {}; if (!j.program || !named.has(j.program)) out.add(p.core); } }
   for (const p of plans) { const j = jb[p.core] || {}, mgr = (p.charter || {}).manager || j.manager || '';
     if (mine.has(j.program || '') || (ctx.name && sameP(mgr, ctx.name))) out.add(p.core); }
   return out;

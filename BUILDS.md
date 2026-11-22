@@ -283,4 +283,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 272 | 1.0.272| 2026-11-22 13:51| paudit| `8022580` | Project audit trail (every change: when, who, role, IP, what, before and after; SHA-256 hash chain; PDF and CSV from Project documents); the |
 | 273 | 1.0.273| 2026-11-22 15:01| heroscenes| `65d9dc0` | Phone website: the hero shows five scenes in turn (plan, board, from a document, cost, billing), each fading into the next; dots and swipe t |
 | 274 | 1.0.274| 2026-11-22 15:10| hero8| `eecc5ae` | Phone website hero: eight scenes across project types (ERP rollout, banking app, clean water, hospital fit-out, ESG strategy, solar mini-gri |
-| 275 | 1.0.275 | 2026-11-22 15:22 | tabs1row | _this commit_ | _see git log_ |
+| 275 | 1.0.275| 2026-11-22 15:22| tabs1row| `8d5ca8f` | Project menu: one line of coloured icon tiles grouped as Plan, Control, Money, Records (#136) |
+| 276 | 1.0.276 | 2026-11-22 15:41 | billvis | _this commit_ | _see git log_ |
