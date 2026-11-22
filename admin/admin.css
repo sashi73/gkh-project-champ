@@ -1447,3 +1447,6 @@ table.pi-tbl input.pi-cb{width:18px;height:18px;min-width:0;padding:0;margin:2px
 .modal-x{position:sticky;top:0;float:right;margin:-10px -10px 0 10px;width:32px;height:32px;border-radius:50%;border:1px solid #e7e1d2;background:#fff;color:#4a4639;font-size:15px;line-height:1;cursor:pointer;z-index:3;box-shadow:0 2px 8px rgba(0,0,0,.08)}
 .modal-x:hover{background:#faf6ea;border-color:#c9a227}
 #modal[data-locked] .modal-x{display:none}
+
+.sqlw.no-side{grid-template-columns:1fr}.sqlw.no-side .sql-side{display:none}
+#title .sql-face{width:40px;height:40px;border-radius:50%;object-fit:cover;vertical-align:middle;margin:-4px 12px 0 0;border:2px solid #E8C04A;box-shadow:0 3px 10px -4px rgba(0,0,0,.45)}

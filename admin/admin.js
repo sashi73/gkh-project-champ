@@ -214,7 +214,7 @@
     }
     $('#title').textContent = TITLES[name];
     document.title = TITLES[name] + ' · GKH Project Champ';
-    var navOn = name === 'portfolio' ? ((parts[1] || (function () { try { return localStorage.getItem('champTab'); } catch (e) { return ''; } })() || 'board') === 'summary' ? 'psummary' : 'pboard') : name === 'projects' && parts[1] === 'new' ? 'projnew' : name === 'sql' && parts[1] === 'ask' ? 'ask' : name === 'inventory' && parts[1] === 'suppliers' ? 'suppliers' : (NAVKEY[name] || name);
+    var navOn = name === 'portfolio' ? ((parts[1] || (function () { try { return localStorage.getItem('champTab'); } catch (e) { return ''; } })() || 'board') === 'summary' ? 'psummary' : 'pboard') : name === 'projects' && parts[1] === 'new' ? 'projnew' : name === 'sql' ? 'ask' : name === 'inventory' && parts[1] === 'suppliers' ? 'suppliers' : (NAVKEY[name] || name);
     Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) { a.classList.toggle('on', a.getAttribute('data-nav') === navOn); });
     $('#side').classList.remove('open');
     view.innerHTML = '<div class="empty">Loading…</div>';

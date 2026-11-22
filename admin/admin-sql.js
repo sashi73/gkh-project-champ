@@ -118,14 +118,16 @@
   function prettyRange(p) { var f = function (s) { var a = s.split('-').map(Number); return a[2] + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][a[1] - 1] + ' ' + a[0]; }; return p.key === 'all' ? 'all time' : p.from === p.to ? f(p.from) : f(p.from) + ' to ' + f(p.to); }
 
   /* ---------- page ---------- */
+  // 🙋 Sashi's face beside the page title: the person behind Champ's answers
+  function face() { var t = document.getElementById('title'); if (t && !t.querySelector('.sql-face')) t.insertAdjacentHTML('afterbegin', '<img class="sql-face" src="../assets/team/sashi-face.webp" alt="" width="40" height="40">'); }
   function page() {
     V().innerHTML = '<div class="empty">Loading your project data…</div>';
-    return loadLibs().then(function () { return loadData(); }).then(draw);
+    face(); return loadLibs().then(function () { return loadData(); }).then(draw).then(face);
   }
   function draw() {
     var tables = Object.keys(SCHEMA);
     V().innerHTML =
-      '<div class="sqlw">' +
+      '<div class="sqlw' + (S.tab === 'wizard' || S.tab === 'editor' ? '' : ' no-side') + '">' +   // 🗂 the tables list only where you build a query (Wizard, SQL editor)
         '<aside class="card sql-side"><div class="card-h"><h2>Tables</h2><button class="btn btn-sm" id="sqlRefresh" title="Load the latest data">↻</button></div>' +
           '<p class="muted" style="margin:0 0 10px;font-size:12.5px">Drag a table or column into the builder or the editor (or tap it).</p>' +
           tables.map(function (t) {
