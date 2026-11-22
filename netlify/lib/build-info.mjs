@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 284,
+  "build": 285,
   "commit": "",
-  "branch": "roles2",
+  "branch": "pgcols",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-23 02:35",
+  "builtAt": "2026-11-23 02:41",
   "site": ""
 };

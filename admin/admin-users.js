@@ -12,7 +12,7 @@
   var V = function () { return M.view(); };
   var S = { data: null, plans: [] };
   var MODS = [['projects', 'Projects', 'Programs, projects, plans, Gantt, Board, costing, risks, change control, Ask AI'], ['people', 'People', 'The team register, credentials, calendar and workload (only the project manager adds people)'], ['crm', 'Enquiries & visitors', 'Enquiries and website visitors'],
-    ['data', 'Ask AI & reports', 'Ask AI, SQL wizard and reports (the activity log is the super user\'s)'], ['users', 'Users & access', 'This page: project managers and directors add contractors and project personnel; only the super user makes managers and upgrades people']];
+    ['data', 'Ask AI & reports', 'Ask AI, SQL wizard and reports (the activity log is the super user\'s)'], ['users', 'Users & access', 'This page: PMO Directors add program and project managers; project managers add their contractors and project personnel; the super user makes any login and upgrades people']];
   var KIND = {
     CFO: { ic: '💵', cls: 'ceo', about: 'One per company. Runs billing: contract values, milestone invoices and payments received, across every project (read-only on plans). Starts on the Finance screen.' },
     CEO: { ic: '👔', cls: 'ceo', about: 'One per company. Sees every project and the money (health, budget, spend, revenue, profit), read-only, and starts on the CEO view. No people\'s personal detail and no admin screens.' },
