@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 272,
+  "build": 273,
   "commit": "",
-  "branch": "paudit",
+  "branch": "heroscenes",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 13:51",
+  "builtAt": "2026-11-22 15:01",
   "site": ""
 };

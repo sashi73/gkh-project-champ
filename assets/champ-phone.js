@@ -60,11 +60,27 @@
     var cur = ls('champLang') || 'en', curL = LANGS.filter(function (l) { return l[0] === cur; })[0] || LANGS[0];
     // the plan in the hero: a few weeks of a real-looking schedule, drawn once when the page opens
     var rows = [['Design and approvals', 2, 26, 'done'], ['Procurement', 18, 22, 'done'], ['Structure, level by level', 30, 34, 'on'], ['Services rough-in', 52, 26, 'late'], ['Fit-out and handover', 70, 26, 'plan']];
-    var gantt = '<div class="p2-plan" role="img" aria-label="A project plan with five work stages and today\'s position"><div class="p2-ph"><b>Riverbend clinic</b><span>Feb to Dec</span></div>' +
+    // 🎞 the hero: five short scenes of what Champ does, each for a few seconds, fading into the next
+    var g1 = '<div class="p2-ph"><b>Riverbend clinic</b><span>Feb to Dec</span></div>' +
       '<div class="p2-rows">' + rows.map(function (r, i) { return '<div class="p2-row"><span>' + r[0] + '</span><i class="p2-bar ' + r[3] + '" style="--l:' + r[1] + '%;--w:' + r[2] + '%;--d:' + (0.25 + i * 0.12) + 's"></i></div>'; }).join('') +
       '<i class="p2-today" style="--t:44%"><em>Today</em></i></div><div class="p2-axis" data-noi18n><span>Feb</span><span>Apr</span><span>Jun</span><span>Aug</span><span>Oct</span><span>Dec</span></div>' +
       '<div class="p2-flag"><b>Services 4 days behind.</b> Champ found it this morning and has a recovery plan ready.</div>' +
-      '<div class="p2-kpi"><span class="w"><b>0.97</b>Schedule</span><span class="g"><b>1.04</b>Cost</span><span><b>3</b>Risks watched</span></div></div>';
+      '<div class="p2-kpi"><span class="w"><b>0.97</b>Schedule</span><span class="g"><b>1.04</b>Cost</span><span><b>3</b>Risks watched</span></div>';
+    var col = function (h, L, cls) { return '<div class="sb-col ' + cls + '"><span class="sb-h">' + h + '</span>' + L.map(function (c) { return '<i class="sb-card' + (c[1] ? ' ' + c[1] : '') + '">' + c[0] + '</i>'; }).join('') + '</div>'; };
+    var g2 = '<div class="p2-ph"><b>Backlog and board</b><span>Sprint 4</span></div><div class="sb">' + col('To do', [['Order the lift'], ['Fit-off lights']], 'todo') + col('Doing', [['Level 2 slab pour', 'mv'], ['Partition walls']], 'doing') + col('Done', [['Level 2 slab pour', 'nw'], ['Design sign-off'], ['Footings']], 'done') + '</div>' +
+      '<div class="p2-flag ok"><b>Level 2 slab poured.</b> The card moved to Done and the Gantt updated itself.</div>' +
+      '<div class="p2-kpi"><span><b>12</b>Points done</span><span><b>2 of 3</b>Work in progress</span><span><b>2</b>Days to go</span></div>';
+    var g3 = '<div class="p2-ph"><b>Start from a document</b><span>AI</span></div><div class="sd-doc"><i>PDF</i><div><b data-noi18n>Tender_Riverbend.pdf</b><small>148 pages read in full</small><span class="sd-bar"><i></i></span></div></div>' +
+      '<ul class="sd-out">' + [['52 tasks', 'across 9 phases'], ['12 risks', 'each with an owner'], ['Materials', 'from the building model'], ['Stakeholders', 'with their RACI']].map(function (x, k) { return '<li style="--d:' + (1.2 + k * 0.45) + 's"><b>' + x[0] + '</b> ' + x[1] + '</li>'; }).join('') + '</ul>' +
+      '<div class="p2-kpi"><span><b>3 min</b>Tender to plan</span><span><b>19</b>Languages</span><span><b>IFC</b>Models read</span></div>';
+    var g4 = '<div class="p2-ph"><b>Cost and earned value</b><span>Riverbend clinic</span></div><svg class="se" viewBox="0 0 300 120" aria-hidden="true"><path class="se-g" d="M0 30H300M0 60H300M0 90H300"/><path class="se-pv" pathLength="1" d="M0 112C60 108 110 84 150 62S240 18 300 10"/><path class="se-ac" pathLength="1" d="M0 112C60 110 108 92 138 76"/><path class="se-ev" pathLength="1" d="M0 112C60 109 108 88 138 70"/><circle class="se-dot" cx="138" cy="70" r="4"/></svg>' +
+      '<div class="se-leg"><span class="pv">Planned</span><span class="ev">Earned</span><span class="ac">Spent</span></div>' +
+      '<div class="p2-kpi"><span class="g"><b>1.04</b>Cost (CPI)</span><span class="w"><b>0.97</b>Schedule (SPI)</span><span><b>$16.8M</b>Forecast</span></div>';
+    var g5 = '<div class="p2-ph"><b>Milestones and billing</b><span>Contract $17M</span></div><ul class="sm">' + [['Design signed off', 'Collected', 'pd'], ['Structure complete', 'Invoiced, due 12 Jun', 'iv'], ['Services rough-in', 'Ready to invoice', 'rd'], ['Practical completion', 'Yet to invoice', 'td']].map(function (m, k) { return '<li class="' + m[2] + '" style="--d:' + (0.3 + k * 0.3) + 's"><i></i><b>' + m[0] + '</b><span>' + m[1] + '</span></li>'; }).join('') + '</ul>' +
+      '<div class="p2-flag ok"><b>One milestone is ready to bill.</b> Finance sees it the moment the work is done.</div>';
+    var SC = [g1, g2, g3, g4, g5], NM = ['Plan', 'Board', 'From a document', 'Cost', 'Billing'];
+    var gantt = '<div class="p2-plan p2-stage" role="region" aria-roledescription="carousel" aria-label="What Project Champ does">' + SC.map(function (h, k) { return '<div class="p2-scene' + (k === 0 ? ' on' : '') + '" data-sc="' + k + '" aria-hidden="' + (k ? 'true' : 'false') + '">' + h + '</div>'; }).join('') +
+      '<div class="p2-dots">' + NM.map(function (n, k) { return '<button type="button" data-go="' + k + '"' + (k === 0 ? ' class="on" aria-current="true"' : '') + ' aria-label="' + n + '"><i></i></button>'; }).join('') + '</div></div>';
     var who = [['build', 'Construction and facilities', 'Trades, materials and quantities, safety plans and site budgets.'], ['it', 'IT and digital', 'Backlogs and sprints, with milestones and cost for the steering committee.'],
       ['leaf', 'ESG and sustainability', 'Decarbonisation and reporting programs that boards can follow.'], ['gov', 'Government', 'Charters, change control and reports ready for audit.'],
       ['brief', 'Consulting', 'Client engagements with scope, budget and status reports written for you.'], ['globe', 'Development programs', 'Many projects, donors and partners in one view of time, cost and risk.']];
@@ -114,6 +130,17 @@
     var nav = [].slice.call(d.querySelectorAll('.p2-nav a')), light = function () { var c = nav[0]; nav.forEach(function (a) { var t = document.querySelector(a.getAttribute('href')); if (t && t.getBoundingClientRect().top < 160) c = a; }); nav.forEach(function (a) { a.classList.toggle('on', a === c); }); d.classList.toggle('p2-scrolled', window.scrollY > 8); };
     addEventListener('scroll', light, { passive: true });
     requestAnimationFrame(function () { d.classList.add('p2-go'); });
+    // 🎞 the scenes: each for 6.5 seconds, then the next fades in; a dot or a swipe jumps; paused when the page is hidden; still on reduced motion
+    (function () {
+      var st = d.querySelector('.p2-stage'); if (!st) return; var sc = [].slice.call(st.querySelectorAll('.p2-scene')), dots = [].slice.call(st.querySelectorAll('[data-go]')), k = 0, tm = null;
+      var still = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches, HOLD = 6500;
+      var show = function (n) { k = (n + sc.length) % sc.length; sc.forEach(function (x, i) { x.classList.toggle('on', i === k); x.setAttribute('aria-hidden', i === k ? 'false' : 'true'); }); dots.forEach(function (b, i) { b.classList.toggle('on', i === k); if (i === k) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); }); };
+      var run = function () { clearTimeout(tm); if (still || document.hidden) return; tm = setTimeout(function () { show(k + 1); run(); }, HOLD); };
+      dots.forEach(function (b) { b.onclick = function () { show(+b.getAttribute('data-go')); run(); }; });
+      var x0 = null; st.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+      st.addEventListener('touchend', function (e) { if (x0 == null) return; var dx = e.changedTouches[0].clientX - x0; x0 = null; if (Math.abs(dx) > 40) { show(k + (dx < 0 ? 1 : -1)); run(); } });
+      document.addEventListener('visibilitychange', run); run();
+    })();
     var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', '#141210');   // the phone's own bar matches the page   // the plan draws itself once
     if (/^#ph-/.test(location.hash)) setTimeout(function () { var a = d.querySelector('.p2-nav a[href="' + location.hash + '"]'); if (a) a.click(); }, 300);
   }
