@@ -83,7 +83,7 @@
     var dots0 = [[2, 4, 'Supplier', 0.4], [3, 3, 'Permits', 0.7], [4, 2, 'Funding', 1.0], [1, 3, 'Theft', 1.3]];
     var g6 = '<div class="p2-ph"><b>Solar mini-grids, Rwanda</b><span>Development</span></div><div class="sr"><div class="sr-grid">' + cells +
       dots0.map(function (x) { return '<b class="sr-dot" style="--x:' + x[0] + ';--y:' + x[1] + ';--d:' + x[3] + 's">' + x[2] + '</b>'; }).join('') + '<b class="sr-dot up" style="--x:4;--y:4;--d:1.9s">Rainy season</b></div><div class="sr-ax"><span>Impact</span><span>Likelihood</span></div></div>' +
-      '<div class="p2-flag"><b>Rainy season risk rose to high.</b> Champ told its owner and suggested moving the cable work.</div>';
+      '<div class="p2-flag p2-ai"><b>✨ Champ raised this.</b> The 3-week rain forecast overlaps panel delivery, so likelihood went up to high. <em>Suggested: deliver by 3 Mar · owner Grace</em></div>';
     // 7: a program with its dependencies (government)
     var g7 = '<div class="p2-ph"><b>National digital ID program</b><span>Government</span></div><div class="sp">' +
       [['Registration system', 0, 46, 'ok'], ['ID card printing', 30, 46, 'late'], ['Online services', 58, 40, 'ok']].map(function (x, k) { return '<div class="sp-row"><span>' + x[0] + '</span><i class="sp-bar ' + x[3] + '" style="--l:' + x[1] + '%;--w:' + x[2] + '%;--d:' + (0.3 + k * 0.25) + 's"></i></div>'; }).join('') +

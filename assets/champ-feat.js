@@ -32,5 +32,15 @@
     document.addEventListener('visibilitychange', function () { if (document.hidden) clearTimeout(timer); else arm(); });
     show(0);
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+  // ✨ the AI day: each step lights up as it scrolls into view, and the line fills to the last one seen
+  function day() {
+    var ol = document.querySelector('.fai-day'); if (!ol) return;
+    var S = ol.querySelectorAll('.fai-s'), still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var fill = function () { var last = -1; for (var i = 0; i < S.length; i++) if (S[i].classList.contains('in')) last = i; ol.style.setProperty('--fill', S.length ? String((last + 1) / S.length) : '0'); };
+    if (still || !('IntersectionObserver' in window)) { for (var i = 0; i < S.length; i++) S[i].classList.add('in'); fill(); return; }
+    var io = new IntersectionObserver(function (es) { es.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }); fill(); }, { rootMargin: '0px 0px -25% 0px' });
+    for (var k = 0; k < S.length; k++) io.observe(S[k]);
+  }
+  function boot() { start(); day(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
