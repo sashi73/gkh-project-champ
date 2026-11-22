@@ -1208,7 +1208,7 @@ body.gh-dragging{cursor:row-resize;user-select:none}body.gh-dragging .gpane{poin
   body.is-short .pkpis .v{font-size:16px!important}
   body.is-short .pkpis table{font-size:11px}
   body.is-short #planTabs{margin-bottom:6px!important}
-  body.is-short #planTabs .tab{padding:4px 10px;font-size:12.5px}
+  body.is-short #planTabs .tab{padding:3px 3px 4px;font-size:11.5px}body.is-short #planTabs .pt-ic{width:28px;height:28px}
   body.is-short .gcard{padding:8px!important}
   body.is-short .gcard>.row{margin-bottom:6px!important}
 }
@@ -1383,18 +1383,30 @@ tr.ms-flash td{animation:msFlash 2.6s ease}
 .au-list li{display:grid;grid-template-columns:120px 1fr auto;gap:2px 12px;padding:6px 0;border-top:1px solid var(--line, #EEE);font-size:12.5px}
 .au-list li span{color:var(--muted)}.au-list li em{font-style:normal;color:var(--muted);text-align:right}
 .au-list li small{grid-column:2/4;color:var(--muted);font-size:11.5px}
-/* the project's menu: four labelled groups, one line icon style, one height */
-#planTabs.ptabs{display:grid;grid-template-columns:max-content 1fr;align-items:start;gap:8px 0;margin:14px 0 14px;padding:10px 12px 8px;border-radius:14px;background:var(--card, #fff);border:1px solid var(--line, #E7E4DC)}
-.ptg{display:flex;flex-direction:column;gap:4px;min-width:0}
-.ptg{padding-right:18px}.ptg:nth-child(even){padding-left:18px;border-left:1px solid var(--line, #E7E4DC)}
-.ptg-h{font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);padding-left:4px}
-.ptg-row{display:flex;flex-wrap:wrap;gap:2px}
-#planTabs.ptabs .tab{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 11px;border:0;border-radius:9px;background:transparent;color:var(--ink, #1F2328);font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:none}
-#planTabs.ptabs .tab svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
-#planTabs.ptabs .tab:hover{background:rgba(0,0,0,.05)}
-#planTabs.ptabs .tab.on{background:#151515;color:#fff}
-#planTabs.ptabs .tab.on svg{opacity:1;stroke:#E8C04A}
-html.dark #planTabs.ptabs .tab:hover,body.dark #planTabs.ptabs .tab:hover{background:rgba(255,255,255,.07)}
-html.dark #planTabs.ptabs .tab.on,body.dark #planTabs.ptabs .tab.on{background:#E8C04A;color:#151515}
-html.dark #planTabs.ptabs .tab.on svg,body.dark #planTabs.ptabs .tab.on svg{stroke:#151515}
-@media (max-width:900px){#planTabs.ptabs{grid-template-columns:1fr}.ptg:nth-child(even){padding-left:0;border-left:0}.ptg-row{flex-wrap:nowrap;overflow-x:auto}}
+/* the project's menu: one line of icon tiles, coloured by group */
+#planTabs.ptabs{display:flex;flex-wrap:nowrap;align-items:stretch;gap:0;margin:12px 0 14px;padding:8px 8px 7px;border-radius:14px;background:var(--card, #fff);border:1px solid var(--line, #E7E4DC);overflow-x:auto;scrollbar-width:thin}
+.ptg{--g:#3B6FD8;--gt:rgba(59,111,216,.11);display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 auto;padding:0 5px}
+.ptg+.ptg{border-left:1px solid var(--line, #E7E4DC)}
+.ptg-control{--g:#D9822B;--gt:rgba(217,130,43,.13)}
+.ptg-money{--g:#2E9E6A;--gt:rgba(46,158,106,.12)}
+.ptg-records{--g:#7C5CD6;--gt:rgba(124,92,214,.12)}
+.ptg-h{display:flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:var(--g);padding-left:6px}
+.ptg-h::before{content:"";width:12px;height:3px;border-radius:2px;background:var(--g)}
+.ptg-row{display:flex;flex-wrap:nowrap;gap:2px}
+#planTabs.ptabs .tab{flex:1 1 auto;min-width:52px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;height:auto;padding:5px 6px 5px;border:0;border-radius:10px;background:transparent;color:var(--ink, #1F2328);font-size:11.5px;font-weight:600;line-height:1.15;text-align:center;text-decoration:none;white-space:nowrap;box-shadow:none;position:relative;transition:background .15s}
+#planTabs.ptabs .tab span{max-width:100%}
+#planTabs.ptabs .pt-ic{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--gt);color:var(--g);transition:transform .15s,background .15s}
+#planTabs.ptabs .tab svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#planTabs.ptabs .tab:hover{background:rgba(0,0,0,.035)}
+#planTabs.ptabs .tab:hover .pt-ic{transform:translateY(-2px)}
+#planTabs.ptabs .tab:focus-visible{outline:2px solid var(--g);outline-offset:1px}
+#planTabs.ptabs .tab.on{background:var(--gt);color:var(--ink, #1F2328)}
+#planTabs.ptabs .tab.on .pt-ic{background:var(--g);color:#fff;box-shadow:0 4px 10px -5px var(--g)}
+#planTabs.ptabs .tab.on::after{content:"";position:absolute;left:30%;right:30%;bottom:-8px;height:2.5px;border-radius:3px;background:var(--g)}
+#planTabs.ptabs .tab[href$="/intel"] .pt-ic{background:#151515;color:#E8C04A}
+#planTabs.ptabs .tab[href$="/intel"].on .pt-ic{background:linear-gradient(135deg,#151515,#4A3B12);color:#FFD866}
+html.dark #planTabs.ptabs .tab:hover,body.dark #planTabs.ptabs .tab:hover{background:rgba(255,255,255,.06)}
+
+html.dark #planTabs.ptabs .tab[href$="/intel"] .pt-ic,body.dark #planTabs.ptabs .tab[href$="/intel"] .pt-ic{background:#E8C04A;color:#151515}
+@media (prefers-reduced-motion:reduce){#planTabs.ptabs .pt-ic,#planTabs.ptabs .tab{transition:none}#planTabs.ptabs .tab:hover .pt-ic{transform:none}}
+@media (max-width:900px){#planTabs.ptabs .tab{min-width:48px;font-size:11px}#planTabs.ptabs .pt-ic{width:30px;height:30px}}

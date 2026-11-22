@@ -6852,14 +6852,14 @@
     swms: '<path d="M12 3 4 6v6c0 4.5 3.3 8 8 9 4.7-1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>', docs: '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
     comms: '<path d="M4 5h16v11H9l-5 4z"/>', reports: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', lessons: '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h12"/>',
     intel: '<path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/>' };
-  var TAB_GROUPS = [['Plan', ['overview', 'schedule', 'critical', 'board']], ['Money', ['budget', 'bom', 'contracts']], ['Control', ['scope', 'stake', 'risks', 'issues', 'change', 'swms']], ['Records', ['docs', 'comms', 'reports', 'lessons', 'intel']]];
+  var TAB_GROUPS = [['Plan', ['overview', 'schedule', 'critical', 'board']], ['Control', ['scope', 'stake', 'risks', 'issues', 'change', 'swms']], ['Money', ['budget', 'bom', 'contracts']], ['Records', ['docs', 'comms', 'reports', 'lessons', 'intel']]];
   function planTabsHtml(tabs) {
     var by = {}; tabs.forEach(function (t) { by[t[0]] = t[1].replace(/^[^A-Za-z]+/, ''); });
     var used = {}, grp = TAB_GROUPS.map(function (g) { var L = g[1].filter(function (k) { return by[k] != null; }); L.forEach(function (k) { used[k] = 1; }); return [g[0], L]; });
     var rest = tabs.filter(function (t) { return !used[t[0]]; }).map(function (t) { return t[0]; }); if (rest.length) grp[grp.length - 1][1] = grp[grp.length - 1][1].concat(rest);
     return '<nav class="tabs ptabs" id="planTabs" aria-label="Project sections">' + grp.filter(function (g) { return g[1].length; }).map(function (g) {
-      return '<div class="ptg" role="group" aria-label="' + esc(g[0]) + '"><span class="ptg-h">' + esc(g[0]) + '</span><div class="ptg-row">' + g[1].map(function (k) {
-        return '<a class="tab' + (S.tab === k ? ' on' : '') + '" href="#plan/' + esc(S.core) + '/' + k + '"' + (S.tab === k ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + (TAB_ICO[k] || TAB_ICO.overview) + '</svg><span>' + esc(by[k]) + '</span></a>'; }).join('') + '</div></div>'; }).join('') + '</nav>';
+      return '<div class="ptg ptg-' + g[0].toLowerCase() + '" style="--n:' + g[1].length + '" role="group" aria-label="' + esc(g[0]) + '"><span class="ptg-h">' + esc(g[0]) + '</span><div class="ptg-row">' + g[1].map(function (k) {
+        return '<a class="tab' + (S.tab === k ? ' on' : '') + '" href="#plan/' + esc(S.core) + '/' + k + '"' + (S.tab === k ? ' aria-current="page"' : '') + ' title="' + esc(by[k]) + '"><i class="pt-ic"><svg viewBox="0 0 24 24" aria-hidden="true">' + (TAB_ICO[k] || TAB_ICO.overview) + '</svg></i><span>' + esc(by[k]) + '</span></a>'; }).join('') + '</div></div>'; }).join('') + '</nav>';
   }
   function piBim() { return piLoad('champ-bim.js?v=3', function () { return !!window.ChampBIM; }); }
   M.bim = piBim;
