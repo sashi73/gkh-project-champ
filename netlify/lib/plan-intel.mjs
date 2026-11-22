@@ -243,11 +243,11 @@ export async function ask({ core, question, history, money = true }, by) {
   const COMMS = await import('./comms.mjs');
   if (COMMS.MEET_Q(q)) {
     const today = sydToday(), pick = COMMS.pickMeeting(plan, q, today), m = pick.meeting;
-    const save = async (r) => { await kv.update('pchat:' + job.core, (x) => { x.log = (x.log || []).concat([{ at: Date.now(), by: str(by, 60), q, r }]).slice(-30); return x; }, () => ({ log: [] })); return r; };
+    const save = async (r) => { await kv.update('pchat:' + job.core, (x) => { x.log = (x.log || []).concat([{ at: Date.now(), by: str(by, 60), q, r, m: money ? 1 : 0 }]).slice(-30); return x; }, () => ({ log: [] })); return r; };
     const none = (msg) => save({ answer: msg, risks: [], stakeholders: [], meeting: null, sources: [], follow_ups: ['Set up a meeting with the stakeholders next week'], tokens: 0 });
     if (!m) return none(pick.date ? '## No meeting on ' + pick.date.split('-').reverse().join('/') + '\nThere is no meeting on that date in the 📞 Comms meeting log. Check the date, or add the meeting there.' : '## No meetings yet\nThe 📞 Comms meeting log is empty. Set up a meeting there, then upload its transcript.');
     if (!m.doc) return none('## “' + m.title + '” has no transcript yet\nUpload the meeting transcript (Word, PDF, text or the Teams/Zoom .vtt file) on that meeting in the 📞 Comms meeting log, then ask again.');
-    const a = await COMMS.analyse({ core: job.core, id: m.id, question: q }, by);
+    const a = await COMMS.analyse({ core: job.core, id: m.id, question: q, money }, by);
     if (a.error) return { error: a.error };
     return save({ answer: a.report, risks: [], stakeholders: [], meeting: null, sources: [(await docList(job.core)).find((d) => d.id === m.doc)?.name || 'Meeting transcript'], follow_ups: a.follow_ups, tokens: a.tokens, today: a.today, impact: a });
   }

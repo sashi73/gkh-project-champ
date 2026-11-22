@@ -25,6 +25,8 @@
     if (still && pp) { paused = true; pp.textContent = '▶'; pp.setAttribute('aria-label', 'Play'); }
     var stage = root.querySelector('.fx-stage');
     stage.addEventListener('mouseenter', function () { hover = true; arm(); });
+    // ⌨ keyboard focus inside the stage stops the rotation until the visitor presses Play
+    root.addEventListener('focusin', function (e) { if (e.target === pp) return; if (!paused) { paused = true; if (pp) { pp.textContent = '▶'; pp.setAttribute('aria-label', 'Play'); } arm(); } });
     stage.addEventListener('mouseleave', function () { hover = false; arm(); });
     root.addEventListener('keydown', function (e) { if (e.key === 'ArrowRight') { show(cur + 1); e.preventDefault(); } if (e.key === 'ArrowLeft') { show(cur - 1); e.preventDefault(); } });
     var x0 = null; stage.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });

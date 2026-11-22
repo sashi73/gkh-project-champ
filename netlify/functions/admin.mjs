@@ -72,7 +72,7 @@ async function auditAction(action, body, ctx, by, res0) {
   if (body.set && typeof body.set === 'object') det.push('set: ' + JSON.stringify(body.set).slice(0, 300));
   await (await import('../lib/paudit.mjs')).record(core, { who: ctx.who || by, name: ctx.name, role: ctx.owner ? 'Super user' : ctx.role, ip: ctx.ip, kind: lab[0], what: lab[1], lines: det });
 }
-const MONEY_KEYS = new Set(['BAC', 'PV', 'EV', 'AC', 'ACin', 'EVin', 'ACest', 'CPI', 'CPIx', 'EAC', 'ETC', 'VAC', 'TCPI', 'split', 'budget', 'cost', 'costs', 'rate', 'price', 'amount', 'money', 'profit', 'margin', 'contract', 'contractValue', 'invoiced', 'received', 'owed', 'bomx', 'bomLoose', 'budgetCfg', 'bom', 'bomBase', 'bomRevs', 'forecastCost', 'forecast_cost', 'actual', 'actualCost', 'basis', 'b0', 'b1', 'BACbase']);
+const MONEY_KEYS = new Set(['extra', 'extra_cost', 'forecast_cost_EAC', 'approved_budget', 'budget_BAC', 'spent_AC', 'spent', 'BAC', 'PV', 'EV', 'AC', 'ACin', 'EVin', 'ACest', 'CPI', 'CPIx', 'EAC', 'ETC', 'VAC', 'TCPI', 'split', 'budget', 'cost', 'costs', 'rate', 'price', 'amount', 'money', 'profit', 'margin', 'contract', 'contractValue', 'invoiced', 'received', 'owed', 'bomx', 'bomLoose', 'budgetCfg', 'bom', 'bomBase', 'bomRevs', 'forecastCost', 'forecast_cost', 'actual', 'actualCost', 'basis', 'b0', 'b1', 'BACbase']);
 function scrubMoney(v, d = 0) { if (d > 30 || v == null || typeof v !== 'object') return v; if (Array.isArray(v)) return v.map((x) => scrubMoney(x, d + 1)); const o = {}; for (const [k, x] of Object.entries(v)) if (!MONEY_KEYS.has(k)) o[k] = scrubMoney(x, d + 1); return o; }
 const out = (status, body, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...H, ...extra } });
 const bad = (msg, status = 400) => out(status, { error: msg });
@@ -531,7 +531,8 @@ async function handle(req, context) {
       case 'planWatchGet': {   // 🩺 Champ's health check of one project (rules) and its brief (AI, kept until the numbers change)
         const core = clean(body.core, 40), pl = core ? await getPlan(core) : null; if (!pl) return bad('Project not found', 404);
         const W = await import('../lib/watch.mjs'), j = await J.find(core);
-        if (body.quick) { const h = W.check(pl); return out(200, { rag: h.rag, word: h.word, reasons: h.reasons, n: h.n }); }
+        const noM = !U.seesMoney(ctx), mReason = (x) => !/cost|budget|cpi|\$|spend|spent|price|invoice|bill/i.test((x && x.text) || String(x || ''));
+        if (body.quick || noM) { const h = W.check(pl); return out(200, { rag: h.rag, word: h.word, reasons: noM ? h.reasons.filter(mReason) : h.reasons, n: noM ? scrubMoney(h.n) : h.n, brief: noM ? '' : undefined }); }   // 💰 no money, no AI brief
         const r = await W.brief(core, pl, { refresh: !!body.refresh, name: pl.name || (j && j.service) || '', lang: clean(body.lang, 5) || 'en' });
         return out(200, { rag: r.rag, word: r.word, reasons: r.reasons, n: r.n, brief: r.brief, at: r.at, cached: !!r.cached, stale: !!r.stale, name: pl.name || '' });
       }
@@ -572,6 +573,14 @@ async function handle(req, context) {
               issues: (pl.issues || []).filter((x) => x.title).slice(0, 25).map((x) => ({ title: x.title, priority: x.priority, owner: x.owner, due: x.due, status: x.status })),
               lessons_logged: (pl.lessons || []).slice(0, 20).map((l) => ({ title: l.title, impact: l.impact, recommendation: cut(l.rec, 200) })),
               lessons_from_past_projects: ((await (await import('../lib/lessons.mjs')).library({ forCore: core, limit: 4 }).catch(() => ({ lessons: [] }))).lessons || []).map((l) => ({ lesson: l.title, from: l.project, recommendation: cut(l.rec, 200) })) }; } } catch (e) { console.error('Ask Champ project facts: ' + e.message); project = null; } }
+        // 🔒 only what this login may see: their programs, their projects, the people on them, and no money without money access
+        if (ctx.scope && portfolio) {
+          const okP = new Set((portfolio.projects || []).map((p) => p.program)), mine = (c) => ctx.scope.includes(c);
+          if (portfolio.programs) portfolio.programs = portfolio.programs.filter((g) => okP.has(g.name) || (ctx.pgm && ctx.pgm.names.includes(g.name)));
+          if (portfolio.dependencies) portfolio.dependencies = portfolio.dependencies.map((x) => ({ ...x, from: mine(x.from_core) ? x.from : 'another project', from_core: mine(x.from_core) ? x.from_core : '', to: mine(x.to_core) ? x.to : 'another project', to_core: mine(x.to_core) ? x.to_core : '' }));
+          if (portfolio.people) { const as = await PPL.assignments().catch(() => ({})), L2 = (await PPL.list()).people || [], ok = new Set(L2.filter((p) => ((as[p.id] || {}).list || []).some((x) => mine(x.core))).map((p) => p.name)); portfolio.people = portfolio.people.filter((p) => ok.has(p.name)); }
+        }
+        if (!U.seesMoney(ctx)) { if (portfolio) portfolio = scrubMoney(portfolio); if (project) project = scrubMoney(project); }
         const kbHits = await KB.search(q, 2500).catch(() => []), course_notes = kbHits.length ? KB.forPrompt(kbHits) : undefined;
         // ❓ the help centre (assets/help/articles.js): the official how-to, so Champ's steps match the help word for word
         const HC = await import('../../assets/help/articles.js'), hHits = HC.search(q, 4), hSeen = {};
@@ -712,7 +721,7 @@ async function handle(req, context) {
         const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by, ctx })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit, ctx })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
         // 💰 a login without money (contractors, project personnel ...): the money taken out of every project answer (lists, programs, boards, reports);
         //    planGet and planSave do it themselves (and keep the money when such a login saves)
-        if (a && !U.seesMoney(ctx) && /^(plan|pipeline|intel)/.test(action) && !['planGet', 'planSave'].includes(action) && a.headers.get('content-type') && /json/.test(a.headers.get('content-type'))) {
+        if (a && !U.seesMoney(ctx) && /^(plan|pipeline|intel|comms)/.test(action) && !['planGet', 'planSave'].includes(action) && a.headers.get('content-type') && /json/.test(a.headers.get('content-type'))) {
           const j = await a.clone().json().catch(() => null); if (j) return out(a.status, scrubMoney(j));
         }
         return a || bad('Unknown action');

@@ -66,7 +66,7 @@
   }
 
   // 🗺 Program managers: which programs each one runs. They see those programs, their projects and the people on them, and nothing else.
-  var canPgm = function () { var me = M.me || {}; return !!S.users && (me.owner || (me.mods || {}).users === 'edit'); };
+  var canPgm = function () { var me = M.me || {}; return !!S.users && (me.owner || (me.role === 'PMO Director' && (me.mods || {}).users === 'edit')); };   // the super user and PMO Directors assign program managers
   var pgmUsers = function () { return (S.users || []).filter(function (u) { return u.role === 'Program manager'; }); };
   function pgmTab() {
     var host = document.createElement('div'); V().appendChild(host); host.innerHTML = '<div class="empty">Loading the programs…</div>';

@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 286,
+  "build": 287,
   "commit": "",
-  "branch": "featai",
+  "branch": "crfix",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-23 02:47",
+  "builtAt": "2026-11-23 03:23",
   "site": ""
 };

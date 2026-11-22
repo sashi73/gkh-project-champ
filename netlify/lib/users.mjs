@@ -219,8 +219,9 @@ async function context0(session, ownerName, personOk) {
     if (!session.pc || !(u.projects || []).includes(session.pc)) return null;
     return { owner: false, who: u.username, uid: u.id, role: 'Sub-contractor', mods: subMods((u.mods || {}).projects), name: u.name, mustChange: !!u.mustChange, personId: '', subId: u.subId, kind: 'subbie', scope: [session.pc] };
   }
-  if (u.kind === 'email' && u.role === 'Project manager') { const g = await pmScope(u); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: '', kind: 'email', scope: g.cores, pgm: g }; }
-  if (u.kind === 'email' && u.role === 'Program manager') { const g = await pgmScope(u.programs); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: '', kind: 'email', scope: g.cores, pgm: g }; }
+  const staff = u.kind === 'email' || !u.kind || u.kind === 'person';   // 🔒 logins made from People may have no stored kind: they are scoped just the same
+  if (staff && u.role === 'Project manager') { const g = await pmScope(u); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: u.kind === 'email' ? '' : u.personId, kind: u.kind || 'email', scope: g.cores, pgm: g }; }
+  if (staff && u.role === 'Program manager') { const g = await pgmScope(u.programs); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: u.kind === 'email' ? '' : u.personId, kind: u.kind || 'email', scope: g.cores, pgm: g }; }
   if (u.kind === 'email') return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: '', kind: 'email', scope: ALL_PROJECTS(u) ? null : (u.projects || []).slice() };
   return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: u.personId };
 }
@@ -250,7 +251,8 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
   // the super user makes any login, sets roles and upgrades people; a project director or manager with Users & access (edit) makes and looks after
   // contractor and project personnel logins only (never their own, another manager's, a Google sign-in's, and never a role above those)
   const team = !ctx.owner && (ctx.mods || {}).users === 'edit' && ['Project manager', 'PMO Director'].includes(ctx.role), MY = ctx.role === 'PMO Director' ? PMO_TEAM : TEAM_ROLES;
-  const teamOk = async (id) => { const u = await get(str(id, 10)); return u && u.id !== ctx.uid && u.kind === 'email' && MY.includes(u.role) ? u : null; };
+  const inReach = (u) => !ctx.scope || (!u.projAll && (u.projects || []).some((c) => ctx.scope.includes(c)));   // 🔒 a project manager: only the logins on their own projects
+  const teamOk = async (id) => { const u = await get(str(id, 10)); return u && u.id !== ctx.uid && u.kind === 'email' && MY.includes(u.role) && inReach(u) ? u : null; };
   if (!['userList', 'userPassword'].includes(action) && !ctx.owner) {
     if (!team || !['userCreate', 'userSave', 'userSetPw', 'userReset', 'userDelete', 'userPrograms'].includes(action)) return out(403, { error: 'Only the super user can change this.' });
     if (action === 'userCreate' && !MY.includes((body.user || {}).role)) return out(403, { error: MY === PMO_TEAM ? 'You can add program managers, project managers, contractors and project personnel.' : 'You can add contractors and project personnel. Only the super user makes project managers and directors.' });
@@ -274,7 +276,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       else {
         if (!['CEO', 'CFO', 'PMO Director', 'Program manager', 'Site administrator', 'Project manager', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
         if (ONE_ROLE.includes(role)) { const t = await ceoTaken(u.id, role); if (t) return out(400, { error: t }); }
-        const projAll = role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : ['Project manager', 'Program manager'].includes(role) ? false : body.projAll === true;
+        const projAll = ctx.scope ? false : role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : ['Project manager', 'Program manager'].includes(role) ? false : body.projAll === true;
         Object.assign(u, { upgraded: true, role, mods: cleanMods(ROLES[role], role), projAll, projects: projAll ? [] : await projectList(body.projects, project) });
       }
       u.ver = (u.ver || 0) + 1; u.updated = Date.now(); u.upgradedBy = ctx.who; await put(u);
@@ -288,8 +290,9 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       const bad = pwProblem(f.password); if (bad) return out(400, { error: bad });
       const role = (ctx.owner ? PICK_ROLES : MY).includes(f.role) && f.role !== 'Custom' ? f.role : 'Project personnel';
       if (ONE_ROLE.includes(role)) { const t = await ceoTaken('', role); if (t) return out(400, { error: t }); }
+      if (ctx.scope && !(await projectList(f.projects, project)).length) return out(400, { error: 'Tick at least one of your projects for this login.' });
       const n = await kv.update('user-seq', (x) => ({ n: ((x && x.n) || 0) + 1 }), () => ({ n: 0 }));
-      const u = { id: 'U-' + String(n.n).padStart(3, '0'), kind: 'email', personId: '', name, email, username: email, role, mods: cleanMods(ROLES[role], role), projects: [], projAll: role === 'Project personnel' || role === 'PMO Director' || role === 'CEO' || role === 'CFO',
+      const u = { id: 'U-' + String(n.n).padStart(3, '0'), kind: 'email', personId: '', name, email, username: email, role, mods: cleanMods(ROLES[role], role), projects: ctx.scope ? await projectList(f.projects, project) : [], projAll: !ctx.scope && (role === 'Project personnel' || role === 'PMO Director' || role === 'CEO' || role === 'CFO'),
         active: true, mustChange: f.mustChange === true, ver: 1, created: Date.now(), by: ctx.who, ...hashPw(f.password) };
       await put(u); await log(`Login made: ${email} (${name}), ${role}`);
       if (addPerson) { try { await addPerson(u); } catch (e) { console.error('People record for the new login failed:', e.message); } }
@@ -320,7 +323,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
         const role = PICK_ROLES.includes(f.role) ? f.role : old.role;
         const mods = cleanMods(role === 'Custom' ? f.mods : ROLES[role], role);
         if (ONE_ROLE.includes(role) && old.role !== role) { const t = await ceoTaken(old.id, role); if (t) return out(400, { error: t }); }
-        const projAll = role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : ['Project manager', 'Program manager'].includes(role) ? false : f.projAll === true;
+        const projAll = ctx.scope ? false : role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : ['Project manager', 'Program manager'].includes(role) ? false : f.projAll === true;
         const projects = projAll ? [] : await projectList(f.projects, project);
         const u = { ...old, kind: 'email', subId: '', name: str(f.name, 100) || old.name, role, mods, projAll, projects, active: f.active !== false, by: ctx.who, updated: Date.now() };
         if (old.active !== u.active || old.role !== u.role || JSON.stringify(old.mods) !== JSON.stringify(u.mods) || !!old.projAll !== projAll || JSON.stringify(old.projects || []) !== JSON.stringify(projects) || old.kind !== 'email') u.ver = (old.ver || 0) + 1;   // signs them out so it takes effect now
