@@ -285,4 +285,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 274 | 1.0.274| 2026-11-22 15:10| hero8| `eecc5ae` | Phone website hero: eight scenes across project types (ERP rollout, banking app, clean water, hospital fit-out, ESG strategy, solar mini-gri |
 | 275 | 1.0.275| 2026-11-22 15:22| tabs1row| `8d5ca8f` | Project menu: one line of coloured icon tiles grouped as Plan, Control, Money, Records (#136) |
 | 276 | 1.0.276| 2026-11-22 15:41| billvis| `9bd2f4d` | Billing: a project director sees billing on programs with no director yet (milestone bill on the Gantt was hidden) (#137) |
-| 277 | 1.0.277 | 2026-11-22 15:53 | pmodir | _this commit_ | _see git log_ |
+| 277 | 1.0.277| 2026-11-22 15:53| pmodir| `d5a6ea4` | PMO Director persona: one per company, the PMO view dashboard, menu and permissions (#138) |
+| 278 | 1.0.278 | 2026-11-22 15:56 | askclean | _this commit_ | _see git log_ |
