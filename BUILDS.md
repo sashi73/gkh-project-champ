@@ -279,4 +279,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 268 | 1.0.268| 2026-11-22 12:27| phonepolish2| `2bf6905` | Phone website polish: month axis and status dots on the plan, selected national programs strip, a quiet sign-off (#129) |
 | 269 | 1.0.269| 2026-11-22 12:29| ifcview| `ab844c7` | Documents: 🧊 3D on IFC models opens the free Sortdesk IFC Viewer and downloads the model to drop in (it stays on the computer) (#130) |
 | 270 | 1.0.270| 2026-11-22 13:07| msbill| `ed5629e` | Milestone billing on the Gantt (bill icon: yet to invoice, ready, invoiced, part paid, overdue, collected; hover detail; click to the billin |
-| 271 | 1.0.271 | 2026-11-22 13:23 | aimoney | _this commit_ | _see git log_ |
+| 271 | 1.0.271| 2026-11-22 13:23| aimoney| `5dcebb8` | No money for contractors and project personnel in Ask AI and documents: the AI gets no costs and is told not to discuss them; money document |
+| 272 | 1.0.272 | 2026-11-22 13:51 | paudit | _this commit_ | _see git log_ |

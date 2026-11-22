@@ -1608,7 +1608,7 @@
         (!seesMoney() ? '' : mini('Cost', money(R.AC) + ' of ' + money(R.BAC + (Number(p.bomLoose) || 0)), (R.ACest > 0 ? money(R.ACest) + ' estimated from progress' + (R.ACin > 0 ? ' + ' + money(R.ACin) + ' actual' : ' (enter $ Actual for real costs)') : R.AC > 0 ? 'actual costs' : 'nothing spent yet') + (R.CPI == null ? '' : ' · CPI ' + Number(R.CPI).toFixed(2) + ' · forecast ' + money(R.EAC + (Number(p.bomLoose) || 0))), evRag(R.CPI))) +
         mini('Risks & issues', pl((p.risks || []).filter(function (r) { return r.status !== 'Closed'; }).length, 'risk') + ' · ' + pl((p.issues || []).filter(function (x) { return x.status !== 'Resolved'; }).length, 'issue'), pl((p.risks || []).filter(function (r) { return r.status !== 'Closed' && r.p * r.i >= 12; }).length, 'high risk'), (p.risks || []).some(function (r) { return r.status !== 'Closed' && r.p * r.i >= 15; }) ? 'red' : (p.issues || []).some(function (x) { return x.status !== 'Resolved' && /High|Critical/.test(x.priority); }) ? 'amber' : 'green') +
       '</div>' +
-      '<div class="tabs" id="planTabs">' + tabs.map(function (t) { return '<a class="tab' + (S.tab === t[0] ? ' on' : '') + '" href="#plan/' + esc(S.core) + '/' + t[0] + '" style="text-decoration:none">' + t[1] + '</a>'; }).join('') + '</div><div id="planBody"></div>';
+      planTabsHtml(tabs) + '<div id="planBody"></div>';
     $('#planWide').onclick = function () { document.body.classList.toggle('plan-wide'); render(); };
     $('#planQuote').onclick = function () { location.hash = '#plan/' + S.core + '/budget'; };
     (function () { var l = (window.ChampI18n && window.ChampI18n.get()) || 'en', at = $('#planQuote'); if ((l === 'en' && !p.dataLang && !(S.trUndo && S.trUndo.core === S.core)) || !at || $('#planTrData')) return;
@@ -6823,6 +6823,44 @@
   document.addEventListener('mouseover', function (e) { var b = e.target.closest && e.target.closest('[data-gbill]'); var tip = document.getElementById('gbillTip'); if (b) msBillTip(b); else if (tip) tip.style.display = 'none'; });
   document.addEventListener('focusin', function (e) { var b = e.target.closest && e.target.closest('[data-gbill]'); if (b) msBillTip(b); });
   document.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('[data-gbill]'); if (!b) return; e.preventDefault(); e.stopPropagation(); var tip = document.getElementById('gbillTip'); if (tip) tip.style.display = 'none'; location.hash = '#finance/' + encodeURIComponent(S.core) + '/' + encodeURIComponent(b.getAttribute('data-gbill')); }, true);
+  /* ---------- 🔏 the project audit trail: every change (when, who, role, from where, what, before and after), sealed in a hash chain ---------- */
+  function auditCard(core) {
+    var el = $('#paCard'); if (!el) return;
+    var get = function (kind) { var b = el.querySelector('[data-pa="' + kind + '"]'); if (b) { b.disabled = true; b.textContent = 'Preparing…'; }
+      api(kind === 'pdf' ? 'planAuditPdf' : 'planAuditCsv', { core: core }).then(function (r) {
+        var bin = atob(r.file), u8 = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([u8], { type: r.type })); a.download = r.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+      }).catch(fail).then(function () { if (b) { b.disabled = false; b.textContent = kind === 'pdf' ? '⬇ PDF' : '⬇ CSV'; } }); };
+    api('planAuditGet', { core: core }).then(function (d) {
+      if (!$('#paCard') || S.core !== core) return;
+      var c = d.check || {}, ago = function (t) { return new Date(t).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); };
+      el.innerHTML = '<div class="au-h"><div><b>🔏 Project audit trail</b><small>Every change to this project: when, who, their role, from where, what changed (before and after). Sealed in a hash chain, so a changed or removed entry shows.</small></div>' +
+        '<div class="au-act"><span class="au-seal ' + (c.ok === false ? 'bad' : 'ok') + '">' + (c.ok === false ? '⚠ Chain broken at entry ' + c.at : '✓ ' + d.n + ' change' + (d.n === 1 ? '' : 's') + ' · intact') + '</span>' +
+        '<button class="btn btn-sm btn-gold" type="button" data-pa="pdf" title="The audit trail as a PDF report">⬇ PDF</button><button class="btn btn-sm" type="button" data-pa="csv" title="The audit trail as a spreadsheet (CSV) to sort and filter">⬇ CSV</button></div></div>' +
+        (d.recent && d.recent.length ? '<ul class="au-list">' + d.recent.slice(0, 4).map(function (e) { return '<li><span>' + esc(ago(e.at)) + '</span><b>' + esc(e.what) + '</b><em>' + esc(e.who) + (e.role ? ' · ' + esc(e.role) : '') + '</em>' + (e.lines && e.lines.length ? '<small>' + esc(e.lines.slice(0, 2).join(' · ')) + (e.lines.length > 2 ? ' …' : '') + '</small>' : '') + '</li>'; }).join('') + '</ul>' : '<p class="muted" style="margin:6px 0 0;font-size:12.5px">No changes recorded yet: from now on every change is kept here.</p>');
+      el.querySelectorAll('[data-pa]').forEach(function (b) { b.onclick = function () { get(b.getAttribute('data-pa')); }; });
+    }).catch(function () { if ($('#paCard')) $('#paCard').remove(); });
+  }
+  /* ---------- the project's menu: the tabs in four groups (Plan, Money, Control, Records), each with the same line icon style ---------- */
+  var TAB_ICO = {
+    overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    schedule: '<path d="M3 5h10M7 10h12M5 15h8M10 20h9"/>', critical: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>', board: '<rect x="3" y="4" width="5" height="16" rx="1.2"/><rect x="10" y="4" width="5" height="11" rx="1.2"/><rect x="17" y="4" width="4" height="7" rx="1.2"/>',
+    budget: '<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.6-3-1.6-1.8 0-3 .9-3 2.1 0 2.8 6 1.4 6 4.2 0 1.3-1.3 2.2-3 2.2-1.5 0-2.7-.7-3.1-1.8M12 6.5v11"/>',
+    bom: '<path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/>', contracts: '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4M10 12h6M10 16h4"/>',
+    stake: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/>', scope: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/>',
+    risks: '<path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.5"/>', issues: '<circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/>', change: '<path d="M4 9a8 8 0 0 1 14-3l2 2M20 15a8 8 0 0 1-14 3l-2-2"/><path d="M20 4v4h-4M4 20v-4h4"/>',
+    swms: '<path d="M12 3 4 6v6c0 4.5 3.3 8 8 9 4.7-1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>', docs: '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    comms: '<path d="M4 5h16v11H9l-5 4z"/>', reports: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', lessons: '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h12"/>',
+    intel: '<path d="M12 3l1.8 4.6L18 9l-4.2 1.4L12 15l-1.8-4.6L6 9l4.2-1.4z"/><path d="M18 15l.9 2.1L21 18l-2.1.9L18 21l-.9-2.1L15 18l2.1-.9z"/>' };
+  var TAB_GROUPS = [['Plan', ['overview', 'schedule', 'critical', 'board']], ['Money', ['budget', 'bom', 'contracts']], ['Control', ['scope', 'stake', 'risks', 'issues', 'change', 'swms']], ['Records', ['docs', 'comms', 'reports', 'lessons', 'intel']]];
+  function planTabsHtml(tabs) {
+    var by = {}; tabs.forEach(function (t) { by[t[0]] = t[1].replace(/^[^A-Za-z]+/, ''); });
+    var used = {}, grp = TAB_GROUPS.map(function (g) { var L = g[1].filter(function (k) { return by[k] != null; }); L.forEach(function (k) { used[k] = 1; }); return [g[0], L]; });
+    var rest = tabs.filter(function (t) { return !used[t[0]]; }).map(function (t) { return t[0]; }); if (rest.length) grp[grp.length - 1][1] = grp[grp.length - 1][1].concat(rest);
+    return '<nav class="tabs ptabs" id="planTabs" aria-label="Project sections">' + grp.filter(function (g) { return g[1].length; }).map(function (g) {
+      return '<div class="ptg" role="group" aria-label="' + esc(g[0]) + '"><span class="ptg-h">' + esc(g[0]) + '</span><div class="ptg-row">' + g[1].map(function (k) {
+        return '<a class="tab' + (S.tab === k ? ' on' : '') + '" href="#plan/' + esc(S.core) + '/' + k + '"' + (S.tab === k ? ' aria-current="page"' : '') + '><svg viewBox="0 0 24 24" aria-hidden="true">' + (TAB_ICO[k] || TAB_ICO.overview) + '</svg><span>' + esc(by[k]) + '</span></a>'; }).join('') + '</div></div>'; }).join('') + '</nav>';
+  }
   function piBim() { return piLoad('champ-bim.js?v=3', function () { return !!window.ChampBIM; }); }
   M.bim = piBim;
   function piExtract(f, onProg) {
@@ -6889,6 +6927,7 @@
         (ai && cur.length ? '<button class="btn btn-sm" id="dmRev" type="button" title="The AI checks all the documents against the plan: what is covered, missing, in conflict or out of date">🧠 Review all against the plan</button>' : '') + '</div>' +
         '<div class="dm-stat"><span>📄 <b>' + cur.length + '</b> document' + (cur.length === 1 ? '' : 's') + (d.docs.length > cur.length ? ' · ' + (d.docs.length - cur.length) + ' older version' + (d.docs.length - cur.length === 1 ? '' : 's') : '') + '</span><span>☁️ ' + fsize(d.r2bytes) + ' in R2</span><span>✓ ' + cur.filter(function (x) { return x.status === 'Approved'; }).length + ' approved</span><span>🧠 ' + cur.filter(function (x) { return x.analysed; }).length + ' analysed</span>' + (R ? '<button class="dm-link" id="dmRevOpen" type="button">Last review ' + esc(dmy(new Date(R.at).toISOString().slice(0, 10))) + ' ›</button>' : '') + '</div>' +
         '<div id="dmUp"></div><div id="dmHits"></div></div>' +
+      (seesMoney() ? '<div class="card au-card" id="paCard"><p class="muted" style="margin:0">🔏 Loading the audit trail…</p></div>' : '') +
       '<div class="dm-grid"><nav class="dm-folders"><button data-dmfo="all" class="' + (D.folder === 'all' ? 'on' : '') + '">🗂 All documents <b>' + cur.length + '</b></button>' +
         d.folders.map(function (f) { return '<button data-dmfo="' + f.key + '" class="' + (D.folder === f.key ? 'on' : '') + '" title="' + esc(f.hint) + '">' + esc(f.name) + ' <b>' + (count[f.key] || 0) + (f.key === 'changes' && recs.length ? ' + ' + recs.length : '') + '</b></button>'; }).join('') +
         '<label class="qchk" style="margin:10px 6px 0;font-size:12px"><input type="checkbox" id="dmOld"' + (D.old ? ' checked' : '') + '> Show older versions</label></nav>' +
@@ -6929,6 +6968,7 @@
       var vf = $('#dmVf'), go = $('#dmVgo'); vf.onchange = function () { $('#dmVfn').textContent = vf.files[0] ? ' · ' + vf.files[0].name : ''; go.disabled = !vf.files[0]; };
       go.onclick = function () { var f = vf.files[0], note = $('#dmVn').value, st = $('#dmVs') ? $('#dmVs').value : ''; M.closeModal(); dmUpload([f], x.id, { vnote: note, status: st }); }; }; });
     var fi = $('#dmFile'); if (fi) fi.onchange = function () { dmUpload([].slice.call(fi.files)); fi.value = ''; };
+    if ($('#paCard')) auditCard(core);
     var rv = $('#dmRev'); if (rv) rv.onclick = dmReview; var ro2 = $('#dmRevOpen'); if (ro2) ro2.onclick = function () { api('intelDmsReviewGet', { core: core }).then(function (r) { if (r.review) dmReviewShow(r.review); }).catch(fail); };
     var q = $('#dmQ'), tq; q.oninput = function () { clearTimeout(tq); D.q = q.value; tq = setTimeout(function () { dmSearch(q.value); }, 400); }; if (D.q) dmSearch(D.q);
     if (!ro) { var pb = B; pb.ondragover = function (e) { e.preventDefault(); pb.classList.add('dm-drop'); }; pb.ondragleave = function () { pb.classList.remove('dm-drop'); }; pb.ondrop = function (e) { e.preventDefault(); pb.classList.remove('dm-drop'); if (e.dataTransfer.files.length) dmUpload([].slice.call(e.dataTransfer.files)); }; }

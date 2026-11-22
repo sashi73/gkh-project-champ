@@ -1372,3 +1372,29 @@ td .cr-wait{display:block;font-size:10px;text-align:right}
 html.dark .gbill-tip,body.dark .gbill-tip{background:#1F1D19;color:#EDEAE3;box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08)}
 tr.ms-flash td{animation:msFlash 2.6s ease}
 @keyframes msFlash{0%,40%{background:rgba(232,192,74,.28)}100%{background:transparent}}
+/* 🔏 the project audit trail, at the top of Project documents */
+.au-card{padding:14px 16px;margin:12px 0}
+.au-h{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.au-h b{font-size:15px}.au-h small{display:block;margin-top:2px;color:var(--muted);font-size:12.5px;max-width:640px}
+.au-act{display:flex;align-items:center;gap:8px}
+.au-seal{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px}
+.au-seal.ok{color:#15803D;background:rgba(21,128,61,.1)}.au-seal.bad{color:#B42318;background:rgba(180,35,24,.1)}
+.au-list{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:2px}
+.au-list li{display:grid;grid-template-columns:120px 1fr auto;gap:2px 12px;padding:6px 0;border-top:1px solid var(--line, #EEE);font-size:12.5px}
+.au-list li span{color:var(--muted)}.au-list li em{font-style:normal;color:var(--muted);text-align:right}
+.au-list li small{grid-column:2/4;color:var(--muted);font-size:11.5px}
+/* the project's menu: four labelled groups, one line icon style, one height */
+#planTabs.ptabs{display:grid;grid-template-columns:max-content 1fr;align-items:start;gap:8px 0;margin:14px 0 14px;padding:10px 12px 8px;border-radius:14px;background:var(--card, #fff);border:1px solid var(--line, #E7E4DC)}
+.ptg{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ptg{padding-right:18px}.ptg:nth-child(even){padding-left:18px;border-left:1px solid var(--line, #E7E4DC)}
+.ptg-h{font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--muted);padding-left:4px}
+.ptg-row{display:flex;flex-wrap:wrap;gap:2px}
+#planTabs.ptabs .tab{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 11px;border:0;border-radius:9px;background:transparent;color:var(--ink, #1F2328);font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:none}
+#planTabs.ptabs .tab svg{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;opacity:.75}
+#planTabs.ptabs .tab:hover{background:rgba(0,0,0,.05)}
+#planTabs.ptabs .tab.on{background:#151515;color:#fff}
+#planTabs.ptabs .tab.on svg{opacity:1;stroke:#E8C04A}
+html.dark #planTabs.ptabs .tab:hover,body.dark #planTabs.ptabs .tab:hover{background:rgba(255,255,255,.07)}
+html.dark #planTabs.ptabs .tab.on,body.dark #planTabs.ptabs .tab.on{background:#E8C04A;color:#151515}
+html.dark #planTabs.ptabs .tab.on svg,body.dark #planTabs.ptabs .tab.on svg{stroke:#151515}
+@media (max-width:900px){#planTabs.ptabs{grid-template-columns:1fr}.ptg:nth-child(even){padding-left:0;border-left:0}.ptg-row{flex-wrap:nowrap;overflow-x:auto}}
