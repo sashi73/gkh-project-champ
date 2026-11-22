@@ -122,7 +122,7 @@
       '<select class="pa-lang" id="paLang" data-noi18n aria-label="Language">' + LANGS.map(function (l) { return '<option value="' + l[0] + '"' + (l[0] === cur() ? ' selected' : '') + '>' + esc(l[1]) + '</option>'; }).join('') + '</select>' +
       '<button type="button" class="pa-ib" id="paRe" aria-label="Refresh">⟳</button><button type="button" class="pa-ib pa-out" id="paOut">Sign out</button></header>' +
       '<div class="pa-sum"></div><main class="pa-feed"></main>' +
-      '<p class="pa-foot">Plans are updated on a computer: ticked notes and finished tasks leave this list.<br><span data-noi18n>📱 ' + esc(P.label) + '</span> · <a href="index.html?phone=0">Full console</a></p>';
+      '<p class="pa-foot">Plans are updated on a computer: ticked notes and finished tasks leave this list.<br><span data-noi18n>📱 ' + esc(P.label) + '</span></p>';
     document.body.appendChild(root);
     root.querySelector('#paRe').onclick = load;
     root.querySelector('#paOut').onclick = function () { api('logout').then(function () { location.href = '../login.html'; }).catch(function () { location.href = '../login.html'; }); };
