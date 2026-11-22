@@ -23,10 +23,12 @@ export const TYPES = ['Employee', 'Contractor'];
 // Construction (the Fixit register: trades, tickets, licences, permits, insurance, workers comp). Both keep credentials
 // (education, qualifications, certifications), a resume and the rate per hour they quote.
 export const GROUPS = ['Technical & general', 'Construction'];
-export const TECH_ROLES = ['PMO Director', 'Project manager', 'Project director', 'Contractor', 'Project personnel'];
+// 🔗 a person's Role is their login's role (Users & access): it follows them, and is set there. Their Job title is free text (e.g. Senior consultant)
+export const TECH_ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Finance personnel', 'Contractor', 'Project personnel'];
+const normRole = (r) => (r === 'Project director' ? 'PMO Director' : r);
 export const EMPLOYMENT = ['Full-time', 'Part-time', 'Casual', 'Apprentice', 'Trainee'];
 export const STATUS = ['Active', 'On leave', 'Inactive'];
-export const ROLES = ['PMO Director', 'Project director', 'Project manager', 'Site supervisor', 'Leading hand', 'Estimator', 'Tradesperson', 'Labourer', 'Apprentice', 'Designer', 'Engineer', 'Safety officer', 'Office / admin', 'Accounts', 'Sales', 'Other'];
+export const ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Site supervisor', 'Leading hand', 'Estimator', 'Tradesperson', 'Labourer', 'Apprentice', 'Designer', 'Engineer', 'Safety officer', 'Office / admin', 'Accounts', 'Sales', 'Other'];
 // tickets with an expiry (and whether the site needs it)
 export const TICKETS = [['whiteCard', 'White card (general construction induction)', true, false], ['licence', 'Trade licence', false, true], ['driver', 'Driver\'s licence', false, true], ['firstAid', 'First aid', false, true],
   ['heights', 'Working at heights', false, true], ['confined', 'Confined spaces', false, true], ['ewp', 'EWP (elevated work platform)', false, true], ['forklift', 'Forklift (LF)', false, true], ['asbestos', 'Asbestos awareness', false, true]];
@@ -67,7 +69,7 @@ function clean(f, old = {}) {
   const group = GROUPS.includes(f.group) ? f.group : GROUPS.includes(old.group) ? old.group : 'Technical & general', tech = group !== 'Construction';
   const type = tech ? (f.role === 'Contractor' ? 'Contractor' : 'Employee') : TYPES.includes(f.type) ? f.type : 'Employee';
   const tickets = {}; for (const [k] of TICKETS) { const v = tick((f.tickets || {})[k]); if (v.number || v.class || v.expiry || v.has) tickets[k] = v; }
-  return { ...old, type, name: str(f.name, 100), role: str(f.role, 60), trade: TR[f.trade] ? f.trade : '', skills: str(f.skills, 300),
+  return { ...old, type, name: str(f.name, 100), role: normRole(str(f.role, 60)), jobTitle: str(f.jobTitle, 80), trade: TR[f.trade] ? f.trade : '', skills: str(f.skills, 300),
     employment: type === 'Employee' ? (EMPLOYMENT.includes(f.employment) ? f.employment : 'Full-time') : '',
     business: type === 'Contractor' ? str(f.business, 120) : '', abn: type === 'Contractor' ? str(f.abn, 20).replace(/[^\d ]/g, '') : '', gst: type === 'Contractor' && !!f.gst,
     phone: str(f.phone, 40), email: str(f.email, 160).toLowerCase(), address: str(f.address, 200), suburb: str(f.suburb, 60),
@@ -79,15 +81,21 @@ function clean(f, old = {}) {
     workersComp: type === 'Contractor' && !tech ? { policy: str((f.workersComp || {}).policy, 40), expiry: ymd((f.workersComp || {}).expiry), soleTrader: !!(f.workersComp || {}).soleTrader } : {},
     rating: Math.max(0, Math.min(5, Math.round(Number(f.rating) || 0))), notes: str(f.notes, 2000), archived: !!f.archived };
 }
-const summary = (p) => ({ id: p.id, group: p.group || 'Construction', certN: (p.certs || []).length, certs: (p.certs || []).filter((c) => c.expiry).map((c) => ({ name: c.name, expiry: c.expiry })), permits: (p.permits || []).filter((c) => c.expiry).map((c) => ({ name: c.name, expiry: c.expiry })), eduN: (p.education || []).length, cv: !!(p.cv && p.cv.name), type: p.type, name: p.name, role: p.role, trade: p.trade, employment: p.employment, business: p.business, phone: p.phone, email: p.email, suburb: p.suburb,
+const summary = (p) => ({ id: p.id, group: p.group || 'Construction', certN: (p.certs || []).length, certs: (p.certs || []).filter((c) => c.expiry).map((c) => ({ name: c.name, expiry: c.expiry })), permits: (p.permits || []).filter((c) => c.expiry).map((c) => ({ name: c.name, expiry: c.expiry })), eduN: (p.education || []).length, cv: !!(p.cv && p.cv.name), type: p.type, name: p.name, role: normRole(p.role), jobTitle: p.jobTitle || '', trade: p.trade, employment: p.employment, business: p.business, phone: p.phone, email: p.email, suburb: p.suburb,
   status: p.status, costRate: p.costRate, chargeRate: p.chargeRate, hours: p.hours, rating: p.rating, archived: !!p.archived, archivedAt: p.archivedAt || 0, start: p.start, updated: p.updated || 0,
   tickets: Object.fromEntries(Object.entries(p.tickets || {}).map(([k, v]) => [k, { expiry: v.expiry, has: !!(v.number || v.has), class: v.class }])),
   insurance: { expiry: (p.insurance || {}).expiry || '' }, linkedin: p.linkedin || '', workersComp: { expiry: (p.workersComp || {}).expiry || '', soleTrader: !!(p.workersComp || {}).soleTrader } });
 
 async function index() { return (await kv.get('ppl-index')) || { people: {} }; }
-export async function get(id) { return /^P-\d{3,5}$/.test(id || '') ? kv.get('ppl:' + id) : null; }
+export async function get(id) { const p = /^P-\d{3,5}$/.test(id || '') ? await kv.get('ppl:' + id) : null; if (p) p.role = normRole(p.role); return p; }
+// 🔗 the login's role changed (Users & access): the person's Role follows
+export async function followRole(personId, email, role, by) {
+  const em = String(email || '').toLowerCase(), hit = personId ? await get(personId) : null, p = hit || (em ? (Object.values((await index()).people || {}).find((x) => !x.archived && (x.email || '').toLowerCase() === em)) : null);
+  const full = p && (hit || (await get(p.id))); if (!full || full.role === role) return null;
+  return save({ ...full, role }, by, { via: 'Users & access' });
+}
 // v90: what changed, in words, for the person's history
-const FIELDS = [['name', 'Name'], ['type', 'Type'], ['role', 'Role'], ['trade', 'Trade'], ['employment', 'Employment'], ['business', 'Trading name'], ['abn', 'ABN'], ['phone', 'Mobile'], ['email', 'Email'],
+const FIELDS = [['name', 'Name'], ['type', 'Type'], ['role', 'Role'], ['jobTitle', 'Job title'], ['trade', 'Trade'], ['employment', 'Employment'], ['business', 'Trading name'], ['abn', 'ABN'], ['phone', 'Mobile'], ['email', 'Email'],
   ['address', 'Address'], ['suburb', 'Suburb'], ['start', 'Started'], ['end', 'Finished'], ['status', 'Status'], ['hours', 'Hours a week'], ['availability', 'Availability'], ['costRate', 'Cost rate'], ['chargeRate', 'Charge-out rate'],
   ['rating', 'Rating'], ['skills', 'Skills'], ['notes', 'Notes']];
 function diff(a, b) {
@@ -203,7 +211,7 @@ async function bulk(body, by) {
 }
 // import: rows from a spreadsheet (one person per row). Matched by ID, then email, then exact name: those are updated
 // (only the columns given), the rest are added. dry = just say what would happen.
-const COLS = { id: 'id', 'person id': 'id', name: 'name', 'full name': 'name', type: 'type', role: 'role', trade: 'trade', employment: 'employment', 'trading name': 'business', business: 'business', abn: 'abn', gst: 'gst',
+const COLS = { id: 'id', 'person id': 'id', name: 'name', 'full name': 'name', type: 'type', role: 'role', 'job title': 'jobTitle', jobtitle: 'jobTitle', title: 'jobTitle', trade: 'trade', employment: 'employment', 'trading name': 'business', business: 'business', abn: 'abn', gst: 'gst',
   phone: 'phone', mobile: 'phone', email: 'email', address: 'address', suburb: 'suburb', started: 'start', start: 'start', status: 'status', 'hours a week': 'hours', hours: 'hours', availability: 'availability',
   'cost rate': 'costRate', 'cost rate ($/hr)': 'costRate', 'charge-out rate': 'chargeRate', 'charge rate': 'chargeRate', 'charge-out rate ($/hr)': 'chargeRate', rating: 'rating', skills: 'skills', notes: 'notes',
   'white card': 'tk.whiteCard.number', 'trade licence': 'tk.licence.number', 'trade licence expiry': 'tk.licence.expiry', 'driver licence': 'tk.driver.number', "driver's licence": 'tk.driver.number', 'driver licence expiry': 'tk.driver.expiry', "driver's licence expiry": 'tk.driver.expiry',
@@ -261,7 +269,7 @@ async function remove(body) {
 
 // ---------- v88: 10 sample people for trying things out (test site only). Made-up names, @example.com emails. ----------
 export const SAMPLE = [
-  { type: 'Employee', name: 'Olivia Bennett', role: 'Project director', employment: 'Full-time', phone: '0400 100 101', email: 'olivia.bennett@example.com', suburb: 'Bella Vista', costRate: 120, chargeRate: 190, hours: 38, rating: 5, startDays: -900, tickets: { whiteCard: { number: 'WC10101' }, driver: { class: 'C', expiryDays: 700 }, firstAid: { number: 'FA1', expiryDays: 200 } } },
+  { type: 'Employee', name: 'Olivia Bennett', role: 'PMO Director', jobTitle: 'Head of delivery', employment: 'Full-time', phone: '0400 100 101', email: 'olivia.bennett@example.com', suburb: 'Bella Vista', costRate: 120, chargeRate: 190, hours: 38, rating: 5, startDays: -900, tickets: { whiteCard: { number: 'WC10101' }, driver: { class: 'C', expiryDays: 700 }, firstAid: { number: 'FA1', expiryDays: 200 } } },
   { type: 'Employee', name: 'Jack Morrison', role: 'Project manager', employment: 'Full-time', phone: '0400 100 102', email: 'jack.morrison@example.com', suburb: 'Castle Hill', costRate: 95, chargeRate: 160, hours: 38, rating: 4, startDays: -600, tickets: { whiteCard: { number: 'WC10102' }, firstAid: { number: 'FA2', expiryDays: 20 } } },
   { type: 'Employee', name: 'Mei Chen', role: 'Site supervisor', employment: 'Full-time', phone: '0400 100 103', email: 'mei.chen@example.com', suburb: 'Kellyville', costRate: 78, chargeRate: 130, hours: 40, rating: 5, startDays: -400, tickets: { whiteCard: { number: 'WC10103' }, heights: { number: 'WAH3', expiryDays: 400 }, firstAid: { number: 'FA3', expiryDays: 300 } } },
   { type: 'Employee', name: 'Tom Walsh', role: 'Leading hand', trade: 'carpenter', employment: 'Full-time', phone: '0400 100 104', email: 'tom.walsh@example.com', suburb: 'Rouse Hill', costRate: 65, chargeRate: 110, hours: 40, rating: 4, startDays: -800, tickets: { whiteCard: { number: 'WC10104' }, licence: { number: 'CAR104', class: 'Carpentry', expiryDays: 300 }, ewp: { number: 'EWP4', expiryDays: 150 } } },
@@ -313,19 +321,19 @@ async function cvParse(text, hint) {
   if (t.replace(/\s/g, '').length < 80) return { error: 'There is hardly any text in this file (a scanned image?). Upload a PDF or Word file with real text.' };
   const sys = 'You read a resume (CV) and fill in a person record for a project-management console. Use ONLY what the resume says: never invent. Leave anything not in it empty. ' +
     'group: "Construction" for building / trades / site work (carpenter, electrician, plumber, site supervisor, foreman, builder ...), otherwise "Technical & general". ' +
-    'role: for Technical & general one of "Project manager","Project director","Contractor","Project personnel" (a freelancer / own business is Contractor; director / head of / VP of projects is Project director; a project or program manager is Project manager; otherwise Project personnel); for Construction their trade role (e.g. "Site supervisor", "Electrician"). ' +
+    'role: for Technical & general one of "PMO Director","Program manager","Project manager","Contractor","Project personnel" (a freelancer / own business is Contractor; director / head of / VP of projects or of a PMO is PMO Director; a program manager is Program manager; a project manager is Project manager; otherwise Project personnel); jobTitle: their current job title as written on the resume; for Construction their trade role (e.g. "Site supervisor", "Electrician"). ' +
     'trade (Construction only): one key of ' + TRADES.map((x) => x[0]).join(', ') + ' or "". type (Construction only): "Contractor" if they run their own business, else "Employee". ' +
     'education: degrees and diplomas (qual, inst, year). quals: other qualifications and training courses (name, year). certs: professional certifications with issuer, number and expiry (YYYY-MM-DD) when given (e.g. PMP, PRINCE2, AWS, Scrum, ITIL). ' +
     'permits (Construction): licences and permits with number, issuer, expiry. tickets (Construction): white card / working at heights / EWP / forklift / first aid / driver licence numbers and expiry when given, keys whiteCard, heights, ewp, forklift, firstAid, driver, licence. ' +
     'rate: an hourly rate if the resume states one (number), else 0. hours: hours a week if stated. availability: if stated. suburb: city or suburb of their address. business and abn only if they run a business. ' +
     'summary: 2-3 sentences on their experience for the project manager. Dates as YYYY-MM-DD; a year alone as "2019". ' +
-    'JSON only: {"name":"","email":"","phone":"","suburb":"","linkedin":"","group":"","role":"","type":"","trade":"","business":"","abn":"","rate":0,"hours":0,"availability":"","education":[],"quals":[],"certs":[],"permits":[],"tickets":{},"summary":""}';
+    'JSON only: {"name":"","email":"","phone":"","suburb":"","linkedin":"","group":"","role":"","jobTitle":"","type":"","trade":"","business":"","abn":"","rate":0,"hours":0,"availability":"","education":[],"quals":[],"certs":[],"permits":[],"tickets":{},"summary":""}';
   const r = await llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ file: str(hint, 120), resume: t }) }], { maxTokens: 2500 }).catch((e) => ({ error: e.message }));
   if (!r || r.error || !r.data) return { error: (r && r.error) || 'The AI could not read this resume. Please try again.' };
   const d = r.data, s = (v, n) => str(v, n), arr = (a) => (Array.isArray(a) ? a : []);
   const tk = {}; for (const [k, v] of Object.entries(d.tickets && typeof d.tickets === 'object' ? d.tickets : {})) if (/^(whiteCard|heights|ewp|forklift|firstAid|driver|licence|confined)$/.test(k) && v && typeof v === 'object') tk[k] = { number: s(v.number, 60), class: s(v.class, 30), expiry: ymd(v.expiry) };
   return { person: { name: s(d.name, 100), email: s(d.email, 160), phone: s(d.phone, 40), suburb: s(d.suburb, 80), linkedin: s(d.linkedin, 200), group: GROUPS.includes(d.group) ? d.group : 'Technical & general',
-    role: s(d.role, 60), type: d.type === 'Contractor' ? 'Contractor' : 'Employee', trade: TRADES.some((x) => x[0] === d.trade) ? d.trade : '', business: s(d.business, 120), abn: s(d.abn, 20).replace(/[^\d ]/g, ''),
+    role: s(d.role, 60), jobTitle: s(d.jobTitle, 80), type: d.type === 'Contractor' ? 'Contractor' : 'Employee', trade: TRADES.some((x) => x[0] === d.trade) ? d.trade : '', business: s(d.business, 120), abn: s(d.abn, 20).replace(/[^\d ]/g, ''),
     costRate: Math.max(0, Math.min(10000, Number(d.rate) || 0)) || '', hours: Math.max(0, Math.min(80, Number(d.hours) || 0)) || '', availability: s(d.availability, 120),
     education: listOf(d.education, 12, eduOf), quals: listOf(d.quals, 20, qualOf), certs: listOf(d.certs, 30, certOf), permits: listOf(d.permits, 30, permitOf), tickets: tk }, summary: s(d.summary, 600) };
 }

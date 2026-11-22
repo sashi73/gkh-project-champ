@@ -253,6 +253,7 @@ async function handle(req, context) {
       const g = ctx.pgm, low = g.names.map((n) => n.toLowerCase()), mine = (v) => g.ids.includes(String(v || '')) || low.includes(String(v || '').trim().toLowerCase());
       body.onlyProgs = g.names;
       const all = await PGM.list(), known = (v) => all.some((p) => p.id === String(v || '') || p.name.toLowerCase() === String(v || '').trim().toLowerCase());
+      if (g.kind === 'project' && ['planProgramSave', 'planProgramDelete'].includes(action)) return bad('Programs are looked after by program managers and PMO Directors.', 403);
       if (action === 'planProgramSave' && body.id && !mine(body.id)) return bad('That program is not one of yours.', 403);
       if (action === 'planProgramSave' && !body.id && !String(body.manager || '').trim()) body.manager = ctx.name;   // a program they make: they manage it
       if (action === 'planProgramDefaults' && known(body.name) && !mine(body.name)) return bad('That program is not one of yours.', 403);
@@ -260,7 +261,7 @@ async function handle(req, context) {
       if (action === 'planNewProject' && known(body.program) && !mine(body.program)) return bad('Choose one of your programs (or type a new program name).', 403);
       if (action === 'planDepSave' && !(ctx.scope.includes(String(body.from || '')) && ctx.scope.includes(String(body.to || '')))) return bad('Both projects must be in your programs.', 403);
       if (action === 'planDepDelete') { const ids = [].concat(body.ids || body.id || []).map(String), D = await PGM.deps(); if (D.some((d) => ids.includes(String(d.id)) && !(ctx.scope.includes(d.from) && ctx.scope.includes(d.to)))) return bad('That link is not between your projects.', 403); }
-      if (['planProgramSave', 'planProgramSet', 'planNewProject'].includes(action)) pgmBefore = new Set(all.map((p) => p.id));
+      if (g.kind === 'program' && ['planProgramSave', 'planProgramSet', 'planNewProject'].includes(action)) pgmBefore = new Set(all.map((p) => p.id));
     }
     if (action === 'userPassword') {
       const r = await U.userPost(action, body, { ctx, audit: A.audit, person: PPL.get, project: (c) => J.find(c).catch(() => null) });   // the projects a contractor or project personnel login is given
@@ -269,8 +270,11 @@ async function handle(req, context) {
       return out(200, { ok: true }, { 'Set-Cookie': A.sessionCookie(req, A.makeSession(j.name, Date.now(), { uid: j.uid, v: j.v, pc: session.pc })) });
     }
 
-    const res = await (async () => { switch (action) {
-      case 'me': return out(200, { build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, money: U.seesMoney(ctx), mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.pgm ? null : ctx.scope || null, pgm: ctx.pgm ? { programs: ctx.pgm.names, projects: ctx.pgm.cores.length } : null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
+    // 🔗 a person's Role is their login's role: saving People keeps it
+    const loginOf = (L, p) => p && L.find((u) => u.kind !== 'google' && u.kind !== 'subbie' && (u.personId === p.id || (p.email && String(u.email || u.username || '').toLowerCase() === String(p.email).toLowerCase())));
+    if (action === 'pplSave' && body.person) { const lu = loginOf(await U.list(), body.person); if (lu) body.person.role = lu.role; }
+    let res = await (async () => { switch (action) {
+      case 'me': return out(200, { build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, money: U.seesMoney(ctx), mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.pgm ? null : ctx.scope || null, pgm: ctx.pgm ? { kind: ctx.pgm.kind, programs: ctx.pgm.names, projects: ctx.pgm.cores.length } : null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
 
       // 📍 Location: search a place (countries and states offline, towns from OpenStreetMap), and its weekend and public holidays
       case 'planPlacesGet': return out(200, { places: await WCAL.places(clean(body.q, 60)) });
@@ -282,7 +286,7 @@ async function handle(req, context) {
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
       // 🔒 the Finance vault: Program → Project → Contracts / Billing / Invoices / Documents (netlify/lib/vault.mjs checks who may open and file)
       case 'vaultTree': case 'vaultSearch': case 'vaultList': case 'vaultUrl': case 'vaultAdd': case 'vaultFile': case 'vaultDelete': case 'vaultMoveIn': {
-        if (ctx.scope || ctx.kind === 'google' && !['CEO', 'CFO', 'PMO Director', 'Project manager', 'Project director'].includes(ctx.role)) return bad('The Finance vault is not open to this login.', 403);
+        if ((ctx.scope && !(ctx.pgm && ctx.pgm.kind === 'project')) || ctx.kind === 'google' && !['CEO', 'CFO', 'PMO Director', 'Project manager'].includes(ctx.role)) return bad('The Finance vault is not open to this login.', 403);
         const V = await import('../lib/vault.mjs'), core = String(body.core || '').slice(0, 40);
         const r = action === 'vaultTree' ? await V.tree(ctx) : action === 'vaultSearch' ? await V.search(ctx, body) : action === 'vaultList' ? await V.list(ctx, core) : action === 'vaultUrl' ? await V.uploadUrl(ctx, body) : action === 'vaultAdd' ? await V.add(ctx, body, by)
           : action === 'vaultFile' ? await V.file(ctx, core, String(body.id || '').slice(0, 24)) : action === 'vaultDelete' ? await V.remove(ctx, core, String(body.id || '').slice(0, 24)) : await V.moveIn(ctx, by);
@@ -296,17 +300,17 @@ async function handle(req, context) {
       // 💵 milestone billing and the Finance screen (the CFO's; accounts access: view to look, edit to raise and record)
       case 'acctFinanceGet': { const B = await import('../lib/billing.mjs'), cores = await B.billCores(ctx); if (cores && !cores.size) return bad('Finance is for the CEO, the CFO, program directors and project managers on their own projects.', 403); return out(200, await B.finance(new Date().toISOString().slice(0, 10), cores)); }
       case 'acctBillGet': { const B = await import('../lib/billing.mjs'), core = String(body.core || '').slice(0, 40), canVo = await B.canDecideVO(ctx, core); if (!(await B.canSee(ctx, core))) return bad('Only the CEO, the CFO, the program director and this project\'s manager can see its billing.', 403); const r = await B.billFor(core, new Date().toISOString().slice(0, 10)); return r.error ? bad(r.error, r.code || 400) : out(200, { ...r, canDecideVO: canVo, canRaiseVO: !ctx.scope }); }
-      case 'acctVoRaise': { const B = await import('../lib/billing.mjs'), core = String(body.core || '').slice(0, 40); if (ctx.scope || !(await B.canSee(ctx, core))) return bad('Only the CEO, the CFO, the program director or the project manager can raise a variation order.', 403); const r = await B.raiseVO(core, body, ctx, new Date().toISOString().slice(0, 10)); return r.error ? bad(r.error, r.code) : out(200, r); }
+      case 'acctVoRaise': { const B = await import('../lib/billing.mjs'), core = String(body.core || '').slice(0, 40); if ((ctx.scope && !(ctx.pgm && ctx.pgm.kind === 'project')) || !(await B.canSee(ctx, core))) return bad('Only the CEO, the CFO, the program director or the project manager can raise a variation order.', 403); const r = await B.raiseVO(core, body, ctx, new Date().toISOString().slice(0, 10)); return r.error ? bad(r.error, r.code) : out(200, r); }
       case 'acctVoDecide': { const B = await import('../lib/billing.mjs'), core = String(body.core || '').slice(0, 40); if (!(await B.canSee(ctx, core))) return bad('Finance is for the CEO, the CFO, the program director and the project manager.', 403); const r = await B.decideVO(core, String(body.id || ''), body.outcome, body.note, ctx); return r.error ? bad(r.error, r.code) : out(200, r); }
       case 'acctBillAlerts': { const B = await import('../lib/billing.mjs'); return out(200, await B.alerts(ctx, new Date().toISOString().slice(0, 10))); }
       case 'acctBillSave': { if (ctx.scope || !(ctx.owner || ctx.role === 'CFO')) return bad('Finance is for the CFO and the CEO.', 403); const B = await import('../lib/billing.mjs'); const r = await B.saveBill(String(body.core || '').slice(0, 40), body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Billing set for ${body.core}: contract ${r.bill.contract}, ${Object.keys(r.bill.ms).length} milestone(s)`); return out(200, r); }
       case 'acctBillRaise': { if (ctx.scope || !(ctx.owner || ctx.role === 'CFO')) return bad('Finance is for the CFO and the CEO.', 403); const B = await import('../lib/billing.mjs'); const r = await B.raise(String(body.core || '').slice(0, 40), String(body.tid || '').slice(0, 24), by, new Date().toISOString().slice(0, 10)); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `${r.id} raised for a milestone on ${body.core}`); return out(200, r); }
       case 'planCeoBriefPdfGet': {   // 📄 Champ's briefing as a PDF note
-        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
+        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO, the CFO and PMO Directors.', 403);
         const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
       }
       case 'planPgmGet': {   // 🗺 the Program view: a Program manager's programs (the PMO view, cut to their projects, without money)
-        if (!ctx.pgm) return bad('The Program view is for program managers.', 403);
+        if (!ctx.pgm || ctx.pgm.kind !== 'program') return bad('The Program view is for program managers.', 403);
         const PMO = await import('../lib/pmo.mjs'); return out(200, await PMO.pmoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10), { pgm: ctx.pgm }));
       }
       case 'planPmoGet': {   // 🧭 the PMO view: the PMO Director, the CEO and the super user
@@ -314,7 +318,7 @@ async function handle(req, context) {
         const PMO = await import('../lib/pmo.mjs'); return out(200, await PMO.pmoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10)));
       }
       case 'planCeoGet': {   // 👔 the CEO view: the CEO, the super user, project directors and managers
-        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
+        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO, the CFO and PMO Directors.', 403);
         const CEO = await import('../lib/ceo.mjs'), last = await kv.get('ceo-brief').catch(() => null); return out(200, { ...(await CEO.ceoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10))), brief: last || null });
       }
       case 'planSeenGet': return out(200, await seenGet(ctx, String(body.core || '')));
@@ -495,7 +499,7 @@ async function handle(req, context) {
         return out(200, { ok: true });
       }
       case 'planProjectDelete': {
-        if (ctx.scope) return bad('Sub-contractor logins cannot delete projects.', 403);
+        if (ctx.scope && !(ctx.pgm && ctx.pgm.kind === 'project' && ctx.scope.includes(String(body.core || '')))) return bad('This login cannot delete projects.', 403);   // 📁 a Project manager: their own projects (the first-week rule still applies)
         if (!ctx.owner && !(ctx.mods && ctx.mods.projects === 'edit')) return bad('You need edit access to Projects to delete one.', 403);
         const pcore = clean(body.core, 40), job = await J.find(pcore);
         if (!job) return out(404, { error: 'Project not found' });
@@ -714,13 +718,23 @@ async function handle(req, context) {
         return a || bad('Unknown action');
       }
     } })();
+    if (res && res.status === 200 && /^(planSave|planNewProject|planProgram|planDelete|planArchive|planRestore|userSave|userCreate|userPrograms)/.test(action)) U.pgmFlush();   // who reaches which project may have changed
+    if (res && res.status === 200 && ['pplList', 'pplGet'].includes(action)) {   // 🔗 each person shows their login and its role
+      const L = await U.list(), j = await res.clone().json();
+      const tag = (p) => { const u = loginOf(L, p); return u ? { ...p, role: u.role, login: { id: u.id, role: u.role, active: u.active !== false, username: u.username } } : p; };
+      res = out(200, action === 'pplList' ? { ...j, people: (j.people || []).map(tag) } : { ...j, person: tag(j.person) });
+    }
+    if (res && res.status === 200 && ['userCreate', 'userSave'].includes(action)) {   // the login's role changed: the person's Role follows
+      const j = await res.clone().json().catch(() => ({})); if (j.user && j.user.role) await PPL.followRole(j.user.personId, j.user.email || j.user.username, j.user.role, by).catch(() => null);
+    }
     if (ctx.pgm && res && res.status === 200) {
       // a program they just made is theirs from now on
       if (pgmBefore) { for (const p of await PGM.list()) if (!pgmBefore.has(p.id)) await U.addProgram(ctx.uid, p.id); U.pgmFlush(); }
+      if (ctx.pgm.kind === 'project' && action === 'planNewProject') { const j0 = await res.clone().json().catch(() => ({})); if (j0.core) await U.addProject(ctx.uid, j0.core); }   // 📁 a project a Project manager makes is theirs
       // 👥 people: only those on their projects (from the plans), and no rates or pay
       if (['pplList', 'pplGet', 'pplAssign'].includes(action)) {
         const as = await PPL.assignments(), inMine = (id) => ((as[id] || {}).list || []).some((x) => ctx.scope.includes(x.core));
-        const clean = (p) => Object.fromEntries(Object.entries(p || {}).filter(([k]) => !/rate|pay|salary|cost|bank|tfn|super|abn/i.test(k)));
+        const clean = (p) => Object.fromEntries(Object.entries(p || {}).filter(([k]) => !(ctx.pgm.kind === 'project' ? /pay|salary|bank|tfn|super|abn/i : /rate|pay|salary|cost|bank|tfn|super|abn/i).test(k)));
         const trimA = (a) => a ? { ...a, list: (a.list || []).filter((x) => ctx.scope.includes(x.core)) } : a;
         const j = await res.clone().json();
         if (action === 'pplList') return out(200, { ...j, people: (j.people || []).filter((p) => inMine(p.id)).map(clean), scoped: true });

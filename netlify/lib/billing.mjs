@@ -175,11 +175,12 @@ const sameP = (a, b) => { const x = nrm(a), y = nrm(b); if (!x || !y) return fal
 export const allFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO' || ctx.role === 'Finance personnel' || ctx.role === 'PMO Director');   // 🧭 the PMO Director: every project's billing, read-only (saving and raising stay with the CFO)
 export async function billCores(ctx) {   // null = every project
   if (allFinance(ctx)) return null;
-  if (!ctx || ctx.scope) return new Set();
+  if (!ctx) return new Set();
+  if (ctx.pgm) return ctx.pgm.kind === 'project' && ctx.role === 'Project manager' ? new Set(ctx.scope) : new Set();   // 📁 a Project manager: the billing of their own projects; 🗺 a Program manager: no money
+  if (ctx.scope) return new Set();
   const PG = await import('./programs.mjs'), [plans, jobs, progs] = await Promise.all([P.list(), J.all(), PG.list()]), jb = Object.fromEntries(jobs.map((j) => [j.core, j]));
-  // 💵 a project director sees the programs they direct, and any program (or project outside a program) with no director yet: nobody else is accountable for its billing
-  const pd = ctx.role === 'Project director', mine = new Set(progs.filter((g) => (ctx.uid && g.director === ctx.uid) || (pd && !g.director)).map((g) => g.name)), out = new Set();
-  if (pd) { const named = new Set(progs.map((g) => g.name)); for (const p of plans) { const j = jb[p.core] || {}; if (!j.program || !named.has(j.program)) out.add(p.core); } }
+  // 💵 the director named on a program sees its billing; a project manager, the projects they manage
+  const mine = new Set(progs.filter((g) => ctx.uid && g.director === ctx.uid).map((g) => g.name)), out = new Set();
   for (const p of plans) { const j = jb[p.core] || {}, mgr = (p.charter || {}).manager || j.manager || '';
     if (mine.has(j.program || '') || (ctx.name && sameP(mgr, ctx.name))) out.add(p.core); }
   return out;

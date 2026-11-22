@@ -50,7 +50,6 @@ export const ROLES = {
   // 🗺 the Program manager: runs one or more programs (given to them in People or Users & access) and sees only those programs, their projects and the people on them.
   //    Makes programs and projects; Ask AI over their own projects; no money, no customers, no logins
   'Program manager': { ...all('none'), projects: 'edit', people: 'view', data: 'view' },
-  'Project director': { ...all('edit'), crm: 'none', accounts: 'none' },
   'Project manager': { ...all('edit'), crm: 'none', accounts: 'none' },
   Contractor: { ...all('none'), projects: 'edit' },
   'Project personnel': { ...all('none'), projects: 'edit' },   // 🔒 no Reports & data: it holds the costs
@@ -62,11 +61,14 @@ export const ROLES = {
   'Sub-contractor': { ...all('none'), projects: 'edit' },   // v91: a subbie: only their own project(s), nothing else
   Custom: null };
 export const ROLE_KEYS = Object.keys(ROLES);
-export const PICK_ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Finance personnel', 'Site administrator', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
+export const PICK_ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Finance personnel', 'Site administrator', 'Project manager', 'Contractor', 'Project personnel', 'Custom'];
 export const TEAM_ROLES = ['Contractor', 'Project personnel'];
-export const PMO_TEAM = ['Program manager', 'Project director', 'Project manager', 'Contractor', 'Project personnel'];   // 🧭 the PMO Director makes and looks after these logins (the people who report in)
-const ONE_ROLE = ['CEO', 'CFO', 'PMO Director'];   // one each per company   // what a project director or manager may make and look after   // the project manager is the super user   // what the super user picks from
-const ALL_PROJECTS = (u) => u.role === 'PMO Director' || u.role === 'Site administrator' || u.role === 'Finance personnel' || u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.role === 'CFO' || u.projAll === true;
+export const PMO_TEAM = ['Program manager', 'Project manager', 'Contractor', 'Project personnel'];   // 🧭 the PMO Director makes and looks after these logins (the people who report in)
+const ONE_ROLE = ['CEO', 'CFO'];   // one each per company (there can be several PMO Directors)   // what a project director or manager may make and look after   // the project manager is the super user   // what the super user picks from
+// 📁 every project: the CEO, the CFO, PMO Directors, finance and site administrators. A Project manager sees only the projects given to them (and those they are named manager of)
+const ALL_PROJECTS = (u) => u.role === 'PMO Director' || u.role === 'Site administrator' || u.role === 'Finance personnel' || u.role === 'CEO' || u.role === 'CFO' || (u.projAll === true && !['Project manager', 'Program manager'].includes(u.role));
+// 🔁 Project director is now PMO Director (several allowed): older logins are read as PMO Director
+export const normRole = (r) => (r === 'Project director' ? 'PMO Director' : r);
 // 👔 a company has one CEO: giving the role to someone else is refused until the current CEO has another role
 async function ceoTaken(exceptId, role = 'CEO') { const c = (await list()).find((x) => x.role === role && x.id !== exceptId && x.active !== false); return c ? (c.name || c.username) + ' is already the ' + role + '. A company has one ' + role + ': give ' + (c.name || c.username) + ' another role first.' : ''; }   // the CEO and the CFO: one each
 export const OWNER_MODS = all('edit');
@@ -113,8 +115,8 @@ export function allows(ctx, action) {
 // the AI background jobs: Ask AI questions need view, everything else (plans, costs, charter ...) edit
 // 💰 who sees money (costs, rates, budget, BOM prices, invoices): the super user, the CEO, the CFO, finance personnel, project directors and managers.
 //    Contractors, project personnel, the site administrator and view-only sign-ins see the work, not the money.
-export const MONEY_ROLES = ['CEO', 'CFO', 'PMO Director', 'Finance personnel', 'Project director', 'Project manager', 'Administrator', 'Accounts'];
-export function seesMoney(ctx) { return !!ctx && !ctx.scope && (!!ctx.owner || MONEY_ROLES.includes(ctx.role)); }
+export const MONEY_ROLES = ['CEO', 'CFO', 'PMO Director', 'Finance personnel', 'Project manager', 'Administrator', 'Accounts'];
+export function seesMoney(ctx) { return !!ctx && (!ctx.scope || !!(ctx.pgm && ctx.pgm.kind === 'project')) && (!!ctx.owner || MONEY_ROLES.includes(ctx.role)); }   // a Project manager keeps money on their own projects
 export function allowsBg(ctx, mode) {
   if (!ctx) return false; if (ctx.owner) return true;
   const lv = LV[(ctx.mods || {}).projects] || 0;
@@ -164,11 +166,13 @@ const SCOPE_FREE = new Set(['me', 'planMyDayGet', 'planPlacesGet', 'planHolidays
 // 🗺 a Program manager, beyond the project pages: their programs and links, new programs and projects, the people on their projects, and Ask AI over their own data
 //    (each of these is filtered or checked in admin.mjs: programs and projects to theirs, people to those on their projects, no money)
 const PGM_OK = new Set(['planProgramList', 'planProgramSave', 'planProgramDefaults', 'planProgramSet', 'planProgramMove', 'planDepSave', 'planDepDelete', 'planNewProject', 'planPipelineList', 'planPgmGet', 'pplList', 'pplGet', 'pplAssign',
-  'sqlData', 'sqlAsk', 'sqlAnswer', 'sqlNarrative', 'sqlPdf', 'sqlUsage', 'aiPing', 'docStage', 'planDocStage']);
+  'sqlData', 'sqlAsk', 'sqlAnswer', 'sqlNarrative', 'sqlPdf', 'sqlUsage', 'aiPing', 'docStage', 'planDocStage',
+  // 📁 a Project manager: their contractors' and personnel's logins (their projects only), Finance and the vault for their projects (the server decides per project)
+  'userList', 'userCreate', 'userSave', 'userSetPw', 'userReset', 'userDelete', 'acctBillAlerts', 'acctFinanceGet', 'acctBillGet', 'acctVoRaise', 'vaultSearch', 'vaultUrl', 'vaultAdd', 'vaultFile', 'vaultDelete', 'vaultMoveIn']);
 const SCOPE_DENY = new Set(['planDelete', 'planJobs', 'planQuote', 'planQuoteInfo', 'quoteStart', 'docToInvoice', 'docForJob', 'pipelineBoard', 'planBomTplSave', 'planBomTplDelete', 'pplList', 'pplAssign', 'subList', 'custFor', 'job']);
 export function scopeCheck(ctx, action, body) {
   if (!ctx || !ctx.scope) return { ok: true };
-  const a = String(action || ''), no = { ok: false, error: ctx.pgm ? 'This login can only work on the programs it was given.' : 'This login can only work on the projects it was given.' };
+  const a = String(action || ''), no = { ok: false, error: ctx.pgm && ctx.pgm.kind === 'program' ? 'This login can only work on the programs it was given.' : 'This login can only work on the projects it was given.' };
   if (ctx.pgm && PGM_OK.has(a)) { const core = body && (body.core || (body.plan && body.plan.core)); return !core || ctx.scope.includes(String(core)) ? { ok: true } : no; }
   if (SCOPE_DENY.has(a)) return no;
   const core = body && (body.core || (body.plan && body.plan.core));
@@ -180,18 +184,28 @@ let PGC = { at: 0, progs: null, jobs: null };
 export async function pgmScope(ids) {
   if (!PGC.progs || Date.now() - PGC.at > 8000) { const PG = await import('./programs.mjs'), J = await import('./jobs.mjs'); const [progs, jobs] = await Promise.all([PG.list(), J.all()]); PGC = { at: Date.now(), progs, jobs }; }
   const want = new Set(Array.isArray(ids) ? ids : []), mine = PGC.progs.filter((p) => want.has(p.id)), names = mine.map((p) => p.name), low = new Set(names.map((n) => n.toLowerCase()));
-  return { ids: mine.map((p) => p.id), names, cores: PGC.jobs.filter((j) => low.has(String(j.program || '').toLowerCase())).map((j) => j.core) };
+  return { kind: 'program', ids: mine.map((p) => p.id), names, cores: PGC.jobs.filter((j) => low.has(String(j.program || '').toLowerCase())).map((j) => j.core) };
 }
-export const pgmFlush = () => { PGC.at = 0; };
+// 📁 a Project manager's reach: the projects given to them, plus any project naming them as its manager; their programs are those projects' programs (to read)
+const nrm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
+export async function pmScope(u) {
+  await pgmScope([]);
+  if (!PGC.mgr || Date.now() - (PGC.mgrAt || 0) > 8000) { const P = await import('./plan.mjs'); const plans = await P.list().catch(() => []); PGC.mgr = Object.fromEntries(plans.map((p) => [p.core, (p.charter || {}).manager || ''])); PGC.mgrAt = Date.now(); }
+  const given = new Set(u.projects || []), me = nrm(u.name), cores = PGC.jobs.filter((j) => given.has(j.core) || (me && (nrm(j.manager) === me || nrm(PGC.mgr[j.core]) === me))).map((j) => j.core);
+  const progLow = new Set(PGC.jobs.filter((j) => cores.includes(j.core)).map((j) => String(j.program || '').toLowerCase())), mine = PGC.progs.filter((p) => progLow.has(p.name.toLowerCase()));
+  return { kind: 'project', ids: mine.map((p) => p.id), names: mine.map((p) => p.name), cores };
+}
+export async function addProject(uid, core) { const u = await get(uid); if (!u || !core) return; u.projects = [...new Set([...(u.projects || []), core])]; await put(u); pgmFlush(); }
+export const pgmFlush = () => { PGC.at = 0; PGC.mgrAt = 0; };
 export async function addProgram(uid, pid) { const u = await get(uid); if (!u || !pid) return; u.programs = [...new Set([...(u.programs || []), pid])]; await put(u); pgmFlush(); }
 async function index() { return (await kv.get('user-index')) || { users: {} }; }
-export async function list() { const i = await index(); return Object.values(i.users || {}).sort((a, b) => (a.name.toLowerCase() > b.name.toLowerCase() ? 1 : -1)); }
-export async function get(id) { return /^U-\d{3,5}$/.test(id || '') ? kv.get('user:' + id) : null; }
+export async function list() { const i = await index(); return Object.values(i.users || {}).map((u) => ({ ...u, role: normRole(u.role) })).sort((a, b) => (a.name.toLowerCase() > b.name.toLowerCase() ? 1 : -1)); }
+export async function get(id) { const u = /^U-\d{3,5}$/.test(id || '') ? await kv.get('user:' + id) : null; if (u) u.role = normRole(u.role); return u; }
 async function put(u) { await kv.set('user:' + u.id, u); await kv.update('user-index', (x) => { x.users = x.users || {}; x.users[u.id] = summary(u); return x; }, () => ({ users: {} })); return u; }
 
 // the signed-in user's access (or null when the login no longer works: disabled, password reset, removed from People)
 // 🔒 money is the CFO's: project managers and directors no longer see quotes, invoices or payments, whatever an older login says
-const finLock = (c) => (c && ['Project manager', 'Project director'].includes(c.role) && c.mods ? { ...c, mods: { ...c.mods, accounts: 'none' } } : c);
+const finLock = (c) => (c && ['Project manager'].includes(c.role) && c.mods ? { ...c, mods: { ...c.mods, accounts: 'none' } } : c);
 export async function context(session, ownerName, personOk) { return finLock(await context0(session, ownerName, personOk)); }
 async function context0(session, ownerName, personOk) {
   if (!session) return null;
@@ -205,6 +219,7 @@ async function context0(session, ownerName, personOk) {
     if (!session.pc || !(u.projects || []).includes(session.pc)) return null;
     return { owner: false, who: u.username, uid: u.id, role: 'Sub-contractor', mods: subMods((u.mods || {}).projects), name: u.name, mustChange: !!u.mustChange, personId: '', subId: u.subId, kind: 'subbie', scope: [session.pc] };
   }
+  if (u.kind === 'email' && u.role === 'Project manager') { const g = await pmScope(u); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: '', kind: 'email', scope: g.cores, pgm: g }; }
   if (u.kind === 'email' && u.role === 'Program manager') { const g = await pgmScope(u.programs); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: '', kind: 'email', scope: g.cores, pgm: g }; }
   if (u.kind === 'email') return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: '', kind: 'email', scope: ALL_PROJECTS(u) ? null : (u.projects || []).slice() };
   return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: !!u.mustChange, personId: u.personId };
@@ -230,18 +245,20 @@ const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 async function projectList(arr, project) { const projects = []; for (const c of (Array.isArray(arr) ? arr : []).slice(0, 60)) { const pj = project ? await project(str(c, 30)) : null; if (pj && !projects.includes(pj.core)) projects.push(pj.core); } return projects; }
 export async function userPost(action, body, { ctx, audit, person, sub, project, addPerson }) {
   const log = (t) => (audit ? audit(ctx.who, t) : null);
+  // 📁 a Project manager gives contractors and project personnel only their own projects, and sees only those logins
+  if (ctx.scope) { const okP = new Set(ctx.scope), p0 = project; project = async (c) => (okP.has(String(c)) && p0 ? p0(c) : null); }
   // the super user makes any login, sets roles and upgrades people; a project director or manager with Users & access (edit) makes and looks after
   // contractor and project personnel logins only (never their own, another manager's, a Google sign-in's, and never a role above those)
-  const team = !ctx.owner && (ctx.mods || {}).users === 'edit' && ['Project manager', 'Project director', 'PMO Director'].includes(ctx.role), MY = ctx.role === 'PMO Director' ? PMO_TEAM : TEAM_ROLES;
+  const team = !ctx.owner && (ctx.mods || {}).users === 'edit' && ['Project manager', 'PMO Director'].includes(ctx.role), MY = ctx.role === 'PMO Director' ? PMO_TEAM : TEAM_ROLES;
   const teamOk = async (id) => { const u = await get(str(id, 10)); return u && u.id !== ctx.uid && u.kind === 'email' && MY.includes(u.role) ? u : null; };
   if (!['userList', 'userPassword'].includes(action) && !ctx.owner) {
     if (!team || !['userCreate', 'userSave', 'userSetPw', 'userReset', 'userDelete', 'userPrograms'].includes(action)) return out(403, { error: 'Only the super user can change this.' });
-    if (action === 'userCreate' && !MY.includes((body.user || {}).role)) return out(403, { error: MY === PMO_TEAM ? 'You can add project directors, project managers, contractors and project personnel.' : 'You can add contractors and project personnel. Only the super user makes project managers and directors.' });
-    if (action !== 'userCreate' && !(await teamOk(action === 'userSave' ? (body.user || {}).id : body.id))) return out(403, { error: MY === PMO_TEAM ? 'You can look after the logins of the project directors, managers, contractors and project personnel only.' : 'You can look after the contractor and project personnel logins only. Ask the super user.' });
+    if (action === 'userCreate' && !MY.includes((body.user || {}).role)) return out(403, { error: MY === PMO_TEAM ? 'You can add program managers, project managers, contractors and project personnel.' : 'You can add contractors and project personnel. Only the super user makes project managers and directors.' });
+    if (action !== 'userCreate' && !(await teamOk(action === 'userSave' ? (body.user || {}).id : body.id))) return out(403, { error: MY === PMO_TEAM ? 'You can look after the logins of the program managers, project managers, contractors and project personnel only.' : 'You can look after the contractor and project personnel logins only. Ask the super user.' });
     if (action === 'userSave' && !MY.includes((body.user || {}).role)) return out(403, { error: 'Only the super user can upgrade someone to project manager or director.' });
   }
   switch (action) {
-    case 'userList': return out(200, { users: await list(), mods: MODS.map((m) => ({ key: m[0], name: m[1], about: m[2] })), roles: ROLE_KEYS.map((r) => ({ name: r, mods: ROLES[r] })), pick: ctx.owner ? PICK_ROLES : team ? MY : [], levels: LEVELS, super: ctx.owner ? ctx.who : '', superName: process.env.OWNER_NAME || 'Sashi Sivam', team });
+    case 'userList': return out(200, { users: ctx.scope ? (await list()).filter((u) => u.id === ctx.uid || (TEAM_ROLES.includes(u.role) && (u.projects || []).some((c) => ctx.scope.includes(c)))) : await list(), mods: MODS.map((m) => ({ key: m[0], name: m[1], about: m[2] })), roles: ROLE_KEYS.map((r) => ({ name: r, mods: ROLES[r] })), pick: ctx.owner ? PICK_ROLES : team ? MY : [], levels: LEVELS, super: ctx.owner ? ctx.who : '', superName: process.env.OWNER_NAME || 'Sashi Sivam', team });
     case 'userPrograms': {   // 🗺 the programs a Program manager runs (from People or Users & access): they see those programs and nothing else
       const u = await get(str(body.id, 10)); if (!u || u.role !== 'Program manager') return out(404, { error: 'That login is not a Program manager.' });
       const PG = await import('./programs.mjs'), known = new Set((await PG.list()).map((p) => p.id));
@@ -255,9 +272,9 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       const role = str(body.role, 40);
       if (role === 'view') { Object.assign(u, { upgraded: false, role: 'Read only', mods: { ...GOOGLE_MODS }, projAll: false, projects: [] }); }
       else {
-        if (!['CEO', 'CFO', 'PMO Director', 'Site administrator', 'Project manager', 'Project director', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
+        if (!['CEO', 'CFO', 'PMO Director', 'Program manager', 'Site administrator', 'Project manager', 'Contractor', 'Project personnel'].includes(role)) return out(400, { error: 'Pick a role' });
         if (ONE_ROLE.includes(role)) { const t = await ceoTaken(u.id, role); if (t) return out(400, { error: t }); }
-        const projAll = role === 'Project manager' || role === 'Project director' || role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : body.projAll === true;
+        const projAll = role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : ['Project manager', 'Program manager'].includes(role) ? false : body.projAll === true;
         Object.assign(u, { upgraded: true, role, mods: cleanMods(ROLES[role], role), projAll, projects: projAll ? [] : await projectList(body.projects, project) });
       }
       u.ver = (u.ver || 0) + 1; u.updated = Date.now(); u.upgradedBy = ctx.who; await put(u);
@@ -272,7 +289,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       const role = (ctx.owner ? PICK_ROLES : MY).includes(f.role) && f.role !== 'Custom' ? f.role : 'Project personnel';
       if (ONE_ROLE.includes(role)) { const t = await ceoTaken('', role); if (t) return out(400, { error: t }); }
       const n = await kv.update('user-seq', (x) => ({ n: ((x && x.n) || 0) + 1 }), () => ({ n: 0 }));
-      const u = { id: 'U-' + String(n.n).padStart(3, '0'), kind: 'email', personId: '', name, email, username: email, role, mods: cleanMods(ROLES[role], role), projects: [], projAll: role === 'Project personnel' || role === 'Project manager' || role === 'Project director' || role === 'PMO Director' || role === 'CEO' || role === 'CFO',
+      const u = { id: 'U-' + String(n.n).padStart(3, '0'), kind: 'email', personId: '', name, email, username: email, role, mods: cleanMods(ROLES[role], role), projects: [], projAll: role === 'Project personnel' || role === 'PMO Director' || role === 'CEO' || role === 'CFO',
         active: true, mustChange: f.mustChange === true, ver: 1, created: Date.now(), by: ctx.who, ...hashPw(f.password) };
       await put(u); await log(`Login made: ${email} (${name}), ${role}`);
       if (addPerson) { try { await addPerson(u); } catch (e) { console.error('People record for the new login failed:', e.message); } }
@@ -303,7 +320,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
         const role = PICK_ROLES.includes(f.role) ? f.role : old.role;
         const mods = cleanMods(role === 'Custom' ? f.mods : ROLES[role], role);
         if (ONE_ROLE.includes(role) && old.role !== role) { const t = await ceoTaken(old.id, role); if (t) return out(400, { error: t }); }
-        const projAll = role === 'Project manager' || role === 'Project director' || role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : f.projAll === true;
+        const projAll = role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : ['Project manager', 'Program manager'].includes(role) ? false : f.projAll === true;
         const projects = projAll ? [] : await projectList(f.projects, project);
         const u = { ...old, kind: 'email', subId: '', name: str(f.name, 100) || old.name, role, mods, projAll, projects, active: f.active !== false, by: ctx.who, updated: Date.now() };
         if (old.active !== u.active || old.role !== u.role || JSON.stringify(old.mods) !== JSON.stringify(u.mods) || !!old.projAll !== projAll || JSON.stringify(old.projects || []) !== JSON.stringify(projects) || old.kind !== 'email') u.ver = (old.ver || 0) + 1;   // signs them out so it takes effect now

@@ -79,7 +79,7 @@
     var vEl = document.querySelector('.side-foot .ver, .ver'); if (vEl && me && me.build) { vEl.textContent = 'PC ' + me.build.label; vEl.title = 'Build ' + me.build.build + (me.build.commit ? ' · commit ' + me.build.commit : '') + ' (Admin > Builds)'; }
     Array.prototype.forEach.call(document.querySelectorAll('[data-nav]'), function (a) { var mod = NAVMOD[a.getAttribute('data-nav')]; a.hidden = (!!mod && !allowed(mod, 'view')) || (a.hasAttribute('data-owner') && !me.owner); });   // the super user's own pages (activity log, builds, knowledge base)
     Array.prototype.forEach.call(document.querySelectorAll('.side-nav .side-h'), function (h) { var n = h.nextElementSibling, any = false; while (n && !n.classList.contains('side-h')) { if (n.matches('[data-nav]') && !n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; });
-    var ceoOk = !!(me.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].indexOf(me.role) >= 0) && !me.scope;   // 👔 the CEO view: the CEO, the super user, directors and managers
+    var ceoOk = !!(me.owner || ['CEO', 'CFO', 'PMO Director'].indexOf(me.role) >= 0) && !me.scope;   // 👔 the CEO view: the CEO, the super user, directors and managers
     Array.prototype.forEach.call(document.querySelectorAll('[data-ceo]'), function (a) { a.hidden = !ceoOk; });
     var pmoOk = !!(me.owner || me.role === 'CEO' || me.role === 'PMO Director') && !me.scope;   // 🧭 the PMO view: the PMO Director (their home), the CEO and the super user
     Array.prototype.forEach.call(document.querySelectorAll('[data-pmo]'), function (a) { a.hidden = !pmoOk; });
@@ -88,7 +88,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('[data-fin]'), function (a) { a.hidden = !finOk; });
     if (!me.scope && window.MBS && MBS.finBadge) setTimeout(function () { MBS.finBadge(true); }, 1500);   // 💵 Finance also shows for program directors and project managers with billing to see, with its red count
     Array.prototype.forEach.call(document.querySelectorAll('[data-archive]'), function (a) { a.hidden = !(!me.scope && (me.owner || me.role === 'CEO' || me.role === 'PMO Director' || me.role === 'Site administrator')); });   // 🗄 the project archive
-    Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['PMO Director', 'Project manager', 'Project director'].indexOf(me.role) >= 0 && !me.scope)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['PMO Director', 'Project manager'].indexOf(me.role) >= 0 && !me.scope)); });
     document.body.classList.toggle('is-ceo', me.role === 'CEO' || me.role === 'CFO');   // read-only on plans: no New project
     $('#who').textContent = me.name || me.user; $('#who').title = (me.owner ? 'Super user' : me.role) + ' · click to change your password';
     var r = $('#whoRole'); if (r) r.textContent = me.owner ? '⭐ Super user' : me.role;

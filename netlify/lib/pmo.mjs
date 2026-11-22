@@ -1,5 +1,5 @@
 // 🧭 The PMO view (Persona: the PMO Director, third in charge after the CEO and the CFO).
-//   The PMO Director runs delivery: every program and project, and the project directors, managers, consultants and contractors report in.
+//   The PMO Director runs delivery: every program and project, and the program and project managers, consultants and contractors report in.
 //   Where the CEO view asks "are we making money?", this one asks "is delivery under control, and what needs me today?":
 //     1. Needs a decision: change requests and variation orders waiting, oldest first
 //     2. Programs: health, schedule and cost index, risks and issues, and who directs each one
@@ -83,7 +83,7 @@ export async function pmoView(day, opt = {}) {
   const logins = {}; for (const u of users) if (u.active !== false) logins[u.role] = (logins[u.role] || 0) + 1;
   const team = { pms: Object.values(pms).sort((a, b) => b.red * 10 + b.amber - (a.red * 10 + a.amber) || b.projects - a.projects),
     consultants: people.filter((p) => p.type !== 'Contractor'), contractors: people.filter((p) => p.type === 'Contractor'),
-    logins: { directors: logins['Project director'] || 0, managers: logins['Project manager'] || 0, contractors: logins.Contractor || 0, personnel: logins['Project personnel'] || 0 },
+    logins: { directors: (logins['PMO Director'] || 0) + (logins['Project director'] || 0), programs: logins['Program manager'] || 0, managers: logins['Project manager'] || 0, contractors: logins.Contractor || 0, personnel: logins['Project personnel'] || 0 },
     over: people.filter((p) => p.load === 'over').length, lateWork: people.filter((p) => p.late > 0).length, free: people.filter((p) => p.load === 'free').length, compIssues: people.filter((p) => p.comp > 0).length };
 
   const A = G ? { n: live.length, red: live.filter((r) => r.health === 'red').length, amber: live.filter((r) => r.health === 'amber').length, green: live.filter((r) => r.health === 'green').length, grey: live.filter((r) => r.health === 'grey').length,

@@ -54,7 +54,7 @@ async function run(req) {
       return ok();
     }
     if (body.mode === 'ceoBrief') {   // 🎙 Champ's CEO briefing: the CEO, the CFO, the super user, directors and managers
-      if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project director', 'Project manager'].includes(ctx.role))) { await kv.set('aiplan:' + id, { status: 'error', error: 'The briefing is for the CEO.', at: Date.now() }); return ok(); }
+      if ((ctx.scope && !(ctx.pgm && ctx.pgm.kind === 'project')) || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project manager'].includes(ctx.role))) { await kv.set('aiplan:' + id, { status: 'error', error: 'The briefing is for the CEO.', at: Date.now() }); return ok(); }
       const CEO = await import('../lib/ceo.mjs'), { sydToday } = await import('../lib/ai.mjs');
       const r = await CEO.brief(sydToday(), ctx.name || session.u).catch((e) => ({ error: e.message }));
       await kv.set('aiplan:' + id, { brief: r.brief || null, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
@@ -67,7 +67,7 @@ async function run(req) {
       return ok();
     }
     if (body.mode === 'ceoAsk') {   // 🧭 Ask Champ on the CEO view: the strategy adviser
-      if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project director', 'Project manager'].includes(ctx.role))) { await kv.set('aiplan:' + id, { status: 'error', error: 'The strategy adviser is for the CEO.', at: Date.now() }); return ok(); }
+      if ((ctx.scope && !(ctx.pgm && ctx.pgm.kind === 'project')) || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project manager'].includes(ctx.role))) { await kv.set('aiplan:' + id, { status: 'error', error: 'The strategy adviser is for the CEO.', at: Date.now() }); return ok(); }
       const CEO = await import('../lib/ceo.mjs'), { sydToday } = await import('../lib/ai.mjs');
       const r = await CEO.ask(sydToday(), String(body.q || '').slice(0, 600), body.history).catch((e) => ({ error: e.message }));
       await kv.set('aiplan:' + id, { answer: r.answer || null, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
