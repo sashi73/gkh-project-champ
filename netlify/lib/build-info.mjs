@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 280,
+  "build": 281,
   "commit": "",
-  "branch": "askface",
+  "branch": "feathero",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 16:06",
+  "builtAt": "2026-11-23 01:21",
   "site": ""
 };

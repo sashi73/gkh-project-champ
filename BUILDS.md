@@ -288,4 +288,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 277 | 1.0.277| 2026-11-22 15:53| pmodir| `d5a6ea4` | PMO Director persona: one per company, the PMO view dashboard, menu and permissions (#138) |
 | 278 | 1.0.278| 2026-11-22 15:56| askclean| `8bee8a3` | Ask AI: one menu entry (Reports & data removed), tables list only on Wizard and SQL editor, Sashi's photo by the title (#139) |
 | 279 | 1.0.279| 2026-11-22 16:03| askname| `6d15d95` | Menu: Ask AI is now Ask AI & reports (#140) |
-| 280 | 1.0.280 | 2026-11-22 16:06 | askface | _this commit_ | _see git log_ |
+| 280 | 1.0.280| 2026-11-22 16:06| askface| `6c81a1a` | Ask AI & reports: Sashi's portrait (cream studio) beside the title (#141) |
+| 281 | 1.0.281 | 2026-11-23 01:21 | feathero | _this commit_ | _see git log_ |
