@@ -267,7 +267,7 @@ async function handle(req, context) {
       case 'planMyDayGet': return out(200, await myDay(ctx, body));
       // 🔒 the Finance vault: Program → Project → Contracts / Billing / Invoices / Documents (netlify/lib/vault.mjs checks who may open and file)
       case 'vaultTree': case 'vaultSearch': case 'vaultList': case 'vaultUrl': case 'vaultAdd': case 'vaultFile': case 'vaultDelete': case 'vaultMoveIn': {
-        if (ctx.scope || ctx.kind === 'google' && !['CEO', 'CFO', 'Project manager', 'Project director'].includes(ctx.role)) return bad('The Finance vault is not open to this login.', 403);
+        if (ctx.scope || ctx.kind === 'google' && !['CEO', 'CFO', 'PMO Director', 'Project manager', 'Project director'].includes(ctx.role)) return bad('The Finance vault is not open to this login.', 403);
         const V = await import('../lib/vault.mjs'), core = String(body.core || '').slice(0, 40);
         const r = action === 'vaultTree' ? await V.tree(ctx) : action === 'vaultSearch' ? await V.search(ctx, body) : action === 'vaultList' ? await V.list(ctx, core) : action === 'vaultUrl' ? await V.uploadUrl(ctx, body) : action === 'vaultAdd' ? await V.add(ctx, body, by)
           : action === 'vaultFile' ? await V.file(ctx, core, String(body.id || '').slice(0, 24)) : action === 'vaultDelete' ? await V.remove(ctx, core, String(body.id || '').slice(0, 24)) : await V.moveIn(ctx, by);
@@ -287,11 +287,15 @@ async function handle(req, context) {
       case 'acctBillSave': { if (ctx.scope || !(ctx.owner || ctx.role === 'CFO')) return bad('Finance is for the CFO and the CEO.', 403); const B = await import('../lib/billing.mjs'); const r = await B.saveBill(String(body.core || '').slice(0, 40), body, by); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `Billing set for ${body.core}: contract ${r.bill.contract}, ${Object.keys(r.bill.ms).length} milestone(s)`); return out(200, r); }
       case 'acctBillRaise': { if (ctx.scope || !(ctx.owner || ctx.role === 'CFO')) return bad('Finance is for the CFO and the CEO.', 403); const B = await import('../lib/billing.mjs'); const r = await B.raise(String(body.core || '').slice(0, 40), String(body.tid || '').slice(0, 24), by, new Date().toISOString().slice(0, 10)); if (r.error) return bad(r.error, r.code || 400); await A.audit(who, `${r.id} raised for a milestone on ${body.core}`); return out(200, r); }
       case 'planCeoBriefPdfGet': {   // 📄 Champ's briefing as a PDF note
-        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
+        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
         const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
       }
+      case 'planPmoGet': {   // 🧭 the PMO view: the PMO Director, the CEO and the super user
+        if (ctx.scope || !(ctx.owner || ['CEO', 'PMO Director'].includes(ctx.role))) return bad('The PMO view is for the PMO Director and the CEO.', 403);
+        const PMO = await import('../lib/pmo.mjs'); return out(200, await PMO.pmoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10)));
+      }
       case 'planCeoGet': {   // 👔 the CEO view: the CEO, the super user, project directors and managers
-        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
+        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO and project directors.', 403);
         const CEO = await import('../lib/ceo.mjs'), last = await kv.get('ceo-brief').catch(() => null); return out(200, { ...(await CEO.ceoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10))), brief: last || null });
       }
       case 'planSeenGet': return out(200, await seenGet(ctx, String(body.core || '')));
@@ -435,7 +439,7 @@ async function handle(req, context) {
       // ---------- GKH Project Champ: delete a project completely (plan, record, phase pin, BOM setting) ----------
       // 🗄 the project archive: a project is taken out of every list (signed), kept whole, and can be brought back
       case 'planArchiveList': case 'planProjectArchive': case 'planProjectRestore': {
-        const canArch = !ctx.scope && (ctx.owner || ['CEO', 'Site administrator'].includes(ctx.role));
+        const canArch = !ctx.scope && (ctx.owner || ['CEO', 'PMO Director', 'Site administrator'].includes(ctx.role));
         if (!canArch) return bad('Only the super user, the CEO and the site administrator can use the project archive.', 403);
         if (action === 'planArchiveList') {
           // 🧾 the audit register: every archive and bring-back ever signed, also for projects since brought back

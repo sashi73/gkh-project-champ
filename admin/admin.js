@@ -68,9 +68,9 @@
   function showLogin() { if (window.ChampPhone && window.ChampPhone.is) { location.replace('../login.html'); return; }   // 📱 phones sign in on the phone login page
     $('#app').hidden = true; $('#login').hidden = false; setTimeout(function () { var u = $('#loginForm [name=username]'); if (u) u.focus(); }, 50); }
   // v86: Users & access: what the signed-in person can use. The menu shows only the modules they have; a page they can't use says so.
-  var NAVMOD = { ceo: 'projects', finance: 'projects', vault: 'projects', enquiries: 'crm', dashboard: 'crm', jobs: 'crm', customers: 'crm', new: 'crm', reminders: 'crm', wonderbird: 'crm', projects: 'projects', projnew: 'projects', programs: 'projects', deps: 'projects', psummary: 'projects', pboard: 'projects', builds: 'users', visitors: 'crm', quotes: 'accounts', invoices: 'accounts', expenses: 'accounts', accounts: 'accounts',
+  var NAVMOD = { pmo: 'projects', ceo: 'projects', finance: 'projects', vault: 'projects', enquiries: 'crm', dashboard: 'crm', jobs: 'crm', customers: 'crm', new: 'crm', reminders: 'crm', wonderbird: 'crm', projects: 'projects', projnew: 'projects', programs: 'projects', deps: 'projects', psummary: 'projects', pboard: 'projects', builds: 'users', visitors: 'crm', quotes: 'accounts', invoices: 'accounts', expenses: 'accounts', accounts: 'accounts',
     inventory: 'stock', suppliers: 'stock', subs: 'subbies', subscomp: 'subbies', people: 'people', peoplecomp: 'people', peoplework: 'people', peoplecal: 'people', payroll: 'people', leave: 'people', ask: 'data', sql: 'data', data: 'data', activity: 'data', analytics: 'data', users: 'users' };
-  var VIEWMOD = { ceo: 'projects', finance: 'projects', vault: 'projects', programs: 'projects', deps: 'projects', enquiries: 'crm', visitors: 'crm', dashboard: 'crm', jobs: 'crm', job: 'crm', new: 'crm', reminders: 'crm', wonderbird: 'crm', reports: 'crm', customers: 'crm', customer: 'crm', projects: 'projects', portfolio: 'projects', plan: 'projects', swms: 'projects',
+  var VIEWMOD = { pmo: 'projects', ceo: 'projects', finance: 'projects', vault: 'projects', programs: 'projects', deps: 'projects', enquiries: 'crm', visitors: 'crm', dashboard: 'crm', jobs: 'crm', job: 'crm', new: 'crm', reminders: 'crm', wonderbird: 'crm', reports: 'crm', customers: 'crm', customer: 'crm', projects: 'projects', portfolio: 'projects', plan: 'projects', swms: 'projects',
     quotes: 'accounts', invoices: 'accounts', doc: 'accounts', expenses: 'accounts', accounts: 'accounts', inventory: 'stock', subs: 'subbies', people: 'people', payroll: 'people', leave: 'people', myleave: null, me: null, help: null, sql: 'data', data: 'data', activity: 'data', analytics: 'data', users: 'users' };
   var LVN = { none: 0, view: 1, edit: 2 };
   function allowed(mod, lv, alt) { var me = window.MBS && window.MBS.me; if (!me || me.owner) return true; var m = me.mods || {}; if (LVN[m[mod]] >= LVN[lv || 'view']) return true; if (me.scope) return false; return (alt || []).some(function (k) { return LVN[m[k]] >= 1; }); }   // v91: a sub-contractor: no support reads
@@ -81,18 +81,20 @@
     Array.prototype.forEach.call(document.querySelectorAll('.side-nav .side-h'), function (h) { var n = h.nextElementSibling, any = false; while (n && !n.classList.contains('side-h')) { if (n.matches('[data-nav]') && !n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; });
     var ceoOk = !!(me.owner || ['CEO', 'CFO', 'Project director', 'Project manager'].indexOf(me.role) >= 0) && !me.scope;   // 👔 the CEO view: the CEO, the super user, directors and managers
     Array.prototype.forEach.call(document.querySelectorAll('[data-ceo]'), function (a) { a.hidden = !ceoOk; });
+    var pmoOk = !!(me.owner || me.role === 'CEO' || me.role === 'PMO Director') && !me.scope;   // 🧭 the PMO view: the PMO Director (their home), the CEO and the super user
+    Array.prototype.forEach.call(document.querySelectorAll('[data-pmo]'), function (a) { a.hidden = !pmoOk; });
     var finOk = !!(me.owner || me.role === 'CEO' || me.role === 'CFO') && !me.scope;   // 💵 Finance: the CEO, the CFO and the super user; 🔒 the vault: they, program directors and project managers (to file)
     Array.prototype.forEach.call(document.querySelectorAll('[data-fin]'), function (a) { a.hidden = !finOk; });
     if (!me.scope && window.MBS && MBS.finBadge) setTimeout(function () { MBS.finBadge(true); }, 1500);   // 💵 Finance also shows for program directors and project managers with billing to see, with its red count
-    Array.prototype.forEach.call(document.querySelectorAll('[data-archive]'), function (a) { a.hidden = !(!me.scope && (me.owner || me.role === 'CEO' || me.role === 'Site administrator')); });   // 🗄 the project archive
-    Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['Project manager', 'Project director'].indexOf(me.role) >= 0 && !me.scope)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-archive]'), function (a) { a.hidden = !(!me.scope && (me.owner || me.role === 'CEO' || me.role === 'PMO Director' || me.role === 'Site administrator')); });   // 🗄 the project archive
+    Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['PMO Director', 'Project manager', 'Project director'].indexOf(me.role) >= 0 && !me.scope)); });
     document.body.classList.toggle('is-ceo', me.role === 'CEO' || me.role === 'CFO');   // read-only on plans: no New project
     $('#who').textContent = me.name || me.user; $('#who').title = (me.owner ? 'Super user' : me.role) + ' · click to change your password';
     var r = $('#whoRole'); if (r) r.textContent = me.owner ? '⭐ Super user' : me.role;
     document.body.classList.toggle('is-owner', !!me.owner);
     document.body.classList.toggle('is-subbie', !!me.scope);   // v91: a sub-contractor signed in to their project
   }
-  function firstPage() { var me0 = window.MBS && window.MBS.me; if (me0 && me0.scope) return 'portfolio'; if (me0 && me0.role === 'CEO') return 'ceo'; if (me0 && me0.role === 'CFO') return 'finance';   // 💵 the CFO starts on Finance   // 👔 the CEO starts on the CEO view   // a contractor or project personnel: their projects only
+  function firstPage() { var me0 = window.MBS && window.MBS.me; if (me0 && me0.scope) return 'portfolio'; if (me0 && me0.role === 'CEO') return 'ceo'; if (me0 && me0.role === 'PMO Director') return 'pmo'; if (me0 && me0.role === 'CFO') return 'finance';   // 💵 the CFO starts on Finance   // 👔 the CEO starts on the CEO view   // a contractor or project personnel: their projects only
     var order = [['programs', 'projects'], ['dashboard', 'crm'], ['quotes', 'accounts'], ['subs', 'subbies'], ['people', 'people'], ['sql/ask', 'data'], ['users', 'users']];
     for (var i = 0; i < order.length; i++) if (allowed(order[i][1], 'view')) return order[i][0]; return 'portfolio'; }
   // 🎯 Today: the start screen, once each time you sign in (a reload in the same tab does not bring it back)
@@ -109,6 +111,7 @@
       var vmod = VIEWMOD[(location.hash.slice(1) || 'programs').split('/')[0]];   // v108: null = any signed-in user (My leave)
       if (vmod !== null && !allowed(vmod || 'crm', 'view')) { var fp = firstPage(); if (location.hash.slice(1) !== fp) { location.hash = '#' + fp; todayShow(); return; } }
       if (me.role === 'CEO' || me.role === 'CFO') { var land = me.role === 'CEO' ? 'ceo' : 'finance', h0 = location.hash.slice(1); if (!h0 || h0 === 'programs' || h0 === 'portfolio') { location.hash = '#' + land; return; } route(); return; }   // 👔 the CEO lands on the CEO view, 💵 the CFO on Finance (no task list)   // 👔 the CEO lands on the CEO view (no task list)
+      if (me.role === 'PMO Director') { var h1 = location.hash.slice(1); if (!h1 || h1 === 'programs' || h1 === 'portfolio') { location.hash = '#pmo'; todayShow(); return; } }   // 🧭 the PMO Director lands on the PMO view (with their Today)
       route(); todayShow();
     }).catch(function () { showLogin(); });
   }

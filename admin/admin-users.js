@@ -16,6 +16,7 @@
   var KIND = {
     CFO: { ic: '💵', cls: 'ceo', about: 'One per company. Runs billing: contract values, milestone invoices and payments received, across every project (read-only on plans). Starts on the Finance screen.' },
     CEO: { ic: '👔', cls: 'ceo', about: 'One per company. Sees every project and the money (health, budget, spend, revenue, profit), read-only, and starts on the CEO view. No people\'s personal detail and no admin screens.' },
+    'PMO Director': { ic: '🏛', cls: 'ceo', about: 'One per company, third in charge after the CEO and the CFO. Runs delivery across every program and project: the project directors, managers, consultants and contractors report in. Starts on the PMO view. Projects, People, sub-contractors, Ask AI & reports and Users & access (adds and looks after directors, managers, contractors and project personnel); billing read-only; no customers.' },
     'Project manager': { ic: '🧭', cls: 'pm', about: 'Runs projects: every project, People, Ask AI & reports, and Users & access (adds contractors and project personnel). No customers, activity log or builds.' },
     'Project director': { ic: '🎯', cls: 'pm', about: 'Runs projects: every project, People, Ask AI & reports, and Users & access (adds contractors and project personnel). No customers, activity log or builds.' },
     Contractor: { ic: '🛠', cls: 'ct', about: 'Limited: Projects only, and only the projects you tick.' },
@@ -24,8 +25,8 @@
   var LVI = { none: 'No access', view: '👁 View', edit: '✎ Edit' };
   var isSuper = function () { return !!(M.me || {}).owner; };
   var isTeam = function () { return !!(S.data && S.data.team); };   // a project manager or director: adds and looks after contractors and project personnel
-  var canTouch = function (u) { return isSuper() || (isTeam() && u.kind === 'email' && (u.role === 'Contractor' || u.role === 'Project personnel') && u.id !== (M.me || {}).uid); };
-  var pickRoles = function () { return isSuper() ? ['CEO', 'CFO', 'Project manager', 'Project director', 'Contractor', 'Project personnel'] : ['Contractor', 'Project personnel']; };
+  var canTouch = function (u) { return isSuper() || (isTeam() && u.kind === 'email' && (S.data.pick || ['Contractor', 'Project personnel']).indexOf(u.role) >= 0 && u.id !== (M.me || {}).uid); };
+  var pickRoles = function () { return isSuper() ? ['CEO', 'CFO', 'PMO Director', 'Project manager', 'Project director', 'Contractor', 'Project personnel'] : ((S.data && S.data.pick) || ['Contractor', 'Project personnel']); };
   var when = function (t) { return t ? new Date(t).toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Never'; };
   var roleMods = function (r) { var x = (S.data.roles || []).filter(function (y) { return y.name === r; })[0]; return Object.assign({}, x && x.mods); };
   var lv = function (v) { return '<span class="us-lv ' + (v || 'none') + '" title="' + esc(LVI[v || 'none']) + '">' + (v === 'edit' ? '✎' : v === 'view' ? '👁' : '–') + '</span>'; };
@@ -35,7 +36,7 @@
   function page() { return load().then(draw); }
   function projText(u) {
     if (u.kind === 'google' && !u.upgraded) return 'All (view only)';
-    if (u.role === 'CEO' || u.role === 'CFO' || u.role === 'Project manager' || u.role === 'Project director' || u.projAll || u.kind === 'person') return 'All projects';
+    if (u.role === 'CEO' || u.role === 'CFO' || u.role === 'PMO Director' || u.role === 'Project manager' || u.role === 'Project director' || u.projAll || u.kind === 'person') return 'All projects';
     var L = (u.projects || []).map(function (c) { var p = S.plans.filter(function (x) { return x.core === c; })[0]; return p ? p.name : c; });
     return L.length ? L.slice(0, 3).join(', ') + (L.length > 3 ? ' +' + (L.length - 3) : '') : '<span class="bad">None yet</span>';
   }
@@ -50,7 +51,7 @@
     var count = function (r) { return U.filter(function (u) { return u.kind === 'google' && !u.upgraded ? r === 'g' : u.role === r; }).length; };
     V().innerHTML = '<div class="row us-head"><div><h2 style="margin:0">🔐 Users &amp; access</h2><p class="muted" style="margin:2px 0 0;font-size:13px">' + (isSuper() ? 'You are the <b>super user</b>: you make each login with the person\'s email and a password you choose, set what they can use, and upgrade people (⬆).' : isTeam() ? 'You can add <b>contractors</b> and <b>project personnel</b> and look after their logins. Only the super user makes project managers and directors, and upgrades people.' : 'Who can sign in and what each person can use. Only the super user can change it.') + '</p></div><span class="sp"></span>' +
         (isSuper() || isTeam() ? '<button class="btn btn-gold" id="usNew" type="button">＋ New user</button>' : '<span class="us-role us-r-pm">View only</span>') + '</div>' +
-      '<div class="us-kpis">' + [['⭐', 'Super user', 1], ['👔', 'CEO', count('CEO')], ['💵', 'CFO', count('CFO')], ['🧭', 'Project managers', count('Project manager')], ['🎯', 'Project directors', count('Project director')], ['🛠', 'Contractors', count('Contractor')], ['👥', 'Project personnel', count('Project personnel')], ['G', 'Google (view only)', count('g')]].map(function (k) { return '<div class="us-kpi"><span>' + k[0] + '</span><b>' + k[2] + '</b><small>' + k[1] + '</small></div>'; }).join('') + '</div>' +
+      '<div class="us-kpis">' + [['⭐', 'Super user', 1], ['👔', 'CEO', count('CEO')], ['💵', 'CFO', count('CFO')], ['🏛', 'PMO Director', count('PMO Director')], ['🧭', 'Project managers', count('Project manager')], ['🎯', 'Project directors', count('Project director')], ['🛠', 'Contractors', count('Contractor')], ['👥', 'Project personnel', count('Project personnel')], ['G', 'Google (view only)', count('g')]].map(function (k) { return '<div class="us-kpi"><span>' + k[0] + '</span><b>' + k[2] + '</b><small>' + k[1] + '</small></div>'; }).join('') + '</div>' +
       '<div class="card"><div class="table-wrap"><table class="sc-table us-table"><thead><tr><th>Person</th><th>Role</th><th>Projects</th>' + MODS.map(function (m) { return '<th class="us-m" title="' + esc(m[1] + ': ' + m[2]) + '">' + esc(m[1]) + '</th>'; }).join('') + '<th>Last sign-in</th><th></th></tr></thead><tbody>' +
         '<tr class="us-owner"><td><b>' + esc(d.superName || 'Super user') + '</b><br><small class="muted">' + (me.owner ? esc(me.user) + ' · ' : '') + 'the Netlify login (ADMIN_USERNAME)</small></td><td><span class="us-role owner">⭐ Super user</span></td><td>All projects</td>' + MODS.map(function () { return '<td class="us-m">' + lv('edit') + '</td>'; }).join('') + '<td class="muted">–</td><td></td></tr>' +
         U.map(function (u) {
@@ -135,7 +136,7 @@
       '<div class="actions"><button class="btn" data-close type="button">' + (isNew ? 'Later' : 'Cancel') + '</button><button class="btn btn-gold" id="pmSave" type="button">Save permissions</button></div>');
     $('#modal .modal-card').classList.add('sc-wide');
     var wire = function () { document.querySelectorAll('#pmMx input[type=radio]').forEach(function (r) { r.onchange = function () { mods[r.name.slice(3)] = r.value; role = 'Custom'; var c = document.querySelector('[name=pmRole][value="Custom"]'); if (c) c.checked = true; }; }); };
-    var pmLock = function () { var pm = role === 'CEO' || role === 'CFO' || role === 'Project manager' || role === 'Project director', a = $('#pmAll'); if (pm) a.checked = true; a.disabled = pm; $('#pmProjs').hidden = a.checked; };
+    var pmLock = function () { var pm = role === 'CEO' || role === 'CFO' || role === 'PMO Director' || role === 'Project manager' || role === 'Project director', a = $('#pmAll'); if (pm) a.checked = true; a.disabled = pm; $('#pmProjs').hidden = a.checked; };
     document.querySelectorAll('[name=pmRole]').forEach(function (r) { r.onchange = function () { role = r.value; if (role !== 'Custom') { mods = roleMods(role); $('#pmMx').innerHTML = matrix(); wire(); if (role === 'Contractor') $('#pmAll').checked = false; } pmLock(); }; });
     $('#pmAll').onchange = function () { $('#pmProjs').hidden = this.checked; };
     wire(); pmLock();

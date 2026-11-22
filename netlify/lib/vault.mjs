@@ -16,7 +16,7 @@ const str = (s, n = 300) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\
 const MAX_FILE = 3.5 * 1024 * 1024, MAX_TEXT = 400000;
 
 // ---------- who may do what ----------
-export const isFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO');
+export const isFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO' || ctx.role === 'PMO Director');
 const isPM = (ctx) => !!ctx && !ctx.scope && ['Project manager', 'Project director'].includes(ctx.role);
 async function programOf(core) { const j = await J.find(core).catch(() => null); if (!j) return null; const L = await PG.list(); return L.find((p) => p.name === (j.program || '')) || null; }
 export async function canView(ctx, core, prog) { if (isFinance(ctx)) return true; if (!ctx || ctx.scope || !ctx.uid) return false; const p = prog === undefined ? await programOf(core) : prog; return !!(p && p.director && p.director === ctx.uid); }

@@ -172,7 +172,7 @@ export async function finance(today, cores) {
 // 🔐 who sees a project's billing: the super user, the CEO, the CFO, the program director named on its program, and its project manager
 const nrm = (x) => String(x || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
 const sameP = (a, b) => { const x = nrm(a), y = nrm(b); if (!x || !y) return false; if (x === y) return true; const e = (v) => { const w = v.split(' '); return w.length > 1 ? w[0] + ' ' + w[w.length - 1] : ''; }; return !!e(x) && e(x) === e(y); };
-export const allFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO' || ctx.role === 'Finance personnel');
+export const allFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO' || ctx.role === 'Finance personnel' || ctx.role === 'PMO Director');   // 🧭 the PMO Director: every project's billing, read-only (saving and raising stay with the CFO)
 export async function billCores(ctx) {   // null = every project
   if (allFinance(ctx)) return null;
   if (!ctx || ctx.scope) return new Set();
@@ -203,7 +203,7 @@ async function people(core) {
   return { plan, job, program: g || null, pm: ((plan || {}).charter || {}).manager || (job || {}).manager || '', director: dir ? dir.name : '', directorId: g ? g.director : '' };
 }
 export async function canDecideVO(ctx, core) {
-  if (!ctx || ctx.scope) return false; if (ctx.owner || ctx.role === 'CEO') return true;
+  if (!ctx || ctx.scope) return false; if (ctx.owner || ctx.role === 'CEO' || ctx.role === 'PMO Director') return true;
   const W = await people(core); return !!(ctx.uid && W.directorId === ctx.uid);
 }
 export async function raiseVO(core, body, ctx, today) {
