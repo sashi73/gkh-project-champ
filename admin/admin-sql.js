@@ -119,7 +119,7 @@
 
   /* ---------- page ---------- */
   // 🙋 Sashi's face beside the page title: the person behind Champ's answers
-  function face() { var t = document.getElementById('title'); if (t && !t.querySelector('.sql-face')) t.insertAdjacentHTML('afterbegin', '<img class="sql-face" src="../assets/team/sashi-face.webp" alt="" width="40" height="40">'); }
+  function face() { var t = document.getElementById('title'); if (t && !t.querySelector('.sql-face')) t.insertAdjacentHTML('afterbegin', '<img class="sql-face" src="../assets/team/sashi-face.webp?v=2" alt="" width="46" height="46">'); }
   function page() {
     V().innerHTML = '<div class="empty">Loading your project data…</div>';
     face(); return loadLibs().then(function () { return loadData(); }).then(draw).then(face);
