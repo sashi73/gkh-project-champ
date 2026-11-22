@@ -1353,3 +1353,22 @@ td .cr-wait{display:block;font-size:10px;text-align:right}
 .ov-bar{display:block;height:4px;border-radius:2px;background:#EFEDE6;margin-top:4px;overflow:hidden}.ov-bar i{display:block;height:100%;background:#C9A227}
 .gbase-chip{background:#F2F1EC!important;border-color:#d9d4c4!important;color:#3d3a30!important}.gbase-chip span{color:#1D7A43;font-weight:700}.gbase-chip.late span{color:#B42318}
 .ceo-sort{cursor:pointer;user-select:none;white-space:nowrap}.ceo-sort span{opacity:.45;font-size:10px}.ceo-sort.on span{opacity:1;color:#C9A227}.ceo-sort:hover{color:#9a7a12}
+/* 🧾 milestone billing on the Gantt: the bill beside the milestone, coloured by where the money is */
+.gbill{display:inline-grid;place-items:center;width:18px;height:18px;margin:-3px 4px 0 0;padding:0;border:0;border-radius:4px;background:transparent;vertical-align:middle;cursor:pointer;pointer-events:auto}
+.gbill svg{width:14px;height:16px}
+.gbill svg path:first-child{stroke:currentColor;stroke-width:1.3;stroke-linejoin:round;fill:currentColor;fill-opacity:.18}
+.gbill svg .gl{stroke:currentColor;stroke-width:1.2;fill:none;stroke-linecap:round}
+.gbill:hover,.gbill:focus-visible{background:rgba(0,0,0,.06);outline:none}
+.gb-todo{color:#8A8F98}.gb-ready{color:#C98A0B}.gb-late,.gb-over{color:#C2410C}.gb-draft{color:#6B7A99}.gb-sent{color:#2563EB}.gb-part{color:#0E8A8A}.gb-paid{color:#15803D}
+.gb-paid svg path:first-child,.gb-late svg path:first-child,.gb-over svg path:first-child{fill-opacity:.32}
+.gbill-tip{position:fixed;z-index:99999;display:none;width:260px;padding:12px 14px;border-radius:12px;background:#fff;color:#1F2328;box-shadow:0 12px 32px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.06);font-size:12.5px;line-height:1.45;pointer-events:none}
+.gbill-tip p{margin:0}
+.gbt-h{display:flex;align-items:center;gap:7px;font-weight:700;font-size:13px}
+.gbt-h i{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.gbt-n{margin:6px 0 8px!important;color:#57606A}
+.gbill-tip div{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-top:1px solid #EEF0F2}
+.gbill-tip div span{color:#6B7280}.gbill-tip div b{text-align:right;font-weight:600}
+.gbt-f{margin-top:8px!important;color:#9A7A12;font-weight:600}
+html.dark .gbill-tip,body.dark .gbill-tip{background:#1F1D19;color:#EDEAE3;box-shadow:0 12px 32px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.08)}
+tr.ms-flash td{animation:msFlash 2.6s ease}
+@keyframes msFlash{0%,40%{background:rgba(232,192,74,.28)}100%{background:transparent}}

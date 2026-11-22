@@ -84,7 +84,7 @@ function projectBill(plan, bill, docs, today) {
   const BT = (plan.baseline && plan.baseline.tasks) || {}, billDate = (t) => (BT[t.id] && BT[t.id].ef) || t.ef || t.es || '';   // ⏰ the billing date: the agreed (baseline) milestone date; the plan date if there is no baseline
   const rows = M0.map((t) => { const pc = shareOf(t), inv = lineOf[t.id], bd = billDate(t), pastD = !inv && bd && bd < today ? Math.round((Date.parse(today + 'T00:00:00Z') - Date.parse(bd + 'T00:00:00Z')) / 864e5) : 0;
     return { tid: t.id, name: String(t.name || 'Milestone').replace(/^[✓◆\s]+/, ''), due: t.ef || t.es || '', done: (t.pct || 0) >= 100, pct: pc, amount: amtOf(t, pc), gstPct: gstp, gst: inv ? r2(inv.totals.gst) : r2(amtOf(t, pc) * gstp / 100), inc: inv ? r2(inv.totals.inc) : r2(amtOf(t, pc) * (1 + gstp / 100)),
-      invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0 } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, billDate: bd, pastDays: internal ? 0 : pastD, ...near(t.ef || t.es || '', !!inv) }; });
+      invoice: inv ? { id: inv.id, status: inv.status, inc: inv.totals.inc, paid: inv.paid || 0, issued: inv.issued || '', due: inv.due || '' } : null, ready: (t.pct || 0) >= 100 && pc > 0 && !inv && C.value > 0, confirm: C.from === 'estimate' || auto, billDate: bd, pastDays: internal ? 0 : pastD, ...near(t.ef || t.es || '', !!inv) }; });
   const inc = (i) => i.totals.inc, ex = (i) => i.totals.ex, live = invs.filter((i) => i.status !== 'draft');
   const invoiced = r2(live.reduce((a, i) => a + ex(i), 0)), received = r2(live.reduce((a, i) => a + (inc(i) ? Math.min(inc(i), i.paid || 0) * ex(i) / inc(i) : 0), 0));
   // 📊 where the project stands: the work done is the plan's own % complete (the same figure as the plan and the CEO view; earned value
@@ -172,7 +172,7 @@ export async function finance(today, cores) {
 // 🔐 who sees a project's billing: the super user, the CEO, the CFO, the program director named on its program, and its project manager
 const nrm = (x) => String(x || '').toLowerCase().replace(/\(.*?\)/g, ' ').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
 const sameP = (a, b) => { const x = nrm(a), y = nrm(b); if (!x || !y) return false; if (x === y) return true; const e = (v) => { const w = v.split(' '); return w.length > 1 ? w[0] + ' ' + w[w.length - 1] : ''; }; return !!e(x) && e(x) === e(y); };
-export const allFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO');
+export const allFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role === 'CEO' || ctx.role === 'CFO' || ctx.role === 'Finance personnel');
 export async function billCores(ctx) {   // null = every project
   if (allFinance(ctx)) return null;
   if (!ctx || ctx.scope) return new Set();
