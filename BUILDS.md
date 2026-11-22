@@ -292,4 +292,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 281 | 1.0.281| 2026-11-23 01:21| feathero| `27c4faa` | Features page: a ten-scene stage (overview, Gantt, board, from a document, earned value, risks, change control, billing, programs, any langu |
 | 282 | 1.0.282| 2026-11-23 01:26| featbim| `a2cf3d5` | Features page: BIM scene, from the model to the plan (eleven scenes) (#143) |
 | 283 | 1.0.283| 2026-11-23 01:43| progmgr| `85b0a48` | Program manager persona: their programs only (projects, people, Ask AI), the Program view, People > Program managers, and the role in Users  |
-| 284 | 1.0.284 | 2026-11-23 02:35 | roles2 | _this commit_ | _see git log_ |
+| 284 | 1.0.284| 2026-11-23 02:35| roles2| `e4090f2` | Roles: Project director becomes PMO Director (several allowed); Project managers see only their projects; People Role follows the login; Job |
+| 285 | 1.0.285 | 2026-11-23 02:41 | pgcols | _this commit_ | _see git log_ |
