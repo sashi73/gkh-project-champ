@@ -23,10 +23,10 @@ export const TYPES = ['Employee', 'Contractor'];
 // Construction (the Fixit register: trades, tickets, licences, permits, insurance, workers comp). Both keep credentials
 // (education, qualifications, certifications), a resume and the rate per hour they quote.
 export const GROUPS = ['Technical & general', 'Construction'];
-export const TECH_ROLES = ['Project manager', 'Project director', 'Contractor', 'Project personnel'];
+export const TECH_ROLES = ['PMO Director', 'Project manager', 'Project director', 'Contractor', 'Project personnel'];
 export const EMPLOYMENT = ['Full-time', 'Part-time', 'Casual', 'Apprentice', 'Trainee'];
 export const STATUS = ['Active', 'On leave', 'Inactive'];
-export const ROLES = ['Project director', 'Project manager', 'Site supervisor', 'Leading hand', 'Estimator', 'Tradesperson', 'Labourer', 'Apprentice', 'Designer', 'Engineer', 'Safety officer', 'Office / admin', 'Accounts', 'Sales', 'Other'];
+export const ROLES = ['PMO Director', 'Project director', 'Project manager', 'Site supervisor', 'Leading hand', 'Estimator', 'Tradesperson', 'Labourer', 'Apprentice', 'Designer', 'Engineer', 'Safety officer', 'Office / admin', 'Accounts', 'Sales', 'Other'];
 // tickets with an expiry (and whether the site needs it)
 export const TICKETS = [['whiteCard', 'White card (general construction induction)', true, false], ['licence', 'Trade licence', false, true], ['driver', 'Driver\'s licence', false, true], ['firstAid', 'First aid', false, true],
   ['heights', 'Working at heights', false, true], ['confined', 'Confined spaces', false, true], ['ewp', 'EWP (elevated work platform)', false, true], ['forklift', 'Forklift (LF)', false, true], ['asbestos', 'Asbestos awareness', false, true]];
