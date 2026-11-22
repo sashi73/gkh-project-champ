@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 268,
+  "build": 269,
   "commit": "",
-  "branch": "phonepolish2",
+  "branch": "ifcview",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 12:27",
+  "builtAt": "2026-11-22 12:29",
   "site": ""
 };
