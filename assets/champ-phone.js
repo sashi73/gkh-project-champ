@@ -78,6 +78,10 @@
       '<p class="p2-lede">Plan, run and rescue projects in one place. The AI builds the plan from your documents and tells you before work slips.</p>' + gantt +
       '<div class="p2-actions"><button type="button" class="p2-btn p2-gold" id="phWatch">' + ico('play') + 'Watch the 2-minute film</button></div>' +
       '<p class="p2-desk">' + ico('laptop') + '<span>Project Champ is made for a desktop or laptop. This is the short version for your phone: read about it, sign in, and see your Today list.</span></p>' +
+      '<h2 class="p2-h3">From a document to a plan you can run.</h2><ol class="p2-steps">' +
+      '<li><b>Drop in what you have</b><span>A brief, a tender, a feasibility study or a building model. Champ reads all of it.</span></li>' +
+      '<li><b>The AI drafts the plan</b><span>Schedule, budget, materials, risks and stakeholders, ready for you to check and approve.</span></li>' +
+      '<li><b>Champ keeps watch</b><span>Every morning it checks time, cost and risk, and tells you what needs you before it becomes a problem.</span></li></ol>' +
       '<ul class="p2-facts"><li><b>Agile, waterfall or hybrid</b>Gantt, boards and sprints in one plan</li><li><b>19 languages</b>The whole app, and Champ the assistant</li><li><b>AI that does the paperwork</b>Plans, status reports and answers</li></ul></section>' +
       '<section id="ph-about" class="p2-sec"><h2>Built by people who run national programs.</h2>' +
       '<p>Project Champ comes from <b>Global Knowledge House</b>, a consultancy in Sydney and Kuala Lumpur. Since 2010 we have delivered programs in 8 countries, and reach 14 with our partners, for governments and businesses across Asia, the Middle East and Africa. Champ is that discipline, made simple for any team.</p>' +
@@ -89,7 +93,7 @@
       '<section id="ph-contact" class="p2-sec"><h2>See it on your own project.</h2><p>A 30-minute demo, a pilot on one live project, or training for your team. We reply within one business day.</p>' +
       '<div class="p2-links"><a href="mailto:ceo@gkhconsultancy.com?subject=Project%20Champ%20demo">' + ico('mail') + '<span><b>Email</b><small data-noi18n>ceo@gkhconsultancy.com</small></span>' + ico('chev', 'p2-chev') + '</a>' +
       '<a href="tel:+61493431202">' + ico('phone') + '<span><b>Call</b><small data-noi18n>+61 493 431 202</small></span>' + ico('chev', 'p2-chev') + '</a>' +
-      '<a href="https://wa.me/61493431202">' + ico('chat') + '<span><b>WhatsApp</b><small>Message us any time</small></span>' + ico('chev', 'p2-chev') + '</a></div>' +
+      '<a href="https://wa.me/61493431202?text=' + encodeURIComponent('Hi, I would like to know more about Project Champ.') + '">' + ico('chat') + '<span><b>WhatsApp</b><small>Message us any time</small></span>' + ico('chev', 'p2-chev') + '</a></div>' +
       '<p class="p2-small">Offices in Sydney, Australia and Kuala Lumpur, Malaysia.</p></section>' +
       '<footer class="p2-foot"><p>Keep Champ one tap away. ' + HOME + '</p><p class="p2-legal"><a href="privacy.html">Privacy notice</a><span data-noi18n> · © Global Knowledge House</span></p></footer></main>' +
       '<div class="p2-dock"><a class="p2-btn p2-gold p2-signin" href="login.html">Sign in</a><span>Free to explore with Google. No card needed.</span></div>' +
@@ -107,7 +111,8 @@
     links.forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var t = document.querySelector(a.getAttribute('href')); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - (a.classList.contains('p2-brand') ? 999 : 96), behavior: 'smooth' }); }; });
     var nav = [].slice.call(d.querySelectorAll('.p2-nav a')), light = function () { var c = nav[0]; nav.forEach(function (a) { var t = document.querySelector(a.getAttribute('href')); if (t && t.getBoundingClientRect().top < 160) c = a; }); nav.forEach(function (a) { a.classList.toggle('on', a === c); }); d.classList.toggle('p2-scrolled', window.scrollY > 8); };
     addEventListener('scroll', light, { passive: true });
-    requestAnimationFrame(function () { d.classList.add('p2-go'); });   // the plan draws itself once
+    requestAnimationFrame(function () { d.classList.add('p2-go'); });
+    var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', '#141210');   // the phone's own bar matches the page   // the plan draws itself once
     if (/^#ph-/.test(location.hash)) setTimeout(function () { var a = d.querySelector('.p2-nav a[href="' + location.hash + '"]'); if (a) a.click(); }, 300);
   }
   function login() {
