@@ -59,26 +59,42 @@
   function home() {
     var cur = ls('champLang') || 'en', curL = LANGS.filter(function (l) { return l[0] === cur; })[0] || LANGS[0];
     // the plan in the hero: a few weeks of a real-looking schedule, drawn once when the page opens
-    var rows = [['Design and approvals', 2, 26, 'done'], ['Procurement', 18, 22, 'done'], ['Structure, level by level', 30, 34, 'on'], ['Services rough-in', 52, 26, 'late'], ['Fit-out and handover', 70, 26, 'plan']];
+    var rows = [['Discovery and design', 2, 24, 'done'], ['Build and configure', 18, 30, 'done'], ['Data migration', 36, 28, 'on'], ['Testing and training', 52, 26, 'late'], ['Go-live and support', 72, 24, 'plan']];
     // 🎞 the hero: five short scenes of what Champ does, each for a few seconds, fading into the next
-    var g1 = '<div class="p2-ph"><b>Riverbend clinic</b><span>Feb to Dec</span></div>' +
+    var g1 = '<div class="p2-ph"><b>ERP rollout: finance and HR</b><span>Technology</span></div>' +
       '<div class="p2-rows">' + rows.map(function (r, i) { return '<div class="p2-row"><span>' + r[0] + '</span><i class="p2-bar ' + r[3] + '" style="--l:' + r[1] + '%;--w:' + r[2] + '%;--d:' + (0.25 + i * 0.12) + 's"></i></div>'; }).join('') +
       '<i class="p2-today" style="--t:44%"><em>Today</em></i></div><div class="p2-axis" data-noi18n><span>Feb</span><span>Apr</span><span>Jun</span><span>Aug</span><span>Oct</span><span>Dec</span></div>' +
-      '<div class="p2-flag"><b>Services 4 days behind.</b> Champ found it this morning and has a recovery plan ready.</div>' +
+      '<div class="p2-flag"><b>Testing 4 days behind.</b> Champ found it this morning and has a recovery plan ready.</div>' +
       '<div class="p2-kpi"><span class="w"><b>0.97</b>Schedule</span><span class="g"><b>1.04</b>Cost</span><span><b>3</b>Risks watched</span></div>';
     var col = function (h, L, cls) { return '<div class="sb-col ' + cls + '"><span class="sb-h">' + h + '</span>' + L.map(function (c) { return '<i class="sb-card' + (c[1] ? ' ' + c[1] : '') + '">' + c[0] + '</i>'; }).join('') + '</div>'; };
-    var g2 = '<div class="p2-ph"><b>Backlog and board</b><span>Sprint 4</span></div><div class="sb">' + col('To do', [['Order the lift'], ['Fit-off lights']], 'todo') + col('Doing', [['Level 2 slab pour', 'mv'], ['Partition walls']], 'doing') + col('Done', [['Level 2 slab pour', 'nw'], ['Design sign-off'], ['Footings']], 'done') + '</div>' +
-      '<div class="p2-flag ok"><b>Level 2 slab poured.</b> The card moved to Done and the Gantt updated itself.</div>' +
+    var g2 = '<div class="p2-ph"><b>Mobile banking app</b><span>Sprint 6</span></div><div class="sb">' + col('To do', [['Card freeze'], ['Push alerts']], 'todo') + col('Doing', [['Face ID sign-in', 'mv'], ['Pay a friend']], 'doing') + col('Done', [['Face ID sign-in', 'nw'], ['New home screen'], ['Bill pay']], 'done') + '</div>' +
+      '<div class="p2-flag ok"><b>Face ID sign-in shipped.</b> The card moved to Done and the burn-down updated itself.</div>' +
       '<div class="p2-kpi"><span><b>12</b>Points done</span><span><b>2 of 3</b>Work in progress</span><span><b>2</b>Days to go</span></div>';
-    var g3 = '<div class="p2-ph"><b>Start from a document</b><span>AI</span></div><div class="sd-doc"><i>PDF</i><div><b data-noi18n>Tender_Riverbend.pdf</b><small>148 pages read in full</small><span class="sd-bar"><i></i></span></div></div>' +
-      '<ul class="sd-out">' + [['52 tasks', 'across 9 phases'], ['12 risks', 'each with an owner'], ['Materials', 'from the building model'], ['Stakeholders', 'with their RACI']].map(function (x, k) { return '<li style="--d:' + (1.2 + k * 0.45) + 's"><b>' + x[0] + '</b> ' + x[1] + '</li>'; }).join('') + '</ul>' +
-      '<div class="p2-kpi"><span><b>3 min</b>Tender to plan</span><span><b>19</b>Languages</span><span><b>IFC</b>Models read</span></div>';
-    var g4 = '<div class="p2-ph"><b>Cost and earned value</b><span>Riverbend clinic</span></div><svg class="se" viewBox="0 0 300 120" aria-hidden="true"><path class="se-g" d="M0 30H300M0 60H300M0 90H300"/><path class="se-pv" pathLength="1" d="M0 112C60 108 110 84 150 62S240 18 300 10"/><path class="se-ac" pathLength="1" d="M0 112C60 110 108 92 138 76"/><path class="se-ev" pathLength="1" d="M0 112C60 109 108 88 138 70"/><circle class="se-dot" cx="138" cy="70" r="4"/></svg>' +
+    var g3 = '<div class="p2-ph"><b>Clean water, 40 villages</b><span>Social</span></div><div class="sd-doc"><i>PDF</i><div><b data-noi18n>Donor_proposal.pdf</b><small>96 pages read in full</small><span class="sd-bar"><i></i></span></div></div>' +
+      '<ul class="sd-out">' + [['38 tasks', 'across 6 phases'], ['9 risks', 'each with an owner'], ['Budget', 'from the donor proposal'], ['Partners', 'with their RACI']].map(function (x, k) { return '<li style="--d:' + (1.2 + k * 0.45) + 's"><b>' + x[0] + '</b> ' + x[1] + '</li>'; }).join('') + '</ul>' +
+      '<div class="p2-kpi"><span><b>3 min</b>Proposal to plan</span><span><b>40</b>Villages</span><span><b>6</b>Partners</span></div>';
+    var g4 = '<div class="p2-ph"><b>Hospital wing fit-out</b><span>Construction</span></div><svg class="se" viewBox="0 0 300 120" aria-hidden="true"><path class="se-g" d="M0 30H300M0 60H300M0 90H300"/><path class="se-pv" pathLength="1" d="M0 112C60 108 110 84 150 62S240 18 300 10"/><path class="se-ac" pathLength="1" d="M0 112C60 110 108 92 138 76"/><path class="se-ev" pathLength="1" d="M0 112C60 109 108 88 138 70"/><circle class="se-dot" cx="138" cy="70" r="4"/></svg>' +
       '<div class="se-leg"><span class="pv">Planned</span><span class="ev">Earned</span><span class="ac">Spent</span></div>' +
       '<div class="p2-kpi"><span class="g"><b>1.04</b>Cost (CPI)</span><span class="w"><b>0.97</b>Schedule (SPI)</span><span><b>$16.8M</b>Forecast</span></div>';
-    var g5 = '<div class="p2-ph"><b>Milestones and billing</b><span>Contract $17M</span></div><ul class="sm">' + [['Design signed off', 'Collected', 'pd'], ['Structure complete', 'Invoiced, due 12 Jun', 'iv'], ['Services rough-in', 'Ready to invoice', 'rd'], ['Practical completion', 'Yet to invoice', 'td']].map(function (m, k) { return '<li class="' + m[2] + '" style="--d:' + (0.3 + k * 0.3) + 's"><i></i><b>' + m[0] + '</b><span>' + m[1] + '</span></li>'; }).join('') + '</ul>' +
+    var g5 = '<div class="p2-ph"><b>ESG strategy, national airline</b><span>Consulting</span></div><ul class="sm">' + [['Baseline assessment', 'Collected', 'pd'], ['Materiality report', 'Invoiced, due 12 Jun', 'iv'], ['Decarbonisation roadmap', 'Ready to invoice', 'rd'], ['Board briefing', 'Yet to invoice', 'td']].map(function (m, k) { return '<li class="' + m[2] + '" style="--d:' + (0.3 + k * 0.3) + 's"><i></i><b>' + m[0] + '</b><span>' + m[1] + '</span></li>'; }).join('') + '</ul>' +
       '<div class="p2-flag ok"><b>One milestone is ready to bill.</b> Finance sees it the moment the work is done.</div>';
-    var SC = [g1, g2, g3, g4, g5], NM = ['Plan', 'Board', 'From a document', 'Cost', 'Billing'];
+    // 6: risks on a heat map (a development project)
+    var cells = ''; for (var r0 = 5; r0 >= 1; r0--) for (var c0 = 1; c0 <= 5; c0++) { var sc0 = r0 * c0; cells += '<i class="' + (sc0 >= 15 ? 'hi' : sc0 >= 8 ? 'md' : 'lo') + '"></i>'; }
+    var dots0 = [[2, 4, 'Supplier', 0.4], [3, 3, 'Permits', 0.7], [4, 2, 'Funding', 1.0], [1, 3, 'Theft', 1.3]];
+    var g6 = '<div class="p2-ph"><b>Solar mini-grids, Rwanda</b><span>Development</span></div><div class="sr"><div class="sr-grid">' + cells +
+      dots0.map(function (x) { return '<b class="sr-dot" style="--x:' + x[0] + ';--y:' + x[1] + ';--d:' + x[3] + 's">' + x[2] + '</b>'; }).join('') + '<b class="sr-dot up" style="--x:4;--y:4;--d:1.9s">Rainy season</b></div><div class="sr-ax"><span>Impact</span><span>Likelihood</span></div></div>' +
+      '<div class="p2-flag"><b>Rainy season risk rose to high.</b> Champ told its owner and suggested moving the cable work.</div>';
+    // 7: a program with its dependencies (government)
+    var g7 = '<div class="p2-ph"><b>National digital ID program</b><span>Government</span></div><div class="sp">' +
+      [['Registration system', 0, 46, 'ok'], ['ID card printing', 30, 46, 'late'], ['Online services', 58, 40, 'ok']].map(function (x, k) { return '<div class="sp-row"><span>' + x[0] + '</span><i class="sp-bar ' + x[3] + '" style="--l:' + x[1] + '%;--w:' + x[2] + '%;--d:' + (0.3 + k * 0.25) + 's"></i></div>'; }).join('') +
+      '<svg class="sp-links" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M46 18 C52 18 26 50 31 50"/><path class="bad" d="M76 50 C82 50 54 84 59 84"/></svg></div>' +
+      '<div class="p2-flag"><b>Card printing ends after online services start.</b> A 3-week clash between two projects, flagged on the dependency board.</div>';
+    // 8: ask in any language
+    var g8 = '<div class="p2-ph"><b>Ask Champ, in your language</b><span>19 languages</span></div><div class="sa">' +
+      '<p class="sa-q" data-noi18n>Projek mana yang lewat minggu ini?</p><p class="sa-a" data-noi18n>Dua projek lewat: Mekong Water dan ERP Kewangan. Pelan pemulihan sudah sedia untuk kedua-duanya.</p>' +
+      '<p class="sa-q two" data-noi18n>这个月哪些里程碑需要开票？</p><p class="sa-a two" data-noi18n>三个：设计签字、结构完工、服务安装。</p></div>' +
+      '<div class="sa-lang" data-noi18n><span>English</span><span>Bahasa Melayu</span><span>தமிழ்</span><span>中文</span><span>العربية</span><span>Español</span><span>हिन्दी</span><span>+12</span></div>';
+    var SC = [g1, g2, g3, g4, g5, g6, g7, g8], NM = ['Plan', 'Board', 'From a document', 'Cost', 'Billing', 'Risks', 'Program', 'Any language'];
     var gantt = '<div class="p2-plan p2-stage" role="region" aria-roledescription="carousel" aria-label="What Project Champ does">' + SC.map(function (h, k) { return '<div class="p2-scene' + (k === 0 ? ' on' : '') + '" data-sc="' + k + '" aria-hidden="' + (k ? 'true' : 'false') + '">' + h + '</div>'; }).join('') +
       '<div class="p2-dots">' + NM.map(function (n, k) { return '<button type="button" data-go="' + k + '"' + (k === 0 ? ' class="on" aria-current="true"' : '') + ' aria-label="' + n + '"><i></i></button>'; }).join('') + '</div></div>';
     var who = [['build', 'Construction and facilities', 'Trades, materials and quantities, safety plans and site budgets.'], ['it', 'IT and digital', 'Backlogs and sprints, with milestones and cost for the steering committee.'],
