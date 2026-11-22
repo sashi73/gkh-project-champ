@@ -281,4 +281,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 270 | 1.0.270| 2026-11-22 13:07| msbill| `ed5629e` | Milestone billing on the Gantt (bill icon: yet to invoice, ready, invoiced, part paid, overdue, collected; hover detail; click to the billin |
 | 271 | 1.0.271| 2026-11-22 13:23| aimoney| `5dcebb8` | No money for contractors and project personnel in Ask AI and documents: the AI gets no costs and is told not to discuss them; money document |
 | 272 | 1.0.272| 2026-11-22 13:51| paudit| `8022580` | Project audit trail (every change: when, who, role, IP, what, before and after; SHA-256 hash chain; PDF and CSV from Project documents); the |
-| 273 | 1.0.273 | 2026-11-22 15:01 | heroscenes | _this commit_ | _see git log_ |
+| 273 | 1.0.273| 2026-11-22 15:01| heroscenes| `65d9dc0` | Phone website: the hero shows five scenes in turn (plan, board, from a document, cost, billing), each fading into the next; dots and swipe t |
+| 274 | 1.0.274 | 2026-11-22 15:10 | hero8 | _this commit_ | _see git log_ |
