@@ -155,3 +155,26 @@
 @media (max-width:980px){.fx-nav{padding-right:0}.fx-sc{grid-template-columns:1fr;gap:28px}.fx-stage{min-height:0}.fx-nav [data-go] span{display:none}.fx-nav [data-go]{min-width:20px}}
 @media (prefers-reduced-motion:reduce){.fx-sc,.fx-sc.on{transition:none}.fx .fx-mosaic span,.fx .fx-flag,.fx .fd-out span,.fx .fa p,.fx .fk .nw,.fx .fp-l path{opacity:1;transform:none;animation:none!important}
   .fx .fg-b,.fx .fp-b{transform:none;transition:none}.fx .fg-m{transform:rotate(45deg)}.fx .fe path{stroke-dashoffset:0;animation:none}.fx .fr-dot{opacity:1;transform:translate(-50%,50%);animation:none!important}.fx .fc-stamp{opacity:1;transform:rotate(-10deg);animation:none}.fx .fb-p i{width:var(--w)}.fx .fk .mv{display:none}}
+/* 5: BIM, from the model to the plan */
+.fm{display:grid;grid-template-columns:1fr 1.15fr;gap:18px;align-items:center}
+.fm-m{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px;border-radius:14px;background:radial-gradient(circle at 50% 40%,rgba(111,143,184,.16),transparent 70%)}
+.fm-svg{width:100%;max-width:230px;height:auto;overflow:visible}
+.fm-f{opacity:0;transform:translateY(-14px)}
+.fm-f polygon{stroke:rgba(236,229,214,.55);stroke-width:1;stroke-linejoin:round}
+.fm-f .top{fill:rgba(212,175,55,.32)}.fm-f .l{fill:rgba(111,143,184,.38)}.fm-f .r{fill:rgba(111,143,184,.22)}
+.fm-f line{stroke:rgba(242,217,139,.7);stroke-width:2}
+.fx-sc.on .fm-f{animation:fxIn .5s cubic-bezier(.2,.8,.2,1) var(--d) forwards}
+.fm-clash{fill:rgba(229,115,75,.25);stroke:#E5734B;stroke-width:2;opacity:0;transform-origin:150px 128px}
+.fx-sc.on .fm-clash{animation:fmClash 1s ease 2.4s 3 forwards}
+@keyframes fmClash{0%{opacity:0;transform:scale(.4)}50%{opacity:1;transform:scale(1.4)}100%{opacity:1;transform:scale(1)}}
+.fm-tag{font-size:12px;color:var(--fm);text-align:center}
+.fm-lv{font-size:12px;font-weight:700;color:var(--fgh)}
+.fm-n::after{content:"1"}
+.fx-sc.on .fm-n::after{animation:fmN 2s steps(1) .3s forwards}
+@keyframes fmN{0%{content:"1"}25%{content:"2"}50%{content:"3"}75%,100%{content:"4"}}
+.fm-out{display:flex;flex-direction:column;gap:9px}
+.fm-out span{padding:10px 13px;border-radius:10px;background:var(--fs2);border:1px solid var(--fl);font-size:13.5px;opacity:0;transform:translateX(-8px)}
+.fm-out b{color:var(--fgh)}.fm-out .bad{border-color:rgba(229,115,75,.45)}.fm-out .bad b{color:#F5A98C}
+.fx-sc.on .fm-out span{animation:fxIn .45s ease var(--d) forwards}
+.fm .fx-flag{grid-column:1/-1}
+@media (prefers-reduced-motion:reduce){.fx .fm-f,.fx .fm-out span{opacity:1;transform:none;animation:none!important}.fx .fm-n::after{content:"4"}}
