@@ -828,7 +828,7 @@
         }); }); });
       chain.then(function () {
         var one = parts.length === 1, x = one ? parts[0] : { text: parts.map(function (p) { return '[file: ' + p.name + ']\n' + p.text; }).join('\n\n'), pages: 0 };
-        CN.name = one ? file.name : file.name + ' + ' + (parts.length - 1) + ' more';
+        CN.name = file.name;   // the document keeps the first file's own name (so its download is that file); the other files are read into it and kept as their own documents
         CN.parts = parts.map(function (p) { return { name: p.name, kind: p.kind, summary: p.summary }; });
         cnSay('<p class="ask-think">Indexing ' + Math.round(x.text.length / 1000) + 'k characters into vectors…</p>');
         return api('planDocStage', { name: CN.name, pages: x.pages, text: x.text, kind: one ? (file.name.split('.').pop() || '').toLowerCase() : 'set' });
@@ -848,7 +848,7 @@
     var fi = $('#cnFile'); fi.onchange = function () { cnPick([].slice.call(fi.files)); fi.value = ''; };
     // ▶ the sample: an imaginary project's IFC model, TimeLiner schedule and clash report, read the same way as your own files
     var smp = $('#cnSample'); if (smp) smp.onclick = function (e) { e.preventDefault(); cnSay('<p class="ask-think">Fetching the sample files…</p>');
-      Promise.all(['Riverbend-Allied-Health-Hub.ifc', 'Riverbend-TimeLiner-schedule.csv', 'Riverbend-Clash-Detective-report.xml'].map(function (n) { return fetch('samples/' + n + '?v=1').then(function (r) { if (!r.ok) throw new Error('The sample ' + n + ' could not be fetched (' + r.status + ').'); return r.blob(); }).then(function (b) { return new File([b], n, { type: /\.csv$/.test(n) ? 'text/csv' : /\.xml$/.test(n) ? 'application/xml' : 'application/x-step' }); }); }))
+      Promise.all(['Riverbend-Allied-Health-Hub.ifc', 'Riverbend-TimeLiner-schedule.csv', 'Riverbend-Clash-Detective-report.xml'].map(function (n) { return fetch('samples/' + n + '?v=3').then(function (r) { if (!r.ok) throw new Error('The sample ' + n + ' could not be fetched (' + r.status + ').'); return r.blob(); }).then(function (b) { return new File([b], n, { type: /\.csv$/.test(n) ? 'text/csv' : /\.xml$/.test(n) ? 'application/xml' : 'application/x-step' }); }); }))
         .then(cnPick).catch(function (er) { cnSay('<p class="bad">' + esc(er.message) + '</p>'); }); };
     var dz = $('#cnDoc');
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); }); });
@@ -869,7 +869,7 @@
               return api('intelUpload', { core: r.core, name: o.f.name, type: o.f.type, size: o.f.size, text: o.t, file: ff.file || '', r2Key: ff.r2Key || '', allowEmpty: true, folder: 'design' }); }).catch(function () { bad++; }); }); }, Promise.resolve())
               .then(function () { if (bad) toast(bad + ' file' + (bad === 1 ? '' : 's') + ' could not be stored (too big for this storage): add ' + (bad === 1 ? 'it' : 'them') + ' later in Documents.', true); }); };
           if (!r.docId || !CN.file) return others().then(go, go);
-          return storeFile(CN.file, 'project', r.core).then(function (ff) { if (!ff.file && !ff.r2Key) return; return api('intelDocPutFile', { core: r.core, id: r.docId, file: ff.file || '', r2Key: ff.r2Key || '', size: CN.file.size, type: CN.file.type }); }).catch(function () {}).then(others).catch(function () {}).then(go);
+          return storeFile(CN.file, 'project', r.core).then(function (ff) { if (!ff.file && !ff.r2Key) return; return api('intelDocPutFile', { core: r.core, id: r.docId, file: ff.file || '', r2Key: ff.r2Key || '', size: CN.file.size, type: CN.file.type, name: CN.file.name }); }).catch(function () {}).then(others).catch(function () {}).then(go);
         })
         .catch(function (err) { fail(err); b.disabled = false; b.textContent = 'Create project and plan it →'; });
     };
@@ -6772,7 +6772,7 @@
       return { text: parts.join('\n\n'), pages: n };
     });
   }
-  function piBim() { return piLoad('champ-bim.js?v=2', function () { return !!window.ChampBIM; }); }
+  function piBim() { return piLoad('champ-bim.js?v=3', function () { return !!window.ChampBIM; }); }
   M.bim = piBim;
   function piExtract(f, onProg) {
     var name = f.name.toLowerCase();

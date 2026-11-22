@@ -266,4 +266,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 255 | 1.0.255| 2026-11-22 09:51| aipm| `be8b85e` | AI query: project_manager and project_sponsor on projects (as the CEO view); every report fills the question box with its plain question (#1 |
 | 256 | 1.0.256| 2026-11-22 10:10| bimin| `062860d` | BIM and construction files in Start from a document (IFC take-off, TimeLiner, MS Project XML, clash reports, DXF; Revit/Navisworks/AutoCAD k |
 | 257 | 1.0.257| 2026-11-22 10:43| bimsample| `b1060ac` | Sample BIM set (imaginary Riverbend Allied Health Hub: IFC, TimeLiner, clash report) with a Try a sample link; rooms grouped by type; layere |
-| 258 | 1.0.258 | 2026-11-22 10:45 | nohelp | _this commit_ | _see git log_ |
+| 258 | 1.0.258| 2026-11-22 10:45| nohelp| `309f7be` | Website: Help removed (nav, footer, page); /help goes to the home page; help stays in the console (#119) |
+| 259 | 1.0.259 | 2026-11-22 11:05 | bimfix | _this commit_ | _see git log_ |

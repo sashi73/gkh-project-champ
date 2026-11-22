@@ -162,7 +162,7 @@
     all('IFCRELASSOCIATESMATERIAL').forEach(function (id) { var x = a(id), names = matName(ref(x[5]), 0).filter(Boolean).filter(function (v, i, L) { return L.indexOf(v) === i; }); if (!names.length) return; refs(x[4]).forEach(function (e) { mat[e] = names; }); });
     var pick = function (o, kind, list) { if (!o) return null; for (var i = 0; i < list.length; i++) if ((kind + ':' + list[i]) in o) return o[kind + ':' + list[i]]; return null; };
     // 📋 group by class and type
-    var G = {}, cls = {}, rooms = [], matT = {}, elN = 0, withQ = 0;
+    var G = {}, cls = {}, rooms = [], matT = {}, elN = 0, withQ = 0, gfa = 0;
     Object.keys(where).concat(Object.keys(elems)).filter(function (v, i, L) { return L.indexOf(v) === i; }).forEach(function (k) {
       var e = +k, x = E[e]; if (!x) return; var t = x.t, ax = a(e), st = stBy[where[e]] || null;
       if (t === 'IFCSPACE') { var ar = pick(Q[e], 'A', ['NetFloorArea', 'GrossFloorArea', 'NetArea', 'GrossArea', 'Area']); rooms.push({ name: cleanName([ax[2], ax[7]].filter(Boolean).join(' ') || 'Room'), kind: cleanName(ax[7] || ax[3] || ax[2] || 'Room').replace(/\s*\d+$/, '') || 'Room', level: st ? st.name : '', area: ar == null ? null : ar * f.A }); if (st) { st.rooms++; st.roomArea += ar ? ar * f.A : 0; } return; }
@@ -176,10 +176,11 @@
       ms.forEach(function (m) { g.mats[m] = 1; var mt = matT[m] = matT[m] || { n: 0, vol: 0, area: 0 }; mt.n++; if (vo && ms.length === 1) mt.vol += vo * f.V; if (ar2) mt.area += ar2 * f.A; });   // a layered element: each layer covers the whole area; its volume is not split by layer
       if (flags[e] && flags[e].isexternal) g.ext++;
       if (st) { g.levels[st.name] = (g.levels[st.name] || 0) + 1; st.n++; var tr = tradeOf(t); st.trades[tr] = st.trades[tr] || {}; st.trades[tr][niceClass(t)] = (st.trades[tr][niceClass(t)] || 0) + 1; }
+      if (/^IFCSLAB/.test(t) && ar2 && !(st && /roof/i.test(st.name)) && !/roof/i.test(tn)) gfa += ar2 * f.A;   // 📐 gross floor area: the floor slabs, the roof slab left out
       var c = cls[t] = cls[t] || { n: 0, area: 0, vol: 0, len: 0 }; c.n++; if (ar2) c.area += ar2 * f.A; if (vo) c.vol += vo * f.V; if (le) c.len += le * f.L;
     });
     return { header: header, records: total, project: { name: proj[2] || '', longName: proj[5] || '', phase: proj[6] || '' }, site: { name: site[2] || '', longName: site[7] || '', address: siteAddr }, buildings: bld, storeys: storeys,
-      groups: Object.keys(G).map(function (k) { var g = G[k]; g.mats = Object.keys(g.mats); return g; }), classes: cls, rooms: rooms, materials: matT, elements: elN, withQty: withQ, units: unitNote };
+      gfa: gfa, groups: Object.keys(G).map(function (k) { var g = G[k]; g.mats = Object.keys(g.mats); return g; }), classes: cls, rooms: rooms, materials: matT, elements: elN, withQty: withQ, units: unitNote };
   }
   function ifcText(name, size, S) {
     var L = [], q = function (g) { return [g.area ? fmt(g.area) + ' m²' : '', g.vol ? fmt(g.vol, 2) + ' m³' : '', g.len ? fmt(g.len) + ' m' : '', g.wt ? fmt(g.wt) + ' kg' : ''].filter(Boolean).join(', '); };
@@ -190,6 +191,7 @@
     if (S.buildings.length) L.push('Building' + (S.buildings.length > 1 ? 's' : '') + ': ' + S.buildings.map(function (b) { return b.name + (b.addr ? ' (' + b.addr + ')' : ''); }).join('; ') + '.');
     L.push('Model size: ' + fmt(S.elements, 0) + ' building elements in ' + S.groups.length + ' types, ' + S.storeys.length + ' levels' + (S.rooms.length ? ', ' + S.rooms.length + ' room' + (S.rooms.length === 1 ? '' : 's') + ' (spaces)' : '') + '. ' +
       (S.elements ? (S.withQty ? fmt(S.withQty / S.elements * 100, 0) + '% of the elements carry quantities' : 'The elements carry no quantities (export the IFC with base quantities for areas and volumes): counts only') : '') + (S.units.length ? '; ' + S.units.join(', ') : '') + '.');
+    if (S.gfa) L.push('Gross floor area (GFA, from the floor slabs, roof left out): ' + fmt(S.gfa, 0) + ' m²' + (S.rooms.length ? '; rooms (net) ' + fmt(S.rooms.reduce(function (a, r) { return a + (r.area || 0); }, 0), 0) + ' m²' : '') + '.');
     if (S.storeys.length) {
       L.push('\nLevels (storeys), lowest first:');
       S.storeys.forEach(function (s) { L.push('- ' + s.name + (s.elev != null ? ' (elevation ' + fmt(s.elev, 2) + ' m)' : '') + ': ' + fmt(s.n, 0) + ' elements' + (s.rooms ? ', ' + s.rooms + ' room' + (s.rooms === 1 ? '' : 's') + (s.roomArea ? ' (' + fmt(s.roomArea) + ' m²)' : '') : '')); });
@@ -302,7 +304,7 @@
     var nm = String(file.name || ''), low = nm.toLowerCase();
     if (/\.ifc$/.test(low)) return readIfc(file, onProg).then(function (S) {
       if (!S.elements && !S.storeys.length) throw new Error('No building elements found in “' + nm + '”. Check it is an IFC model (not an IFC-ZIP or XML) and export it again.');
-      return { text: ifcText(nm, file.size, S), pages: 0, kind: 'ifc', summary: { elements: S.elements, types: S.groups.length, levels: S.storeys.length, rooms: S.rooms.length, withQty: S.withQty, schema: S.header.schema, system: S.header.system } }; });
+      return { text: ifcText(nm, file.size, S), pages: 0, kind: 'ifc', summary: { gfa: Math.round(S.gfa), elements: S.elements, types: S.groups.length, levels: S.storeys.length, rooms: S.rooms.length, withQty: S.withQty, schema: S.header.schema, system: S.header.system } }; });
     if (/\.dxf$/.test(low)) return file.text().then(function (t) { return { text: dxf(nm, t), pages: 0, kind: 'dxf' }; });
     if (/\.xml$/.test(low)) return file.text().then(function (t) {
       var doc = new DOMParser().parseFromString(t, 'application/xml'); if (doc.getElementsByTagName('parsererror').length) return null;
