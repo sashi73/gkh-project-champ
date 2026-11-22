@@ -62,9 +62,9 @@
     var rows = [['Design and approvals', 2, 26, 'done'], ['Procurement', 18, 22, 'done'], ['Structure, level by level', 30, 34, 'on'], ['Services rough-in', 52, 26, 'late'], ['Fit-out and handover', 70, 26, 'plan']];
     var gantt = '<div class="p2-plan" role="img" aria-label="A project plan with five work stages and today\'s position"><div class="p2-ph"><b>Riverbend clinic</b><span>Feb to Dec</span></div>' +
       '<div class="p2-rows">' + rows.map(function (r, i) { return '<div class="p2-row"><span>' + r[0] + '</span><i class="p2-bar ' + r[3] + '" style="--l:' + r[1] + '%;--w:' + r[2] + '%;--d:' + (0.25 + i * 0.12) + 's"></i></div>'; }).join('') +
-      '<i class="p2-today" style="--t:44%"><em>Today</em></i></div>' +
+      '<i class="p2-today" style="--t:44%"><em>Today</em></i></div><div class="p2-axis" data-noi18n><span>Feb</span><span>Apr</span><span>Jun</span><span>Aug</span><span>Oct</span><span>Dec</span></div>' +
       '<div class="p2-flag"><b>Services 4 days behind.</b> Champ found it this morning and has a recovery plan ready.</div>' +
-      '<div class="p2-kpi"><span><b>0.97</b> schedule</span><span><b>1.04</b> cost</span><span><b>3</b> risks watched</span></div></div>';
+      '<div class="p2-kpi"><span class="w"><b>0.97</b>Schedule</span><span class="g"><b>1.04</b>Cost</span><span><b>3</b>Risks watched</span></div></div>';
     var who = [['build', 'Construction and facilities', 'Trades, materials and quantities, safety plans and site budgets.'], ['it', 'IT and digital', 'Backlogs and sprints, with milestones and cost for the steering committee.'],
       ['leaf', 'ESG and sustainability', 'Decarbonisation and reporting programs that boards can follow.'], ['gov', 'Government', 'Charters, change control and reports ready for audit.'],
       ['brief', 'Consulting', 'Client engagements with scope, budget and status reports written for you.'], ['globe', 'Development programs', 'Many projects, donors and partners in one view of time, cost and risk.']];
@@ -86,6 +86,7 @@
       '<section id="ph-about" class="p2-sec"><h2>Built by people who run national programs.</h2>' +
       '<p>Project Champ comes from <b>Global Knowledge House</b>, a consultancy in Sydney and Kuala Lumpur. Since 2010 we have delivered programs in 8 countries, and reach 14 with our partners, for governments and businesses across Asia, the Middle East and Africa. Champ is that discipline, made simple for any team.</p>' +
       '<a class="p2-ext" href="https://gkhconsultancy.com/" target="_blank" rel="noopener">' + ico('globe') + '<span><b>Visit the GKH website</b><small data-noi18n>gkhconsultancy.com</small></span>' + ico('chev', 'p2-chev') + '</a>' +
+      '<div class="p2-work" aria-label="Selected work">' + [['Rwanda', 'National ID rollout'], ['Rwanda', 'Kigali ICT Park plan'], ['Rwanda', 'Pension fund modernisation'], ['Malta', 'National ID program'], ['Malaysia', 'E-commerce strategy'], ['Middle East', 'National airline ESG report']].map(function (w) { return '<div><small>' + w[0] + '</small><b>' + w[1] + '</b></div>'; }).join('') + '</div>' +
       '<figure class="p2-founder"><div class="p2-photo"><img src="assets/team/sashi-office.webp" alt="Sashi Kumar Sivam" loading="lazy"></div><figcaption><b data-noi18n>Sashi Kumar Sivam</b><span>CEO and Co-Founder of GKH, and architect of Project Champ</span></figcaption></figure>' +
       '<blockquote class="p2-quote">I build AI into how programs are planned, governed and rescued, so problems are seen early and dealt with before they cost a project.</blockquote>' +
       '<p class="p2-small">25 years leading national programs on five continents, including as Chief Strategic Advisor to the Rwanda Development Board. PMP, PMI-ACP, CSM, CSPO, ESGP.</p></section>' +
@@ -96,7 +97,7 @@
       '<a href="tel:+61493431202">' + ico('phone') + '<span><b>Call</b><small data-noi18n>+61 493 431 202</small></span>' + ico('chev', 'p2-chev') + '</a>' +
       '<a href="https://wa.me/61493431202?text=' + encodeURIComponent('Hi, I would like to know more about Project Champ.') + '">' + ico('chat') + '<span><b>WhatsApp</b><small>Message us any time</small></span>' + ico('chev', 'p2-chev') + '</a></div>' +
       '<p class="p2-small">Offices in Sydney, Australia and Kuala Lumpur, Malaysia.</p></section>' +
-      '<footer class="p2-foot"><p>Keep Champ one tap away. ' + HOME + '</p><p class="p2-legal"><a href="privacy.html">Privacy notice</a><span data-noi18n> · © Global Knowledge House</span></p></footer></main>' +
+      '<footer class="p2-foot"><div class="p2-sign"><img src="assets/gkh-globe.webp" alt="" width="34" height="34"><div><b data-noi18n>Project Champ</b><span>by Global Knowledge House, Sydney and Kuala Lumpur</span></div></div><p>Keep Champ one tap away. ' + HOME + '</p><p class="p2-legal"><a href="privacy.html">Privacy notice</a><span data-noi18n> · © Global Knowledge House</span></p></footer></main>' +
       '<div class="p2-dock"><a class="p2-btn p2-gold p2-signin" href="login.html">Sign in</a><span>Free to explore with Google. No card needed.</span></div>' +
       '<div class="p2-sheet" id="p2Sheet" role="dialog" aria-modal="true" aria-label="Language" hidden><div class="p2-sheet-in"><div class="p2-sheet-h"><b>Language</b><button type="button" id="p2SheetX" aria-label="Close">✕</button></div><div class="p2-langs" data-noi18n>' +
       LANGS.map(function (l) { return '<button type="button" data-l="' + l[0] + '"' + (l[0] === cur ? ' class="on" aria-current="true"' : '') + '>' + esc(l[1]) + '</button>'; }).join('') + '</div></div></div>';
