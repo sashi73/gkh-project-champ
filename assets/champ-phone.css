@@ -26,6 +26,31 @@ html.ph-home body{visibility:visible!important;background:radial-gradient(120% 6
 .ph-film{position:fixed;inset:0;z-index:2147483000;background:#000;display:flex;align-items:center;justify-content:center}
 .ph-film iframe{width:100%;height:100%;border:0}
 .ph-x{position:absolute;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:2;width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:18px}
+/* the phone website's menu and short sections */
+.ph-land{padding-top:calc(64px + env(safe-area-inset-top))}
+.ph-nav{position:fixed;top:0;left:0;right:0;z-index:30;display:flex;align-items:center;gap:6px;padding:calc(8px + env(safe-area-inset-top)) 8px 8px;background:rgba(10,10,10,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(242,217,139,.25)}
+.ph-menu{flex:1 1 auto;min-width:0;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+.ph-menu::-webkit-scrollbar{display:none}
+.ph-top img{display:block;margin:0 auto}
+.ph-nav a{flex:0 0 auto;padding:7px 8px;border-radius:999px;color:#D6D1C4;text-decoration:none;font:700 13px system-ui,sans-serif;white-space:nowrap}
+.ph-nav a.on{background:#E8C04A;color:#0A0A0A}
+.ph-nav .ph-lang-s{flex:0 0 auto;padding:3px 5px;gap:3px;border-radius:999px}
+.ph-nav .ph-lang-s{border:0;background:none;padding:0}
+.ph-land .ph-nav .ph-lang-s select{flex:0 0 76px;width:76px;padding:5px 2px;font-size:12px}
+.ph-sec{display:flex;flex-direction:column;gap:12px;scroll-margin-top:74px;padding-bottom:18px;border-bottom:1px solid rgba(255,255,255,.08)}
+.ph-sec h2{margin:8px 0 0;text-align:center;font-size:22px;color:#F2D98B}
+.ph-desk{margin:0;padding:10px 12px;border-radius:12px;background:rgba(232,192,74,.12);border:1px solid rgba(232,192,74,.45);color:#F5E7B8;font-size:13.5px;text-align:center}
+.ph-pts{list-style:none;margin:0;padding:0;display:grid;gap:6px;color:#EDEAE3;font-size:14.5px;text-align:center}
+.ph-person{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.ph-person img{width:72px;height:72px;border-radius:50%;object-fit:cover;flex:0 0 auto;border:2px solid #E8C04A}
+.ph-person b{display:block;color:#fff;font-size:16px}.ph-person small{color:#B9B29E;font-size:12.5px}
+.ph-who{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.ph-who li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05)}
+.ph-who li>span{font-size:22px;line-height:1}.ph-who b{display:block;color:#fff;font-size:14.5px}.ph-who small{color:#B9B29E;font-size:13px}
+.ph-cta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ph-btn{display:block;padding:12px 6px;border-radius:12px;text-align:center;text-decoration:none;font:700 14px system-ui,sans-serif;color:#F2D98B;border:1px solid rgba(242,217,139,.45);background:rgba(242,217,139,.08)}
+.ph-small{font-size:13px!important;color:#B9B29E!important}
+.ph-full2{align-self:center;color:#F2D98B;font-size:13.5px}
 @keyframes phIn{from{opacity:0;transform:scale(.7)}}
 @keyframes phPulse{50%{box-shadow:0 10px 40px rgba(232,192,74,.7);transform:scale(1.02)}}
 
@@ -129,3 +154,4 @@ html.ph-admin #login{min-height:100svh}
 .pa-apps button+button{background:#1C1A14}
 .pa-shn{margin:8px 0 0;font-size:12px;color:#7A7566;text-align:center}
 .pa-shx{display:block;width:100%;margin-top:8px;min-height:42px;border:0;border-radius:12px;background:#F1EEE6;font:700 14.5px system-ui,sans-serif;color:#4A4639}
+.ph-land .ph-nav .ph-lang-s select{flex:0 0 76px!important;width:76px!important;padding:5px 2px!important;font-size:12px!important}
