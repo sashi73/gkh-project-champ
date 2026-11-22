@@ -34,7 +34,7 @@
   function page(args) {
     var a = args || [];
     if (/^P-\d+$/.test(a[0] || '')) return load().then(function () { profile(a[0]); });
-    S.tab = a[0] === 'compliance' ? 'compliance' : a[0] === 'workload' ? 'work' : a[0] === 'calendar' ? 'cal' : 'list';
+    S.tab = a[0] === 'compliance' ? 'compliance' : a[0] === 'workload' ? 'work' : a[0] === 'calendar' ? 'cal' : a[0] === 'programs' ? 'pgm' : 'list';
     var users = canUsers() ? api('userList').then(function (u) { S.users = u.users; }).catch(function () { S.users = null; }) : Promise.resolve();
     return Promise.all([load(), users]).then(function () { draw(); });
   }
@@ -48,19 +48,49 @@
         '<button class="tab' + (S.tab === 'list' ? ' on' : '') + '" data-ptab="list">🧑‍🔧 People <b>' + act.length + '</b></button>' +
         '<button class="tab' + (S.tab === 'compliance' ? ' on' : '') + '" data-ptab="compliance">🎓 Credentials &amp; compliance' + (probs.length ? ' <b class="bad">' + probs.length + '</b>' : '') + '</button>' +
         '<button class="tab' + (S.tab === 'cal' ? ' on' : '') + '" data-ptab="cal">📅 Calendar</button>' +
-        '<button class="tab' + (S.tab === 'work' ? ' on' : '') + '" data-ptab="work">📊 Workload</button></div>' +
+        '<button class="tab' + (S.tab === 'work' ? ' on' : '') + '" data-ptab="work">📊 Workload</button>' +
+        (canPgm() ? '<button class="tab' + (S.tab === 'pgm' ? ' on' : '') + '" data-ptab="pgm">🗺 Program managers <b>' + pgmUsers().length + '</b></button>' : '') + '</div>' +
         '<span class="muted" style="font-size:13px">💻 ' + tech + ' technical &amp; general · 🏗 ' + (act.length - tech) + ' construction</span>' +
         '<span class="sp"></span>' + ((M.me || {}).test && can('edit') ? '<button class="btn btn-sm" id="ppSample" title="Test site only: 10 made-up employees and contractors to try things out with">🧪 Load 10 sample people</button>' : '') +
         '<button class="btn btn-sm" id="ppExp" type="button" title="Download People as CSV or Excel">⬇ Export</button>' + (can('edit') ? '<button class="btn btn-sm" id="ppImp" type="button" title="Update or add people from a CSV or Excel file">⬆ Import</button>' : '') +
         (can('edit') ? '<button class="btn" id="ppFromCv" title="Upload a PDF or Word resume: the details are filled in for you">✨ ＋ From a resume</button> <button class="btn btn-gold" id="ppNew">＋ Person</button>' : '<span class="muted" style="font-size:12.5px">View only</span>') + '</div><div id="ppBody"></div>';
-    V().querySelectorAll('[data-ptab]').forEach(function (b) { b.onclick = function () { S.tab = b.getAttribute('data-ptab'); history.replaceState(null, '', { list: '#people', compliance: '#people/compliance', work: '#people/workload', cal: '#people/calendar' }[S.tab]); draw(); }; });
+    V().querySelectorAll('[data-ptab]').forEach(function (b) { b.onclick = function () { S.tab = b.getAttribute('data-ptab'); history.replaceState(null, '', { list: '#people', compliance: '#people/compliance', work: '#people/workload', cal: '#people/calendar', pgm: '#people/programs' }[S.tab]); draw(); }; });
     var nb = $('#ppNew'); if (nb) nb.onclick = function () { edit(''); };
     var fc = $('#ppFromCv'); if (fc) fc.onclick = function () { edit(''); var i = $('#pfFill'); if (i) i.click(); };
     $('#ppExp').onclick = function () { exportDialog(null); }; var ib = $('#ppImp'); if (ib) ib.onclick = importDialog;   // v90
     var sb = $('#ppSample'); if (sb) sb.onclick = function () {   // v88: test site only
       sb.disabled = true; api('pplSampleLoad').then(function (r) { toast(r.ids.length ? r.ids.length + ' sample people added' + (r.skipped ? ' (' + r.skipped + ' were already there)' : '') + '. Give them Guest logins in Users & access.' : 'The sample people are already there'); return load(); }).then(draw).catch(function (e) { sb.disabled = false; fail(e); });
     };
-    if (S.tab === 'compliance') compTab(); else if (S.tab === 'work') workTab(); else if (S.tab === 'cal') calTab(); else listTab();
+    if (S.tab === 'pgm') pgmTab(); else if (S.tab === 'compliance') compTab(); else if (S.tab === 'work') workTab(); else if (S.tab === 'cal') calTab(); else listTab();
+  }
+
+  // 🗺 Program managers: which programs each one runs. They see those programs, their projects and the people on them, and nothing else.
+  var canPgm = function () { var me = M.me || {}; return !!S.users && (me.owner || (me.mods || {}).users === 'edit'); };
+  var pgmUsers = function () { return (S.users || []).filter(function (u) { return u.role === 'Program manager'; }); };
+  function pgmTab() {
+    var host = document.createElement('div'); V().appendChild(host); host.innerHTML = '<div class="empty">Loading the programs…</div>';
+    api('planList').then(function (d) {
+      var progs = (d.programs || []).filter(function (p) { return p.status !== 'closed'; }), L = pgmUsers();
+      var nameOf = {}; progs.forEach(function (p) { nameOf[p.id] = p.name; });
+      host.innerHTML = '<div class="card pgm-card"><h3 style="margin:0 0 4px">🗺 Program managers</h3><p class="muted" style="margin:0 0 14px">Tick the programs each program manager runs. They see only those programs, the projects in them and the people on those projects. A program they create is added for them. Make a program manager login in <a href="#users">Users &amp; access</a> (role: Program manager).</p>' +
+        (L.length ? '<div class="pgm-list">' + L.map(function (u) {
+          var mine = u.programs || [];
+          return '<div class="pgm-row" data-u="' + esc(u.id) + '"><span class="pp-av">' + esc(ini(u.name)) + '</span><div class="pgm-who"><b>' + esc(u.name || u.username) + '</b><small>' + esc(u.username) + (u.active === false ? ' · disabled' : '') + '</small></div>' +
+            '<details class="pgm-dd"><summary>' + (mine.length ? mine.map(function (id) { return '<span class="pgm-chip">' + esc(nameOf[id] || id) + '</span>'; }).join('') : '<span class="muted">No program yet: choose…</span>') + '</summary>' +
+            '<div class="pgm-menu">' + (progs.length ? progs.map(function (p) { return '<label><input type="checkbox" value="' + esc(p.id) + '"' + (mine.indexOf(p.id) >= 0 ? ' checked' : '') + '><i style="background:' + esc(p.color || '#999') + '"></i>' + esc(p.name) + (p.key ? ' <small>' + esc(p.key) + '</small>' : '') + '</label>'; }).join('') : '<p class="muted">No programs yet.</p>') +
+            '<div class="pgm-act"><button class="btn btn-sm btn-gold" type="button" data-save>Save</button></div></div></details></div>';
+        }).join('') + '</div>' : '<p class="empty">No program managers yet. Add a login with the role Program manager in <a href="#users">Users &amp; access</a>, then choose their programs here.</p>') + '</div>';
+      host.querySelectorAll('.pgm-row [data-save]').forEach(function (b) {
+        b.onclick = function () {
+          var row = b.closest('.pgm-row'), ids = [].map.call(row.querySelectorAll('input:checked'), function (x) { return x.value; });
+          b.disabled = true;
+          api('userPrograms', { id: row.getAttribute('data-u'), programs: ids }).then(function (r) {
+            (S.users || []).forEach(function (u) { if (u.id === r.user.id) u.programs = r.user.programs; });
+            toast((r.user.name || 'Saved') + ': ' + (ids.length ? ids.length + ' program' + (ids.length > 1 ? 's' : '') : 'no programs')); draw();
+          }).catch(function (e) { b.disabled = false; fail(e); });
+        };
+      });
+    }).catch(fail);
   }
 
   function listTab() {

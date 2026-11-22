@@ -258,6 +258,24 @@ try {
         mk.status === 200 && two.status === 400 && r.me.role === 'PMO Director' && r.me.money === true && !r.me.scope && r.v.status === 200 && Array.isArray(V.programs) && V.programs.length > 0 && V.all && V.all.n > 0 && V.team && Array.isArray(V.team.pms) && V.milestones && Array.isArray(V.gaps) && Array.isArray(V.decisions)
         && r.b === 200 && r.bs === 403 && r.u1 === 200 && r.u1r === 'Project manager' && r.u2 === 403 && pmV.status === 403 && ownV.status === 200,
         JSON.stringify([mk.status, two.status, r.me.role, r.me.money, r.v.status, V && V.error, r.b, r.bs, r.u1, r.u1r, r.u2, pmV.status, ownV.status]).slice(0, 600)); }
+    // 🗺 the Program manager: only their programs, the projects in them and the people on them; makes programs and projects (which become theirs); no money
+    { const pl = await api('planList'), dh = (pl.j.programs || []).find((p) => p.name === 'Digital health'), ev = (pl.j.programs || []).find((p) => p.name === 'Events');
+      const mk = await api('userCreate', { user: { email: 'pgm1@example.com', name: 'Grace Program', password: 'Vaultpass2026x', role: 'Program manager' } }), uid = mk.j.user && mk.j.user.id;
+      const give = await api('userPrograms', { id: uid, programs: [dh.id] });
+      const r = await as('pgm1@example.com', 'Vaultpass2026x', async () => {
+        const me = await api('me'), L = await api('planList'), PL = await api('planProgramList', {}), V = await api('planPgmGet', {}), oth = await api('planGet', { core: gc }), mineP = await api('planGet', { core: btc });
+        const bill = await api('acctBillGet', { core: btc }), newOther = await api('planNewProject', { name: 'Sneaky', client: 'X', program: 'Events' }), newMine = await api('planNewProject', { name: 'Clinic fit-out', client: 'Northside Health', program: 'Digital health' });
+        const newProg = await api('planNewProject', { name: 'Outreach', client: 'Northside Health', program: 'Community outreach' }), after = await api('planProgramList', {});
+        const ppl = await api('pplList'), sq = await api('sqlData'), ul = await api('userList'), cu = await api('custList'), pmo = await api('planPmoGet', {}), gaveOwn = await api('userPrograms', { id: uid, programs: [ev.id] });
+        return { me: me.j, L: (L.j.plans || []).map((p) => p.program), PLp: (PL.j.programs || []).map((p) => p.name), PLc: (PL.j.cards || []).map((c) => c.program), V: V.status, Vp: (V.j.programs || []).map((g) => g.name), Vbud: V.j.all && V.j.all.budget,
+          oth: oth.status, mine: mineP.status, bill: bill.status, nO: newOther.status, nM: newMine.status, nP: newProg.status, afterP: (after.j.programs || []).map((p) => p.name).sort(), ppl: ppl.status, pplScoped: !!ppl.j.scoped,
+          sq: sq.status, sqP: [...new Set(((sq.j.data || {}).projects || []).map((x) => x.program))], sqMoney: Object.keys(((sq.j.data || {}).projects || [])[0] || {}).filter((k) => /budget|contract_value|profit/.test(k)), ul: ul.status, cu: cu.status, pmo: pmo.status, gaveOwn: gaveOwn.status };
+      });
+      ok('PGM', '🗺 a Program manager: sees only their program (projects, Program view, Ask AI data, people), no money; cannot open another program\'s project or add to it; a new program they make becomes theirs; no logins, customers or PMO view',
+        mk.status === 200 && give.status === 200 && r.me.role === 'Program manager' && !r.me.money && r.L.length > 0 && r.L.every((p) => p === 'Digital health') && r.PLp.join() === 'Digital health' && r.PLc.every((p) => p === 'Digital health')
+        && r.V === 200 && r.Vp.join() === 'Digital health' && r.Vbud == null && r.oth === 403 && r.mine === 200 && r.bill === 403 && r.nO === 403 && r.nM === 200 && r.nP === 200 && r.afterP.join() === 'Community outreach,Digital health'
+        && r.ppl === 200 && r.pplScoped && r.sq === 200 && r.sqP.length > 0 && r.sqP.every((p) => p === 'Digital health' || p === 'Community outreach') && !r.sqMoney.length && r.ul === 403 && r.cu === 403 && r.pmo === 403 && r.gaveOwn === 403,
+        JSON.stringify(r).slice(0, 900)); }
   }
     // ---------- 🏁 deliverables: final / interim, Draft / Final, versions with notes, and a log of uploads and downloads ----------
   { const b64 = (t) => Buffer.from(t).toString('base64'), tx = 'Selangor transport masterplan. Chapter 1 vision and objectives for the corridor plan.';

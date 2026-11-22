@@ -6,7 +6,7 @@
   'use strict';
   var M = window.MBS; if (!M) return;
   var api = M.api, esc = M.esc, fail = M.fail;
-  var D = null, TAB = 'all';
+  var D = null, TAB = 'all', MODE = 'pmo';   // MODE 'pgm': the Program view (a Program manager's programs, no money)
   var today = function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var day = function (s) { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : ''; };
   var idx = function (v) { return v == null ? '<span class="muted">–</span>' : '<b class="ceo-i ' + (v < 0.9 ? 'r' : v < 1 ? 'a' : 'g') + '">' + Number(v).toFixed(2) + '</b>'; };
@@ -14,7 +14,7 @@
   var go = function (core, tab) { return 'data-go="#plan/' + esc(core) + '/' + (tab || 'overview') + '"'; };
   var ICO = { decide: '⚖', prog: '🗂', watch: '🚦', ms: '◆', esc: '🚨', team: '👥', gaps: '🧾' };
 
-  function load() { return api('planPmoGet', { today: today() }).then(function (d) { D = d; }); }
+  function load() { return api(MODE === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { D = d; }); }
 
   function tile(k, icon, label, value, sub, tone) {
     return '<button type="button" class="pmo-k t-' + (tone || 'ok') + (TAB === k ? ' on' : '') + '" data-tab="' + k + '"><i>' + icon + '</i><span><small>' + esc(label) + '</small><b>' + value + '</b><em>' + sub + '</em></span></button>';
@@ -78,7 +78,7 @@
     var pms = T.pms.length ? '<div class="table-wrap"><table class="ceo-tab pmo-tab"><thead><tr><th>Project manager</th><th class="num">Projects</th><th class="num">In trouble</th><th class="num">At risk</th><th class="num">Late tasks</th></tr></thead><tbody>' + T.pms.map(function (p) {
       return '<tr><td><b>' + esc(p.name) + '</b></td><td class="num">' + p.projects + '</td><td class="num' + (p.red ? ' ceo-late' : '') + '">' + p.red + '</td><td class="num">' + p.amber + '</td><td class="num">' + p.late + '</td></tr>'; }).join('') + '</tbody></table></div>' : none('No project managers are named on the plans yet.');
     var col = function (title, L) { return '<div><h4 class="ceo-sub">' + esc(title) + ' (' + L.length + ')</h4>' + (L.length ? '<ul class="pmo-pp">' + L.slice(0, 12).map(person).join('') + '</ul>' + (L.length > 12 ? '<p class="muted pmo-more"><a href="#people/workload">' + (L.length - 12) + ' more in Workload</a></p>' : '') : '<p class="muted">None in the People register.</p>') + '</div>'; };
-    return '<p class="pmo-lg">Logins: ' + pl(T.logins.directors, 'project director') + ', ' + pl(T.logins.managers, 'project manager') + ', ' + pl(T.logins.contractors, 'contractor') + ', ' + T.logins.personnel + ' project personnel · <a href="#users">Users &amp; access</a> · <a href="#people/workload">Workload</a></p>' +
+    return (!T.logins ? '<p class="pmo-lg"><a href="#people">People on your projects</a> · <a href="#people/workload">Workload</a></p>' : '<p class="pmo-lg">Logins: ' + pl(T.logins.directors, 'project director') + ', ' + pl(T.logins.managers, 'project manager') + ', ' + pl(T.logins.contractors, 'contractor') + ', ' + T.logins.personnel + ' project personnel · <a href="#users">Users &amp; access</a> · <a href="#people/workload">Workload</a></p>') +
       '<h4 class="ceo-sub">Project managers</h4>' + pms + '<div class="pmo-ms2">' + col('Consultants', T.consultants) + col('Contractors', T.contractors) + '</div>';
   }
   function gaps() {
@@ -90,7 +90,7 @@
   function draw() {
     var A = D.all;
     M.view().innerHTML = '<div class="ceo pmo">' +
-      '<div class="row ceo-head"><div><p class="muted">' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + ' · delivery across ' + pl(D.programs.length, 'program') + ' and ' + pl(A.n, 'live project') + '</p></div>' +
+      '<div class="row ceo-head"><div><p class="muted">' + esc(new Date().toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })) + (MODE === 'pgm' ? ' · your ' + pl(D.programs.length, 'program') + ' and ' + pl(A.n, 'live project') + (D.programs.length ? ': ' + esc(D.programs.map(function (g) { return g.name; }).join(', ')) : '') : ' · delivery across ' + pl(D.programs.length, 'program') + ' and ' + pl(A.n, 'live project')) + '</p></div>' +
       '<div class="row" style="gap:6px;align-items:center"><span class="pmo-ix">Portfolio SPI ' + idx(A.SPI) + ' · CPI ' + idx(A.CPI) + '</span><button class="btn btn-sm" id="pmoRe" type="button">⟳ Refresh</button><button class="btn btn-sm" id="pmoPr" type="button">🖨 Print / PDF</button></div></div>' +
       tiles() + (TAB !== 'all' ? '<p class="ceo-f">Showing one section · <a href="#" id="pmoAll">show everything</a></p>' : '') +
       '<div class="pmo-g">' +
@@ -109,5 +109,9 @@
     Array.prototype.forEach.call(V.querySelectorAll('[data-tab]'), function (b) { b.onclick = function () { TAB = TAB === b.getAttribute('data-tab') ? 'all' : b.getAttribute('data-tab'); draw(); }; });
     V.querySelector('.pmo').addEventListener('click', function (e) { var r = e.target.closest('[data-go]'); if (r && !e.target.closest('a')) location.hash = r.getAttribute('data-go'); });
   }
-  M.addView('pmo', 'PMO view', function () { M.view().innerHTML = '<div class="empty">Gathering every program and project…</div>'; return load().then(draw); }, 'pmo');
+  M.addView('pmo', 'PMO view', function () { MODE = 'pmo'; TAB = 'all'; M.view().innerHTML = '<div class="empty">Gathering every program and project…</div>'; return load().then(draw); }, 'pmo');
+  M.addView('pgm', 'Program view', function () {   // 🗺 a Program manager's home: the same view, for their programs only
+    MODE = 'pgm'; TAB = 'all'; M.view().innerHTML = '<div class="empty">Gathering your programs…</div>';
+    return load().then(function () { if (!D.programs.length) { M.view().innerHTML = '<div class="empty"><p><b>No program yet.</b></p><p>Ask the super user or the PMO Director to give you a program (People › Program managers), or create one in <a href="#programs">Programs</a>.</p></div>'; return; } draw(); });
+  }, 'pgm');
 })();

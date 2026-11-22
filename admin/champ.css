@@ -1473,3 +1473,24 @@ html.dark #planTabs.ptabs .tab[href$="/intel"] .pt-ic,body.dark #planTabs.ptabs 
 html.dark .pmo-k>i,body.dark .pmo-k>i{background:rgba(255,255,255,.08)}
 html.dark .pmo-when,body.dark .pmo-when,html.dark .pmo-n,body.dark .pmo-n{background:rgba(255,255,255,.08)}
 @media print{.pmo .btn,.pmo-ks{display:none}.pmo-g{grid-template-columns:1fr}}
+/* 🗺 People › Program managers */
+.pgm-card{margin-top:4px}
+.pgm-list{display:flex;flex-direction:column}
+.pgm-row{display:grid;grid-template-columns:auto 220px 1fr;gap:12px;align-items:start;padding:12px 4px;border-top:1px solid var(--line,#EEE9DD)}
+.pgm-who small{display:block;color:var(--muted,#7A7566);font-size:12px}
+.pgm-dd{position:relative}
+.pgm-dd summary{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:38px;padding:6px 34px 6px 10px;border:1px solid var(--line,#DDD6C6);border-radius:10px;background:var(--card,#fff)}
+.pgm-dd summary::-webkit-details-marker{display:none}
+.pgm-dd summary::after{content:"▾";position:absolute;right:12px;top:10px;color:var(--muted,#7A7566)}
+.pgm-dd[open] summary{border-color:#C9A227;box-shadow:0 0 0 3px rgba(201,162,39,.15)}
+.pgm-chip{padding:3px 10px;border-radius:999px;background:#F4ECD6;color:#5B4A1D;font-size:12.5px;font-weight:700}
+.pgm-menu{position:absolute;z-index:20;left:0;right:0;top:calc(100% + 6px);max-height:320px;overflow:auto;padding:8px;border-radius:12px;border:1px solid var(--line,#DDD6C6);background:var(--card,#fff);box-shadow:0 16px 40px -16px rgba(0,0,0,.35)}
+.pgm-menu label{display:flex;gap:9px;align-items:center;padding:7px 8px;border-radius:8px;cursor:pointer;font-size:14px}
+.pgm-menu label:hover{background:rgba(201,162,39,.08)}
+.pgm-menu label i{width:10px;height:10px;border-radius:3px;flex:none}
+.pgm-menu label small{color:var(--muted,#7A7566)}
+.pgm-act{display:flex;justify-content:flex-end;padding:6px 4px 2px;position:sticky;bottom:-8px;background:var(--card,#fff)}
+@media (max-width:760px){.pgm-row{grid-template-columns:auto 1fr}.pgm-dd{grid-column:1/-1}}
+.pgm-menu label{display:grid!important;grid-template-columns:18px 10px 1fr;justify-items:start;margin:0!important;font-weight:500}
+.pgm-menu label input{width:auto!important;height:auto;margin:0!important;accent-color:#C9A227}
+.pgm-menu label small{grid-column:3}

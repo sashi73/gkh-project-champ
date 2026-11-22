@@ -534,7 +534,24 @@ export async function reportPdf({ title, summary, insights, recommendations, sql
   return pdf.save();
 }
 
-export async function sqlPost(action, body, { who }) {
+// 🗺 a Program manager asks over their own programs only: rows of their projects and programs, no sub-contractor tables, no money columns
+const MONEY_COL = /budget|cost|price|amount|value|_inc$|invoice|quote|paid|payment|rate|margin|revenue|profit|bill|owed|received|^bac$|^eac$|^vac$|^ac$|^ev$|^pv$|earned|planned_value|actual|contract|cpi/i;
+function scoped(data, g) {
+  const cores = new Set(g.cores), names = new Set(g.names), out = {};
+  for (const [t, rows] of Object.entries(data)) {
+    if (t === 'subcontractors' || t === 'sub_trades' || !Array.isArray(rows)) continue;
+    let R = rows;
+    if (t === 'programs') R = rows.filter((r) => names.has(r.program_id || r.program));
+    else if (t === 'dependencies') R = rows.filter((r) => names.has(r.from_program) && names.has(r.to_program));
+    else R = rows.filter((r) => cores.has(r.job_id || r.job || r.core));
+    out[t] = R.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k))));
+  }
+  return out;
+}
+const noMoneyCols = (o) => Object.fromEntries(Object.entries(o).map(([t, c]) => [t, Array.isArray(c) ? c.filter((k) => !MONEY_COL.test(typeof k === 'string' ? k : (k && k.name) || '')) : c]));
+export async function sqlPost(action, body, { who, ctx }) {
+  if (action === 'sqlData' && ctx && ctx.pgm) { const data = scoped(champOnly(await tables()), ctx.pgm), keep = (o) => Object.fromEntries(Object.entries(champOnly(o)).filter(([t]) => data[t]));
+    return out(200, { schema: noMoneyCols(keep(SCHEMA)), describe: keep(DESCRIBE), keys: keep(Object.fromEntries(Object.entries(KEYS).map(([t, K]) => [t, { pk: K.pk, fk: K.fk || {} }]))), data, scoped: true }); }
   if (action === 'sqlData') return out(200, { schema: champOnly(SCHEMA), describe: champOnly(DESCRIBE), keys: champOnly(Object.fromEntries(Object.entries(KEYS).map(([t, K]) => [t, { pk: K.pk, fk: K.fk || {} }]))), data: champOnly(await tables()) });
   if (action === 'sqlNarrative') {
     const columns = (Array.isArray(body.columns) ? body.columns : []).map(String).slice(0, 40), rows = Array.isArray(body.rows) ? body.rows.slice(0, 200) : [];
