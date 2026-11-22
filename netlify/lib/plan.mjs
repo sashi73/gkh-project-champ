@@ -1222,6 +1222,15 @@ export async function planPost(action, body, { who, by, audit, ctx }) {
     const plan = await get(core); if (!plan) return out(404, { error: 'No plan' });
     try { const BV = await import('./baserev.mjs'); return out(200, await BV.analyse(core, plan, rollup(plan, String(body.today || '').match(/^\d{4}-\d\d-\d\d$/) ? body.today : new Date().toISOString().slice(0, 10)))); }
     catch (e) { return out(e.code || 500, { error: e.message }); } }
+  if (action === 'planAuditGet' || action === 'planAuditPdf' || action === 'planAuditCsv') {   // 🔏 the project audit trail: on screen, PDF or CSV (people who see money only: it shows costs)
+    if (!money) return out(403, { error: 'The audit trail is for the project manager, the program director and the finance team.' });
+    const job = await J.find(core); if (!job) return out(404, { error: 'Job not found' });
+    const PA = await import('./paudit.mjs'), log = await PA.all(job.core), check = PA.verify(log), plan = await get(job.core), name = (plan && plan.name) || job.service || job.core, ref = J.refFor(job);
+    const file = 'Audit trail ' + ref + ' ' + new Date().toISOString().slice(0, 10);
+    if (action === 'planAuditCsv') return out(200, { name: file + '.csv', type: 'text/csv', file: Buffer.from(PA.csv(log, check), 'utf8').toString('base64'), n: log.length, check });
+    if (action === 'planAuditPdf') return out(200, { name: file + '.pdf', type: 'application/pdf', file: (await PA.pdf(log, check, { project: name, ref, by: (ctx && (ctx.name || ctx.who)) || by })).toString('base64'), n: log.length, check });
+    return out(200, { n: log.length, check, recent: log.slice(-8).reverse().map((e) => ({ seq: e.seq, at: e.at, who: e.name || e.who, role: e.role, what: e.what, lines: (e.lines || []).slice(0, 4) })), first: log[0] ? log[0].at : 0 });
+  }
   if (action === 'planGet') {
     const job = await J.find(core);
     if (!job) return out(404, { error: 'Job not found' });
@@ -1243,6 +1252,7 @@ export async function planPost(action, body, { who, by, audit, ctx }) {
     const r = await save(core, body.plan || {}, body.rev, by);
     if (r.conflict) return out(409, { error: 'Someone else changed this plan. Your view has been refreshed with their version.', plan: money ? r.conflict : stripMoney(r.conflict) });
     if (body.note && audit) await audit(who, `Plan ${core}: ${str(body.note, 120)}`);
+    try { const PA = await import('./paudit.mjs'), lines = PA.planDiff(before, r.plan); if (lines.length) await PA.record(core, { who: (ctx && ctx.who) || by, name: ctx && ctx.name, role: ctx ? (ctx.owner ? 'Super user' : ctx.role) : '', ip: ctx && ctx.ip, kind: 'Plan', what: body.note ? 'Plan saved: ' + str(body.note, 160) : before ? 'Plan changed' : 'Plan created', lines }); } catch (e) { console.error('Audit trail: ' + e.message); }
     let low = [];
     // GKH Project Champ: no Inventory, so a plan never sets stock aside
     // 🧱 a signed-off BOM that changed: a new version (v0 baseline, then v1, v2 …), filed, summarised and learned from

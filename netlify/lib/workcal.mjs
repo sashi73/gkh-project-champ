@@ -26,6 +26,7 @@ export function weekendOf(cc, st) {
   return [6, 0];
 }
 
+export const countries = () => HD.getCountries('en') || {};
 export const countryName = (cc) => (HD.getCountries('en') || {})[String(cc || '').toUpperCase()] || '';
 export const stateName = (cc, st) => (cc && st && (HD.getStates(String(cc).toUpperCase(), 'en') || {})[String(st).toUpperCase()]) || '';
 

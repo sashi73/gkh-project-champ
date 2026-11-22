@@ -58,6 +58,20 @@ import { lvPost } from '../lib/leave.mjs';
 import * as ACC from '../lib/accounts.mjs';
 
 const H = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
+// 🔏 a change to a project, in words, for its audit trail
+const AUDIT_SKIP = /(Get|List|Status|Search|File|Pdf|Csv|Preview|Ping|Stage|Usage|Check|Board|Tree|Url|Alerts|Seen|Info|Defaults)$|^(planR2Upload|kbR2Upload|planR2Put)$/;
+const AUDIT_LABEL = { intelUpload: ['Documents', 'Document uploaded'], intelDocDelete: ['Documents', 'Document deleted'], intelDmsUpdate: ['Documents', 'Document details changed'], intelDocPutFile: ['Documents', 'Original file stored'],
+  intelCrRecord: ['Change control', 'Change request decision recorded'], intelClear: ['Ask AI', 'Ask AI history cleared'], acctBillSave: ['Billing', 'Billing (contract value, milestone shares) saved'], acctBillRaise: ['Billing', 'Invoice raised from a milestone'],
+  acctVoRaise: ['Billing', 'Variation order raised'], acctVoDecide: ['Billing', 'Variation order decided'], planR2Put: ['Documents', 'File stored'], planDelete: ['Project', 'Plan deleted'], planArchive: ['Project', 'Project archived'], planUnarchive: ['Project', 'Project brought back'],
+  planModules: ['Project', 'Modules switched'], planNewProject: ['Project', 'Project created'], planBaseFiles: ['Baseline', 'Baseline files made'], planBomSign: ['BOM / BOQ', 'BOM / BOQ signed off'] };
+async function auditAction(action, body, ctx, by, res0) {
+  if (!ctx || action === 'planSave' || action === 'planGet' || AUDIT_SKIP.test(action) || !/^(plan|intel|acct|swms|lesson|vault)/.test(action)) return;
+  const core = String((body && (body.core || (body.plan && body.plan.core))) || (res0 && res0.core) || '').slice(0, 40); if (!core) return;
+  const lab = AUDIT_LABEL[action] || ['Project', action.replace(/^(plan|intel|acct)/, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, (c) => c.toUpperCase())];
+  const det = []; for (const k of ['name', 'title', 'id', 'docId', 'tid', 'outcome', 'status', 'amount', 'reason', 'note', 'vnote']) { const v = body[k]; if (v != null && v !== '' && typeof v !== 'object') det.push(k + ': ' + String(v).slice(0, 200)); }
+  if (body.set && typeof body.set === 'object') det.push('set: ' + JSON.stringify(body.set).slice(0, 300));
+  await (await import('../lib/paudit.mjs')).record(core, { who: ctx.who || by, name: ctx.name, role: ctx.owner ? 'Super user' : ctx.role, ip: ctx.ip, kind: lab[0], what: lab[1], lines: det });
+}
 const MONEY_KEYS = new Set(['BAC', 'PV', 'EV', 'AC', 'ACin', 'EVin', 'ACest', 'CPI', 'CPIx', 'EAC', 'ETC', 'VAC', 'TCPI', 'split', 'budget', 'cost', 'costs', 'rate', 'price', 'amount', 'money', 'profit', 'margin', 'contract', 'contractValue', 'invoiced', 'received', 'owed', 'bomx', 'bomLoose', 'budgetCfg', 'bom', 'bomBase', 'bomRevs', 'forecastCost', 'forecast_cost', 'actual', 'actualCost', 'basis', 'b0', 'b1', 'BACbase']);
 function scrubMoney(v, d = 0) { if (d > 30 || v == null || typeof v !== 'object') return v; if (Array.isArray(v)) return v.map((x) => scrubMoney(x, d + 1)); const o = {}; for (const [k, x] of Object.entries(v)) if (!MONEY_KEYS.has(k)) o[k] = scrubMoney(x, d + 1); return o; }
 const out = (status, body, extra = {}) => new Response(JSON.stringify(body), { status, headers: { ...H, ...extra } });
@@ -224,6 +238,7 @@ async function handle(req, context) {
     const session = A.readSession(req);
     if (!session) return bad('Please log in', 401);
     const ctx = await U.context(session, '', canIn);   // v86: Users & access: who this is and what they can use
+    if (ctx) ctx.ip = A.clientIp(req);   // 🔏 for the project audit trail
     if (!ctx) return out(401, { error: 'Your access has changed or ended. Please sign in again.' }, { 'Set-Cookie': A.clearCookie(req) });
     const who = session.u, by = `Admin (${who})`;
     if (ctx.mustChange && !['me', 'userPassword'].includes(action)) return bad('Set your own password first.', 403);
@@ -239,7 +254,7 @@ async function handle(req, context) {
       return out(200, { ok: true }, { 'Set-Cookie': A.sessionCookie(req, A.makeSession(j.name, Date.now(), { uid: j.uid, v: j.v, pc: session.pc })) });
     }
 
-    switch (action) {
+    const res = await (async () => { switch (action) {
       case 'me': return out(200, { build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, money: U.seesMoney(ctx), mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.scope || null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
 
       // 📍 Location: search a place (countries and states offline, towns from OpenStreetMap), and its weekend and public holidays
@@ -675,7 +690,10 @@ async function handle(req, context) {
         }
         return a || bad('Unknown action');
       }
-    }
+    } })();
+    // 🔏 the project audit trail: every change made to a project (plan saves record their own field-by-field detail)
+    if (res && res.status === 200 && ctx) await auditAction(action, body, ctx, by, action === 'planNewProject' ? await res.clone().json().catch(() => null) : null).catch((e) => console.error('Audit trail: ' + e.message));
+    return res;
   } catch (e) {
     console.error('Admin error:', e);
     return bad('Something went wrong: ' + e.message, 500);
