@@ -296,4 +296,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 285 | 1.0.285| 2026-11-23 02:41| pgcols| `7c0b2ea` | Users & access: Programs and Projects checklists in columns (three where they fit) (#146) |
 | 286 | 1.0.286| 2026-11-23 02:47| featai| `debaf66` | Features: The power of AI (a working day with Champ, and what stays with people); the risk scene shows Champ raising the risk, on desktop an |
 | 287 | 1.0.287| 2026-11-23 03:23| crfix| `2667f30` | Security and access fixes from CodeRabbit's review (logins, Ask AI money and scope, meeting analysis, health check), plus dashboard and caro |
-| 288 | 1.0.288 | 2026-11-23 03:37 | crfix | _this commit_ | _see git log_ |
+| 288 | 1.0.288| 2026-11-23 03:37| crfix| `d1e9f1f` | CodeRabbit round 2: staged documents only for their uploader, money-free meeting analysis kept apart and amounts removed, shared logins, lin |
+| 289 | 1.0.289 | 2026-11-23 03:48 | crfix | _this commit_ | _see git log_ |

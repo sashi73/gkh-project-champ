@@ -578,7 +578,7 @@ async function handle(req, context) {
           const okP = new Set((portfolio.projects || []).map((p) => p.program)), mine = (c) => ctx.scope.includes(c);
           if (portfolio.programs) portfolio.programs = portfolio.programs.filter((g) => okP.has(g.name) || (ctx.pgm && ctx.pgm.names.includes(g.name)));
           if (portfolio.dependencies) portfolio.dependencies = portfolio.dependencies.map((x) => ({ ...x, from: mine(x.from_core) ? x.from : 'another project', from_core: mine(x.from_core) ? x.from_core : '', to: mine(x.to_core) ? x.to : 'another project', to_core: mine(x.to_core) ? x.to_core : '' }));
-          if (portfolio.people) { const as = await PPL.assignments().catch(() => ({})), L2 = (await PPL.list()).people || [], ok = new Set(L2.filter((p) => ((as[p.id] || {}).list || []).some((x) => mine(x.core))).map((p) => p.name)); portfolio.people = portfolio.people.filter((p) => ok.has(p.name)); }
+          if (portfolio.people) { const as = await PPL.assignments().catch(() => ({})), L2 = (await PPL.list()).people || [], ok = new Set(L2.filter((p) => Object.keys((as[p.id] || {}).by || {}).some((c) => mine(c))).map((p) => p.name)); portfolio.people = portfolio.people.filter((p) => ok.has(p.name)); }
         }
         if (!U.seesMoney(ctx)) { if (portfolio) portfolio = scrubMoney(portfolio); if (project) project = scrubMoney(project); }
         const kbHits = await KB.search(q, 2500).catch(() => []), course_notes = kbHits.length ? KB.forPrompt(kbHits) : undefined;
@@ -742,7 +742,7 @@ async function handle(req, context) {
       if (ctx.pgm.kind === 'project' && action === 'planNewProject') { const j0 = await res.clone().json().catch(() => ({})); if (j0.core) await U.addProject(ctx.uid, j0.core); }   // 📁 a project a Project manager makes is theirs
       // 👥 people: only those on their projects (from the plans), and no rates or pay
       if (['pplList', 'pplGet', 'pplAssign'].includes(action)) {
-        const as = await PPL.assignments(), inMine = (id) => ((as[id] || {}).list || []).some((x) => ctx.scope.includes(x.core));
+        const as = await PPL.assignments(), inMine = (id) => Object.keys((as[id] || {}).by || {}).some((c) => ctx.scope.includes(c));
         const clean = (p) => Object.fromEntries(Object.entries(p || {}).filter(([k]) => !(ctx.pgm.kind === 'project' ? /pay|salary|bank|tfn|super|abn/i : /rate|pay|salary|cost|bank|tfn|super|abn/i).test(k)));
         const trimA = (a) => { if (!a) return a; const by = Object.fromEntries(Object.entries(a.by || {}).filter(([c]) => ctx.scope.includes(c))), sum = (k) => Object.values(by).reduce((t, n) => t + (n[k] || 0), 0);
           return { ...a, list: (a.list || []).filter((x) => ctx.scope.includes(x.core)), by, projects: Object.keys(by).length, now: sum('now'), next: sum('next'), late: sum('late') }; };   // 🔒 only their projects, and the counts from those

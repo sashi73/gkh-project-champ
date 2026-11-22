@@ -23,7 +23,7 @@ export async function stage({ name, pages, text, kind }, by) {
   const t = String(text || '').replace(/\u0000/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{4,}/g, '\n\n\n').slice(0, MAX_STAGE);
   if (t.replace(/\[(page|slide) \d+\]/g, '').trim().length < 200) return { error: 'There is too little text in this document to read. If it is a scanned PDF (pictures of pages), save it as a text PDF or Word file first.' };
   const sid = 'ds' + Date.now().toString(36) + randomBytes(12).toString('hex');   // 🔒 not guessable
-  const doc = { sid, name: str(name, 160).replace(/[\\/]/g, '-') || 'document', kind: str(kind, 20), pages: Math.max(0, Math.round(Number(pages) || 0)), text: t, by: str(by, 80), at: Date.now() };
+  const doc = { sid, name: str(name, 160).replace(/[\\/]/g, '-') || 'document', kind: str(kind, 20), pages: Math.max(0, Math.round(Number(pages) || 0)), text: t, by: str(by, 160), at: Date.now() };   // the full login (up to 160), so only its uploader can use it
   await kv.set('docstage:' + sid, doc);
   const ch = chunks(t);
   return { sid, name: doc.name, pages: doc.pages, chars: t.length, words: t.split(/\s+/).filter(Boolean).length, tokens: estTokens(t), chunks: ch.length, whole: estTokens(t) <= inputBudget(), truncated: String(text || '').length > MAX_STAGE };

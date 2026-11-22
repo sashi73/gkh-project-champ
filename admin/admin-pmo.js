@@ -16,9 +16,10 @@
 
   var here = function () { var v = M.view(); return !!(v && (v.querySelector('[data-pmo-wait="' + MODE + '"]') || v.querySelector('.pmo[data-mode="' + MODE + '"]'))); };   // still on this page (its placeholder or itself is showing)?
   function drawIfHere(ok) { if (ok !== false && here()) draw(); }
-  function load() {   // each answer belongs to the page that asked for it: one that comes back after the page changed is dropped
-    var mode = MODE;
-    return api(mode === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { if (mode !== MODE) return false; D = d; return true; });
+  var REQ = 0;
+  function load() {   // only the latest request for the open page may update it: earlier answers, or answers for another page, are dropped
+    var mode = MODE, me = ++REQ;
+    return api(mode === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { if (mode !== MODE || me !== REQ) return false; D = d; return true; });
   }
 
   function tile(k, icon, label, value, sub, tone) {

@@ -76,7 +76,7 @@ export async function pmoView(day, opt = {}) {
   const pms = {};
   for (const r of live) { const n = pmOf(r.core); if (!n) continue; const k = n.toLowerCase(); const x = (pms[k] = pms[k] || { name: n, projects: 0, red: 0, amber: 0, late: 0 }); x.projects++; if (r.health === 'red') x.red++; if (r.health === 'amber') x.amber++; x.late += r.late || 0; }
   // 🔒 a program manager: each person's counts come from their own projects only
-  const onMine = (id) => !GC || ((asg[id] || {}).list || []).some((x) => GC.has(x.core));
+  const onMine = (id) => !GC || Object.keys((asg[id] || {}).by || {}).some((c) => GC.has(c));   // the complete index, not the shortened list
   const people = (reg.people || []).filter((p) => !p.archived && p.status !== 'Inactive' && onMine(p.id)).map((p) => {
     const a = G ? within(asg[p.id], GC) : (asg[p.id] || { projects: 0, now: 0, next: 0, late: 0 }), bad = ((p.comp && p.comp.items) || []).filter((c) => ['missing', 'expired'].includes(c[1])).length;
     return { id: p.id, name: p.name, role: p.role || '', type: p.type || 'Employee', status: p.status || 'Active', projects: a.projects, now: a.now, next: a.next, late: a.late, comp: bad, load: a.now >= 5 ? 'over' : a.now >= 3 ? 'busy' : a.now ? 'ok' : 'free' };

@@ -95,7 +95,12 @@ function tidyTranscript(t) {   // Teams/Zoom .vtt/.srt: drop the cue numbers and
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 // 💰 dollar amounts, written out, for a login without money access: removed from what the AI reads and from what comes back
-const AMOUNT = /(?:A\$|AU\$|US\$|NZ\$|S\$|RM|MYR|AUD|USD|NZD|SGD|EUR|GBP|€|£|\$)\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:k|m|bn|million|billion|thousand))?\b|\b\d[\d,]*(?:\.\d+)?\s?(?:k|m|bn|million|billion|thousand)?\s?(?:dollars|ringgit|AUD|USD|NZD|SGD)\b/gi;
+const CUR = '(?:A\\$|AU\\$|US\\$|NZ\\$|S\\$|\\$|€|£|RM|MYR|AUD|USD|NZD|SGD|EUR|GBP|IDR|Rp)', WORDS = '(?:dollars?|bucks|ringgit|euros?|pounds?|rupiah|cents?)', SCALE = '(?:k|m|bn|mil|million|billion|thousand|hundred|grand)';
+const NUMW = '(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|half|a|and|point)';
+const AMOUNT = new RegExp([
+  CUR + '\\s?\\d[\\d,]*(?:\\.\\d+)?(?:\\s?' + SCALE + ')?\\b',                                    // $5,000 · RM 2.5m · €300
+  '\\b\\d[\\d,]*(?:\\.\\d+)?\\s?(?:' + SCALE + '\\s?)?(?:EUR|GBP|MYR|RM|AUD|USD|NZD|SGD|IDR|' + WORDS + ')\\b',   // 5,000 EUR · 2.5 million dollars · 300 ringgit
+  '\\b(?:' + NUMW + '[\\s-]+){0,6}' + NUMW + '\\s+' + WORDS + '\\b'].join('|'), 'gi');            // five thousand dollars · two and a half million euros
 export const noAmounts = (v) => (typeof v === 'string' ? v.replace(AMOUNT, '[amount]') : Array.isArray(v) ? v.map(noAmounts) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, noAmounts(x)])) : v);
 const meetKey = (core, id, money) => `pmeet:${core}:${id}` + (money ? '' : ':nm');   // a run without money access is kept apart, so it never replaces the cost-bearing one
 export async function analyse({ core, id, question, money = true }, by) {   // 💰 money: false for a login that does not see costs (contractors, project personnel): no cost in or out
