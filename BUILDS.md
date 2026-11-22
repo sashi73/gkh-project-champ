@@ -267,4 +267,6 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 256 | 1.0.256| 2026-11-22 10:10| bimin| `062860d` | BIM and construction files in Start from a document (IFC take-off, TimeLiner, MS Project XML, clash reports, DXF; Revit/Navisworks/AutoCAD k |
 | 257 | 1.0.257| 2026-11-22 10:43| bimsample| `b1060ac` | Sample BIM set (imaginary Riverbend Allied Health Hub: IFC, TimeLiner, clash report) with a Try a sample link; rooms grouped by type; layere |
 | 258 | 1.0.258| 2026-11-22 10:45| nohelp| `309f7be` | Website: Help removed (nav, footer, page); /help goes to the home page; help stays in the console (#119) |
-| 259 | 1.0.259 | 2026-11-22 11:05 | bimfix | _this commit_ | _see git log_ |
+| 259 | 1.0.259| 2026-11-22 11:05| bimfix| `af138de` | Sample IFC with real geometry (validated, viewable in any IFC viewer); a document started from several files keeps the first file's name and |
+| 260 | 1.0.260| 2026-11-22 11:11| mobile| `e431755` | Phone website: menu (Home, About with Sashi, Who it's for, Contact), short sections, language in the menu (all languages), best-on-a-compute |
+| 261 | 1.0.261 | 2026-11-22 11:18 | mobile | _this commit_ | _see git log_ |
