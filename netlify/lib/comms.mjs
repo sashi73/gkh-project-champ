@@ -94,6 +94,10 @@ function tidyTranscript(t) {   // Teams/Zoom .vtt/.srt: drop the cue numbers and
   return String(t || '').replace(/^WEBVTT.*$/m, '').replace(/^\d+\s*$/gm, '').replace(/^\d{1,2}:\d{2}(:\d{2})?[.,]\d{3}\s*-->.*$/gm, '').replace(/<v ([^>]+)>/g, '$1: ').replace(/<\/?v[^>]*>/g, '')
     .replace(/\n{3,}/g, '\n\n').trim();
 }
+// 💰 dollar amounts, written out, for a login without money access: removed from what the AI reads and from what comes back
+const AMOUNT = /(?:A\$|AU\$|US\$|NZ\$|S\$|RM|MYR|AUD|USD|NZD|SGD|EUR|GBP|€|£|\$)\s?\d[\d,]*(?:\.\d+)?(?:\s?(?:k|m|bn|million|billion|thousand))?\b|\b\d[\d,]*(?:\.\d+)?\s?(?:k|m|bn|million|billion|thousand)?\s?(?:dollars|ringgit|AUD|USD|NZD|SGD)\b/gi;
+export const noAmounts = (v) => (typeof v === 'string' ? v.replace(AMOUNT, '[amount]') : Array.isArray(v) ? v.map(noAmounts) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, noAmounts(x)])) : v);
+const meetKey = (core, id, money) => `pmeet:${core}:${id}` + (money ? '' : ':nm');   // a run without money access is kept apart, so it never replaces the cost-bearing one
 export async function analyse({ core, id, question, money = true }, by) {   // 💰 money: false for a login that does not see costs (contractors, project personnel): no cost in or out
   const job = await J.find(core); if (!job) return { error: 'Job not found' };
   const plan = await P.get(job.core); if (!plan) return { error: 'This job has no plan yet.' };
@@ -104,7 +108,7 @@ export async function analyse({ core, id, question, money = true }, by) {   // �
   try { await checkLimit(); } catch (e) { return { error: e.message }; }
   const { ctx, stakeholders } = await INTEL.context(job, plan, question || m.title || 'meeting', { money });
   delete ctx.document_extracts; delete ctx.extracts_are_partial; delete ctx.swms;   // the transcript is what matters here
-  let tx = INTEL.scrub(tidyTranscript(doc.text), job, stakeholders).replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/gi, '[email]').replace(/(\+?61|0)[\d ]{8,12}\d/g, '[phone]');
+  let tx = INTEL.scrub(tidyTranscript(doc.text), job, stakeholders); if (!money) tx = noAmounts(tx); tx = tx.replace(/[^\s@<>()]+@[^\s@<>()]+\.[a-z]{2,}/gi, '[email]').replace(/(\+?61|0)[\d ]{8,12}\d/g, '[phone]');
   const long = tx.length > MAX_TRANSCRIPT; if (long) tx = tx.slice(0, MAX_TRANSCRIPT * 0.7) + '\n[… middle of the transcript left out …]\n' + tx.slice(-MAX_TRANSCRIPT * 0.3);
   const user = { question: question ? INTEL.scrub(str(question, 800), job, stakeholders) : '', meeting: { title: INTEL.scrub(m.title, job, stakeholders), date: m.date, start: m.start, platform: m.platform || 'google', status: m.status || '' }, transcript: tx, ...ctx };
   let o, used, cutOff;
@@ -113,10 +117,11 @@ export async function analyse({ core, id, question, money = true }, by) {   // �
   catch (e) { return { error: e.message }; }
   const todayUse = await usage(true, used);
   const a = shape(o, plan, { meeting: { id: m.id, title: m.title, date: m.date, start: m.start }, by, used, todayUse, cutOff, long });
-  if (!money) { if (a.impact) a.impact.cost = { level: 'None', text: '' }; (a.task_changes || []).forEach((c) => { c.extra = 0; }); (a.new_tasks || []).forEach((t) => { t.cost = 0; }); a.m = 0; }   // 💰 nothing about money gets through
-  a.report = report(a);
-  await kv.set(`pmeet:${job.core}:${m.id}`, a);
-  return a;
+  let out0 = a;
+  if (!money) { if (a.impact) a.impact.cost = { level: 'None', text: '' }; (a.task_changes || []).forEach((c) => { c.extra = 0; }); (a.new_tasks || []).forEach((t) => { t.cost = 0; }); a.m = 0; out0 = noAmounts(a); }   // 💰 nothing about money gets through, numbers or words
+  out0.report = money ? report(out0) : noAmounts(report(out0));
+  await kv.set(meetKey(job.core, m.id, money), out0);
+  return out0;
 }
 function shape(o, plan, { meeting, by, used, todayUse, cutOff, long }) {
   const tasks = plan.tasks, byN = (n) => tasks[int(n, 1, tasks.length, 0) - 1];
@@ -204,7 +209,7 @@ export function pickMeeting(plan, q, today) {
   return { date: '', meeting: withT.find((m) => m.date <= today) || withT[0] || all.find((m) => m.date <= today) || null };
 }
 
-export async function commsPost(action, body, { who, by, audit }) {
+export async function commsPost(action, body, { who, by, audit, money = true }) {
   if (!/^comms/.test(action)) return null;
   if (action === 'commsSetup') return out(200, setup());
   const job = await J.find(str(body.core, 30)); if (!job) return out(404, { error: 'Job not found' });
@@ -213,8 +218,8 @@ export async function commsPost(action, body, { who, by, audit }) {
       try { const r = await create(body); if (r.error) return out(400, r); if (audit) await audit(who, `Project ${job.core}: ${body.platform} meeting created: ${str(body.title, 80)}`); return out(200, r); }
       catch (e) { return out(502, { error: e.message }); }
     }
-    case 'commsAnalysis': return out(200, { analysis: (await kv.get(`pmeet:${job.core}:${str(body.id, 20)}`)) || null });
-    case 'commsForget': { await kv.del(`pmeet:${job.core}:${str(body.id, 20)}`).catch(() => {}); return out(200, { ok: true }); }
+    case 'commsAnalysis': return out(200, { analysis: (await kv.get(meetKey(job.core, str(body.id, 20), money))) || null });   // a login without money access reads only its own (money-free) analysis
+    case 'commsForget': { await kv.del(meetKey(job.core, str(body.id, 20), money)).catch(() => {}); return out(200, { ok: true }); }
     default: return null;
   }
 }

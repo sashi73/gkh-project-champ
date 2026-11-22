@@ -293,17 +293,18 @@ try {
     { const cards = (await api('planProgramList', {})).j.cards || [], notMine = cards.find((c) => c.name === 'Estimate test').core, mineC = cards.find((c) => c.name === 'Billing test').core;
       const other = await api('userCreate', { user: { email: 'otherc@example.com', name: 'Other Contractor', password: 'Vaultpass2026x', role: 'Contractor' } });
       await api('userSave', { user: { id: other.j.user.id, name: 'Other Contractor', role: 'Contractor', projAll: false, projects: [notMine], active: true } });
+      const shared = await api('userCreate', { user: { email: 'sharedc@example.com', name: 'Shared Contractor', password: 'Vaultpass2026x', role: 'Contractor' } }); await api('userSave', { user: { id: shared.j.user.id, name: 'Shared Contractor', role: 'Contractor', projAll: false, projects: [mineC, notMine], active: true } });
       const sa = await api('userCreate', { user: { email: 'siteq@example.com', name: 'Site Admin Q', password: 'Vaultpass2026x', role: 'Site administrator' } });
       const r = await as('pm1@example.com', 'Vaultpass2026x', async () => {
-        const pw = await api('userSetPw', { id: other.j.user.id, password: 'Hijack2026xx!' }), rs = await api('userReset', { id: other.j.user.id });
+        const pw = await api('userSetPw', { id: other.j.user.id, password: 'Hijack2026xx!' }), rs = await api('userReset', { id: other.j.user.id }), sh = await api('userSetPw', { id: shared.j.user.id, password: 'Hijack2026xx!' });
         const nc = await api('userCreate', { user: { email: 'mine1@example.com', name: 'Mine One', password: 'Vaultpass2026x', role: 'Project personnel', projects: [mineC] } });
         const all = nc.status === 200 ? await api('userSave', { user: { id: nc.j.user.id, name: 'Mine One', role: 'Project personnel', projAll: true, projects: [mineC], active: true } }) : { status: 0, j: {} };
         const none = await api('userCreate', { user: { email: 'mine2@example.com', name: 'Mine Two', password: 'Vaultpass2026x', role: 'Contractor' } });
-        const sq = await api('sqlData'); return { pw: pw.status, rs: rs.status, nc: nc.status, ncAll: nc.j.user && nc.j.user.projAll, all: all.status, allAll: all.j.user && all.j.user.projAll, none: none.status, progs: !!(sq.j.data || {}).programs };
+        const sq = await api('sqlData'); return { pw: pw.status, rs: rs.status, sh: sh.status, nc: nc.status, ncAll: nc.j.user && nc.j.user.projAll, all: all.status, allAll: all.j.user && all.j.user.projAll, none: none.status, progs: !!(sq.j.data || {}).programs };
       });
-      const s2 = await as('siteq@example.com', 'Vaultpass2026x', async () => { const q = await api('sqlData'); return { st: q.status, cols: Object.keys(((q.j.data || {}).projects || [])[0] || {}).filter((k) => /contract_value|forecast_profit|approved_budget|invoiced/.test(k)) }; });
-      ok('Security', '🔒 a project manager cannot set or reset the password of a login on another project, cannot give a login every project, and must give a new login one of their projects; a project manager gets no program roll-up in Ask AI; a login without money access gets Ask AI data without money columns',
-        sa.status === 200 && r.pw === 403 && r.rs === 403 && r.nc === 200 && r.ncAll === false && r.all === 200 && r.allAll === false && r.none === 400 && r.progs === false && s2.st === 200 && !s2.cols.length,
+      const s2 = await as('siteq@example.com', 'Vaultpass2026x', async () => { const q = await api('sqlData'), P = (q.j.data || {}).projects || []; return { st: q.status, n: P.length, seeded: P.some((x) => x.project_name === 'Billing test'), cols: [...new Set(P.flatMap((x) => Object.keys(x).filter((k) => /contract_value|forecast_profit|approved_budget|invoiced|budget|cost|profit/.test(k))))] }; });   // every project checked
+      ok('Security', '🔒 a project manager cannot set or reset the password of a login on another project (or shared with one), cannot give a login every project, and must give a new login one of their projects; a project manager gets no program roll-up in Ask AI; a login without money access gets Ask AI data without money columns',
+        sa.status === 200 && r.pw === 403 && r.rs === 403 && r.sh === 403 && r.nc === 200 && r.ncAll === false && r.all === 200 && r.allAll === false && r.none === 400 && r.progs === false && s2.st === 200 && s2.n > 3 && s2.seeded && !s2.cols.length,
         JSON.stringify([sa.status, r, s2])); }
   }
     // ---------- 🏁 deliverables: final / interim, Draft / Final, versions with notes, and a log of uploads and downloads ----------
@@ -450,7 +451,7 @@ try {
     { const cv = (await api('planCeoGet', {})).j, rows = ((cv.view || cv).rows || []).filter((r) => !r.closed), fl = (await api('acctFinanceGet', {})).j.projects || [], bad = [];
       for (const r of rows) {
         const B = (await api('acctBillGet', { core: r.core })).j.bill, f = fl.find((x) => x.core === r.core);
-        if (!B || !B.money) { const pg = await api('planGet', { core: r.core }); if (!((pg.j.plan || {}).tasks || []).length) continue; bad.push(r.name + ': no billing record'); continue; }   // a project with no plan yet has nothing to bill
+        if (!B || !B.money) { const pg = await api('planGet', { core: r.core }); if (pg.status !== 200 || !pg.j || !('plan' in pg.j)) { bad.push(r.name + ': plan lookup failed (' + pg.status + ')'); continue; } if (!((pg.j.plan || {}).tasks || []).length) continue; bad.push(r.name + ': no billing record'); continue; }   // a project with no plan yet has nothing to bill
         if (!f) { bad.push(r.name + ': not in the Finance list'); continue; }   // a missing record fails the check (it is never compared with itself)
         const m = B.money;
         const want = [['% complete', r.pct, B.stand && B.stand.workPct], ['budget', r.budget, m.approved || m.budget], ['forecast', r.eac, m.eac], ['CPI', r.CPI, m.CPI], ['SPI', r.SPI, m.SPI],

@@ -564,7 +564,7 @@ async function handle(req, context) {
             // everything about the open project, so "who is the project manager?", "who is on the team?", "what is late?" get a straight answer
             project = { name: pl.name, ref: jb ? J.refFor(jb) : core, client: (jb && jb.name) || ch.customer || '', program: (jb && jb.program) || '', project_manager: ch.manager || (jb && jb.manager) || '', sponsor: (jb && jb.sponsor) || '', site: (jb && jb.suburb) || '',
               summary: cut((jb && jb.summary) || ch.background, 700), objective: cut(ch.objective, 400), in_scope: cut(ch.inScope, 500), out_of_scope: cut(ch.outScope, 300), deliverables: cut(ch.deliverables, 400), acceptance: cut(ch.acceptance, 200), assumptions: cut(ch.assumptions, 300),
-              approved_budget: Number(ch.budget) || 0, charter_status: ch.docStatus || '', health: hc.rag, health_reasons: hc.reasons.map((x) => x.text), forecast_cost_EAC: hc.n.EAC, baseline_finish: hc.n.baseline_finish, days_past_baseline: hc.n.slip_days,
+              approved_budget: Number(ch.budget) || 0, charter_status: ch.docStatus || '', health: hc.rag, health_reasons: hc.reasons.filter((x) => U.seesMoney(ctx) || !/cost|budget|cpi|\$|spend|spent|price|invoice|bill/i.test((x && x.text) || '')).map((x) => x.text), forecast_cost_EAC: hc.n.EAC, baseline_finish: hc.n.baseline_finish, days_past_baseline: hc.n.slip_days,
               start: R.start, finish: R.finish, finish_by: pl.finishBy || '', today, pct_complete: R.pct, tasks_total: R.total, tasks_done: R.done, late_tasks_count: R.late, SPI: R.SPI, CPI: R.CPI, budget_BAC: R.BAC, spent_AC: R.AC,
               stakeholders: (pl.stakeholders || []).filter((x) => x.name || x.role).slice(0, 40).map((x) => ({ name: x.name, role: x.role, raci: x.raci, email: x.email || undefined, phone: x.phone || undefined })),
               phases: (pl.phases || []).map((f) => f.name),
@@ -617,7 +617,7 @@ async function handle(req, context) {
         // 📄 started from a document: it becomes the project's first Ask AI document, and the plan builder reads it
         let docId = '';
         if (body.docSid) {
-          const d = await DOCI.staged(body.docSid);
+          const d0 = await DOCI.staged(body.docSid), d = d0 && (!d0.by || d0.by === who) ? d0 : null;   // 🔒 only the person who uploaded it
           if (d) { const r = await intelUpload(core, { name: d.name, text: d.text, pages: d.pages, kind: 'Project document' }, by); if (r.doc) { docId = r.doc.id; await J.update(core, { docId, docName: d.name }); job = await J.find(core); } }
         }
         if (body.bom === false) await setModule(core, 'bom', false);     // optional modules chosen on the form
@@ -718,7 +718,7 @@ async function handle(req, context) {
       }
       case 'log': if (!ctx.owner) return bad('Only the super user sees the activity log.', 403); return out(200, { log: await A.auditLog() });
       default: {
-        const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by, ctx })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit, ctx })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
+        const a = (await acctPost(action, body, { who, by })) || (await sqlPost(action, body, { who, by, ctx })) || (await planPost(action, body, { who, by, audit: A.audit, ctx })) || (await invPost(action, body, { who, by, audit: A.audit })) || (await custPost(action, body, { who, by, audit: A.audit })) || (await planQuotePost(action, body, { who, by, audit: A.audit })) || (await subPost(action, body, { who, by, audit: A.audit })) || (await intelPost(action, body, { who, by, audit: A.audit, ctx })) || (await swmsPost(action, body, { who, by, audit: A.audit })) || (await commsPost(action, body, { who, by, audit: A.audit, money: U.seesMoney(ctx) })) || (await reportPost(action, body, { who, by, audit: A.audit })) || (await PPL.pplPost(action, body, { who, by, audit: A.audit, unlogin: U.removeForPerson, ctx })) || (await bomPost(action, body, { who, by, audit: A.audit })) || (await prlPost(action, body, { who, by, audit: A.audit, A: ACC, SUB })) || (await lvPost(action, body, { who, by, audit: A.audit, ctx })) || (await U.userPost(action, action === 'userGuestLoad' ? { ...body, test: PPL.isTest() } : body, { ctx, audit: A.audit, person: PPL.get, sub: SUB.getSub, project: projectOf, addPerson: (u) => PPL.selfMake(u, by) }));
         // 💰 a login without money (contractors, project personnel ...): the money taken out of every project answer (lists, programs, boards, reports);
         //    planGet and planSave do it themselves (and keep the money when such a login saves)
         if (a && !U.seesMoney(ctx) && /^(plan|pipeline|intel|comms)/.test(action) && !['planGet', 'planSave'].includes(action) && a.headers.get('content-type') && /json/.test(a.headers.get('content-type'))) {
@@ -744,7 +744,8 @@ async function handle(req, context) {
       if (['pplList', 'pplGet', 'pplAssign'].includes(action)) {
         const as = await PPL.assignments(), inMine = (id) => ((as[id] || {}).list || []).some((x) => ctx.scope.includes(x.core));
         const clean = (p) => Object.fromEntries(Object.entries(p || {}).filter(([k]) => !(ctx.pgm.kind === 'project' ? /pay|salary|bank|tfn|super|abn/i : /rate|pay|salary|cost|bank|tfn|super|abn/i).test(k)));
-        const trimA = (a) => a ? { ...a, list: (a.list || []).filter((x) => ctx.scope.includes(x.core)) } : a;
+        const trimA = (a) => { if (!a) return a; const by = Object.fromEntries(Object.entries(a.by || {}).filter(([c]) => ctx.scope.includes(c))), sum = (k) => Object.values(by).reduce((t, n) => t + (n[k] || 0), 0);
+          return { ...a, list: (a.list || []).filter((x) => ctx.scope.includes(x.core)), by, projects: Object.keys(by).length, now: sum('now'), next: sum('next'), late: sum('late') }; };   // 🔒 only their projects, and the counts from those
         const j = await res.clone().json();
         if (action === 'pplList') return out(200, { ...j, people: (j.people || []).filter((p) => inMine(p.id)).map(clean), scoped: true });
         if (action === 'pplGet') return j.person && inMine(j.person.id) ? out(200, { ...j, person: clean(j.person), assign: trimA(j.assign) }) : bad('That person is not on your projects.', 403);

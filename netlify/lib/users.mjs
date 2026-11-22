@@ -251,7 +251,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
   // the super user makes any login, sets roles and upgrades people; a project director or manager with Users & access (edit) makes and looks after
   // contractor and project personnel logins only (never their own, another manager's, a Google sign-in's, and never a role above those)
   const team = !ctx.owner && (ctx.mods || {}).users === 'edit' && ['Project manager', 'PMO Director'].includes(ctx.role), MY = ctx.role === 'PMO Director' ? PMO_TEAM : TEAM_ROLES;
-  const inReach = (u) => !ctx.scope || (!u.projAll && (u.projects || []).some((c) => ctx.scope.includes(c)));   // 🔒 a project manager: only the logins on their own projects
+  const inReach = (u) => !ctx.scope || (!u.projAll && (u.projects || []).length > 0 && (u.projects || []).every((c) => ctx.scope.includes(c)));   // 🔒 a project manager: only logins wholly on their own projects (a login shared with other projects stays with the super user and PMO Directors)
   const teamOk = async (id) => { const u = await get(str(id, 10)); return u && u.id !== ctx.uid && u.kind === 'email' && MY.includes(u.role) && inReach(u) ? u : null; };
   if (!['userList', 'userPassword'].includes(action) && !ctx.owner) {
     if (!team || !['userCreate', 'userSave', 'userSetPw', 'userReset', 'userDelete', 'userPrograms'].includes(action)) return out(403, { error: 'Only the super user can change this.' });

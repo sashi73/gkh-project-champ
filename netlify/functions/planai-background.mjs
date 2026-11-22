@@ -48,7 +48,7 @@ async function run(req) {
     if (ctx.scope && !(body.mode === 'docIngest' && !body.core && ctx.pgm) && !ctx.scope.includes(String(body.core || ''))) return new Response('', { status: 403 });   // a program or project manager reads a document for a NEW project (no code yet)   // v91: a sub-contractor: their own project only
     await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
     if (body.mode === 'docIngest') {   // 📄 read a project document (RAG) to fill in a new project
-      const r = await DOCI.ingest({ sid: body.sid, lang: String(body.lang || '').slice(0, 5) }, `Admin (${session.u})`);
+      const r = await DOCI.ingest({ sid: body.sid, lang: String(body.lang || '').slice(0, 5), who: session.u }, `Admin (${session.u})`);
       await kv.set('aiplan:' + id, { ingest: r.error ? null : r, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
       if (!r.error) await A.audit(session.u, `AI read the project document "${String(r.doc.name).slice(0, 60)}" (${r.doc.used} of ${r.doc.chunks} chunks, ${r.tokens || 0} tokens)`);
       return ok();

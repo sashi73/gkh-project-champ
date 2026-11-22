@@ -165,7 +165,8 @@ export async function assignments(onlyId) {
   for (const p of people) {
     const L = by[p.id] || [], work = L.filter((x) => x.es && !x.done);
     const now = work.filter((x) => x.es <= today && x.ef >= today), next = work.filter((x) => x.es > today && x.es <= soon), late = work.filter((x) => x.ef < today);
-    res[p.id] = { list: L.sort((a, b) => (a.es || '9') < (b.es || '9') ? -1 : 1).slice(0, 200), projects: [...new Set(L.map((x) => x.core))].length, now: now.length, next: next.length, late: late.length };
+    res[p.id] = { list: L.sort((a, b) => (a.es || '9') < (b.es || '9') ? -1 : 1).slice(0, 200), projects: [...new Set(L.map((x) => x.core))].length, now: now.length, next: next.length, late: late.length,
+      by: Object.fromEntries([...new Set(L.map((x) => x.core))].map((c) => { const w = work.filter((x) => x.core === c); return [c, { now: w.filter((x) => x.es <= today && x.ef >= today).length, next: w.filter((x) => x.es > today && x.es <= soon).length, late: w.filter((x) => x.ef < today).length }]; })) };   // counts per project, from every entry (not the shortened list)
   }
   return res;
 }

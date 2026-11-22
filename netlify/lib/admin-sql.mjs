@@ -273,7 +273,7 @@ export async function tables() {
   const TY = { FS: 'finish to start', SS: 'start to start', FF: 'finish to finish' }, DSN = { conflict: 'Clash', risk: 'At risk', unknown: 'No dates', ok: 'OK', done: 'Done' };
   const dependencies = (await PGM.deps().catch(() => [])).filter((d) => cardBy[d.from] && cardBy[d.to]).map((d) => {
     const A = cardBy[d.from], B = cardBy[d.to], st = PGM.depStatus(d, A, B);
-    return { id: d.id, from_project: A.name, from_program: A.program || '', to_project: B.name, to_program: B.program || '', type: TY[d.type] || d.type, lag_days: d.lag || 0,
+    return { id: d.id, from_job: d.from, to_job: d.to, from_project: A.name, from_program: A.program || '', to_project: B.name, to_program: B.program || '', type: TY[d.type] || d.type, lag_days: d.lag || 0,
       status: DSN[st.status] || st.status, buffer_days: st.slack == null ? null : st.slack, cross_program: (A.program || '') !== (B.program || ''), explanation: st.why || '', note: d.note || '' };
   });
   const programs = (await PGM.list().catch(() => [])).map((p) => {
@@ -546,7 +546,7 @@ function scoped(data, g) {
     let R = rows;
     // 🔒 a program's roll-up covers every project in it: a project manager (who sees only some of them) does not get it
     if (t === 'programs') { if (money) continue; R = rows.filter((r) => names.has(r.program_id || r.program)); }
-    else if (t === 'dependencies') R = money ? rows.filter((r) => mine.has(r.from_project) && mine.has(r.to_project)) : rows.filter((r) => names.has(r.from_program) && names.has(r.to_program));
+    else if (t === 'dependencies') R = rows.filter((r) => cores.has(r.from_job) && cores.has(r.to_job));   // 🔒 both ends must be their own projects (checked by project code, never by name)
     else R = rows.filter((r) => cores.has(r.job_id || r.job || r.core));
     out[t] = money ? R : R.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k))));
   }

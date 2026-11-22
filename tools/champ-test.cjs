@@ -223,7 +223,8 @@ const CLIENT = 'champ-test.apps.googleusercontent.com';
   // ❓ the public help page is retired: /help and /help.html go to the home page (Help is in the console)
   {
     const ph = await ctx.newPage(); const r1 = await ph.goto(`${BASE}/help.html`); const u1 = ph.url(); const r2 = await ph.goto(`${BASE}/help`); const u2 = ph.url();
-    ok('Help', 'the old public help page goes to the home page (/help and /help.html)', r1 && r1.ok() && r2 && r2.ok() && !/help/.test(new URL(u1).pathname) && !/help/.test(new URL(u2).pathname), JSON.stringify([u1, u2]));
+    const home = (u) => { const x = new URL(u); return x.origin === new URL(BASE).origin && x.pathname === '/'; };
+    ok('Help', 'the old public help page goes to the home page (/help and /help.html)', r1 && r1.ok() && r2 && r2.ok() && home(u1) && home(u2), JSON.stringify([u1, u2]));
     await ph.close();
   }
   ok('Site', 'header has a Login link to login.html', (await p.getAttribute('header .nav-login', 'href')) === 'login.html');

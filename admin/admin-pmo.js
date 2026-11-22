@@ -15,8 +15,11 @@
   var ICO = { decide: '⚖', prog: '🗂', watch: '🚦', ms: '◆', esc: '🚨', team: '👥', gaps: '🧾' };
 
   var here = function () { var v = M.view(); return !!(v && (v.querySelector('[data-pmo-wait="' + MODE + '"]') || v.querySelector('.pmo[data-mode="' + MODE + '"]'))); };   // still on this page (its placeholder or itself is showing)?
-  function drawIfHere() { if (here()) draw(); }
-  function load() { return api(MODE === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { D = d; }); }
+  function drawIfHere(ok) { if (ok !== false && here()) draw(); }
+  function load() {   // each answer belongs to the page that asked for it: one that comes back after the page changed is dropped
+    var mode = MODE;
+    return api(mode === 'pgm' ? 'planPgmGet' : 'planPmoGet', { today: today() }).then(function (d) { if (mode !== MODE) return false; D = d; return true; });
+  }
 
   function tile(k, icon, label, value, sub, tone) {
     return '<button type="button" class="pmo-k t-' + (tone || 'ok') + (TAB === k ? ' on' : '') + '" data-tab="' + k + '"><i>' + icon + '</i><span><small>' + esc(label) + '</small><b>' + value + '</b><em>' + sub + '</em></span></button>';
@@ -116,6 +119,6 @@
   M.addView('pmo', 'PMO view', function () { MODE = 'pmo'; TAB = 'all'; M.view().innerHTML = '<div class="empty" data-pmo-wait="pmo">Gathering every program and project…</div>'; return load().then(drawIfHere); }, 'pmo');
   M.addView('pgm', 'Program view', function () {   // 🗺 a Program manager's home: the same view, for their programs only
     MODE = 'pgm'; TAB = 'all'; M.view().innerHTML = '<div class="empty" data-pmo-wait="pgm">Gathering your programs…</div>';
-    return load().then(function () { if (!here()) return; if (!D.programs.length) { M.view().innerHTML = '<div class="empty"><p><b>No program yet.</b></p><p>Ask the super user or the PMO Director to give you a program (People › Program managers), or create one in <a href="#programs">Programs</a>.</p></div>'; return; } draw(); });
+    return load().then(function (ok) { if (ok === false || !here()) return; if (!D.programs.length) { M.view().innerHTML = '<div class="empty"><p><b>No program yet.</b></p><p>Ask the super user or the PMO Director to give you a program (People › Program managers), or create one in <a href="#programs">Programs</a>.</p></div>'; return; } draw(); });
   }, 'pgm');
 })();

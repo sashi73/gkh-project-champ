@@ -187,6 +187,8 @@ setInterval(() => {                                  // forget old visitors
 createServer(async (req, res) => {
   try {
     const url = new URL(req.url, `http://${req.headers.host}`);
+    // the redirects in netlify.toml: the old public help page goes to the home page
+    if (url.pathname === '/help' || url.pathname === '/help.html') { res.writeHead(301, { Location: '/' }).end(); return; }
 
     // Server functions
     const fn = url.pathname.match(/^\/\.netlify\/functions\/([a-z-]+)$/);

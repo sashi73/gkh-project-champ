@@ -9,6 +9,7 @@
 //   the AI's reading comes back as aiplan:<id> { ingest }, like the other background jobs.
 // The same vectors serve the plan builder later: extracts(text, queries, chars) picks the parts the plan needs.
 import * as kv from './kv.mjs';
+import { randomBytes } from 'node:crypto';
 import { llmJson, usage, checkLimit, llmSetup } from './ai.mjs';
 
 const str = (s, max = 300) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim().slice(0, max);
@@ -21,14 +22,14 @@ export const estTokens = (s) => Math.ceil(String(s || '').length / CPT);
 export async function stage({ name, pages, text, kind }, by) {
   const t = String(text || '').replace(/\u0000/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{4,}/g, '\n\n\n').slice(0, MAX_STAGE);
   if (t.replace(/\[(page|slide) \d+\]/g, '').trim().length < 200) return { error: 'There is too little text in this document to read. If it is a scanned PDF (pictures of pages), save it as a text PDF or Word file first.' };
-  const sid = 'ds' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  const sid = 'ds' + Date.now().toString(36) + randomBytes(12).toString('hex');   // 🔒 not guessable
   const doc = { sid, name: str(name, 160).replace(/[\\/]/g, '-') || 'document', kind: str(kind, 20), pages: Math.max(0, Math.round(Number(pages) || 0)), text: t, by: str(by, 80), at: Date.now() };
   await kv.set('docstage:' + sid, doc);
   const ch = chunks(t);
   return { sid, name: doc.name, pages: doc.pages, chars: t.length, words: t.split(/\s+/).filter(Boolean).length, tokens: estTokens(t), chunks: ch.length, whole: estTokens(t) <= inputBudget(), truncated: String(text || '').length > MAX_STAGE };
 }
 export async function staged(sid) {
-  if (!/^ds[a-z0-9]{8,30}$/.test(String(sid || ''))) return null;
+  if (!/^ds[a-z0-9]{8,60}$/.test(String(sid || ''))) return null;
   const d = await kv.get('docstage:' + sid); if (!d || Date.now() - d.at > 2 * 864e5) return null; return d;
 }
 
@@ -121,8 +122,9 @@ const SYS = 'You are a senior project document analyst (PMP, PRINCE2, business a
   'Add "pages": {"field": [page numbers]} for where you found the name, client, sponsor, site, dates and budget, and "confidence": "high" | "medium" | "low" for the whole reading, and "gaps": things a project manager should still find out (at most 6). ' +
   'Write in the document\'s language unless asked otherwise. Keep every list item under 200 characters.';
 
-export async function ingest({ sid, lang }, by) {
+export async function ingest({ sid, lang, who }, by) {
   const d = await staged(sid); if (!d) return { error: 'The document has expired or was not found. Upload it again.' };
+  if (d.by && who !== undefined && d.by !== who) return { error: 'This document was uploaded by someone else. Upload it again yourself.' };   // 🔒 only the person who uploaded it
   if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.' };
   try { await checkLimit(); } catch (e) { return { error: e.message }; }
   const all = chunks(d.text), maxChars = Math.floor(inputBudget() * CPT);
