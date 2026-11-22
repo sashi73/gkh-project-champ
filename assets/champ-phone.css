@@ -290,3 +290,18 @@ html.p2-noscroll,html.p2-noscroll body{overflow:hidden}
 .p2-founder figcaption{position:static;padding:0;border-radius:0;background:none}
 .p2-founder b{font-size:26px}
 .p2-founder span{font-size:13px;line-height:1.45}
+/* p2 polish: plan axis, KPI state, selected work, sign-off */
+.p2-axis{display:flex;justify-content:space-between;margin-top:8px;padding-top:6px;border-top:1px solid var(--ln);font-size:10.5px;color:#7E7866}
+.p2-kpi{gap:20px}
+.p2-kpi span{position:relative}
+.p2-kpi .w b::after,.p2-kpi .g b::after{content:"";display:inline-block;width:7px;height:7px;margin-left:6px;border-radius:50%;vertical-align:middle;background:var(--am)}
+.p2-kpi .g b::after{background:var(--gr)}
+.p2-work{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:6px -20px 0;padding:4px 20px 8px;scrollbar-width:none}
+.p2-work::-webkit-scrollbar{display:none}
+.p2-work div{flex:0 0 62%;scroll-snap-align:start;padding:14px 14px 15px;border-radius:14px;background:var(--sf);border:1px solid var(--ln)}
+.p2-work small{display:block;font-size:12px;color:var(--gd);margin-bottom:4px}
+.p2-work b{display:block;font:800 19px/1.15 Archivo,sans-serif;font-stretch:84%;color:#fff}
+.p2-sign{display:flex;align-items:center;gap:12px;margin:4px 0 16px}
+.p2-sign img{width:34px;height:34px;border-radius:50%}
+.p2-sign b{display:block;font:800 17px Archivo,sans-serif;font-stretch:88%;color:#fff}
+.p2-sign span{display:block;font-size:12.5px;color:var(--mu)}
