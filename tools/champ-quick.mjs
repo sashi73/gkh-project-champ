@@ -245,10 +245,11 @@ try {
       bg.status === 200 && B.money.contract === 5000 && B.money.gst === 500 && B.money.base === 3000 && B.money.budget === 3450 && B.money.margin === 1550 && B.money.profit != null && B.windows.red < 7 && m1 && m1.alert && m2 && ['green', 'amber', 'red'].includes(m2.alert),
       JSON.stringify([bg.status, B && B.money, B && B.windows, m1 && [m1.due, m1.days, m1.alert], m2 && [m2.due, m2.days, m2.alert]]).slice(0, 500));
     const pmB = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmF = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctFinanceGet', {})), pmA = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillAlerts', {}));
-    const d2B = await as('dir2@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmSave = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillSave', { core: gc, contract: 1, ms: {} }));
-    ok('Billing', '🔐 the project\'s own manager sees its billing and Finance (only their projects) and the red count, but cannot change it; another director cannot see it',
-      pmB.status === 200 && pmF.status === 200 && (pmF.j.projects || []).every((p) => p.core === gc) && pmA.status === 200 && pmA.j.projects === 1 && d2B.status === 403 && pmSave.status === 403,
-      [pmB.status, pmF.status, JSON.stringify((pmF.j.projects || []).map((p) => p.name)), JSON.stringify(pmA.j), d2B.status, pmSave.status].join(' '));
+    const btc = ((await api('planProgramList', {})).j.cards || []).find((c) => c.name === 'Billing test').core;
+    const d2B = await as('dir2@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: btc })), d2E = await as('dir2@example.com', 'Vaultpass2026x', () => api('acctBillGet', { core: gc })), pmSave = await as('pm1@example.com', 'Vaultpass2026x', () => api('acctBillSave', { core: gc, contract: 1, ms: {} }));
+    ok('Billing', '🔐 the project\'s own manager sees its billing and Finance (only their projects) and the red count, but cannot change it; another director cannot see a program that has its own director, but sees one with no director yet (the milestone bill on the Gantt)',
+      pmB.status === 200 && pmF.status === 200 && (pmF.j.projects || []).every((p) => p.core === gc) && pmA.status === 200 && pmA.j.projects === 1 && d2B.status === 403 && d2E.status === 200 && pmSave.status === 403,
+      [pmB.status, pmF.status, JSON.stringify((pmF.j.projects || []).map((p) => p.name)), JSON.stringify(pmA.j), d2B.status, d2E.status, pmSave.status].join(' '));
   }
     // ---------- 🏁 deliverables: final / interim, Draft / Final, versions with notes, and a log of uploads and downloads ----------
   { const b64 = (t) => Buffer.from(t).toString('base64'), tx = 'Selangor transport masterplan. Chapter 1 vision and objectives for the corridor plan.';
