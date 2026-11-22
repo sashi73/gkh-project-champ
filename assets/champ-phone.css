@@ -401,3 +401,6 @@ html.p2-noscroll,html.p2-noscroll body{overflow:hidden}
 .sa-lang{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .sa-lang span{padding:4px 9px;border-radius:999px;border:1px solid var(--ln);font-size:11.5px;color:var(--mu)}
 @media (prefers-reduced-motion:reduce){.p2 .sr-dot,.p2 .sa p,.p2 .sp-links path{opacity:1!important;animation:none!important;transform:translate(-50%,50%)}.p2 .sa p{transform:none}.p2 .sp-bar{transform:none!important}}
+/* ✨ the risk scene: Champ raised it */
+.p2-flag.p2-ai{background:linear-gradient(135deg,rgba(212,175,55,.16),rgba(212,175,55,.05));border-color:rgba(212,175,55,.5);color:#E9E3D4}
+.p2-flag.p2-ai b{color:#F2D98B}.p2-flag.p2-ai em{display:block;margin-top:4px;font-style:normal;font-size:12.5px;color:#8FD3A8}
