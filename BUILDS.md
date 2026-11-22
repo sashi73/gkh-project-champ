@@ -277,4 +277,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 266 | 1.0.266| 2026-11-22 12:05| sashiphoto| `1fc031c` | Phone website: smaller founder portrait on a studio backdrop, beside the name (#127) |
 | 267 | 1.0.267| 2026-11-22 12:08| sashioffice| `3bb5491` | Phone website: founder portrait on a blurred modern office backdrop (#128) |
 | 268 | 1.0.268| 2026-11-22 12:27| phonepolish2| `2bf6905` | Phone website polish: month axis and status dots on the plan, selected national programs strip, a quiet sign-off (#129) |
-| 269 | 1.0.269 | 2026-11-22 12:29 | ifcview | _this commit_ | _see git log_ |
+| 269 | 1.0.269| 2026-11-22 12:29| ifcview| `ab844c7` | Documents: 🧊 3D on IFC models opens the free Sortdesk IFC Viewer and downloads the model to drop in (it stays on the computer) (#130) |
+| 270 | 1.0.270 | 2026-11-22 13:07 | msbill | _this commit_ | _see git log_ |

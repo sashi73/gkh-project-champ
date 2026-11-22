@@ -41,10 +41,12 @@ export const ROLES = {
   CFO: { ...all('none'), projects: 'view', accounts: 'edit', data: 'view' },
   // 🗄 the site administrator (to be defined further): sees every project, and can archive projects (with the super user and the CEO)
   'Site administrator': { ...all('none'), projects: 'view', data: 'view' },
+  // 💵 finance personnel (any number): billing, invoices and payments on every project, like the CFO; projects read-only
+  'Finance personnel': { ...all('none'), projects: 'view', accounts: 'edit', data: 'view' },
   'Project director': { ...all('edit'), crm: 'none', accounts: 'none' },
   'Project manager': { ...all('edit'), crm: 'none', accounts: 'none' },
   Contractor: { ...all('none'), projects: 'edit' },
-  'Project personnel': { ...all('none'), projects: 'edit', data: 'view' },
+  'Project personnel': { ...all('none'), projects: 'edit' },   // 🔒 no Reports & data: it holds the costs
   Administrator: { ...all('edit') },
   'Site supervisor': { crm: 'view', projects: 'edit', accounts: 'none', stock: 'view', subbies: 'view', people: 'view', data: 'none', users: 'none' },
   Accounts: { crm: 'view', projects: 'view', accounts: 'edit', stock: 'view', subbies: 'view', people: 'view', data: 'view', users: 'none' },
@@ -53,9 +55,9 @@ export const ROLES = {
   'Sub-contractor': { ...all('none'), projects: 'edit' },   // v91: a subbie: only their own project(s), nothing else
   Custom: null };
 export const ROLE_KEYS = Object.keys(ROLES);
-export const PICK_ROLES = ['CEO', 'CFO', 'Site administrator', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
+export const PICK_ROLES = ['CEO', 'CFO', 'Finance personnel', 'Site administrator', 'Project manager', 'Project director', 'Contractor', 'Project personnel', 'Custom'];
 export const TEAM_ROLES = ['Contractor', 'Project personnel'];   // what a project director or manager may make and look after   // the project manager is the super user   // what the super user picks from
-const ALL_PROJECTS = (u) => u.role === 'Site administrator' || u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.role === 'CFO' || u.projAll === true;
+const ALL_PROJECTS = (u) => u.role === 'Site administrator' || u.role === 'Finance personnel' || u.role === 'Project manager' || u.role === 'Project director' || u.role === 'CEO' || u.role === 'CFO' || u.projAll === true;
 // 👔 a company has one CEO: giving the role to someone else is refused until the current CEO has another role
 async function ceoTaken(exceptId, role = 'CEO') { const c = (await list()).find((x) => x.role === role && x.id !== exceptId && x.active !== false); return c ? (c.name || c.username) + ' is already the ' + role + '. A company has one ' + role + ': give ' + (c.name || c.username) + ' another role first.' : ''; }   // the CEO and the CFO: one each
 export const OWNER_MODS = all('edit');
@@ -100,6 +102,10 @@ export function allows(ctx, action) {
   return { ok: false, mod: n.mod, error: have ? `You have view-only access to ${name}. Ask an administrator for edit access.` : `You don't have access to ${name}. Ask an administrator.` };
 }
 // the AI background jobs: Ask AI questions need view, everything else (plans, costs, charter ...) edit
+// 💰 who sees money (costs, rates, budget, BOM prices, invoices): the super user, the CEO, the CFO, finance personnel, project directors and managers.
+//    Contractors, project personnel, the site administrator and view-only sign-ins see the work, not the money.
+export const MONEY_ROLES = ['CEO', 'CFO', 'Finance personnel', 'Project director', 'Project manager', 'Administrator', 'Accounts'];
+export function seesMoney(ctx) { return !!ctx && !ctx.scope && (!!ctx.owner || MONEY_ROLES.includes(ctx.role)); }
 export function allowsBg(ctx, mode) {
   if (!ctx) return false; if (ctx.owner) return true;
   const lv = LV[(ctx.mods || {}).projects] || 0;

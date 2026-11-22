@@ -426,6 +426,22 @@ try {
     ok('BIM', '🧱 a project started from the model keeps it in Documents (Design) and the AI drafts the BOM / BOQ from the model take-off', st.status === 200 && nb.status === 200 && bdoc && bdoc.folder === 'design' && /model_quantities/.test(sentB) && /Basic Wall:Generic - 200mm/.test(sentB) && /from the model/.test(sentB), JSON.stringify([st.status, st.j.error, nb.status, bdoc && bdoc.folder, sentB.length, bb.status, bb.error]));
   }
 
+  // ---------- 💰 money: contractors and project personnel see the work, not the money; their edits keep it ----------
+  { const as = async (u, pw, fn) => { const keep = cookie; cookie = ''; await api('login', { username: u, password: pw }); try { return await fn(); } finally { cookie = keep; } };
+    const L = (await api('planList', {})).j; const arr = L.plans || L.list || L, bt = arr.find((x) => x.name === 'Quick check') || {}, bcx = bt.core, bill0 = (arr.find((x) => x.name === 'Billing test') || {}).core;
+    { const o = (await api('planGet', { core: bcx })).j.plan; o.tasks[0].rate = 123; o.tasks[0].qty = o.tasks[0].qty || 4; await api('planSave', { core: bcx, plan: o, rev: o.rev }); }
+    const own0 = (await api('planGet', { core: bcx })).j.plan, paidRate = (own0.tasks || []).map((t) => t.rate || 0).reduce((a, b) => a + b, 0);
+    const uc = (await api('userCreate', { user: { email: 'sub9@example.com', name: 'Con Tractor', password: 'Subpass2026x', role: 'Contractor' } })).j.user, us = await api('userSave', { user: { id: uc.id, name: 'Con Tractor', role: 'Contractor', projects: [bcx], active: true } });
+    ok('Money', '👷 a contractor is given their project (the projects picked in Users and access are kept)', us.status === 200 && (us.j.user.projects || []).includes(bcx), JSON.stringify(us.j).slice(0, 300));
+    const seen = await as('sub9@example.com', 'Subpass2026x', async () => { const me = (await api('me')).j, g = (await api('planGet', { core: bcx })).j, pl = g.plan;
+      pl.tasks[0].name = pl.tasks[0].name + ' (site note)'; const sv = await api('planSave', { core: bcx, plan: pl, rev: pl.rev }); const bill = await api('acctBillGet', { core: bcx });
+      return { money: me.money, rates: (pl.tasks || []).reduce((a, t) => a + (t.rate || 0), 0), cfg: !!pl.budgetCfg, hidden: pl.moneyHidden, saved: sv.status, savedRates: ((sv.j.plan || {}).tasks || []).reduce((a, t) => a + (t.rate || 0), 0), bill: bill.status }; });
+    const own1 = (await api('planGet', { core: bcx })).j.plan, after = (own1.tasks || []).map((t) => t.rate || 0).reduce((a, b) => a + b, 0), me0 = (await api('me')).j;
+    ok('Money', '💰 a contractor gets the plan without money (rates, budget settings), cannot open billing, and a save by them keeps the money as it was', bcx && paidRate > 0 && seen.money === false && seen.rates === 0 && !seen.cfg && seen.hidden === true && seen.saved === 200 && seen.savedRates === 0 && seen.bill === 403 && after === paidRate && /\(site note\)$/.test(own1.tasks[0].name) && me0.money === true, JSON.stringify([bcx, paidRate, after, seen]));
+    const bg = (await api('acctBillGet', { core: bill0 })).j, inv = ((bg.bill || {}).milestones || []).find((m) => m.invoice);
+    ok('Money', '🧾 each milestone carries its invoice with the issue and due dates (for the bill on the Gantt)', inv && 'due' in inv.invoice && 'issued' in inv.invoice, JSON.stringify(inv && inv.invoice));
+  }
+
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {

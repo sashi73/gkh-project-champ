@@ -1093,7 +1093,30 @@ export async function forgetModules(core) {
     for (const m of Object.keys(off)) { off[m] = { ...off[m] }; delete off[m][core]; } c.off = off;
     if (c.bomOff) { c.bomOff = { ...c.bomOff }; delete c.bomOff[core]; } return c; }, () => ({ off: {} }));
 }
-export async function planPost(action, body, { who, by, audit }) {
+// 💰 the money in a plan (rates, actual costs, budget, BOM and contract prices, change-request costs), taken out for a login that does not see money
+//    (contractors, project personnel ...), and put back from the stored plan when such a login saves, so their edits never wipe or change it
+export function stripMoney(plan) {
+  if (!plan) return plan; const p = JSON.parse(JSON.stringify(plan));
+  for (const t of p.tasks || []) { t.rate = 0; t.actual = 0; delete t.bomx; t.basis = ''; t.mats = []; for (const x of t.subs || []) { delete x.rate; delete x.cost; } }
+  delete p.budgetCfg; delete p.bom; delete p.bomLoose; delete p.bomBase; delete p.bomRevs; p.moneyHidden = true;
+  if (p.charter) p.charter.budget = 0;
+  if (p.baseline) delete p.baseline.BAC; (p.baselineHist || []).forEach((b) => { delete b.BAC; });
+  p.changes = (p.changes || []).map((c) => { const x = { ...c }; delete x.items; delete x.bom; if (x.eval) x.eval = { ...x.eval, cost: '' }; delete x.extra; delete x.cost; return x; });
+  return p;
+}
+export function keepMoney(before, inc) {
+  if (!before || !inc || typeof inc !== 'object') return inc;
+  const old = Object.fromEntries((before.tasks || []).map((t) => [t.id, t]));
+  for (const t of Array.isArray(inc.tasks) ? inc.tasks : []) { const o = old[t && t.id]; if (!o) { if (t) { t.rate = 0; t.actual = 0; } continue; } t.rate = o.rate; t.actual = o.actual; t.basis = o.basis; t.mats = o.mats; t.unit = o.unit; t.qty = o.qty; t.crew = o.crew; t.crewSet = o.crewSet; t.est = o.est; }
+  for (const k of ['budgetCfg', 'bom', 'bomLoose', 'baseline', 'baselineHist']) inc[k] = before[k];
+  inc.charter = Object.assign({}, inc.charter || {}, { budget: (before.charter || {}).budget });
+  const oc = Object.fromEntries((before.changes || []).map((c) => [c.id, c]));
+  inc.changes = (Array.isArray(inc.changes) ? inc.changes : []).map((c) => (c && oc[c.id] ? oc[c.id] : c)).concat((before.changes || []).filter((c) => !(inc.changes || []).some((x) => x && x.id === c.id)));
+  delete inc.moneyHidden;
+  return inc;
+}
+export async function planPost(action, body, { who, by, audit, ctx }) {
+  const money = !ctx || (await import('./users.mjs')).seesMoney(ctx);   // internal calls (no login) see everything
   const core = str(body.core, 40);
   if (action === 'planList') {
     const today = new Date().toISOString().slice(0, 10);
@@ -1208,15 +1231,17 @@ export async function planPost(action, body, { who, by, audit }) {
     const rems = remsAll.filter((r) => r.core === job.core).map((r) => ({ ...r, when: whenText(r.at) }));
     let costs = 0;
     try { costs = r2(Object.values((idx && idx.expenses) || {}).filter((e) => e.core === job.core).reduce((a, e) => a + (e.inc - e.gst), 0)); } catch {}
+    if (!money) { plan = stripMoney(plan); costs = 0; }
     return out(200, { champ: modulesOf(champ, job.core), plan, job: { core: job.core, ref: J.refFor(job), name: job.name, manager: job.manager || '', sponsor: job.sponsor || '', program: job.program || '', suburb: job.suburb, service: job.service, stage: job.stage, source: job.source || '', title: jobTitle(job), phone: job.phone || '', email: job.email || '', scope: jobScope(job), brief: job.brief || '', docName: job.docName || '', docId: job.docId || '', docStart: job.docStart || '', docFinish: job.docFinish || '', urgency: job.urgency || '', emergency: isEmergency(job) }, reminders: rems, expensesEx: costs, test: isTestSite(), bench: plan ? benchTarget(plan, job) : null });
   }
   if (action === 'planSave') {
     if (!core || !(await J.find(core))) return out(404, { error: 'Job not found' });
     const before = await get(core);
+    if (!money && before && body.plan) body.plan = keepMoney(before, body.plan);   // 💰 their edits keep the money as it was
     // 🧱 the BOM baseline and revision list belong to the server (they are only changed by a new BOM version), never by the browser
     if (body.plan && typeof body.plan === 'object') { body.plan.bomBase = before ? before.bomBase : undefined; body.plan.bomRevs = before ? before.bomRevs : undefined; body.plan.baseRevs = before ? before.baseRevs : undefined; }   // 📌 the baseline versions list belongs to the server too
     const r = await save(core, body.plan || {}, body.rev, by);
-    if (r.conflict) return out(409, { error: 'Someone else changed this plan. Your view has been refreshed with their version.', plan: r.conflict });
+    if (r.conflict) return out(409, { error: 'Someone else changed this plan. Your view has been refreshed with their version.', plan: money ? r.conflict : stripMoney(r.conflict) });
     if (body.note && audit) await audit(who, `Plan ${core}: ${str(body.note, 120)}`);
     let low = [];
     // GKH Project Champ: no Inventory, so a plan never sets stock aside
@@ -1225,7 +1250,7 @@ export async function planPost(action, body, { who, by, audit }) {
     try { const BR = await import('./bomrev.mjs'), rv = await BR.check(core, cur, by, save); if (rv) { cur = rv.plan; extra.bomRev = rv.info; } } catch (e) { console.error('BOM revision: ' + e.message); }
     // 📌 a new (or replaced) baseline: the next baseline version, filed as a spreadsheet and a PowerPoint deck, kept for roll-back and audit
     try { const BV = await import('./baserev.mjs'), bv = await BV.check(core, cur, by, save); if (bv) { cur = bv.plan; extra.baseRev = bv.info; } } catch (e) { console.error('Baseline version: ' + e.message); }
-    return out(200, { plan: cur, low, ...extra });
+    return out(200, { plan: money ? cur : stripMoney(cur), low, ...extra });
   }
   if (action === 'pipelineBoard') {   // the dashboard's big Kanban: every open job (and recently closed ones) in its pipeline column
     const out2 = await pipelineBoard(body); return out(200, out2);
