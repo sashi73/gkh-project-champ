@@ -3,25 +3,32 @@
    - login page: just the sign-in card
    - console (/admin/): only 🎯 Today, like a messenger (admin/champ-phone-app.js)
    No AI chat and no voice on phones. Tablets and computers keep the full site.
-   ?phone=1 / ?phone=0 forces it (kept on this device); "Full website" at the foot switches it off. */
+   ?phone=1 shows it on a computer (for testing). A phone always gets the phone version: there is no switch to the full website. */
 (function () {
   'use strict';
   var ua = navigator.userAgent || '', q = location.search, ls = function (k, v) { try { if (v === undefined) return localStorage.getItem(k); if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (e) { return null; } };
-  if (/[?&]phone=1/.test(q)) ls('champPhone', '1'); else if (/[?&]phone=0/.test(q)) ls('champPhone', '0');
+  if (/[?&]phone=1/.test(q)) ls('champPhone', '1'); else if (/[?&]phone=0/.test(q)) ls('champPhone', null);
   var ver = function (re) { var m = ua.match(re); return m ? m[1].replace(/_/g, '.') : ''; };
   var os = /iPhone|iPod/.test(ua) ? 'iOS' : /Android/.test(ua) ? 'Android' : /Windows Phone/.test(ua) ? 'Windows Phone' : '';
   var osVer = os === 'iOS' ? ver(/OS (\d+[_.]\d+(?:[_.]\d+)?)/) : os === 'Android' ? ver(/Android (\d+(?:\.\d+)*)/) : '';
   var model = os === 'iOS' ? 'iPhone' : os === 'Android' ? ((ua.match(/Android [^;)]*;\s*([^;)]+?)(?:\s+Build\/[^;)]*)?\)/) || [])[1] || 'Android phone').replace(/^wv$|^K$/, 'Android phone') : '';
   var uaPhone = /iPhone|iPod|Windows Phone/.test(ua) || (/Android/.test(ua) && /Mobile/.test(ua)) || !!(navigator.userAgentData && navigator.userAgentData.mobile);
   var small = window.matchMedia && matchMedia('(max-width: 600px) and (pointer: coarse)').matches;   // a phone that hides its name
-  var force = ls('champPhone'), is = force === '1' ? true : force === '0' ? false : (uaPhone || small);
+  // a phone always gets the phone website (never the full one); ?phone=1 shows it on a computer for testing
+  var force = ls('champPhone'); if (force === '0') { ls('champPhone', null); force = null; }
+  var is = uaPhone || small || force === '1';
   if (!os && is) os = /Mac/.test(ua) ? 'iOS' : 'Phone';
   window.ChampPhone = { is: is, os: os, osVer: osVer, model: model, label: (model || 'Phone') + (os && os !== model ? ' · ' + os + (osVer ? ' ' + osVer : '') : '') };
   if (!is) return;
   var root = document.documentElement; root.classList.add('ph'); root.classList.add('ph-' + (os === 'iOS' ? 'ios' : os === 'Android' ? 'android' : 'other'));
   var path = location.pathname, page = /\/admin\//.test(path) ? 'admin' : /login(\.html)?$/.test(path) ? 'login' : /(^\/$|index(\.html)?$)/.test(path) ? 'home' : 'other';
   root.classList.add('ph-' + page);
-  if (page === 'admin' || page === 'other') return;   // the console builds its own screen; other pages stay as they are
+  if (page === 'admin') return;   // the console builds its own screen
+  if (page === 'other') {   // 📱 the other website pages are not for phones: their short version on the phone page instead (the privacy notice and the film stay)
+    if (window.top !== window || /privacy|promo|404/.test(path)) return;
+    var to = /about/.test(path) ? '#ph-about' : /industries/.test(path) ? '#ph-who' : /contact/.test(path) ? '#ph-contact' : '';
+    location.replace('/' + to); return;
+  }
 
   var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
   var LANGS = [['en', 'English'], ['ms', 'Bahasa Melayu'], ['id', 'Bahasa Indonesia'], ['ta', 'தமிழ்'], ['zh', '简体中文'], ['hi', 'हिन्दी'], ['ar', 'العربية'], ['fa', 'فارسی'], ['vi', 'Tiếng Việt'],
@@ -32,7 +39,7 @@
   }
   function wireLang(id) { var s = document.getElementById(id); if (!s) return; s.onchange = function () { var v = s.value; ls('champLang', v); if (window.ChampI18n) window.ChampI18n.set(v); else location.reload(); }; }
   var HOME = os === 'iOS' ? 'In Safari tap <b>Share ⇧</b>, then <b>Add to Home Screen</b>.' : os === 'Android' ? 'In Chrome tap <b>⋮</b>, then <b>Add to Home screen</b>.' : 'Use your browser menu: <b>Add to Home screen</b>.';
-  var foot = '<p class="ph-dev" data-noi18n>📱 ' + esc(window.ChampPhone.label) + '</p><p class="ph-home">Keep Champ one tap away: ' + HOME + '</p><a class="ph-full" href="?phone=0">Full website</a>';
+  var foot = '<p class="ph-dev" data-noi18n>📱 ' + esc(window.ChampPhone.label) + '</p><p class="ph-home">Keep Champ one tap away: ' + HOME + '</p>';
 
   function film() {
     var o = document.createElement('div'); o.className = 'ph-film'; o.innerHTML = '<button type="button" class="ph-x" aria-label="Close">✕</button><iframe src="promo.html" title="GKH Project Champ in two minutes" allow="autoplay; fullscreen" allowfullscreen></iframe>';
@@ -65,7 +72,7 @@
       '<section id="ph-contact" class="ph-sec"><h2>Contact</h2><p class="ph-desc">A 30-minute demo on your own project, a pilot, or training. We reply within one business day.</p>' +
       '<div class="ph-cta"><a class="ph-btn" href="mailto:ceo@gkhconsultancy.com?subject=Project%20Champ%20demo">✉️ Email us</a><a class="ph-btn" href="tel:+61493431202">📞 Call</a><a class="ph-btn" href="https://wa.me/61493431202">💬 WhatsApp</a></div>' +
       '<p class="ph-desc ph-small" data-noi18n>ceo@gkhconsultancy.com · +61 493 431 202</p><p class="ph-desc ph-small">Offices: Sydney, Australia · Kuala Lumpur, Malaysia</p>' +
-      '<a class="ph-full2" href="contact.html">Send an enquiry form</a></section>' +
+      '</section>' +
       '<a class="ph-login" href="login.html">🔐 Login</a>' +
       '<p class="ph-free">Free to explore: sign in with Google. No payment, no credit card.</p>' + foot;
     document.body.appendChild(d);
@@ -75,6 +82,7 @@
     links.forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var t = document.querySelector(a.getAttribute('href')); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 74, behavior: 'smooth' }); }; });
     var light = function () { var cur = links[0]; links.forEach(function (a) { var t = document.querySelector(a.getAttribute('href')); if (t && t.getBoundingClientRect().top < 140) cur = a; }); links.forEach(function (a) { a.classList.toggle('on', a === cur); }); };
     addEventListener('scroll', light, { passive: true });
+    if (/^#ph-/.test(location.hash)) setTimeout(function () { var a = d.querySelector('.ph-nav a[href="' + location.hash + '"]'); if (a) a.click(); }, 300);
   }
   function login() {
     var card = document.getElementById('loginForm'); if (!card) return;
