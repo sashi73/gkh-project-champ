@@ -285,7 +285,7 @@ html.p2-noscroll,html.p2-noscroll body{overflow:hidden}
 .p2-ext span{flex:1}.p2-ext b{display:block;color:#fff;font:700 15.5px Manrope,sans-serif}.p2-ext small{display:block;font-size:13px;color:var(--mu)}
 /* p2: the founder as a smaller studio portrait beside the name (phone only) */
 .p2-founder{display:flex;align-items:center;gap:16px;margin:22px 0 0;padding:12px;border-radius:18px;background:var(--sf);border:1px solid var(--ln)}
-.p2-photo{flex:0 0 116px;width:116px;aspect-ratio:4/5;border-radius:14px;background:#2A2723}
+.p2-photo{flex:0 0 116px;width:116px;aspect-ratio:4/5;border-radius:14px;background:#C9CED3}
 .p2-photo img{object-position:50% 20%}
 .p2-founder figcaption{position:static;padding:0;border-radius:0;background:none}
 .p2-founder b{font-size:26px}
