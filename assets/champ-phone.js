@@ -49,40 +49,66 @@
     addEventListener('message', onMsg);
     o.querySelector('.ph-x').onclick = function () { removeEventListener('message', onMsg); o.remove(); };
   }
-  // 📱 the phone website: one short page with a menu (Home, About, Who it's for, Contact), every language, and a note that Champ itself is made for a computer
+  // 📱 the phone website: a short, polished page (Home, About, Who it's for, Contact), every language, and a note that Champ itself is made for a computer
+  var I = {   // small monoline icons, in the page's gold
+    build: '<path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/>', it: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>', leaf: '<path d="M5 19c0-8 6-14 15-14 0 9-6 15-14 15"/><path d="M5 19 13 11"/>',
+    gov: '<path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M12 3l9 5H3z"/>', brief: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18"/>', globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>', phone: '<path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/>', chat: '<path d="M4 20l1.5-4A8 8 0 1 1 9 19.5z"/>',
+    laptop: '<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>', play: '<path d="M8 5v14l11-7z" fill="currentColor" stroke="none"/>', chev: '<path d="m9 6 6 6-6 6"/>' };
+  var ico = function (k, c) { return '<svg class="' + (c || 'p2-i') + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + I[k] + '</svg>'; };
   function home() {
-    var d = document.createElement('div'); d.id = 'phLand'; d.className = 'ph-land';
-    var who = [['🏗', 'Construction and facilities', 'Gantt with trades, Bill of Materials and quantities, SWMS, site budgets.'], ['💻', 'IT and digital', 'Backlogs, boards and sprints, with milestones and cost for the steering committee.'],
-      ['🌏', 'ESG and sustainability', 'Decarbonisation and reporting programs, with clear status for boards.'], ['🏛', 'Government and public sector', 'Charters, change control and audit-ready reports.'],
-      ['📈', 'Consulting and services', 'Client engagements with scope, budget, RACI and AI status reports.'], ['🤝', 'Development programs', 'Many projects, donors and partners: one view of time, cost and risk.']];
-    d.innerHTML = '<nav class="ph-nav" aria-label="Menu"><div class="ph-menu"><a href="#ph-home" class="on">Home</a><a href="#ph-about">About</a><a href="#ph-who">Who it’s for</a><a href="#ph-contact">Contact</a></div>' + langSel('phLangSel', true) + '</nav>' +
-      '<section id="ph-home" class="ph-sec">' +
-      '<p class="ph-desk">💻 <b>Best on a desktop or laptop.</b> Project Champ is a full project workspace made for a big screen. On a phone you can read about it, sign in and see your Today list.</p>' +
-      '<div class="ph-top"><img src="assets/gkh-globe.webp" alt="" width="84" height="84" class="gkh-globe"><h1 data-noi18n>Project Champ</h1><p class="ph-by">by Global Knowledge House</p></div>' +
-      '<p class="ph-lead">Every project. <span class="grad-text">One champion.</span></p>' +
-      '<p class="ph-desc">Plan and run projects in one place: Gantt charts, boards, costs, risks, people and reports. The AI builds the plan from your documents and warns you before things slip.</p>' +
-      '<ul class="ph-pts"><li>📊 Agile, waterfall or hybrid</li><li>✨ AI plans, status reports and answers</li><li>🌐 19 languages</li></ul>' +
-      '<button type="button" class="ph-watch" id="phWatch"><span class="ph-play">▶</span><span>Watch the 2-minute film</span></button></section>' +
-      '<section id="ph-about" class="ph-sec"><h2>About us</h2>' +
-      '<p class="ph-desc">Project Champ is built by <b>Global Knowledge House (GKH)</b>, a boutique consultancy in Sydney and Kuala Lumpur. Since 2010 we have run national programs, strategy and ESG work for governments and businesses in Asia, the Middle East and Africa. Champ is that discipline, made simple for any team.</p>' +
-      '<div class="ph-person"><img src="assets/team/sashi-cut.webp" alt="Sashi Kumar Sivam" width="72" height="72" loading="lazy"><div><b data-noi18n>Sashi Kumar Sivam</b><small>CEO and Co-Founder, GKH · Architect of Project Champ</small></div></div>' +
-      '<p class="ph-desc">25 years leading national programs and delivery teams on five continents, including as Chief Strategic Advisor to the Rwanda Development Board. PMP, PMI-ACP, CSM, CSPO, ESGP. A pioneer in bringing AI into program and project management.</p></section>' +
-      '<section id="ph-who" class="ph-sec"><h2>Who it’s for</h2><p class="ph-desc">Any team with a scope, a deadline and a budget.</p><ul class="ph-who">' +
-      who.map(function (w) { return '<li><span>' + w[0] + '</span><div><b>' + w[1] + '</b><small>' + w[2] + '</small></div></li>'; }).join('') + '</ul></section>' +
-      '<section id="ph-contact" class="ph-sec"><h2>Contact</h2><p class="ph-desc">A 30-minute demo on your own project, a pilot, or training. We reply within one business day.</p>' +
-      '<div class="ph-cta"><a class="ph-btn" href="mailto:ceo@gkhconsultancy.com?subject=Project%20Champ%20demo">✉️ Email us</a><a class="ph-btn" href="tel:+61493431202">📞 Call</a><a class="ph-btn" href="https://wa.me/61493431202">💬 WhatsApp</a></div>' +
-      '<p class="ph-desc ph-small" data-noi18n>ceo@gkhconsultancy.com · +61 493 431 202</p><p class="ph-desc ph-small">Offices: Sydney, Australia · Kuala Lumpur, Malaysia</p>' +
-      '</section>' +
-      '<a class="ph-login" href="login.html">🔐 Login</a>' +
-      '<p class="ph-free">Free to explore: sign in with Google. No payment, no credit card.</p>' + foot;
+    var cur = ls('champLang') || 'en', curL = LANGS.filter(function (l) { return l[0] === cur; })[0] || LANGS[0];
+    // the plan in the hero: a few weeks of a real-looking schedule, drawn once when the page opens
+    var rows = [['Design and approvals', 2, 26, 'done'], ['Procurement', 18, 22, 'done'], ['Structure, level by level', 30, 34, 'on'], ['Services rough-in', 52, 26, 'late'], ['Fit-out and handover', 70, 26, 'plan']];
+    var gantt = '<div class="p2-plan" role="img" aria-label="A project plan with five work stages and today\'s position"><div class="p2-ph"><b>Riverbend clinic</b><span>Feb to Dec</span></div>' +
+      '<div class="p2-rows">' + rows.map(function (r, i) { return '<div class="p2-row"><span>' + r[0] + '</span><i class="p2-bar ' + r[3] + '" style="--l:' + r[1] + '%;--w:' + r[2] + '%;--d:' + (0.25 + i * 0.12) + 's"></i></div>'; }).join('') +
+      '<i class="p2-today" style="--t:44%"><em>Today</em></i></div>' +
+      '<div class="p2-flag"><b>Services 4 days behind.</b> Champ found it this morning and has a recovery plan ready.</div>' +
+      '<div class="p2-kpi"><span><b>0.97</b> schedule</span><span><b>1.04</b> cost</span><span><b>3</b> risks watched</span></div></div>';
+    var who = [['build', 'Construction and facilities', 'Trades, materials and quantities, safety plans and site budgets.'], ['it', 'IT and digital', 'Backlogs and sprints, with milestones and cost for the steering committee.'],
+      ['leaf', 'ESG and sustainability', 'Decarbonisation and reporting programs that boards can follow.'], ['gov', 'Government', 'Charters, change control and reports ready for audit.'],
+      ['brief', 'Consulting', 'Client engagements with scope, budget and status reports written for you.'], ['globe', 'Development programs', 'Many projects, donors and partners in one view of time, cost and risk.']];
+    var d = document.createElement('div'); d.id = 'phLand'; d.className = 'p2';
+    d.innerHTML =
+      '<header class="p2-top"><a class="p2-brand" href="#ph-home"><img src="assets/gkh-globe.webp" alt="" width="28" height="28"><span data-noi18n>Project Champ</span></a>' +
+      '<button type="button" class="p2-langbtn" id="p2Lang" aria-haspopup="dialog">' + ico('globe') + '<span data-noi18n>' + esc(curL[1]) + '</span></button>' +
+      '<nav class="p2-nav" aria-label="Sections"><a href="#ph-home" class="on">Home</a><a href="#ph-about">About</a><a href="#ph-who">Who it’s for</a><a href="#ph-contact">Contact</a></nav></header>' +
+      '<main class="p2-main">' +
+      '<section id="ph-home" class="p2-sec p2-hero"><h1>Every project. One champion.</h1>' +
+      '<p class="p2-lede">Plan, run and rescue projects in one place. The AI builds the plan from your documents and tells you before work slips.</p>' + gantt +
+      '<div class="p2-actions"><button type="button" class="p2-btn p2-gold" id="phWatch">' + ico('play') + 'Watch the 2-minute film</button></div>' +
+      '<p class="p2-desk">' + ico('laptop') + '<span>Project Champ is made for a desktop or laptop. This is the short version for your phone: read about it, sign in, and see your Today list.</span></p>' +
+      '<ul class="p2-facts"><li><b>Agile, waterfall or hybrid</b>Gantt, boards and sprints in one plan</li><li><b>19 languages</b>The whole app, and Champ the assistant</li><li><b>AI that does the paperwork</b>Plans, status reports and answers</li></ul></section>' +
+      '<section id="ph-about" class="p2-sec"><h2>Built by people who run national programs.</h2>' +
+      '<p>Project Champ comes from <b>Global Knowledge House</b>, a consultancy in Sydney and Kuala Lumpur. Since 2010 we have delivered programs in 8 countries, and reach 14 with our partners, for governments and businesses across Asia, the Middle East and Africa. Champ is that discipline, made simple for any team.</p>' +
+      '<figure class="p2-founder"><div class="p2-photo"><img src="assets/team/sashi-cut.webp" alt="Sashi Kumar Sivam" loading="lazy"></div><figcaption><b data-noi18n>Sashi Kumar Sivam</b><span>CEO and Co-Founder of GKH, and architect of Project Champ</span></figcaption></figure>' +
+      '<blockquote class="p2-quote">I build AI into how programs are planned, governed and rescued, so problems are seen early and dealt with before they cost a project.</blockquote>' +
+      '<p class="p2-small">25 years leading national programs on five continents, including as Chief Strategic Advisor to the Rwanda Development Board. PMP, PMI-ACP, CSM, CSPO, ESGP.</p></section>' +
+      '<section id="ph-who" class="p2-sec"><h2>For any team with a scope, a deadline and a budget.</h2><ul class="p2-who">' +
+      who.map(function (w) { return '<li>' + ico(w[0]) + '<div><b>' + w[1] + '</b><span>' + w[2] + '</span></div></li>'; }).join('') + '</ul></section>' +
+      '<section id="ph-contact" class="p2-sec"><h2>See it on your own project.</h2><p>A 30-minute demo, a pilot on one live project, or training for your team. We reply within one business day.</p>' +
+      '<div class="p2-links"><a href="mailto:ceo@gkhconsultancy.com?subject=Project%20Champ%20demo">' + ico('mail') + '<span><b>Email</b><small data-noi18n>ceo@gkhconsultancy.com</small></span>' + ico('chev', 'p2-chev') + '</a>' +
+      '<a href="tel:+61493431202">' + ico('phone') + '<span><b>Call</b><small data-noi18n>+61 493 431 202</small></span>' + ico('chev', 'p2-chev') + '</a>' +
+      '<a href="https://wa.me/61493431202">' + ico('chat') + '<span><b>WhatsApp</b><small>Message us any time</small></span>' + ico('chev', 'p2-chev') + '</a></div>' +
+      '<p class="p2-small">Offices in Sydney, Australia and Kuala Lumpur, Malaysia.</p></section>' +
+      '<footer class="p2-foot"><p>Keep Champ one tap away. ' + HOME + '</p><p class="p2-legal"><a href="privacy.html">Privacy notice</a><span data-noi18n> · © Global Knowledge House</span></p></footer></main>' +
+      '<div class="p2-dock"><a class="p2-btn p2-gold p2-signin" href="login.html">Sign in</a><span>Free to explore with Google. No card needed.</span></div>' +
+      '<div class="p2-sheet" id="p2Sheet" role="dialog" aria-modal="true" aria-label="Language" hidden><div class="p2-sheet-in"><div class="p2-sheet-h"><b>Language</b><button type="button" id="p2SheetX" aria-label="Close">✕</button></div><div class="p2-langs" data-noi18n>' +
+      LANGS.map(function (l) { return '<button type="button" data-l="' + l[0] + '"' + (l[0] === cur ? ' class="on" aria-current="true"' : '') + '>' + esc(l[1]) + '</button>'; }).join('') + '</div></div></div>';
     document.body.appendChild(d);
-    document.getElementById('phWatch').onclick = film; wireLang('phLangSel');
-    // the menu: smooth scroll, and the section on screen lit up
-    var links = [].slice.call(d.querySelectorAll('.ph-nav a'));
-    links.forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var t = document.querySelector(a.getAttribute('href')); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - 74, behavior: 'smooth' }); }; });
-    var light = function () { var cur = links[0]; links.forEach(function (a) { var t = document.querySelector(a.getAttribute('href')); if (t && t.getBoundingClientRect().top < 140) cur = a; }); links.forEach(function (a) { a.classList.toggle('on', a === cur); }); };
+    document.getElementById('phWatch').onclick = film;
+    // 🌐 the language: a sheet from the bottom with every language
+    var sh = document.getElementById('p2Sheet'), open = function (v) { sh.hidden = !v; document.documentElement.classList.toggle('p2-noscroll', !!v); };
+    document.getElementById('p2Lang').onclick = function () { open(true); }; document.getElementById('p2SheetX').onclick = function () { open(false); };
+    sh.onclick = function (e) { if (e.target === sh) open(false); };
+    sh.querySelectorAll('[data-l]').forEach(function (b) { b.onclick = function () { var v = b.getAttribute('data-l'); ls('champLang', v); open(false); if (window.ChampI18n) { window.ChampI18n.set(v); var L0 = LANGS.filter(function (l) { return l[0] === v; })[0]; document.querySelector('#p2Lang span').textContent = L0 ? L0[1] : v; sh.querySelectorAll('[data-l]').forEach(function (x) { x.classList.toggle('on', x === b); }); } else location.reload(); }; });
+    // the sections: smooth scroll, and the one on screen underlined
+    var links = [].slice.call(d.querySelectorAll('.p2-nav a, .p2-brand'));
+    links.forEach(function (a) { a.onclick = function (e) { e.preventDefault(); var t = document.querySelector(a.getAttribute('href')); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + window.scrollY - (a.classList.contains('p2-brand') ? 999 : 96), behavior: 'smooth' }); }; });
+    var nav = [].slice.call(d.querySelectorAll('.p2-nav a')), light = function () { var c = nav[0]; nav.forEach(function (a) { var t = document.querySelector(a.getAttribute('href')); if (t && t.getBoundingClientRect().top < 160) c = a; }); nav.forEach(function (a) { a.classList.toggle('on', a === c); }); d.classList.toggle('p2-scrolled', window.scrollY > 8); };
     addEventListener('scroll', light, { passive: true });
-    if (/^#ph-/.test(location.hash)) setTimeout(function () { var a = d.querySelector('.ph-nav a[href="' + location.hash + '"]'); if (a) a.click(); }, 300);
+    requestAnimationFrame(function () { d.classList.add('p2-go'); });   // the plan draws itself once
+    if (/^#ph-/.test(location.hash)) setTimeout(function () { var a = d.querySelector('.p2-nav a[href="' + location.hash + '"]'); if (a) a.click(); }, 300);
   }
   function login() {
     var card = document.getElementById('loginForm'); if (!card) return;
