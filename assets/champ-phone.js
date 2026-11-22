@@ -86,7 +86,7 @@
       '<section id="ph-about" class="p2-sec"><h2>Built by people who run national programs.</h2>' +
       '<p>Project Champ comes from <b>Global Knowledge House</b>, a consultancy in Sydney and Kuala Lumpur. Since 2010 we have delivered programs in 8 countries, and reach 14 with our partners, for governments and businesses across Asia, the Middle East and Africa. Champ is that discipline, made simple for any team.</p>' +
       '<a class="p2-ext" href="https://gkhconsultancy.com/" target="_blank" rel="noopener">' + ico('globe') + '<span><b>Visit the GKH website</b><small data-noi18n>gkhconsultancy.com</small></span>' + ico('chev', 'p2-chev') + '</a>' +
-      '<figure class="p2-founder"><div class="p2-photo"><img src="assets/team/sashi-cut.webp" alt="Sashi Kumar Sivam" loading="lazy"></div><figcaption><b data-noi18n>Sashi Kumar Sivam</b><span>CEO and Co-Founder of GKH, and architect of Project Champ</span></figcaption></figure>' +
+      '<figure class="p2-founder"><div class="p2-photo"><img src="assets/team/sashi-studio.webp" alt="Sashi Kumar Sivam" loading="lazy"></div><figcaption><b data-noi18n>Sashi Kumar Sivam</b><span>CEO and Co-Founder of GKH, and architect of Project Champ</span></figcaption></figure>' +
       '<blockquote class="p2-quote">I build AI into how programs are planned, governed and rescued, so problems are seen early and dealt with before they cost a project.</blockquote>' +
       '<p class="p2-small">25 years leading national programs on five continents, including as Chief Strategic Advisor to the Rwanda Development Board. PMP, PMI-ACP, CSM, CSPO, ESGP.</p></section>' +
       '<section id="ph-who" class="p2-sec"><h2>For any team with a scope, a deadline and a budget.</h2><ul class="p2-who">' +
