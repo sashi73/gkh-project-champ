@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 266,
+  "build": 267,
   "commit": "",
-  "branch": "sashiphoto",
+  "branch": "sashioffice",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-22 12:05",
+  "builtAt": "2026-11-22 12:08",
   "site": ""
 };

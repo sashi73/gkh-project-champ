@@ -274,4 +274,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 263 | 1.0.263| 2026-11-22 11:40| phonedesign| `e6968ca` | Phone website redesigned: warm graphite and gold, Archivo and Manrope, a live plan in the hero that draws itself, founder portrait and quote |
 | 264 | 1.0.264| 2026-11-22 11:51| phonepolish| `0f125e9` | Phone website: how it works in three steps, WhatsApp opens with a message, the phone's top bar matches the page, press feedback (#125) |
 | 265 | 1.0.265| 2026-11-22 11:53| gkhlink| `f924f0d` | Phone website: link to the GKH website in About (#126) |
-| 266 | 1.0.266 | 2026-11-22 12:05 | sashiphoto | _this commit_ | _see git log_ |
+| 266 | 1.0.266| 2026-11-22 12:05| sashiphoto| `1fc031c` | Phone website: smaller founder portrait on a studio backdrop, beside the name (#127) |
+| 267 | 1.0.267 | 2026-11-22 12:08 | sashioffice | _this commit_ | _see git log_ |
