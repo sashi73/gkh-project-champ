@@ -1139,18 +1139,21 @@ export async function planPost(action, body, { who, by, audit, ctx }) {
     const only = Array.isArray(body.onlyCores) ? body.onlyCores : null;
     const cards = await portfolio(day, only);
     if (!only) await PG.ensure(cards);   // every project in a program
-    const reg = await PG.keyed();
+    let reg = await PG.keyed();
     PG.tagCards(cards, reg);   // program key, colour and project count on every card
+    if (Array.isArray(body.onlyProgs)) { const P2 = new Set(body.onlyProgs.map((x) => String(x).toLowerCase())); reg = reg.filter((p) => P2.has(p.name.toLowerCase())); }   // 🗺 a Program manager: their programs only
     const programs = reg.map((p) => p.name).sort();
     return out(200, { cards, programs, programKeys: Object.fromEntries(reg.map((p) => [p.name, p.key])), today: day, at: Date.now() });
   }
   // ---------- Programs (the top level) and the dependency board ----------
   if (action === 'planProgramList') {
     const day = body.today || new Date().toISOString().slice(0, 10);
-    const cards = await portfolio(day);
+    let cards = await portfolio(day);
     await PG.ensure(cards);
-    const reg = await PG.keyed();
+    let reg = await PG.keyed();
     PG.tagCards(cards, reg);
+    // 🗺 a Program manager: their programs and the projects in them, nothing else
+    if (Array.isArray(body.onlyProgs)) { const P2 = new Set(body.onlyProgs.map((x) => String(x).toLowerCase())), C2 = new Set(body.onlyCores || []); reg = reg.filter((p) => P2.has(p.name.toLowerCase())); cards = cards.filter((c) => C2.has(c.core)); }
     for (const c of cards) { c.health = healthOf(c); c.forecast = PG.forecastFinish(c); }
     const by = Object.fromEntries(cards.map((c) => [c.core, c]));
     const deps = (await PG.deps()).filter((d) => by[d.from] && by[d.to]).map((d) => ({ ...d, ...PG.depStatus(d, by[d.from], by[d.to]),
