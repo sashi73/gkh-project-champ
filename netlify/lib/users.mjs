@@ -219,6 +219,7 @@ async function context0(session, ownerName, personOk) {
   const u = await get(session.uid);
   if (!u || !u.active || (u.ver || 0) !== (session.v || 0)) return null;
   if (personOk && !(await personOk(u.personId, u))) return null;
+  if (u.kind === 'google' && u.upgraded && DELIVERY.includes(u.role)) { const g = await pmScope(u); return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: false, personId: '', kind: 'google', scope: g.cores, pgm: g }; }   // 📁 a Google delivery lead: their own projects, like any delivery lead
   if (u.kind === 'google' && u.upgraded && ROLES[u.role]) return { owner: false, who: u.username, uid: u.id, role: u.role, mods: cleanMods(u.mods, u.role), name: u.name, mustChange: false, personId: '', kind: 'google', scope: ALL_PROJECTS(u) ? null : (u.projects || []).slice() };   // ⬆ upgraded by the super user: signs in with Google, works with the role
   if (u.kind === 'google') return { owner: false, who: u.username, uid: u.id, role: 'Google (view only)', mods: { ...GOOGLE_MODS }, name: u.name, mustChange: false, personId: '', kind: 'google' };   // v97
   if (u.kind === 'subbie') {   // v91: signed in to one of their projects; nothing else

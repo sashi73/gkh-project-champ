@@ -178,7 +178,8 @@ export async function billCores(ctx) {   // null = every project
   if (!ctx) return new Set();
   if (ctx.pgm) {   // 📁 a delivery lead (Project manager, Scrum Master, Product Owner): the billing of their own client projects; 🗺 a Program manager: no money
     if (!(ctx.pgm.kind === 'project' && ['Project manager', 'Scrum Master', 'Product Owner'].includes(ctx.role))) return new Set();
-    const plans = await P.list().catch(() => []), inn = new Set(plans.filter((p) => ((p.budgetCfg || {}).ctype) === 'internal').map((p) => p.core));
+    const plans = await P.list().catch(() => null); if (!plans) return new Set();   // could not tell which are internal: show none
+    const inn = new Set(plans.filter((p) => ((p.budgetCfg || {}).ctype) === 'internal').map((p) => p.core));
     return new Set((ctx.scope || []).filter((c) => !inn.has(c)));   // 🏢 an internal project has no billing at all
   }   // 📁 a Project manager: the billing of their own projects; 🗺 a Program manager: no money
   if (ctx.scope) return new Set();

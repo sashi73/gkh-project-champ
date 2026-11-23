@@ -4372,7 +4372,8 @@
   function drawDocs() {
     var el = $('#planChain'); if (!el) return; var p = S.plan, K = budgetCalc(p), c = p.charter || {}, last = S.pdoc && S.pdoc.core === S.core ? S.pdoc.doc : null;
     var step = function (on, icon, title, sub, btn) { return '<div class="vstep' + (on ? ' done' : '') + '"><b>' + icon + ' ' + esc(title) + '</b><small>' + sub + '</small>' + btn + '</div>'; };
-    var finOk = !!(M.me && !M.me.scope && (M.me.owner || ['CEO', 'CFO', 'PMO Director', 'Finance personnel', 'Project manager', 'Scrum Master', 'Product Owner'].indexOf(M.me.role) >= 0));   // the server decides per project   // 💵 the project's billing, on the Finance screen
+    var finOk = !!(M.me && !M.me.scope && (M.me.owner || ['CEO', 'CFO', 'PMO Director', 'Finance personnel', 'Project manager', 'Scrum Master', 'Product Owner'].indexOf(M.me.role) >= 0))
+      && !(['Project manager', 'Scrum Master', 'Product Owner'].indexOf(M.me.role) >= 0 && (p.budgetCfg || {}).ctype === 'internal');   // 🏢 an internal project has no billing for a delivery lead   // the server decides per project   // 💵 the project's billing, on the Finance screen
     el.innerHTML = '<div class="vchain docs3">' + (!seesMoney() ? '' :
       step(!!c.budget, '💰', 'Costing', c.budget ? 'approved ' + esc(money(c.budget)) + (Math.abs(c.budget - K.total) >= 1 ? ' · works out at ' + esc(money(K.total)) : '') : 'works out at ' + esc(money(K.total)) + ' · not approved yet', '<button class="btn btn-sm btn-gold" data-dact="budget">💰 Work out the costing</button>')) +
       step(c.docStatus === 'Approved', '📜', 'Project charter', 'v' + esc(c.docVersion || '1.0') + ' · ' + esc(c.docStatus || 'Draft') + ' · up to 4 pages', '<button class="btn btn-sm" data-dact="charter">📜 Generate the charter</button>') +

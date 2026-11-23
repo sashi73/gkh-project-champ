@@ -302,4 +302,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 291 | 1.0.291| 2026-11-23 12:17| newprog| `17a9bc7` | New project: choose a program or create a new one, both up front (no scrolling to the end of a list) |
 | 292 | 1.0.292| 2026-11-23 12:23| newprog| `0af5472` | New project: Site or location is a type-ahead (town, suburb or postcode) that fills in the state, postcode and country, kept with the projec |
 | 293 | 1.0.293| 2026-11-23 12:25| newprog| `5e97a62` | New project: choose a program or create a new one (#150) |
-| 294 | 1.0.294 | 2026-11-23 16:49 | pmrole | _this commit_ | _see git log_ |
+| 294 | 1.0.294| 2026-11-23 16:49| pmrole| `f1da493` | Scrum Master and Product Owner personas: project-level like a Project manager; delivery leads see Billing for their own client projects and  |
+| 295 | 1.0.295 | 2026-11-23 16:59 | pmrole | _this commit_ | _see git log_ |

@@ -143,6 +143,11 @@ async function handle(req, context) {
           'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + e(T('title', 140) || 'Project Champ reminder'), 'TRIGGER:-PT0M', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].map(fold).join('\r\n') + '\r\n';
         return new Response(ics, { status: 200, headers: { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': 'inline; filename="champ-reminder.ics"', 'Cache-Control': 'no-store' } });
       }
+      if (action === 'pdf' && U.isLead(gctx)) {   // 🧾 a delivery lead: the PDF of an invoice on one of their own client projects (checked per invoice)
+        const id = String(url.searchParams.get('id') || ''), d = ACC.kindFromId(id) === 'invoice' ? await ACC.get(id).catch(() => null) : null, BL = await import('../lib/billing.mjs');
+        if (!d || !d.core || !(await BL.canSee(gctx, d.core))) return bad('Only invoices on your own client projects.', 403);
+        const g = await acctGet(action, url); return g || bad('Not found', 404);
+      }
       if (gctx.scope) return bad('Not available to sub-contractor logins.', 403);   // v91
       const gmod = action === 'photo' || action === 'export' ? 'job' : action === 'backup' ? 'dataDelete' : action === 'voucherPdf' ? 'promoList' : action === 'payslipPdf' ? 'prlRuns' : 'acctReport';
       const gok = U.allows(gctx, gmod); if (!gok.ok) return bad(gok.error, 403);

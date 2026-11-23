@@ -190,7 +190,7 @@
       '<div id="upP" hidden style="margin-top:10px"><b>Projects</b><label class="us-chk" style="margin:6px 0"><input type="checkbox" id="upAll"' + (u.projAll ? ' checked' : '') + '> <span><b>All projects</b></span></label><div class="us-projs" id="upProjs">' + S.plans.map(function (p) { return '<label><input type="checkbox" value="' + esc(p.core) + '"' + (mine.indexOf(p.core) >= 0 ? ' checked' : '') + '> <span><b>' + esc(p.name) + '</b></span></label>'; }).join('') + '</div></div>' +
       '<div class="actions"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="upGo" type="button">Save</button></div>');
     $('#modal .modal-card').classList.add('sc-wide');
-    var sync = function () { var r = (document.querySelector('[name=upRole]:checked') || {}).value, lim = r === 'Contractor' || r === 'Project personnel'; $('#upP').hidden = !lim; $('#upProjs').hidden = $('#upAll').checked; };
+    var sync = function () { var r = (document.querySelector('[name=upRole]:checked') || {}).value, ld = LEADS.indexOf(r) >= 0, lim = r === 'Contractor' || r === 'Project personnel' || ld; $('#upP').hidden = !lim; if (ld) $('#upAll').checked = false; $('#upAll').disabled = ld; $('#upProjs').hidden = $('#upAll').checked; };
     document.querySelectorAll('[name=upRole]').forEach(function (x) { x.onchange = sync; }); $('#upAll').onchange = sync; sync();
     $('#upGo').onclick = function () {
       var r = (document.querySelector('[name=upRole]:checked') || {}).value; if (!r) return;
