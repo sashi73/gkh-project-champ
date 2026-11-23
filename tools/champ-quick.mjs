@@ -311,6 +311,25 @@ try {
         && r.f === 200 && r.fp.includes(cli) && !r.fp.includes(inn) && !r.fp.includes(other) && r.bc === 200 && r.can === true && r.bi === 403 && r.bo === 403 && r.ro === 403 && r.ri === 403 && conf.status === 200 && r.rc === 200 && /^INV-/.test(r.rcId) && r.inF2 && r.pdf === 200 && r.pdfO === 403 && r.sv === 403 && r.cu === 403
         && p2.role === 'Product Owner' && p2.cores.includes(cli) && !p2.cores.includes(other) && !p2.cores.includes(inn),
         JSON.stringify([mk.status, mk.j.error, mk2.status, r, p2]).slice(0, 900)); }
+    // 🧩 the RAID log: assumptions and outside dependencies saved with the plan; RAG by the same rules; project links from the Dependency board; scoped; in Ask AI as raid_log
+    { const td = new Date(Date.now() + 11 * 3600000).toISOString().slice(0, 10), back = (n) => new Date(Date.parse(td) - n * 864e5).toISOString().slice(0, 10);
+      const mk = async (name) => (await api('planNewProject', { name, client: 'Acme', program: 'Digital health' })).j.core, ra = await mk('RAID test'), rb = await mk('RAID upstream');
+      await api('planSave', { core: rb, plan: { name: 'RAID upstream', start: '2026-10-01', phases: [{ id: 'p1', name: 'Work' }], tasks: [{ id: 't1', name: 'Build', phase: 'p1', dur: 20, pred: [], res: [], pct: 0 }] } });
+      const sv = await api('planSave', { core: ra, plan: { name: 'RAID test', start: '2026-10-01', phases: [{ id: 'p1', name: 'Work' }], tasks: [{ id: 't1', name: 'Fit-out', phase: 'p1', dur: 10, pred: [], res: [], pct: 0 }],
+        risks: [{ id: 'r1', title: 'Wet weather', p: 5, i: 4, status: 'Open' }], issues: [{ id: 'i1', title: 'Crane booked late', priority: 'Low', due: back(3), status: 'Open' }],
+        assumptions: [{ id: 'a1', title: 'Council approves in six weeks', impact: 'High', check: back(2), status: 'Unchecked' }, { id: 'a2', title: 'Client signs the scope', status: 'Holds' }, { id: 'a3', title: 'Bad', status: 'Nope' }],
+        extDeps: [{ id: 'd1', title: 'Switchboard from the supplier', kind: 'Supplier', party: 'Volt Co', need: back(1), status: 'Waiting', task: 't1' }, { id: 'd2', title: 'Fire engineer sign-off', kind: 'Approval', status: 'Delivered' }] } });
+      const dep = await api('planDepSave', { from: rb, to: ra, type: 'FS' });
+      const g = (await api('planGet', { core: ra })).j.plan || {}, one = await api('planRaidList', { core: ra }), L = one.j.items || [], by = (id) => L.find((x) => x.id === id) || {};
+      const link = L.find((x) => x.link && x.core === ra) || {}, port = await api('planRaidList', {}), sq = await api('sqlData'), rl = ((sq.j.data || {}).raid_log || []).filter((x) => x.job === ra);
+      const pm = await as('pm1@example.com', 'Vaultpass2026x', async () => { const r = await api('planRaidList', {}), o = await api('planRaidList', { core: ra }); return { cores: [...new Set((r.j.items || []).map((x) => x.core))], st: r.status, o: o.status }; });
+      ok('RAID', '🧩 RAID log: assumptions and outside dependencies are saved with the plan (bad values tidied); red for a high-impact assumption past its check date, a late issue, a dependency past its needed-by date and a 5×4 risk; grey when delivered; the Dependency board link shows on the waiting project; Portfolio › RAID log covers every project; a project manager sees only their projects; Ask AI has raid_log',
+        sv.status === 200 && (g.assumptions || []).length === 3 && g.assumptions[2].status === 'Unchecked' && (g.extDeps || []).length === 2 && g.extDeps[0].task === 't1'
+        && by('a1').rag === 'red' && by('a2').rag === 'green' && by('i1').rag === 'red' && by('d1').rag === 'red' && by('d2').rag === 'grey' && by('r1').rag === 'red' && by('r1').score === 20
+        && one.j.summary && one.j.summary.A.total === 3 && one.j.summary.D.total >= 3 && dep.status === 200 && /RAID upstream/.test(link.title || '') && L.every((x) => x.core === ra)
+        && port.status === 200 && (port.j.projects || []).some((x) => x.core === rb) && (port.j.items || []).filter((x) => x.link && (x.core === ra || x.core === rb)).length === 1 && rl.length >= 6 && rl.some((x) => x.type === 'Assumption' && x.rag === 'red') && rl.filter((x) => x.dependency_kind === 'Project' && /RAID upstream/.test(x.title)).length === 1
+        && pm.st === 200 && !pm.cores.includes(ra) && pm.o === 403,
+        JSON.stringify([sv.status, (g.assumptions || []).map((a) => a.status), L.map((x) => x.id + ':' + x.rag), one.j.summary, dep.status, dep.j.error, link.title, rl.length, pm]).slice(0, 900)); }
     // 📍 the site picked from the list: town, state, country and postcode go with the project (Ask AI's location columns)
     { const pl = await api('planPlacesGet', { q: 'New South' }), st = (pl.j.places || []).find((x) => x.cc === 'AU');
       const np = await api('planNewProject', { name: 'Located project', client: 'Acme', program: 'Digital health', site: 'Parramatta NSW 2150, Australia', loc: { cc: 'AU', st: 'NSW', place: 'Parramatta, New South Wales, Australia', town: 'Parramatta', postcode: '2150' } });

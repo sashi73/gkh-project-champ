@@ -1524,3 +1524,53 @@ html.dark .pmo-when,body.dark .pmo-when,html.dark .pmo-n,body.dark .pmo-n{backgr
 .np-loc-l button{display:flex;flex-direction:column;align-items:flex-start;width:100%;padding:8px 10px;border:0;border-radius:8px;background:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
 .np-loc-l button small{color:var(--muted,#7A7566);font-size:12px}
 .np-loc-l button.on,.np-loc-l button:hover{background:rgba(201,162,39,.12)}
+/* 🧩 RAID log: project tab and Portfolio › RAID log */
+.raid{display:grid;gap:14px}
+.rd-head{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:flex-end}
+.rd-head h2{margin:0}.rd-head p{margin:2px 0 0}
+.rd-acts{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rd-q{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.rd-qb{display:grid;gap:8px;align-content:start;text-align:left;padding:12px 14px;border:1px solid var(--line);border-top:4px solid var(--qc);border-radius:var(--radius,14px);background:var(--card);color:inherit;font:inherit;cursor:pointer;box-shadow:var(--shadow)}
+.rd-qR{--qc:#c62828}.rd-qA{--qc:#7b5ea7}.rd-qI{--qc:#e07b00}.rd-qD{--qc:#1e6fb8}
+.rd-qb:hover{border-color:var(--qc)}.rd-qb.on{outline:2px solid var(--qc);outline-offset:-1px}
+.rd-qb:focus-visible{outline:3px solid var(--gold,#C9A227);outline-offset:2px}
+.rd-qh{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}.rd-qh i{font-style:normal;font-size:18px}.rd-qh b{font:800 16px/1.2 'Archivo',sans-serif}.rd-qh small{color:var(--muted);font-size:12px}
+.rd-qn{font-size:13px;color:var(--muted)}.rd-qn b{font:800 24px/1 'Archivo',sans-serif;color:var(--ink,inherit);margin-right:2px}
+.rd-qt{display:grid;gap:4px;font-size:12.5px}.rd-qt span{display:flex;gap:6px;align-items:baseline;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rd-qt small{color:var(--muted)}
+.rd-r,.rd-a{font-style:normal;font-weight:700}.rd-r{color:#c62828}.rd-a{color:#b07a00}
+.rd-dot{display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;vertical-align:middle}
+.rd-red{background:#c62828}.rd-amber{background:#e0a100}.rd-green{background:#2e7d32}.rd-grey{background:#9e9e9e}
+.rd-main{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:14px;align-items:start}
+.rd-side{display:grid;gap:14px}.rd-side h3{margin:0 0 10px;font-size:15px}.rd-note{font-size:12px;margin:8px 0 0}
+.rd-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.rd-chips{display:flex;flex-wrap:wrap;gap:4px}
+.rd-chip{border:1px solid var(--line);background:none;color:inherit;font:inherit;font-size:13px;padding:5px 11px;border-radius:999px;cursor:pointer}
+.rd-chip.on{background:var(--ink,#1f1c17);color:var(--card,#fff);border-color:var(--ink,#1f1c17)}
+.rd-tog{display:flex;gap:6px;align-items:center;font-size:13px;margin:0}
+.rd-find{flex:1;min-width:160px;max-width:320px}
+.rd-tab td{vertical-align:top}.rd-ti{display:block}.rd-de{display:block;color:var(--muted);font-size:12px;margin-top:2px}.rd-proj{display:block;font-size:12px;color:var(--muted)}
+span.rd-t{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+span.rd-tR{background:rgba(198,40,40,.1);color:#a52020}span.rd-tA{background:rgba(123,94,167,.12);color:#5f4590}span.rd-tI{background:rgba(224,123,0,.12);color:#9a5400}span.rd-tD{background:rgba(30,111,184,.12);color:#165893}
+.rd-sc{display:inline-grid;place-items:center;min-width:26px;height:22px;border-radius:6px;color:#fff;font-weight:800;font-size:12px}
+.rd-late{color:#c62828;font-weight:700}
+.rd-heat{display:grid;grid-template-columns:16px auto;gap:4px;justify-content:center}
+.rd-hy{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;color:var(--muted);text-align:center}
+.rd-hg{display:grid;grid-template-columns:repeat(5,34px);grid-auto-rows:30px;gap:3px}
+.rd-h{display:grid;place-items:center;border-radius:5px;font-weight:800;font-size:13px;color:#fff;opacity:.85}
+.rd-hg .rd-green{background:#8bc59a}.rd-hg .rd-amber{background:#e9c25a}.rd-hg .rd-red{background:#d9625e}
+.rd-hx{grid-column:2;font-size:11px;color:var(--muted);text-align:center}
+.rd-soon,.rd-pl{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:13px}
+.rd-soon li{display:flex;gap:8px;align-items:baseline}.rd-soon small{display:block;font-size:12px}
+.rd-pl li{display:flex;justify-content:space-between;gap:8px;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:6px}.rd-pl a{color:inherit;text-decoration:none}.rd-pl a small{display:block;color:var(--muted);font-size:12px}.rd-pl span{white-space:nowrap;font-size:12px}
+.rd-sugs{display:grid;gap:8px;max-height:56vh;overflow:auto;margin:10px 0}
+.rd-sug{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.rd-sug span{display:grid;gap:3px}.rd-sug small{color:var(--muted);font-size:12.5px}.rd-why{font-style:italic}
+.rd-wait{display:flex;gap:10px;align-items:center;padding:18px 0}
+@media (max-width:1100px){.rd-main{grid-template-columns:1fr}.rd-q{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.rd-q{grid-template-columns:1fr}}
+/* the project tabs: long names take two short lines instead of running into the next tab (19 tabs with the RAID log) */
+@media (min-width:901px){#planTabs.ptabs .tab{white-space:normal;min-width:min-content;flex:1 1 0;padding-left:4px;padding-right:4px}#planTabs.ptabs .tab span{display:block;max-width:76px}}
+/* on a phone the strip scrolls sideways: each group keeps its full width */
+@media (max-width:900px){#planTabs.ptabs .ptg{flex:0 0 auto}#planTabs.ptabs .tab{flex:0 0 auto}}
+.rd-tog{white-space:nowrap}
+.rd-acts .rd-prog{width:auto;min-width:180px;max-width:260px}

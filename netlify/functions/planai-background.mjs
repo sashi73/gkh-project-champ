@@ -41,11 +41,12 @@ async function run(req) {
     try { body = await req.json(); } catch { return new Response('', { status: 400 }); }
     id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40);
     if (id.length < 12) return new Response('', { status: 400 });
-    if (!U.allowsBg(ctx, body.mode)) return new Response('', { status: 403 });
+    const refuse = async (why) => { await kv.set('aiplan:' + id, { status: 'error', error: why, at: Date.now() }).catch(() => {}); return new Response('', { status: 403 }); };   // the browser polls: tell it why
+    if (!U.allowsBg(ctx, body.mode)) return refuse('This login cannot change this project.');
     // 💰 AI work that reads or writes money (costing, BOM, reports, the project plan document, change impacts, the watch, document reviews, the CEO's briefing):
     //    not for a login without money (contractors, project personnel ...)
     if (!U.seesMoney(ctx) && ['bom', 'cost', 'report', 'plandoc', 'charter', 'cr', 'fit', 'watch', 'watchAll', 'docAnalyse', 'docReview', 'ceoBrief', 'ceoAsk', 'vaultRedact', 'lessonsReport'].includes(body.mode)) { await kv.set('aiplan:' + id, { status: 'error', error: 'Cost and billing work is only for the project manager and the finance team.', at: Date.now() }); return ok(); }
-    if (ctx.scope && !(body.mode === 'docIngest' && !body.core && ctx.pgm) && !ctx.scope.includes(String(body.core || ''))) return new Response('', { status: 403 });   // a program or project manager reads a document for a NEW project (no code yet)   // v91: a sub-contractor: their own project only
+    if (ctx.scope && !(body.mode === 'docIngest' && !body.core && ctx.pgm) && !ctx.scope.includes(String(body.core || ''))) return refuse('This login can only work on the projects it was given.');   // a program or project manager reads a document for a NEW project (no code yet)   // v91: a sub-contractor: their own project only
     await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
     if (body.mode === 'docIngest') {   // 📄 read a project document (RAG) to fill in a new project
       const r = await DOCI.ingest({ sid: body.sid, lang: String(body.lang || '').slice(0, 5), who: session.u }, `Admin (${session.u})`);
@@ -94,6 +95,12 @@ async function run(req) {
       const r = await PLANDOC.write({ core: body.core, budgetFacts: body.budget, lang: String(body.lang || '').slice(0, 5) }, `Admin (${session.u})`);
       await kv.set('aiplan:' + id, { plandoc: r.error ? null : r, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
       if (!r.error) await A.audit(session.u, `AI wrote the project management plan for ${String(body.core || '').slice(0, 20)} (${r.tokens || 0} tokens)`);
+      return ok();
+    }
+    if (body.mode === 'raidFind') {   // 🧩 RAID items the AI finds in the project (the project manager picks which go in)
+      const RD = await import('../lib/raid.mjs'), core = String(body.core || '').slice(0, 40), r = await RD.find(core, { money: U.seesMoney(ctx) });
+      await kv.set('aiplan:' + id, { result: r.error ? null : { items: r.items }, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
+      if (!r.error) await A.audit(session.u, `AI suggested RAID items for ${core} (${r.tokens || 0} tokens)`);
       return ok();
     }
     if (body.mode === 'lessonsSuggest' || body.mode === 'lessonsReport') {   // 📘 lessons from the project's history, or the 4-page report and the video script

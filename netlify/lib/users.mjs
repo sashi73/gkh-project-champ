@@ -168,7 +168,7 @@ export async function googleUser(email, name, by) {
 }
 // what a sub-contractor signed in to one project may do. Every request naming a project must be theirs; other requests only
 // from this list (the plan page's own lookups). Money, people and other subbies' details stay out.
-const SCOPE_FREE = new Set(['me', 'planMyDayGet', 'planPlacesGet', 'planHolidaysGet', 'logout', 'userPassword', 'planList', 'planPipelineList', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk', 'planAiStatus', 'commsSetup', 'planBomTplList', 'planBomTplGet', 'invList', 'invGet']);
+const SCOPE_FREE = new Set(['me', 'planRaidList', 'planMyDayGet', 'planPlacesGet', 'planHolidaysGet', 'logout', 'userPassword', 'planList', 'planPipelineList', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk', 'planAiStatus', 'commsSetup', 'planBomTplList', 'planBomTplGet', 'invList', 'invGet']);
 // 🗺 a Program manager, beyond the project pages: their programs and links, new programs and projects, the people on their projects, and Ask AI over their own data
 //    (each of these is filtered or checked in admin.mjs: programs and projects to theirs, people to those on their projects, no money)
 const PGM_OK = new Set(['planPlacesGet', 'planProgramList', 'planProgramSave', 'planProgramDefaults', 'planProgramSet', 'planProgramMove', 'planDepSave', 'planDepDelete', 'planNewProject', 'planPipelineList', 'planPgmGet', 'pplList', 'pplGet', 'pplAssign',

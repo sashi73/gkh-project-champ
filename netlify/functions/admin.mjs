@@ -315,6 +315,10 @@ async function handle(req, context) {
         if (ctx.scope || !(ctx.owner || ['CEO', 'CFO', 'PMO Director', 'Project manager'].includes(ctx.role))) return bad('The CEO view is for the CEO, the CFO and PMO Directors.', 403);
         const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
       }
+      case 'planRaidList': {   // 🧩 the RAID log: every project this login can see (Portfolio › RAID log), or one project (its RAID log tab)
+        const RD = await import('../lib/raid.mjs'), only = String(body.core || '').slice(0, 40);
+        return out(200, await RD.portfolio(ctx.scope ? new Set(ctx.scope) : null, /^\d{4}-\d{2}-\d{2}$/.test(body.today || '') ? body.today : new Date(Date.now() + 11 * 3600000).toISOString().slice(0, 10), only));
+      }
       case 'planPgmGet': {   // 🗺 the Program view: a Program manager's programs (the PMO view, cut to their projects, without money)
         if (!ctx.pgm || ctx.pgm.kind !== 'program') return bad('The Program view is for program managers.', 403);
         const PMO = await import('../lib/pmo.mjs'); return out(200, await PMO.pmoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10), { pgm: ctx.pgm }));
