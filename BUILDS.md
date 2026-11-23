@@ -300,4 +300,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 289 | 1.0.289| 2026-11-23 03:48| crfix| `255b976` | CodeRabbit round 3: amounts in words and with currency codes removed for money-free meeting analysis, latest dashboard request wins, full up |
 | 290 | 1.0.290| 2026-11-23 03:59| crfix| `989c1b1` | Fixes from CodeRabbit's review of PRs #100–#147 (#149) |
 | 291 | 1.0.291| 2026-11-23 12:17| newprog| `17a9bc7` | New project: choose a program or create a new one, both up front (no scrolling to the end of a list) |
-| 292 | 1.0.292 | 2026-11-23 12:23 | newprog | _this commit_ | _see git log_ |
+| 292 | 1.0.292| 2026-11-23 12:23| newprog| `0af5472` | New project: Site or location is a type-ahead (town, suburb or postcode) that fills in the state, postcode and country, kept with the projec |
+| 293 | 1.0.293 | 2026-11-23 12:25 | newprog | _this commit_ | _see git log_ |

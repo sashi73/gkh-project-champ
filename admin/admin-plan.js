@@ -750,11 +750,11 @@
       '<form id="champNew" class="champ-form">' +
       // 🗂 the program first: add to one you have, or start a new one (both choices up front, no scrolling to the end of a list)
       '<div class="np-prog"><div class="np-head"><b>Choose a program, or create a new one</b> <small class="muted">every project belongs to a program</small></div>' +
-        '<div class="np-seg" role="radiogroup" aria-label="Program"><button type="button" role="radio" data-pm="old" aria-checked="true" class="on"><i>📂</i><span><b>Choose a program</b><small>one you already run</small></span></button>' +
-        '<button type="button" role="radio" data-pm="new" aria-checked="false"><i>＋</i><span><b>Create a new program</b><small>made when you save this project</small></span></button></div>' +
-        '<div class="np-old"><input type="search" class="np-find" placeholder="Search your programs…" aria-label="Search programs"><div class="np-list" role="listbox" aria-label="Programs"><span class="muted">Loading programs…</span></div></div>' +
+        '<div class="np-seg" role="group" aria-label="Program"><button type="button" data-pm="old" aria-pressed="true" class="on"><i>📂</i><span><b>Choose a program</b><small>one you already run</small></span></button>' +
+        '<button type="button" data-pm="new" aria-pressed="false"><i>＋</i><span><b>Create a new program</b><small>made when you save this project</small></span></button></div>' +
+        '<div class="np-old"><input type="search" class="np-find" placeholder="Search your programs…" aria-label="Search programs"><div class="np-list" role="group" aria-label="Programs"><span class="muted">Loading programs…</span></div></div>' +
         '<div class="np-new champ-newprog" hidden><label>New program name<input name="program" maxlength="80" placeholder="e.g. Hospital redevelopment"></label><small class="muted">The program is created when you save this project. Add more projects to it later.</small></div>' +
-        '<select name="progPick" hidden tabindex="-1" aria-hidden="true"><option value=""></option></select></div>' +
+        '<select name="progPick" hidden tabindex="-1" aria-hidden="true"><option value=""></option><option value="__new">new</option></select></div>' +
       '<label>Project name<input name="name" required maxlength="120" placeholder="e.g. Head office fit-out, ERP rollout, Bridge deck repair"></label>' +
       '<p class="champ-fill" id="cnFill" hidden></p>' +
       '<label>Client<input name="client" required maxlength="120" placeholder="e.g. Acme Pty Ltd or Internal: Finance"></label>' +
@@ -769,7 +769,7 @@
       '<label class="mod-row"><span><b>🦺 SWMS</b><small>Safe Work Method Statements for high-risk construction work</small></span><span class="bom-switch"><input type="checkbox" name="swms" checked><span class="bom-slider"></span></span></label></fieldset>' +
       '<div class="actions"><button class="btn btn-gold" type="submit">Create project and plan it →</button></div></form></div>';
     var want = ''; try { want = sessionStorage.getItem('champNewProg') || ''; sessionStorage.removeItem('champNewProg'); } catch (e2) {}
-    var pick = $('#champNew').progPick, newBox = $('#champNew .champ-newprog'), newIn = $('#champNew').program;
+    var pick = $('#champNew').progPick, newBox = $('#champNew .champ-newprog'), newIn = $('#champNew').program, oldBox = $('#champNew .np-old');
     // picking a program fills in what the program (or its latest project) already knows: client, sponsor, manager, email, phone, location.
     // Only empty boxes, or ones it filled itself before, are changed: anything typed stays.
     var F0 = $('#champNew'), FILL = ['client', 'sponsor', 'manager', 'email', 'phone', 'site'], LBL = { client: 'client', sponsor: 'sponsor', manager: 'project manager', email: 'email', phone: 'phone', site: 'location' };
@@ -785,14 +785,14 @@
         note.innerHTML = got.length ? '✨ Filled in from the <b>' + esc(d.program || name) + '</b> program' + (d.from.project && !d.from.program ? ' (its latest project, ' + esc(d.from.project) + ')' : d.from.project ? ' and its latest project' : '') + ': ' + esc(got.join(', ')) + '. Change anything that is different for this project.' : '';
       }).catch(function () {});
     };
-    var syncProg = function () { var isNew = pick.value === '__new'; newBox.hidden = !isNew; newIn.required = isNew; $('#champNew .np-old').hidden = isNew; if (isNew) setTimeout(function () { newIn.focus(); }, 30); fillFrom(pick.value); };
+    var syncProg = function () { var isNew = pick.value === '__new'; newBox.hidden = !isNew; newIn.required = isNew; oldBox.hidden = isNew; if (isNew) setTimeout(function () { newIn.focus(); }, 30); fillFrom(pick.value); };
     pick.onchange = syncProg;
     var NP = $('#champNew .np-prog'), npList = NP.querySelector('.np-list'), npFind = NP.querySelector('.np-find'), PROGS = [];
     var setVal = function (v) { if (v && v !== '__new' && !Array.prototype.some.call(pick.options, function (o) { return o.value === v; })) { var o = document.createElement('option'); o.value = v; o.textContent = v; pick.appendChild(o); } pick.value = v; syncProg(); };
-    var mode = function (m) { NP.querySelectorAll('[data-pm]').forEach(function (b) { var on = b.getAttribute('data-pm') === m; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    var mode = function (m) { NP.querySelectorAll('[data-pm]').forEach(function (b) { var on = b.getAttribute('data-pm') === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
       if (m === 'new') setVal('__new'); else { var sel = npList.querySelector('.on'); setVal(sel ? sel.getAttribute('data-p') : ''); if (!sel) setTimeout(function () { npFind.focus(); }, 30); } };
     var drawList = function () { var q = npFind.value.trim().toLowerCase(), cur = pick.value, L = PROGS.filter(function (x) { return !q || x.toLowerCase().indexOf(q) >= 0; });
-      npList.innerHTML = L.length ? L.map(function (x) { return '<button type="button" role="option" data-p="' + esc(x) + '" aria-selected="' + (x === cur) + '" class="' + (x === cur ? 'on' : '') + '"><i style="--h:' + hue(x) + '"></i>' + esc(x) + '</button>'; }).join('')
+      npList.innerHTML = L.length ? L.map(function (x) { return '<button type="button" data-p="' + esc(x) + '" aria-pressed="' + (x === cur) + '" class="' + (x === cur ? 'on' : '') + '"><i style="--h:' + hue(x) + '"></i>' + esc(x) + '</button>'; }).join('')
         : '<span class="muted">' + (PROGS.length ? 'No program matches. ' : 'No programs yet. ') + '<a href="#" data-np-new>Create a new program' + (q ? ' called “' + esc(npFind.value.trim()) + '”' : '') + '</a></span>'; };
     var hue = function (x) { var h = 0; for (var i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) % 360; return h; };
     NP.addEventListener('click', function (e) {
@@ -803,12 +803,13 @@
     npFind.addEventListener('input', drawList);
     npFind.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = npList.querySelector('[data-p]'); if (b) b.click(); } });
     (M.champPrograms ? M.champPrograms() : Promise.resolve([])).then(function (L) {
-      PROGS = L; NP.classList.toggle('np-many', L.length > 8);
+      if (!NP.isConnected) return; // the form was closed (or opened again) while the programs loaded
+      var was = pick.value; PROGS = L; NP.classList.toggle('np-many', L.length > 8);
       pick.innerHTML = '<option value=""></option>' + L.map(function (x) { return '<option' + (x === want ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '<option value="__new">new</option>';
-      drawList(); if (!L.length) mode('new');
-      if (!want && L.length === 1) pick.value = L[0];
-      syncProg(); if (L.length) drawList();
-    });
+      if (was === '__new' || !L.length) { mode('new'); drawList(); return; } // keep "Create a new program" if it was chosen while loading
+      if (was && L.indexOf(was) >= 0) pick.value = was; else if (!want && L.length === 1) pick.value = L[0];
+      syncProg(); drawList();
+    }).catch(function () { if (NP.isConnected) { npList.innerHTML = '<span class="muted">Could not load your programs. <a href="#" data-np-new>Create a new program</a> or reload the page.</span>'; } });
     // 📄 start from a document: the AI reads all of it (RAG) and fills in the form; the document goes with the project to Ask AI and the plan builder
     var CN = { sid: '', file: null, got: null };
     var cnSay = function (h) { $('#cnDocOut').innerHTML = h; };
