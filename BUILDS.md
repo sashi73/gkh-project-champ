@@ -324,4 +324,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 313 | 1.0.313| 2026-11-24 04:10| helpbox| `f0538fe` | Features: the circuit tree is now a slide in the switching panel (Circuit tree, after Any language), with an Open full screen button, replac |
 | 314 | 1.0.314| 2026-11-24 04:15| helpbox| `f1bd83c` | Circuit tree, CodeRabbit fixes: the page grows when the heading and key need room and the board keeps a usable height; on phones the tree (a |
 | 315 | 1.0.315| 2026-11-24 04:20| helpbox| `401e553` | Tree view and PERT chart on every project (Gantt toolbar: PERT · Tree view · WBS) |
-| 316 | 1.0.316 | 2026-11-24 04:40 | treepert | _this commit_ | _see git log_ |
+| 316 | 1.0.316| 2026-11-24 04:40| treepert| `969878e` | Tree view and PERT chart on every project (Gantt toolbar: PERT · Tree view · WBS) |
+| 317 | 1.0.317 | 2026-11-24 04:49 | treepert | _this commit_ | _see git log_ |

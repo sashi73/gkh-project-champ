@@ -17,7 +17,7 @@
   function fsBtn(btn, card) {
     if (!btn) return;
     if (!card.requestFullscreen) { btn.hidden = true; return; }
-    btn.onclick = function () { if (document.fullscreenElement) document.exitFullscreen(); else card.requestFullscreen().catch(function () {}); };
+    btn.onclick = function () { (document.fullscreenElement ? document.exitFullscreen() : card.requestFullscreen()).catch(M.fail); };
     var sync = function () { var on = document.fullscreenElement === card; card.classList.toggle('tvfs', on); btn.textContent = on ? '✕ Exit full screen' : '⛶ Full screen'; if (!document.contains(card)) document.removeEventListener('fullscreenchange', sync); };
     document.addEventListener('fullscreenchange', sync);
   }
@@ -251,7 +251,7 @@
     var flo = function (n) { return n.fl ? 'float ' + n.fl + 'd' : ''; };
     N.forEach(function (n, i) {
       if (!n.pred.length) edge(74, SY, 0, n.x, n.y, n.b, n.crit, 's,' + i, '');
-      n.pred.forEach(function (p) { var a = N[p], both = a.crit && n.crit; edge(a.x + BW, a.y, a.b, n.x, n.y, n.b, both, p + ',' + i, both ? '' : flo(n) || flo(a)); });
+      n.pred.forEach(function (p) { var a = N[p], cr = (n.cpred || []).indexOf(p) >= 0; edge(a.x + BW, a.y, a.b, n.x, n.y, n.b, cr, p + ',' + i, cr ? '' : flo(n) || flo(a)); });   // red only where the link sets the next start
       if (!N.some(function (q) { return q.pred.indexOf(i) >= 0; })) edge(n.x + BW, n.y, n.b, FX - 28, FY, FB, n.crit, i + ',f', '');
     });
     var cut = function (s, k) { s = String(s || ''); return s.length > k ? s.slice(0, k - 1) + '…' : s; };
@@ -283,6 +283,7 @@
         var o = Math.round(+ed.querySelector('[data-o]').value), p = Math.round(+ed.querySelector('[data-p]').value), er = ed.querySelector('.ptx-err');
         if (!isFinite(o) || !isFinite(p) || o < 0 || p < 0) { er.textContent = 'Enter whole days, 0 or more'; return; }
         if (o > n.m || p < n.m) { er.textContent = 'Optimistic must be no more than ' + n.m + ' days, pessimistic at least ' + n.m; return; }
+        if (p > 730) { er.textContent = 'Pessimistic must be no more than 730 days'; return; }
         ed.hidden = true; opts.onEst(n.id, o, p);
       };
     };
