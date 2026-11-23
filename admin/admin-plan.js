@@ -760,7 +760,7 @@
       '<label>Client<input name="client" required maxlength="120" placeholder="e.g. Acme Pty Ltd or Internal: Finance"></label>' +
       '<div class="champ-2"><label>Sponsor <small class="muted">(optional)</small><input name="sponsor" maxlength="80" placeholder="who backs the project"></label>' +
       '<label>Project manager <small class="muted">(optional)</small><input name="manager" maxlength="80"></label></div>' +
-      '<div class="champ-2"><label>Site or location <small class="muted">(optional)</small><input name="site" maxlength="80" placeholder="e.g. Parramatta NSW"></label>' +
+      '<div class="champ-2"><label class="np-loc">Site or location <small class="muted">(optional: type a town, suburb or postcode)</small><input name="site" maxlength="80" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="npLocL" placeholder="e.g. Parramatta, 2150, Alor Setar"><div class="np-loc-l" id="npLocL" role="listbox" hidden></div></label>' +
       '<label>Contact phone <small class="muted">(optional)</small><input name="phone" maxlength="40"></label></div>' +
       '<label>Contact email <small class="muted">(optional)</small><input name="email" type="email" maxlength="160"></label>' +
       '<label>What is the project about? <small class="muted">(the AI uses this to draft the plan)</small><textarea name="summary" rows="5" maxlength="4000" placeholder="Objective, scope, constraints, budget, key dates…"></textarea></label>' +
@@ -876,12 +876,30 @@
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); }); });
     dz.addEventListener('drop', function (e) { var L = e.dataTransfer && e.dataTransfer.files ? [].slice.call(e.dataTransfer.files) : []; if (L.length) cnPick(L); });
+    // 📍 Site or location: type a few letters (or a postcode) and pick the place; it fills in the town, state, postcode and country
+    var LOC = null;
+    (function () {
+      var inp = $('#champNew').site, box = $('#npLocL'), list = [], sel = 0, tm = null, seq = 0;
+      var fmt = function (x) { var parts = String(x.place || '').split(',').map(function (t) { return t.trim(); }), town = x.town || parts[0] || '', pc = x.postcode ? ' ' + x.postcode : '';
+        if (x.cc === 'AU' && x.st) return town + ' ' + x.st + pc + ', Australia';
+        var country = parts[parts.length - 1] || '', state = parts.length > 2 ? parts[parts.length - 2] : '';
+        return [town, state ? state + pc : (pc ? pc.trim() : ''), country].filter(Boolean).join(', '); };
+      var show = function (on) { box.hidden = !on; inp.setAttribute('aria-expanded', on ? 'true' : 'false'); };
+      var draw = function () { if (!list.length) { show(false); return; }
+        box.innerHTML = list.map(function (x, i) { return '<button type="button" role="option" aria-selected="' + (i === sel) + '" class="' + (i === sel ? 'on' : '') + '" data-li="' + i + '"><b>' + esc(fmt(x)) + '</b><small>' + esc(x.kind === 'Town' ? (x.postcode ? 'postcode ' + x.postcode : 'town or suburb') : x.kind.toLowerCase()) + '</small></button>'; }).join(''); show(true); };
+      var pick = function (x) { if (!x) return; LOC = { cc: x.cc, st: x.st || '', place: x.place, town: x.town || '', postcode: x.postcode || '' }; inp.value = fmt(x).slice(0, 80); list = []; show(false); inp.classList.add('auto'); };
+      inp.addEventListener('input', function () { LOC = null; inp.classList.remove('auto'); clearTimeout(tm); var my = ++seq, v = inp.value.trim(); if (v.length < 2) { list = []; show(false); return; }
+        tm = setTimeout(function () { api('planPlacesGet', { q: v }).then(function (d) { if (my !== seq) return; list = (d.places || []).slice(0, 8); sel = 0; draw(); }).catch(function () { list = []; show(false); }); }, 250); });
+      inp.addEventListener('keydown', function (e) { if (box.hidden) return; if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; draw(); } else if (e.key === 'Enter') { e.preventDefault(); pick(list[sel]); } else if (e.key === 'Escape') show(false); });
+      box.addEventListener('mousedown', function (e) { var b = e.target.closest('[data-li]'); if (b) { e.preventDefault(); pick(list[+b.getAttribute('data-li')]); } });
+      inp.addEventListener('blur', function () { setTimeout(function () { show(false); }, 150); });
+    })();
     $('#champNew').onsubmit = function (e) {
       e.preventDefault(); var f = e.target;
       if (!f.progPick.value) { toast('Choose a program, or create a new one', true); var s0 = f.querySelector('.np-find'); if (s0) s0.focus(); return; }   // 🗂 the program comes first
       if (f.progPick.value === '__new' && !f.program.value.trim()) { toast('Give the new program a name', true); f.program.focus(); return; }
       var b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
-      api('planNewProject', { name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
+      api('planNewProject', { loc: LOC, name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
           docSid: CN.got ? CN.sid : '', brief: CN.got ? CN.got.briefText : '', docStart: CN.got ? CN.got.fields.start : '', docFinish: CN.got ? CN.got.fields.finish : '' })
         .then(function (r) {
           toast('Project ' + r.ref + ' created' + (r.docId ? ': the document is in its Ask AI' : ''));

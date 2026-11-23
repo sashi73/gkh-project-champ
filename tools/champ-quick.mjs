@@ -289,6 +289,13 @@ try {
         && sv.status === 200 && after && after.role === 'Program manager' && after.jobTitle === 'Head of health programs' && (bad.status >= 400 || (bad.j.user && bad.j.user.role !== 'Project director')),
         JSON.stringify([r.a, r.cores.length, r.me.role, r.me.money, per && per.role, per && per.login, sv.status, sv.j.error, after && [after.role, after.jobTitle], bad.status]).slice(0, 700)); }
 
+    // 📍 the site picked from the list: town, state, country and postcode go with the project (Ask AI's location columns)
+    { const pl = await api('planPlacesGet', { q: 'New South' }), st = (pl.j.places || []).find((x) => x.cc === 'AU');
+      const np = await api('planNewProject', { name: 'Located project', client: 'Acme', program: 'Digital health', site: 'Parramatta NSW 2150, Australia', loc: { cc: 'AU', st: 'NSW', place: 'Parramatta, New South Wales, Australia', town: 'Parramatta', postcode: '2150' } });
+      const row = (((await api('sqlData')).j.data || {}).projects || []).find((x) => x.job === np.j.core || x.job_id === np.j.core) || {};
+      ok('Location', '📍 typing in Site or location offers places (a state here, offline); the picked town, state, country and postcode are kept with the project and appear in Ask AI\'s location columns',
+        !!st && np.status === 200 && row.city === 'Parramatta' && row.state === 'New South Wales' && row.country === 'Australia' && row.postcode === '2150', JSON.stringify([st, np.status, row.city, row.state, row.country, row.postcode])); }
+
     // 🔒 CodeRabbit's findings: a project manager reaches only the logins on their own projects and never gives a login every project; Ask AI data has no money for a login without money access, and no program roll-up for a project manager
     { const cards = (await api('planProgramList', {})).j.cards || [], notMine = cards.find((c) => c.name === 'Estimate test').core, mineC = cards.find((c) => c.name === 'Billing test').core;
       const other = await api('userCreate', { user: { email: 'otherc@example.com', name: 'Other Contractor', password: 'Vaultpass2026x', role: 'Contractor' } });

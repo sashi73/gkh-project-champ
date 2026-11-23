@@ -78,14 +78,18 @@ export async function places(q, fetcher = fetch) {
     try {
       const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 3000);
       try {
-      const r = await fetcher('https://photon.komoot.io/api/?limit=8&lang=en&osm_tag=place&q=' + encodeURIComponent(String(q).slice(0, 60)), { signal: ctl.signal, headers: { 'User-Agent': 'GKH Project Champ (gkhpmo.com)' } });
+      const pc = /^\d{3,6}$/.test(String(q).trim());   // 📮 a postcode: search postcodes and places both
+      const r = await fetcher('https://photon.komoot.io/api/?limit=10&lang=en' + (pc ? '' : '&osm_tag=place') + '&q=' + encodeURIComponent(String(q).slice(0, 60)), { signal: ctl.signal, headers: { 'User-Agent': 'GKH Project Champ (gkhpmo.com)' } });
       if (r.ok) {
         const j = await r.json();
         for (const f of (j.features || [])) {
           const p = f.properties || {}, cc = String(p.countrycode || '').toUpperCase(); if (!/^[A-Z]{2}$/.test(cc) || !C[cc] || !p.name) continue;
-          if (!/^(city|town|village|suburb|municipality|hamlet|quarter|neighbourhood|borough|state|province|region|county|district)$/.test(String(p.osm_value || p.type || 'city'))) continue;
-          const st = stateCode(cc, p.state), label = [p.name, p.state && norm(p.state) !== norm(p.name) ? p.state : '', C[cc]].filter(Boolean).join(', ');
-          push({ ...placeOf(cc, st, label), kind: 'Town' });
+          const isPc = p.osm_value === 'postal_code' || p.type === 'postcode';
+          if (!isPc && !/^(city|town|village|suburb|municipality|hamlet|quarter|neighbourhood|borough|state|province|region|county|district)$/.test(String(p.osm_value || p.type || 'city'))) continue;
+          const town = isPc ? (p.city || p.district || p.county || '') : p.name, postcode = String(isPc ? p.name || p.postcode || '' : p.postcode || '').split(/[;,]/)[0].trim().slice(0, 12);
+          if (!town) continue;
+          const st = stateCode(cc, p.state), label = [town, p.state && norm(p.state) !== norm(town) ? p.state : '', C[cc]].filter(Boolean).join(', ');
+          push({ ...placeOf(cc, st, label), kind: 'Town', town, postcode });   // 📮 with its postcode when the map knows it
         }
       }
       } finally { clearTimeout(tm); }   // the 3-second limit covers reading the answer too

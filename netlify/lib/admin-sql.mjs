@@ -74,7 +74,7 @@ function withKeys(all, ctx) {
 export const SCHEMA = {
   customers: ['id', 'name', 'phone', 'email', 'suburb', 'enquiries', 'confirmed_jobs', 'lost_jobs', 'open_quotes', 'open_jobs', 'quoted_value', 'total_value', 'paid_total', 'owed',
     'first_contact', 'first_month', 'last_contact', 'days_since_contact', 'repeat_customer', 'main_source', 'last_stage', 'tags'],
-  projects: ['job', 'project_ref', 'project_name', 'client', 'program', 'project_manager', 'project_sponsor', 'location', 'city', 'state', 'country', 'country_code', 'phase', 'health', 'pct_complete', 'tasks_done', 'tasks_total', 'late_tasks', 'budget', 'planned_value', 'earned_value', 'actual_cost',
+  projects: ['job', 'project_ref', 'project_name', 'client', 'program', 'project_manager', 'project_sponsor', 'location', 'city', 'state', 'country', 'country_code', 'postcode', 'phase', 'health', 'pct_complete', 'tasks_done', 'tasks_total', 'late_tasks', 'budget', 'planned_value', 'earned_value', 'actual_cost',
     'approved_budget', 'cost_vs_budget', 'contract_type', 'contract_value', 'contract_from', 'forecast_profit', 'profit_margin_pct', 'baseline_finish', 'days_late', 'forecast_days_late', 'delayed_days',
     'billed', 'invoices_count', 'invoiced', 'billed_pct', 'received', 'owed', 'milestones_done_not_billed', 'not_billed_value', 'billing_status',
     'milestones_past_billing_date', 'billing_overdue_days', 'unbilled_past_due_value', 'invoices_overdue_count', 'invoices_overdue_amount', 'oldest_invoice_overdue_days',
@@ -248,9 +248,11 @@ export async function tables() {
   const CN = WC.countries(), cnBy = Object.fromEntries(Object.entries(CN).map(([k, v]) => [v.toLowerCase(), k]));
   const locOf = (core) => {
     const cal = (planBy[core] || {}).cal, site = String((jobBy[core] || {}).suburb || '').trim();
+    const jl = (jobBy[core] || {}).loc;   // 📍 the place picked from the list when the project was made (until the plan has its own location)
+    if ((!cal || !cal.cc) && jl && jl.cc) { const country = WC.countryName(jl.cc), state = WC.stateName(jl.cc, jl.st) || ''; return { location: jl.place || [jl.town, state, country].filter(Boolean).join(', '), city: jl.town || '', state, country, country_code: jl.cc, postcode: jl.postcode || '' }; }
     if (cal && cal.cc) { const parts = String(cal.place || '').split(',').map((x) => x.trim()).filter(Boolean), country = WC.countryName(cal.cc), state = WC.stateName(cal.cc, cal.st) || '';
-      const city = parts.length && parts[0] !== country && parts[0] !== state ? parts[0] : ''; return { location: cal.place || [city, state, country].filter(Boolean).join(', '), city, state, country, country_code: cal.cc }; }
-    if (!site) return { location: '', city: '', state: '', country: '', country_code: '' };
+      const city = parts.length && parts[0] !== country && parts[0] !== state ? parts[0] : ''; return { location: cal.place || [city, state, country].filter(Boolean).join(', '), city, state, country, country_code: cal.cc, postcode: ((jobBy[core] || {}).loc || {}).postcode || '' }; }
+    if (!site) return { location: '', city: '', state: '', country: '', country_code: '', postcode: '' };
     const parts = site.split(',').map((x) => x.trim()).filter(Boolean);
     let cc = '', k = -1; parts.forEach((x, i) => { if (cnBy[x.toLowerCase()]) { cc = cnBy[x.toLowerCase()]; k = i; } });
     const abbr = /\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/, auAt = parts.findIndex((x) => abbr.test(x));
@@ -258,7 +260,7 @@ export async function tables() {
     let state = '', city = '';
     if (cc === 'AU' && auAt >= 0) { state = AU[parts[auAt].match(abbr)[1]]; const own = parts[auAt].replace(abbr, '').replace(/\d{4}/, '').trim(); city = own || parts.slice(0, auAt).filter((x) => !/\d/.test(x)).pop() || ''; }
     else { const before = k > 0 ? parts.slice(0, k) : parts; const words = before.filter((x) => !/\d/.test(x)); city = words[0] || ''; state = k >= 2 && words.length >= 2 ? words[words.length - 1] : ''; }
-    return { location: site, city, state, country: cc ? CN[cc] || '' : '', country_code: cc };
+    return { location: site, city, state, country: cc ? CN[cc] || '' : '', country_code: cc, postcode: (site.match(/\b\d{4,6}\b/) || [''])[0] };
   };
   const pmOf = (core) => String(((planBy[core] || {}).charter || {}).manager || (jobBy[core] || {}).manager || ''), spOf = (core) => String((jobBy[core] || {}).sponsor || '');
   const projects = (await PLAN.portfolio(d10(now)).catch(() => [])).map((c) => ({ ...money2(c), ...bill2(c), job: c.core, project_ref: c.ref, project_name: c.name, client: c.client || '', program: c.program || '', project_manager: pmOf(c.core), project_sponsor: spOf(c.core), ...locOf(c.core),
