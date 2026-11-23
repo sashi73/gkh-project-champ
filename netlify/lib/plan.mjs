@@ -269,6 +269,12 @@ function clean(p, core) {
       response: RESP.includes(r.response) ? r.response : 'Mitigate', action: str(r.action, 800), owner: str(r.owner, 80), review: ymdOk(r.review), status: r.status === 'Closed' ? 'Closed' : 'Open', raised: ymdOk(r.raised) })),
     issues: (Array.isArray(p.issues) ? p.issues : []).slice(0, 100).map((x) => ({ id: uid(x.id, 'i'), title: str(x.title, 200), detail: str(x.detail, 800), priority: PRI.includes(x.priority) ? x.priority : 'Medium',
       owner: str(x.owner, 80), raised: ymdOk(x.raised), due: ymdOk(x.due), status: ['Open', 'In progress', 'Resolved'].includes(x.status) ? x.status : 'Open', resolution: str(x.resolution, 800) })),
+    // 🧩 RAID log: the assumptions the plan rests on (checked by a date; one that does not hold becomes a risk), and the dependencies outside the project
+    //    (a supplier, an approval, another team, the client). Project-to-project links stay on the Dependency board and are shown in the RAID log too.
+    assumptions: (Array.isArray(p.assumptions) ? p.assumptions : []).slice(0, 100).map((a) => ({ id: uid(a.id, 'a'), title: str(a.title, 200), detail: str(a.detail, 800), owner: str(a.owner, 80), check: ymdOk(a.check),
+      impact: ['Low', 'Medium', 'High'].includes(a.impact) ? a.impact : 'Medium', status: ['Unchecked', 'Holds', 'Does not hold'].includes(a.status) ? a.status : 'Unchecked', raised: ymdOk(a.raised), risk: str(a.risk, 40) })),
+    extDeps: (Array.isArray(p.extDeps) ? p.extDeps : []).slice(0, 100).map((d) => ({ id: uid(d.id, 'd'), title: str(d.title, 200), kind: ['Supplier', 'Approval', 'Another team', 'Client', 'Other'].includes(d.kind) ? d.kind : 'Other',
+      party: str(d.party, 120), need: ymdOk(d.need), owner: str(d.owner, 80), status: ['Waiting', 'On track', 'At risk', 'Delivered'].includes(d.status) ? d.status : 'Waiting', task: str(d.task, 40), note: str(d.note, 800), raised: ymdOk(d.raised) })),
     // v45: stakeholder list (RACI). Contact details stay in the plan and are never sent to the AI.
     stakeholders: (Array.isArray(p.stakeholders) ? p.stakeholders : []).slice(0, 100).map((x) => ({ id: uid(x.id, 's'), name: str(x.name, 120), role: str(x.role, 120),
       raci: ['R', 'A', 'C', 'I'].includes(x.raci) ? x.raci : 'I', phone: str(x.phone, 40), email: str(x.email, 160), sub: /^SC-\d{3,5}$/.test(x.sub || '') ? x.sub : '', person: /^P-\d{3,5}$/.test(x.person || '') ? x.person : '' })),

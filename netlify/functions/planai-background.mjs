@@ -96,6 +96,12 @@ async function run(req) {
       if (!r.error) await A.audit(session.u, `AI wrote the project management plan for ${String(body.core || '').slice(0, 20)} (${r.tokens || 0} tokens)`);
       return ok();
     }
+    if (body.mode === 'raidFind') {   // 🧩 RAID items the AI finds in the project (the project manager picks which go in)
+      const RD = await import('../lib/raid.mjs'), core = String(body.core || '').slice(0, 40), r = await RD.find(core, { money: U.seesMoney(ctx) });
+      await kv.set('aiplan:' + id, { result: r.error ? null : { items: r.items }, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
+      if (!r.error) await A.audit(session.u, `AI suggested RAID items for ${core} (${r.tokens || 0} tokens)`);
+      return ok();
+    }
     if (body.mode === 'lessonsSuggest' || body.mode === 'lessonsReport') {   // 📘 lessons from the project's history, or the 4-page report and the video script
       const L = await import('../lib/lessons.mjs'), core = String(body.core || '').slice(0, 40);
       const r = body.mode === 'lessonsSuggest' ? await L.suggest(core) : await L.report(core, `Admin (${session.u})`);

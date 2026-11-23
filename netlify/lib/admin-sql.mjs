@@ -10,6 +10,7 @@ import LOGO from './logo-png.mjs';
 import { business, pdfLib } from './pdf.mjs';
 import * as PLAN from './plan.mjs';
 import * as PGM from './programs.mjs';
+import * as RAID from './raid.mjs';
 import { crRecords } from './plan-intel.mjs';
 import * as INV from './inventory.mjs';
 import * as SUB from './subbies.mjs';
@@ -50,6 +51,7 @@ export const KEYS = {
   plan_subtasks: { pk: 'subtask_id', cols: { subtask_id: (r) => r._id, task_id: (r) => r._parent, job_id: (r) => r.job }, fk: { task_id: 'plan_tasks', job_id: 'jobs' } },
   plan_risks: { pk: 'risk_id', cols: { risk_id: (r) => r._id, job_id: (r) => r.job }, fk: { job_id: 'jobs' } },
   plan_issues: { pk: 'issue_id', cols: { issue_id: (r) => r._id, job_id: (r) => r.job }, fk: { job_id: 'jobs' } },
+  raid_log: { pk: 'raid_id', cols: { raid_id: (r) => r._id, job_id: (r) => r.job }, fk: { job_id: 'jobs' } },
   plan_contracts: { pk: 'contract_id', cols: { contract_id: (r) => r._id, job_id: (r) => r.job, subcontractor_id: (r) => r.sub_id }, fk: { job_id: 'jobs', subcontractor_id: 'subcontractors' } },
   plan_stakeholders: { pk: 'stakeholder_id', cols: { stakeholder_id: (r) => r._id, job_id: (r) => r.job, subcontractor_id: (r) => r.sub_id }, fk: { job_id: 'jobs', subcontractor_id: 'subcontractors' } },
   inventory: { pk: 'stock_id', cols: { stock_id: (r) => r.id }, fk: { supplier_id: 'suppliers' } },
@@ -95,6 +97,7 @@ export const SCHEMA = {
   plan_subtasks: ['job', 'plan_name', 'task', 'subtask', 'owner', 'start', 'finish', 'days', 'status', 'done', 'late'],
   plan_risks: ['job', 'plan_name', 'risk', 'probability', 'impact', 'score', 'response', 'owner', 'status', 'review'],
   plan_issues: ['job', 'plan_name', 'issue', 'priority', 'owner', 'raised', 'due', 'status'],
+  raid_log: ['job', 'plan_name', 'type', 'ref', 'title', 'owner', 'date', 'status', 'is_open', 'rag', 'score', 'priority', 'impact', 'depends_on', 'dependency_kind'],
   plan_stakeholders: ['job', 'plan_name', 'person', 'role', 'raci', 'raci_meaning', 'sub_id', 'phone', 'email'],
   plan_contracts: ['job', 'plan_name', 'type', 'party', 'document', 'uploaded'],
   inventory: ['id', 'item', 'sku', 'category', 'unit', 'location', 'on_hand', 'allocated', 'available', 'on_order', 'reorder_level', 'reorder_qty', 'low', 'unit_price', 'price_supplier', 'stock_value',
@@ -114,7 +117,7 @@ for (const [tb, K] of Object.entries(KEYS)) {   // key columns first: own key, t
 export const DESCRIBE = {
   projects: 'Start here. One row per project with its program, PMBOK phase, health (RAG), % complete, budget, earned value, SPI/CPI, dates, late tasks, risks and issues',
   customers: 'One row per customer (same phone + email = same customer) with their job counts and values', jobs: 'Every enquiry and job (pipeline stage, customer, suburb, trade, values)', quotes: 'Quotes (status, totals ex/inc GST)', invoices: 'Tax invoices (paid, balance, days overdue)',
-  items: 'Line items of quotes and invoices', plan_tasks: 'Project plan tasks (dates, costs, % complete)', plan_risks: 'Risk registers of all plans', plan_issues: 'Issue logs of all plans', plan_subtasks: 'Sub-tasks inside plan tasks (no costs; costs stay on the task)', plan_stakeholders: 'Stakeholders (RACI) on each project plan, including the subbies working on it', plan_contracts: 'Contracts uploaded on each project: customer, sub-contractor, supply, consultant', sub_trades: 'Every trade category (also ones with no subbies yet) with how many subbies, preferred, compliant, average rating and rates', subcontractors: 'Sub-contractors (subbies): trade, where they are, status, rating, rates, licence and insurance with expiry and whether expired', inventory: 'Stock items (on hand, set aside for jobs, re-order level)', suppliers: 'Suppliers', supplier_prices: 'Supplier quotes per stock item', stock_moves: 'Stock in and out', payments: 'Payments received', expenses: 'Expenses and receipts', reminders: 'Call-backs and follow-ups', visits: 'Website visitors per day'
+  items: 'Line items of quotes and invoices', plan_tasks: 'Project plan tasks (dates, costs, % complete)', plan_risks: 'Risk registers of all plans', plan_issues: 'Issue logs of all plans', raid_log: 'The RAID log of every project: risks, assumptions, issues and dependencies (outside ones and links to other projects) in one table, each with a RAG status (red, amber, green, grey = closed). date is the review, check, due or needed-by date', plan_subtasks: 'Sub-tasks inside plan tasks (no costs; costs stay on the task)', plan_stakeholders: 'Stakeholders (RACI) on each project plan, including the subbies working on it', plan_contracts: 'Contracts uploaded on each project: customer, sub-contractor, supply, consultant', sub_trades: 'Every trade category (also ones with no subbies yet) with how many subbies, preferred, compliant, average rating and rates', subcontractors: 'Sub-contractors (subbies): trade, where they are, status, rating, rates, licence and insurance with expiry and whether expired', inventory: 'Stock items (on hand, set aside for jobs, re-order level)', suppliers: 'Suppliers', supplier_prices: 'Supplier quotes per stock item', stock_moves: 'Stock in and out', payments: 'Payments received', expenses: 'Expenses and receipts', reminders: 'Call-backs and follow-ups', visits: 'Website visitors per day'
 };
 
 export async function tables() {
@@ -166,7 +169,7 @@ export async function tables() {
     const v = visitRec;
     visits = Object.entries((v && v.days) || {}).map(([date, n]) => ({ date, month: date.slice(0, 7), visits: n })).sort((a, b) => (a.date > b.date ? 1 : -1));
   } catch {}
-  const plan_tasks = [], plan_risks = [], plan_issues = [], plan_subtasks = [], plan_stakeholders = [], plan_contracts = [];
+  const raid_log = [], plan_tasks = [], plan_risks = [], plan_issues = [], plan_subtasks = [], plan_stakeholders = [], plan_contracts = [];
   const todayS = d10(now);
   for (const p of planList) {
     PLAN.schedule(p);
@@ -182,6 +185,7 @@ export async function tables() {
     const dn = (p.contracts || []).length ? Object.fromEntries((((await kv.get('pdocs:' + p.core)) || {}).docs || []).map((d) => [d.id, d.name])) : {};
     for (const c of p.contracts || []) plan_contracts.push({ _id: p.core + '/' + c.id, job: p.core, plan_name: p.name, type: c.type, party: c.party, sub_id: c.type === 'Sub-contractor' ? c.partyRef : '',
       document: dn[(c.docs || [])[0]] || '', uploaded: d10(c.at) });   // v53
+    for (const x of RAID.items(p, todayS)) raid_log.push({ _id: p.core + '/' + x.id, job: p.core, plan_name: p.name, type: RAID.TYPES[x.type], ref: x.ref, title: x.title, owner: x.owner || '', date: x.date || '', status: x.status, is_open: !!x.open, rag: x.rag, score: x.score || null, priority: x.priority || '', impact: x.impact || '', depends_on: x.party || '', dependency_kind: x.kind || '' });
     for (const x of p.issues || []) plan_issues.push({ _id: p.core + '/' + x.id, job: p.core, plan_name: p.name, issue: x.title, priority: x.priority, owner: x.owner, raised: x.raised, due: x.due, status: x.status });
   }
   const supName = Object.fromEntries(stock.suppliers.map((x) => [x.id, x.name])), supRec = Object.fromEntries(stock.suppliers.map((x) => [x.id, x]));
@@ -291,7 +295,7 @@ export async function tables() {
   const change_records = (await crRecords().catch(() => [])).map((r) => ({ record_id: r.key, job: r.core, project: (cardBy[r.core] || {}).name || r.project, program: (cardBy[r.core] || {}).program || r.program || '', cr: r.cr, title: r.title,
     decision: r.outcome, approved_by: r.by, role: r.role, signed: !!r.sig, decided: d10(r.at), finish_before: r.f0, finish_after: r.f1, budget_before: r.b0, budget_after: r.b1, days: r.days, cost: r.cost,
     applied_directly: !!r.direct, status: r.status, note: r.note, pdf_kept: !!r.hasPdf, recorded_by: r.recordedBy }));
-  const all = { projects, programs, dependencies, change_records, customers, jobs, quotes, invoices, items, payments, expenses, reminders, visits, plan_tasks, plan_subtasks, plan_risks, plan_issues, inventory, suppliers, supplier_prices, stock_moves, subcontractors, sub_trades, plan_stakeholders, plan_contracts };
+  const all = { projects, programs, dependencies, change_records, customers, jobs, quotes, invoices, items, payments, expenses, reminders, visits, plan_tasks, plan_subtasks, plan_risks, plan_issues, raid_log, inventory, suppliers, supplier_prices, stock_moves, subcontractors, sub_trades, plan_stakeholders, plan_contracts };
   return withKeys(all, { custOfJob: custOf });
 }
 
@@ -350,7 +354,7 @@ const NOTE = {
   quotes: 'job = jobs.core; ex/gst/inc $', invoices: 'job = jobs.core; balance = $ owed; ex/gst/inc $', items: 'doc_id = quote or invoice id', payments: 'invoice_id = invoices.id',
   expenses: 'job = jobs.core (blank = overhead); ex/gst/inc $', reminders: 'job = jobs.core', visits: 'website visitors per day',
   plan_tasks: 'one plan per job, job = jobs.core, status To do|In progress|In review / QA|Done, days 0 = milestone, pct_complete 0-100, done/late true|false',
-  plan_subtasks: 'steps inside a plan task (task = plan_tasks.task, same job), no costs', plan_risks: 'job = jobs.core', plan_issues: 'job = jobs.core',
+  plan_subtasks: 'steps inside a plan task (task = plan_tasks.task, same job), no costs', plan_risks: 'job = jobs.core', plan_issues: 'job = jobs.core', raid_log: 'job = jobs.core; type is Risk, Assumption, Issue or Dependency',
   inventory: 'one row per stock item; available = on_hand - allocated (set aside by open plan tasks); low = at or below reorder_level; unit_price = preferred or cheapest valid quote ex GST; price_supplier, supplier_contact, supplier_phone, supplier_email = who to order it from (no join needed). "Low", "short supply", "running out", "need to order" = low = true',
   subcontractors: 'one row per subbie (leave out archived = true unless asked). trade is the full name e.g. "Cleaner (builders clean)", "Electrician (sparkie)", "Plumber": match LOWER(trade) LIKE \'%clean%\' OR LOWER(other_trades) LIKE \'%clean%\'. ' +
     'Area: region is one of Hills District|Blacktown|Parramatta & Cumberland|Penrith|Hawkesbury|Fairfield & Liverpool|Campbelltown & Camden|Inner West|North Shore|Northern Beaches|Eastern Suburbs|Sydney CBD|Canterbury-Bankstown|St George & Sutherland|Central Coast|Blue Mountains; ' +
@@ -372,7 +376,7 @@ const WORDS = {
   customers: /customer|client|repeat|loyal|most (orders|jobs)|biggest|spend|lapsed|win back|regular/i,
   quotes: /quot/i, invoices: /invoic|owe|owing|unpaid|overdue|paid|debt|balance|bill/i, items: /line item|items? on (the|a|my) (quote|invoice)/i, payments: /pay|paid|received|income|revenue|cash/i,
   expenses: /expens|spend|spent|cost|receipt|purchase|bought/i, reminders: /remind|follow/i, visits: /visit|traffic|website/i,
-  plan_tasks: /plan|project|task|complet|progress|late|schedule|gantt|milestone|lead|resource|finish|behind/i, plan_subtasks: /sub-?task|step/i, plan_risks: /risk/i, plan_issues: /issue|problem/i,
+  plan_tasks: /plan|project|task|complet|progress|late|schedule|gantt|milestone|lead|resource|finish|behind/i, plan_subtasks: /sub-?task|step/i, plan_risks: /risk/i, plan_issues: /issue|problem/i, raid_log: /raid|assumption|dependenc|depend|risk|issue|red|amber|rag/i,
   subcontractors: /sub-?contract|subb(ie|y|ies)|tradie|sparky|rating|rated|roof|drain|gutter|leak|liability|call-?out|hourly|rates?\b|sole trader|papers?\b|complian|on hold|do not use|(not|haven'?t|didn'?t)( we)? used|last used|who (can|does|do)|someone|anyone|nobody|no one|\bguy\b|person for|trades?(wo)?m[ae]n|licen[cs]|insur|workers'? comp|white card|swms|plumb|electric|sparkie|cleaner|tiler|painter|carpent|roofer|concret|plaster|waterproof|glazier|landscap|fenc|scaffold|demoli|asbestos|skip bin|pest|locksmith|handyman|gas ?fit|air ?con|certifier|engineer|surveyor|bricklay|joiner/i,
   inventory: /stock|inventor|material|re-?order|low on|on hand|short supply|short of|running (low|out)|run(ning)? out|\blow\b|\bitems?\b|\border(ing)?\b|restock|shortage|supplies|parts?\b|products?\b/i, suppliers: /supplier|vendor/i, supplier_prices: /price|cheap|compare|supplier quote/i, stock_moves: /stock (used|in|out)|used|movement|consum|took/i
 };
@@ -391,7 +395,7 @@ export function pickTables(question, extraSql = '') {
   return Object.keys(SCHEMA).filter((t) => chosen.has(t) && CHAMP_TABLES.has(t));
 }
 // GKH Project Champ: only the project tables (the MBS business tables, such as quotes and invoices, are always empty here)
-export const CHAMP_TABLES = new Set(['projects', 'programs', 'dependencies', 'change_records', 'jobs', 'plan_tasks', 'plan_subtasks', 'plan_risks', 'plan_issues', 'plan_stakeholders', 'plan_contracts', 'subcontractors', 'sub_trades']);
+export const CHAMP_TABLES = new Set(['projects', 'programs', 'dependencies', 'change_records', 'jobs', 'plan_tasks', 'plan_subtasks', 'plan_risks', 'plan_issues', 'raid_log', 'plan_stakeholders', 'plan_contracts', 'subcontractors', 'sub_trades']);
 const champOnly = (o) => Object.fromEntries(Object.entries(o).filter(([t]) => CHAMP_TABLES.has(t)));
 
 function sydneyDates(now = Date.now()) {
