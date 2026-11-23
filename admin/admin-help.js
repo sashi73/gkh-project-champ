@@ -64,11 +64,12 @@
         var el = sub && document.getElementById('hcs-' + sub); if (el) setTimeout(function () { if (location.hash === mine) el.scrollIntoView({ block: 'start' }); }, 30);
       } else {
         var inv = inventory(m);
-        V.innerHTML = top + TREE + '<div class="card hc-tree hc-inv-card"><span class="hc-ti" aria-hidden="true">📋</span><div><h3>Project Champ feature inventory</h3><p>' + inv.K + ' key features and ' + inv.S + ' sub-features (' + (inv.K + inv.S) + ' in all), area by area.</p></div><a class="btn btn-gold" href="#help/features">Open the inventory</a></div>' + '<div class="hc-areas">' + m.AREAS.map(function (ar) {
+        // 🌳 the circuit tree and the feature inventory share one box, like the other Help areas
+        V.innerHTML = top + '<div class="hc-areas"><div class="card hc-area hc-glance"><h3>🌳 Project Champ at a glance</h3><a href="#tree" data-tree>The Champ circuit tree, full screen</a><a href="#help/features">Feature inventory: ' + inv.K + ' key, ' + inv.S + ' sub-features (' + (inv.K + inv.S) + ' in all)</a></div>' + m.AREAS.map(function (ar) {
           return '<div class="card hc-area"><h3>' + ar.i + ' ' + esc(ar.n) + '</h3>' + m.ARTICLES.filter(function (a) { return a.a === ar.id; }).map(function (a) { return '<a href="#help/' + esc(a.id) + '">' + esc(a.t) + '</a>'; }).join('') + '</div>';
         }).join('') + '</div>';
       }
-      var tb = V.querySelector('[data-tree]'); if (tb) tb.onclick = function () { if (M.openTree) M.openTree(); };
+      var tb = V.querySelector('[data-tree]'); if (tb) tb.onclick = function (e) { if (M.openTree) { e.preventDefault(); M.openTree(); } };
       $('#hcF').onsubmit = function (e) { e.preventDefault(); var v = $('#hcQ').value.trim(); location.hash = v ? '#help/q=' + encodeURIComponent(v) : '#help'; };
       $('#hcChamp').onclick = function () { var v = $('#hcQ').value.trim(); if (M.guide) { if (v) M.guide.ask(v); else M.guide.ask('help'); } };
     });
