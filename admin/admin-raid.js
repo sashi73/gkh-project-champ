@@ -160,9 +160,18 @@
     M.modal('<h2>✨ Find RAID items with AI</h2><p class="muted">Champ is reading the charter, the plan, the documents and the meetings for risks, assumptions, issues and dependencies that are not logged yet. This takes up to a minute.</p><div class="rd-wait"><span class="spin"></span> Reading the project…</div>');
     (C.saveNow ? C.saveNow() : Promise.resolve()).then(function () { return bg({ mode: 'raidFind', core: core }); }).then(function (id) { return poll(id, 80); }).then(function (r) {
       if (C.S.core !== core) return; var L = (r && r.items) || [];
-      M.modal('<h2>✨ Suggested RAID items</h2><p class="muted">Tick the ones to add. You can change any of them afterwards.</p><div class="rd-sugs">' + L.map(function (x, i) {
-        return '<label class="rd-sug"><input type="checkbox" value="' + i + '" checked><span>' + tchip(x.type) + ' <b>' + esc(x.title) + '</b>' + (x.detail ? '<small>' + esc(x.detail) + '</small>' : '') + (x.why ? '<small class="rd-why">Why: ' + esc(x.why) + '</small>' : '') + '</span></label>'; }).join('') + '</div>' +
-        '<div class="actions"><button type="button" class="btn" data-close>Cancel</button> <button type="button" class="btn btn-gold" id="rdSugGo">Add the ticked items</button></div>');
+      var meta = function (x) { return x.type === 'R' ? 'Probability ' + x.p + ' · Impact ' + x.i : x.type === 'I' ? x.priority + ' priority' : x.type === 'A' ? x.impact + ' impact if wrong' : (x.kind || '') + (x.party ? ' · ' + x.party : ''); };
+      M.modal('<div class="rd-sm"><h2>✨ Suggested RAID items</h2><p class="muted">Champ found ' + L.length + ' item' + (L.length === 1 ? '' : 's') + ' that are not in the RAID log yet. Untick any you don\'t want; you can change the rest afterwards.</p><div class="rd-sugs">' +
+        ['R', 'A', 'I', 'D'].map(function (t) { var G = L.map(function (x, i) { return [x, i]; }).filter(function (z) { return z[0].type === t; }); if (!G.length) return '';
+          return '<section class="rd-sg rd-sg' + t + '"><h3>' + TYPES[t][2] + ' ' + esc(TYPES[t][1]) + ' <small>' + G.length + '</small></h3>' + G.map(function (z) { var x = z[0];
+            return '<label class="rd-sug"><input type="checkbox" value="' + z[1] + '" checked><span class="rd-sb"><b class="rd-stt">' + esc(x.title) + '</b>' + (meta(x) || x.date ? '<span class="rd-smeta">' + esc(meta(x)) + (x.date ? ' · ' + esc(day(x.date)) : '') + '</span>' : '') +
+              (x.detail ? '<span class="rd-sd">' + esc(x.detail) + '</span>' : '') + (x.why ? '<span class="rd-why"><b>Why</b> ' + esc(x.why) + '</span>' : '') + '</span></label>'; }).join('') + '</section>'; }).join('') + '</div>' +
+        '<div class="rd-sfoot"><span><b id="rdSugN"></b> of <span id="rdSugOf"></span> ticked · <button type="button" class="linkbtn" id="rdSugAll">Tick all</button> · <button type="button" class="linkbtn" id="rdSugNone">Tick none</button></span><span><button type="button" class="btn" data-close>Cancel</button> <button type="button" class="btn btn-gold" id="rdSugGo">Add the ticked items</button></span></div></div>');
+      var cnt = function () { var all = document.querySelectorAll('.rd-sug input').length, n = document.querySelectorAll('.rd-sug input:checked').length; $('#rdSugN').textContent = n; $('#rdSugOf').textContent = all; $('#rdSugGo').disabled = !n; };
+      document.querySelectorAll('.rd-sug input').forEach(function (c) { c.onchange = cnt; });
+      $('#rdSugAll').onclick = function () { document.querySelectorAll('.rd-sug input').forEach(function (c) { c.checked = true; }); cnt(); };
+      $('#rdSugNone').onclick = function () { document.querySelectorAll('.rd-sug input').forEach(function (c) { c.checked = false; }); cnt(); };
+      cnt();   // the count from the cards on screen
       $('#rdSugGo').onclick = function () {
         if (!C || C.S.core !== core) { M.closeModal(); toast('You moved to another project: nothing was added.'); return; }
         var p = C.S.plan, mgr = (p.charter || {}).manager || '', td = today(), n = 0;

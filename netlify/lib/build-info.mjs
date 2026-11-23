@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 302,
+  "build": 304,
   "commit": "",
-  "branch": "raid",
+  "branch": "raidsug",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-23 18:38",
+  "builtAt": "2026-11-23 22:09",
   "site": ""
 };
