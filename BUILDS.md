@@ -315,4 +315,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 304 | 1.0.304| 2026-11-23 22:09| raidsug| `f34fc7d` | RAID log: tidy AI suggestions (#153) |
 | 305 | 1.0.305| 2026-11-24 02:28| raidai| `c068197` | RAID log matches the Risk and Issue logs (same numbers, log order by default, same fields incl. issue Raised); Ask AI gives 3 possible solut |
 | 306 | 1.0.306| 2026-11-24 02:33| raidai| `8e456b6` | Risk and Issue logs: the headers name the second line (Risk / Cause or trigger, Issue / Details, Action / Owner and review date) |
-| 307 | 1.0.307 | 2026-11-24 02:45 | raidai | _this commit_ | _see git log_ |
+| 307 | 1.0.307| 2026-11-24 02:45| raidai| `dfb0acc` | Ask AI: each dialog keeps its own answer, applies to the item as it is now, cache per project; always three solutions with the recommendatio |
+| 308 | 1.0.308 | 2026-11-24 02:53 | raidai | _this commit_ | _see git log_ |

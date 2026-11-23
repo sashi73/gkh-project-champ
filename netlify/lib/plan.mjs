@@ -554,7 +554,7 @@ export async function advise(core, kind, id, ask, draft) {
   const today = await usage(true, used);
   // the usable solutions, each remembering where it was in the AI's list (so the recommendation stays with its solution)
   const all = (Array.isArray(o.options) ? o.options : []).map((x, at) => ({ at, title: str(x && x.title, 80), response: K.resp.includes(x && x.response) ? x.response : K.resp[0], effort: ['Low', 'Medium', 'High'].includes(x && x.effort) ? x.effort : '',
-    steps: (Array.isArray(x && x.steps) ? x.steps : []).slice(0, 4).map((t) => str(t, 140)).filter(Boolean) })).filter((x) => x.title);
+    steps: (Array.isArray(x && x.steps) ? x.steps : []).slice(0, 4).map((t) => str(t, 140)).filter(Boolean) })).filter((x) => x.title && x.steps.length && x.effort);   // a usable solution has a title, steps and an effort
   if (all.length < 3) return { error: 'The AI gave fewer than three usable solutions. Press ✨ Ask AI again.', code: 502 };
   const picked = all.slice(0, 3), bi = picked.findIndex((x) => x.at === o.best), best = bi >= 0 ? bi : 0, options = picked.map(({ at, ...x }) => x);
   return { kind, title: str(item.title, 200), options, best, watch: str(o.watch, 200), tokens: used, today };
