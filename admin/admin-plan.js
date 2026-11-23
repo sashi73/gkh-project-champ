@@ -748,14 +748,19 @@
         '<b>Revit, Navisworks and AutoCAD</b> files (.rvt .nwd .nwc .dwg .dwf) are kept with the project as originals, with a tip on what to export. You can pick several files at once. <a href="#" id="cnSample">▶ Try a sample</a>: an imaginary 3-level allied health clinic (IFC model, TimeLiner schedule and clash report).</p></div>' +
         '<label class="btn btn-gold cn-pick">Choose a file<input type="file" id="cnFile" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.ifc,.xml,.dxf,.rvt,.rfa,.nwd,.nwc,.nwf,.dwg,.dwf,.dwfx" hidden></label></div><div id="cnDocOut"></div></div>' +
       '<form id="champNew" class="champ-form">' +
-      '<div class="champ-2"><label>Program <small class="muted">(every project belongs to one)</small><select name="progPick" required><option value="">Loading programs…</option></select></label>' +
-      '<label class="champ-newprog" hidden>New program name<input name="program" maxlength="80" placeholder="e.g. Hospital redevelopment"></label></div>' +
+      // 🗂 the program first: add to one you have, or start a new one (both choices up front, no scrolling to the end of a list)
+      '<div class="np-prog"><div class="np-head"><b>Choose a program, or create a new one</b> <small class="muted">every project belongs to a program</small></div>' +
+        '<div class="np-seg" role="group" aria-label="Program"><button type="button" data-pm="old" aria-pressed="true" class="on"><i>📂</i><span><b>Choose a program</b><small>one you already run</small></span></button>' +
+        '<button type="button" data-pm="new" aria-pressed="false"><i>＋</i><span><b>Create a new program</b><small>made when you save this project</small></span></button></div>' +
+        '<div class="np-old"><input type="search" class="np-find" placeholder="Search your programs…" aria-label="Search programs"><div class="np-list" role="group" aria-label="Programs"><span class="muted">Loading programs…</span></div></div>' +
+        '<div class="np-new champ-newprog" hidden><label>New program name<input name="program" maxlength="80" placeholder="e.g. Hospital redevelopment"></label><small class="muted">The program is created when you save this project. Add more projects to it later.</small></div>' +
+        '<select name="progPick" hidden tabindex="-1" aria-hidden="true"><option value=""></option><option value="__new">new</option></select></div>' +
       '<label>Project name<input name="name" required maxlength="120" placeholder="e.g. Head office fit-out, ERP rollout, Bridge deck repair"></label>' +
       '<p class="champ-fill" id="cnFill" hidden></p>' +
       '<label>Client<input name="client" required maxlength="120" placeholder="e.g. Acme Pty Ltd or Internal: Finance"></label>' +
       '<div class="champ-2"><label>Sponsor <small class="muted">(optional)</small><input name="sponsor" maxlength="80" placeholder="who backs the project"></label>' +
       '<label>Project manager <small class="muted">(optional)</small><input name="manager" maxlength="80"></label></div>' +
-      '<div class="champ-2"><label>Site or location <small class="muted">(optional)</small><input name="site" maxlength="80" placeholder="e.g. Parramatta NSW"></label>' +
+      '<div class="champ-2"><label class="np-loc">Site or location <small class="muted">(optional: type a town, suburb or postcode)</small><input name="site" maxlength="80" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="npLocL" placeholder="e.g. Parramatta, 2150, Alor Setar"><div class="np-loc-l" id="npLocL" role="listbox" hidden></div></label>' +
       '<label>Contact phone <small class="muted">(optional)</small><input name="phone" maxlength="40"></label></div>' +
       '<label>Contact email <small class="muted">(optional)</small><input name="email" type="email" maxlength="160"></label>' +
       '<label>What is the project about? <small class="muted">(the AI uses this to draft the plan)</small><textarea name="summary" rows="5" maxlength="4000" placeholder="Objective, scope, constraints, budget, key dates…"></textarea></label>' +
@@ -764,7 +769,7 @@
       '<label class="mod-row"><span><b>🦺 SWMS</b><small>Safe Work Method Statements for high-risk construction work</small></span><span class="bom-switch"><input type="checkbox" name="swms" checked><span class="bom-slider"></span></span></label></fieldset>' +
       '<div class="actions"><button class="btn btn-gold" type="submit">Create project and plan it →</button></div></form></div>';
     var want = ''; try { want = sessionStorage.getItem('champNewProg') || ''; sessionStorage.removeItem('champNewProg'); } catch (e2) {}
-    var pick = $('#champNew').progPick, newBox = $('#champNew .champ-newprog'), newIn = $('#champNew').program;
+    var pick = $('#champNew').progPick, newBox = $('#champNew .champ-newprog'), newIn = $('#champNew').program, oldBox = $('#champNew .np-old');
     // picking a program fills in what the program (or its latest project) already knows: client, sponsor, manager, email, phone, location.
     // Only empty boxes, or ones it filled itself before, are changed: anything typed stays.
     var F0 = $('#champNew'), FILL = ['client', 'sponsor', 'manager', 'email', 'phone', 'site'], LBL = { client: 'client', sponsor: 'sponsor', manager: 'project manager', email: 'email', phone: 'phone', site: 'location' };
@@ -780,13 +785,31 @@
         note.innerHTML = got.length ? '✨ Filled in from the <b>' + esc(d.program || name) + '</b> program' + (d.from.project && !d.from.program ? ' (its latest project, ' + esc(d.from.project) + ')' : d.from.project ? ' and its latest project' : '') + ': ' + esc(got.join(', ')) + '. Change anything that is different for this project.' : '';
       }).catch(function () {});
     };
-    var syncProg = function () { var isNew = pick.value === '__new'; newBox.hidden = !isNew; newIn.required = isNew; if (isNew) setTimeout(function () { newIn.focus(); }, 30); fillFrom(pick.value); };
+    var syncProg = function () { var isNew = pick.value === '__new'; newBox.hidden = !isNew; newIn.required = isNew; oldBox.hidden = isNew; if (isNew) setTimeout(function () { newIn.focus(); }, 30); fillFrom(pick.value); };
     pick.onchange = syncProg;
-    (M.champPrograms ? M.champPrograms() : Promise.resolve([])).then(function (L) {
-      pick.innerHTML = '<option value="">Choose a program…</option>' + L.map(function (x) { return '<option' + (x === want ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '<option value="__new">＋ New program…</option>';
-      if (!want && L.length === 1) pick.value = L[0];
-      syncProg();
+    var NP = $('#champNew .np-prog'), npList = NP.querySelector('.np-list'), npFind = NP.querySelector('.np-find'), PROGS = [];
+    var setVal = function (v) { if (v && v !== '__new' && !Array.prototype.some.call(pick.options, function (o) { return o.value === v; })) { var o = document.createElement('option'); o.value = v; o.textContent = v; pick.appendChild(o); } pick.value = v; syncProg(); };
+    var mode = function (m) { NP.querySelectorAll('[data-pm]').forEach(function (b) { var on = b.getAttribute('data-pm') === m; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      if (m === 'new') setVal('__new'); else { var sel = npList.querySelector('.on'); setVal(sel ? sel.getAttribute('data-p') : ''); if (!sel) setTimeout(function () { npFind.focus(); }, 30); } };
+    var drawList = function () { var q = npFind.value.trim().toLowerCase(), cur = pick.value, L = PROGS.filter(function (x) { return !q || x.toLowerCase().indexOf(q) >= 0; });
+      npList.innerHTML = L.length ? L.map(function (x) { return '<button type="button" data-p="' + esc(x) + '" aria-pressed="' + (x === cur) + '" class="' + (x === cur ? 'on' : '') + '"><i style="--h:' + hue(x) + '"></i>' + esc(x) + '</button>'; }).join('')
+        : '<span class="muted">' + (PROGS.length ? 'No program matches. ' : 'No programs yet. ') + '<a href="#" data-np-new>Create a new program' + (q ? ' called “' + esc(npFind.value.trim()) + '”' : '') + '</a></span>'; };
+    var hue = function (x) { var h = 0; for (var i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) % 360; return h; };
+    NP.addEventListener('click', function (e) {
+      var m = e.target.closest('[data-pm]'); if (m) { mode(m.getAttribute('data-pm')); return; }
+      var p = e.target.closest('[data-p]'); if (p) { setVal(p.getAttribute('data-p')); drawList(); return; }
+      if (e.target.closest('[data-np-new]')) { e.preventDefault(); var q = npFind.value.trim(); mode('new'); if (q) newIn.value = q; }
     });
+    npFind.addEventListener('input', drawList);
+    npFind.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = npList.querySelector('[data-p]'); if (b) b.click(); } });
+    (M.champPrograms ? M.champPrograms() : Promise.resolve([])).then(function (L) {
+      if (!NP.isConnected) return; // the form was closed (or opened again) while the programs loaded
+      var was = pick.value; PROGS = L; NP.classList.toggle('np-many', L.length > 8);
+      pick.innerHTML = '<option value=""></option>' + L.map(function (x) { return '<option' + (x === want ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '<option value="__new">new</option>';
+      if (was === '__new' || !L.length) { mode('new'); drawList(); return; } // keep "Create a new program" if it was chosen while loading
+      if (was && L.indexOf(was) >= 0) pick.value = was; else if (!want && L.length === 1) pick.value = L[0];
+      syncProg(); drawList();
+    }).catch(function () { if (NP.isConnected) { npList.innerHTML = '<span class="muted">Could not load your programs. <a href="#" data-np-new>Create a new program</a> or reload the page.</span>'; } });
     // 📄 start from a document: the AI reads all of it (RAG) and fills in the form; the document goes with the project to Ask AI and the plan builder
     var CN = { sid: '', file: null, got: null };
     var cnSay = function (h) { $('#cnDocOut').innerHTML = h; };
@@ -854,9 +877,30 @@
     ['dragenter', 'dragover'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); }); });
     dz.addEventListener('drop', function (e) { var L = e.dataTransfer && e.dataTransfer.files ? [].slice.call(e.dataTransfer.files) : []; if (L.length) cnPick(L); });
+    // 📍 Site or location: type a few letters (or a postcode) and pick the place; it fills in the town, state, postcode and country
+    var LOC = null;
+    (function () {
+      var inp = $('#champNew').site, box = $('#npLocL'), list = [], sel = 0, tm = null, seq = 0;
+      var fmt = function (x) { var parts = String(x.place || '').split(',').map(function (t) { return t.trim(); }), town = x.town || parts[0] || '', pc = x.postcode ? ' ' + x.postcode : '';
+        if (x.cc === 'AU' && x.st) return town + ' ' + x.st + pc + ', Australia';
+        var country = parts[parts.length - 1] || '', state = parts.length > 2 ? parts[parts.length - 2] : '';
+        return [town, state ? state + pc : (pc ? pc.trim() : ''), country].filter(Boolean).join(', '); };
+      var show = function (on) { box.hidden = !on; inp.setAttribute('aria-expanded', on ? 'true' : 'false'); };
+      var draw = function () { if (!list.length) { show(false); return; }
+        box.innerHTML = list.map(function (x, i) { return '<button type="button" role="option" aria-selected="' + (i === sel) + '" class="' + (i === sel ? 'on' : '') + '" data-li="' + i + '"><b>' + esc(fmt(x)) + '</b><small>' + esc(x.kind === 'Town' ? (x.postcode ? 'postcode ' + x.postcode : 'town or suburb') : x.kind.toLowerCase()) + '</small></button>'; }).join(''); show(true); };
+      var pick = function (x) { if (!x) return; LOC = { cc: x.cc, st: x.st || '', place: x.place, town: x.town || '', postcode: x.postcode || '' }; inp.value = fmt(x).slice(0, 80); list = []; show(false); inp.classList.add('auto'); };
+      inp.addEventListener('input', function () { LOC = null; inp.classList.remove('auto'); clearTimeout(tm); var my = ++seq, v = inp.value.trim(); if (v.length < 2) { list = []; show(false); return; }
+        tm = setTimeout(function () { api('planPlacesGet', { q: v }).then(function (d) { if (my !== seq) return; list = (d.places || []).slice(0, 8); sel = 0; draw(); }).catch(function () { list = []; show(false); }); }, 250); });
+      inp.addEventListener('keydown', function (e) { if (box.hidden) return; if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); sel = (sel + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length; draw(); } else if (e.key === 'Enter') { e.preventDefault(); pick(list[sel]); } else if (e.key === 'Escape') show(false); });
+      box.addEventListener('mousedown', function (e) { var b = e.target.closest('[data-li]'); if (b) { e.preventDefault(); pick(list[+b.getAttribute('data-li')]); } });
+      inp.addEventListener('blur', function () { setTimeout(function () { show(false); }, 150); });
+    })();
     $('#champNew').onsubmit = function (e) {
-      e.preventDefault(); var f = e.target, b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
-      api('planNewProject', { name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
+      e.preventDefault(); var f = e.target;
+      if (!f.progPick.value) { toast('Choose a program, or create a new one', true); var s0 = f.querySelector('.np-find'); if (s0) s0.focus(); return; }   // 🗂 the program comes first
+      if (f.progPick.value === '__new' && !f.program.value.trim()) { toast('Give the new program a name', true); f.program.focus(); return; }
+      var b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
+      api('planNewProject', { loc: LOC, name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
           docSid: CN.got ? CN.sid : '', brief: CN.got ? CN.got.briefText : '', docStart: CN.got ? CN.got.fields.start : '', docFinish: CN.got ? CN.got.fields.finish : '' })
         .then(function (r) {
           toast('Project ' + r.ref + ' created' + (r.docId ? ': the document is in its Ask AI' : ''));

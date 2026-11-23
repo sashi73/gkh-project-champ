@@ -165,7 +165,7 @@ export async function googleUser(email, name, by) {
 const SCOPE_FREE = new Set(['me', 'planMyDayGet', 'planPlacesGet', 'planHolidaysGet', 'logout', 'userPassword', 'planList', 'planPipelineList', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk', 'planAiStatus', 'commsSetup', 'planBomTplList', 'planBomTplGet', 'invList', 'invGet']);
 // 🗺 a Program manager, beyond the project pages: their programs and links, new programs and projects, the people on their projects, and Ask AI over their own data
 //    (each of these is filtered or checked in admin.mjs: programs and projects to theirs, people to those on their projects, no money)
-const PGM_OK = new Set(['planProgramList', 'planProgramSave', 'planProgramDefaults', 'planProgramSet', 'planProgramMove', 'planDepSave', 'planDepDelete', 'planNewProject', 'planPipelineList', 'planPgmGet', 'pplList', 'pplGet', 'pplAssign',
+const PGM_OK = new Set(['planPlacesGet', 'planProgramList', 'planProgramSave', 'planProgramDefaults', 'planProgramSet', 'planProgramMove', 'planDepSave', 'planDepDelete', 'planNewProject', 'planPipelineList', 'planPgmGet', 'pplList', 'pplGet', 'pplAssign',
   'sqlData', 'sqlAsk', 'sqlAnswer', 'sqlNarrative', 'sqlPdf', 'sqlUsage', 'aiPing', 'docStage', 'planDocStage',
   // 📁 a Project manager: their contractors' and personnel's logins (their projects only), Finance and the vault for their projects (the server decides per project)
   'userList', 'userCreate', 'userSave', 'userSetPw', 'userReset', 'userDelete', 'acctBillAlerts', 'acctFinanceGet', 'acctBillGet', 'acctVoRaise', 'vaultSearch', 'vaultUrl', 'vaultAdd', 'vaultFile', 'vaultDelete', 'vaultMoveIn']);

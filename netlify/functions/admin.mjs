@@ -621,6 +621,8 @@ async function handle(req, context) {
           const d0 = await DOCI.staged(body.docSid), d = d0 && (!d0.by || d0.by === who) ? d0 : null;   // 🔒 only the person who uploaded it
           if (d) { const r = await intelUpload(core, { name: d.name, text: d.text, pages: d.pages, kind: 'Project document' }, by); if (r.doc) { docId = r.doc.id; await J.update(core, { docId, docName: d.name }); job = await J.find(core); } }
         }
+        // 📍 the place chosen from the list: country, state, town and postcode, kept with the project (Ask AI answers "projects in Sydney / NSW / Australia" from it)
+        if (body.loc && typeof body.loc === 'object') { const L0 = body.loc, cc = clean(L0.cc, 2).toUpperCase(); if (/^[A-Z]{2}$/.test(cc)) { const pl = WCAL.placeOf(cc, clean(L0.st, 24), clean(L0.place, 120)); job = await J.update(core, { loc: { cc: pl.cc, st: pl.st, place: pl.place, town: clean(L0.town, 80), postcode: clean(L0.postcode, 12) } }) || job; } }
         if (body.bom === false) await setModule(core, 'bom', false);     // optional modules chosen on the form
         if (body.swms === false) await setModule(core, 'swms', false);
         await A.audit(who, `${J.refFor(job)}: project created (${pname})`);
