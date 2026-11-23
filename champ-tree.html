@@ -32,7 +32,9 @@
   /* the whole tree fits the window; on a phone it keeps its size and slides sideways */
   .board{flex:1 1 0;min-height:320px;position:relative;overflow:auto;padding:0 8px 10px}   /* a short or zoomed window keeps a usable board: the page scrolls to it */
   svg#tree{display:block;position:absolute;inset:0 8px 10px;width:calc(100% - 16px);height:calc(100% - 10px);margin:0 auto}
-  @media (max-width:760px){svg#tree{position:static;width:auto;height:auto;min-width:1320px}.embed svg#tree{min-width:1000px}}   /* on a phone the tree keeps a readable size and slides sideways */
+  /* on a phone the tree keeps a readable size and slides sideways; the Features frame (about 720px on a laptop) stays fitted, only a phone-sized frame slides */
+  @media (max-width:760px){.solo svg#tree,.app svg#tree{position:static;width:auto;height:auto;min-width:1320px}}
+  @media (max-width:520px){.embed svg#tree{position:static;width:auto;height:auto;min-width:1000px}}
   .lbl{font-family:'IBM Plex Sans',sans-serif;fill:var(--ink);pointer-events:none}
   .lbl.leaf{font-size:16px;font-weight:500;fill:#e6ebf7}
   .lbl.br{font-size:23px;font-weight:700}

@@ -322,4 +322,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 311 | 1.0.311| 2026-11-24 03:37| tree| `7cc6138` | Champ circuit tree: Features page, Help full screen, and Champ opens it (#155) |
 | 312 | 1.0.312| 2026-11-24 04:04| helpbox| `fb2878a` | Help: the circuit tree and the feature inventory share one box (Project Champ at a glance) like the other Help areas; the circuit tree fits  |
 | 313 | 1.0.313| 2026-11-24 04:10| helpbox| `f0538fe` | Features: the circuit tree is now a slide in the switching panel (Circuit tree, after Any language), with an Open full screen button, replac |
-| 314 | 1.0.314 | 2026-11-24 04:15 | helpbox | _this commit_ | _see git log_ |
+| 314 | 1.0.314| 2026-11-24 04:15| helpbox| `f1bd83c` | Circuit tree, CodeRabbit fixes: the page grows when the heading and key need room and the board keeps a usable height; on phones the tree (a |
+| 315 | 1.0.315 | 2026-11-24 04:20 | helpbox | _this commit_ | _see git log_ |
