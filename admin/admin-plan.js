@@ -1608,7 +1608,7 @@
     dirty('undid the AI finish-by changes'); render(); toast('The plan is back the way it was before the AI changes');
   }
   function render() {
-    if (S.gfull && (S.tab !== 'schedule' || S.wbs)) { S.gfull = false; document.body.classList.remove('gantt-full'); }   // full screen is for the schedule grid only
+    if (S.gfull && (S.tab !== 'schedule' || S.wbs || S.treeV)) { S.gfull = false; document.body.classList.remove('gantt-full'); }   // full screen is for the schedule grid only
     pplLoad();   // v86: People for the pickers (once)
     var L0 = $('#gLeft'), R0 = $('#gRight');
     var st = { y: window.scrollY, x: window.scrollX, lt: L0 ? L0.scrollTop : 0, ll: L0 ? L0.scrollLeft : 0, rl: R0 ? R0.scrollLeft : null, tab: S.tab, core: S.core };
@@ -1706,7 +1706,7 @@
       });
     };
     if ($('#planBaseList')) $('#planBaseList').onclick = function () { baseVersions(); };
-    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, raid: function () { if (M.raidTab) M.raidTab({ S: S, dirty: dirty, saveNow: saveNow }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
+    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; S.treeV = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.treeV ? treeTab(R2) : S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, raid: function () { if (M.raidTab) M.raidTab({ S: S, dirty: dirty, saveNow: saveNow }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
   }
   function timePct(R) { var t = today(); if (!R.start || t < R.start) return 0; if (t >= R.finish) return 100; return Math.round(workBetween(R.start, t) / Math.max(1, workBetween(R.start, R.finish)) * 100); }
   function varDays(base, now) { var d = workBetween(base, now) - 1; if (now <= base) { d = -(workBetween(now, base) - 1); } return d === 0 ? 'on baseline' : d > 0 ? d + ' days behind baseline' : (-d) + ' days ahead of baseline'; }
@@ -2230,7 +2230,7 @@
       '<div class="wbs-wrap' + (S.wbsFit !== false ? ' fit' : '') + '" id="wbsWrap">' + g.svg + '</div>' +
       '<div class="wbs-leg"><i style="background:#94A3B8"></i>Not started <i style="background:#2563EB"></i>In progress <i style="background:#16A34A"></i>Done <i style="background:#DC2626"></i>Late <i style="background:#7C3AED"></i>Milestone</div></div>';
     var B = $('#planBody');
-    B.querySelector('[data-wbs]').onclick = function () { S.wbs = false; render(); };
+    B.querySelector('[data-wbs]').onclick = function () { S.wbs = false; render(); };   // (WBS view)
     B.querySelectorAll('[data-wbsfit]').forEach(function (b) { b.onclick = function () { S.wbsFit = b.getAttribute('data-wbsfit') === '1'; render(); }; });
     var save = function (type) {
       var img = new Image(), scale = Math.max(1, Math.min(2, 14000 / Math.max(g.w, g.h))), url = URL.createObjectURL(new Blob([g.svg], { type: 'image/svg+xml' }));
@@ -2242,6 +2242,140 @@
       img.onerror = function () { toast('Could not make the picture', true); }; img.src = url;
     };
     $('#wbsPng').onclick = function () { save('image/png'); }; $('#wbsJpg').onclick = function () { save('image/jpeg'); };
+  }
+  // ---------- 🌿 Tree view: the plan as a circuit tree. Trunk: the level 1 tasks (the first at the bottom, by the roots); branches: their 1.1 sub-tasks;
+  //            leaves: the 1.1.1 steps. Each shows its owner, dates and days. ⚡ Critical path in the legend runs a red line through the critical trunk, branches and leaves ----------
+  var tvHx = function (c) { return [1, 3, 5].map(function (k) { return parseInt(c.slice(k, k + 2), 16); }); };
+  var mix = function (a, b, t) { var A = tvHx(a), B = tvHx(b); return '#' + A.map(function (v, k) { return ('0' + Math.round(v + (B[k] - v) * t).toString(16)).slice(-2); }).join(''); };
+  var TV_HUE = [['#ffd65c', '#ff8a3d'], ['#3ff5d2', '#1ea0ff'], ['#b49bff', '#f06bff'], ['#8dff7a', '#14c98b'], ['#ff8fa3', '#ff3fa4'], ['#5fe1ff', '#c46bff'], ['#a9c8ff', '#5b7dff'], ['#ff9f6b', '#ff5f5f']];
+  function treeSvg(R) {
+    var p = S.plan, rows = ordered().filter(function (r) { return !r.t.hidden; }), t0 = today(), C = null;
+    try { C = cpm(p); } catch (e) { C = null; }
+    var X = function (s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var cut = function (s, n) { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s; };
+    var FONT = "'Manrope','Segoe UI',system-ui,sans-serif", W = 1400, T = 700, base = [], cp = [], nodes = [], labs = [];
+    var txt = function (x, y, s, px, fill, wt, anchor, cls) { return '<text x="' + x + '" y="' + y + '" font-family="' + FONT + '" font-size="' + px + '" font-weight="' + (wt || 500) + '" fill="' + fill + '" text-anchor="' + (anchor || 'start') + '" paint-order="stroke" stroke="#0a1124" stroke-width="4" stroke-linejoin="round"' + (cls ? ' class="' + cls + '"' : '') + '>' + X(s) + '</text>'; };
+    var route = function (a, b) { var dx = b[0] - a[0], dy = b[1] - a[1], d = Math.min(Math.abs(dx), Math.abs(dy)); var m = Math.abs(dx) > Math.abs(dy) ? [b[0] - Math.sign(dx) * d, a[1]] : [a[0], b[1] - Math.sign(dy) * d]; return 'M' + a + 'L' + m + 'L' + b; };
+    // a trace: its bed, its colour line, the red critical-path line (shown from the legend), and the charge that runs through it when its trunk item is selected
+    var chg = [], wat = [], trace = function (d, col, w, crit, cls, g, dp, wf) { var ga = g ? ' data-g="' + g + '"' : '';
+      // 💧 work done: water flows through it (from the roots out to the leaves); work under way: filled as far as it has got
+      if (wf > 0) wat.push('<path' + ga + ' class="tvtube" d="' + d + '" fill="none" stroke="#38bdf8" stroke-opacity=".22" stroke-width="' + (w + 5) + '" stroke-linecap="round" stroke-linejoin="round"' + (wf < 1 ? ' data-wf="' + wf + '"' : '') + '/><path' + ga + ' class="tvwat' + (wf >= 1 ? ' flow' : '') + '" data-wf="' + Math.min(1, wf) + '" d="' + d + '" fill="none" stroke="#7dd3fc" stroke-width="' + Math.max(1.4, w - .4) + '" stroke-linecap="round" stroke-linejoin="round"/>');
+      base.push('<path' + ga + ' class="tvb" d="' + d + '" fill="none" stroke="#050914" stroke-width="' + (w + 4) + '" stroke-linecap="round" stroke-linejoin="round"/><path' + ga + ' class="tvel' + (crit ? ' crit' : '') + (cls ? ' ' + cls : '') + '" d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round"/>');
+      if (crit) cp.push('<path class="tvcp" d="' + d + '" fill="none" stroke-width="' + (w + 1.8) + '" stroke-linecap="round" stroke-linejoin="round"/>');
+      if (g) chg.push('<path class="tvfill"' + ga + ' data-dp="' + (dp || 0) + '" d="' + d + '" fill="none" stroke="' + col + '" stroke-width="' + (w + 1.4) + '" stroke-linecap="round" stroke-linejoin="round" filter="url(#tvGlow)"/><path class="tvspark"' + ga + ' data-dp="' + (dp || 0) + '" d="' + d + '" fill="none" stroke="#fff" stroke-width="' + (w + 1.6) + '" stroke-linecap="round" filter="url(#tvGlow)"/>'); };
+    var tone = function (pct, late, mile) { return pct >= 100 ? '#22c55e' : late ? '#ef4444' : pct > 0 ? '#3b82f6' : mile ? '#a78bfa' : '#94a3b8'; };
+    var span = function (es, ef) { return es ? pretty(es) + (ef && ef !== es ? '–' + pretty(ef) : '') : ''; };
+    var who = function (o) { return o.owner || o.lead || (o.res && o.res[0]) || ''; };
+    // what is critical: level 1 tasks with no float; inside one, the sub-task that ends with it, and inside that the step that ends with it
+    var critT = function (t) { return !!(C && C.tasks[t.id] && C.tasks[t.id].float === 0); };
+    var lastEnd = function (L, f) { var m = -1; L.forEach(function (x) { m = Math.max(m, f(x)); }); return m; };
+    // bands from the top: the last task first (the tree grows upward from the start)
+    var bands = rows.slice().reverse().map(function (r) {
+      var t = r.t, subs = (t.subs || []), left = [], right = [];
+      subs.forEach(function (sb, i) { (i % 2 ? right : left).push({ sb: sb, i: i }); });
+      var hs = [], nRow = Math.max(left.length, right.length);
+      for (var k = 0; k < nRow; k++) { var a = left[k], b = right[k], h = Math.max(a ? Math.max(84, (a.sb.steps || []).length * 30 + 44) : 0, b ? Math.max(84, (b.sb.steps || []).length * 30 + 44) : 0); hs.push(h); }
+      return { r: r, left: left, right: right, hs: hs, h: hs.reduce(function (a, b) { return a + b; }, 0) + 86 };
+    });
+    var y = 40, pills = [];
+    bands.forEach(function (bd) {
+      var t = bd.r.t, n = bd.r.n, hue = TV_HUE[(n - 1) % TV_HUE.length], isC = critT(t), subEnd = lastEnd(t.subs || [], function (x) { return x.off + x.dur; });
+      bd.hs.forEach(function (h, k) {
+        var yb = y + h / 2 + 8;
+        [['L', bd.left[k]], ['R', bd.right[k]]].forEach(function (side) {
+          var o = side[1]; if (!o) return; var sg = side[0] === 'L' ? -1 : 1, sb = o.sb, d = subDates(t, sb), sl = sb.status !== 'done' && d.ef && d.ef < t0;
+          var cS = isC && sb.off + sb.dur === subEnd, col = mix(hue[0], hue[1], .45), nx = T + sg * 230, steps = sb.steps || [];
+          trace(route([T + sg * 22, yb + 16], [nx, yb]), col, 2.6, cS, '', n, 1, sb.status === 'done' ? 1 : (sb.pct || 0) / 100);
+          var stEnd = lastEnd(steps, function (q) { return q.off + q.dur; });
+          steps.forEach(function (q, j) {
+            var ly = yb + (j - (steps.length - 1) / 2) * 30, lx = T + sg * 300, qe = d.es ? (q.off ? addWork(d.es, q.off) : d.es) : '', qf = qe && q.dur > 1 ? addWork(qe, q.dur - 1) : qe, qc = cS && q.off + q.dur === stEnd, qlate = !q.done && qf && qf < t0;
+            trace(route([nx, yb], [lx, ly]), mix(mix(hue[0], hue[1], j / Math.max(1, steps.length - 1)), '#ffffff', .2), 1.6, qc, '', n, 2, q.done ? 1 : 0);
+            nodes.push('<g data-g="' + n + '"><circle cx="' + lx + '" cy="' + ly + '" r="5.5" fill="#0b1226" stroke="' + tone(q.done ? 100 : 0, qlate) + '" stroke-width="2"/>' + (q.done ? '<circle cx="' + lx + '" cy="' + ly + '" r="2.4" fill="#22c55e"/>' : '') + '</g>');
+            labs.push('<g data-g="' + n + '"><title>' + X(n + '.' + (o.i + 1) + '.' + (j + 1) + ' ' + q.name + (who(q) ? ' · ' + who(q) : '') + (qe ? ' · ' + span(qe, qf) : '') + ' · ' + pl(q.dur, 'day')) + '</title>' +
+              txt(lx + sg * 12, ly + 4, n + '.' + (o.i + 1) + '.' + (j + 1) + '  ' + cut(q.name, 30) + '  ·  ' + (who(q) ? cut(who(q), 16) + ' · ' : '') + (qe ? span(qe, qf) + ' · ' : '') + q.dur + 'd', 12, qlate ? '#fca5a5' : '#dfe6f7', 500, sg < 0 ? 'end' : 'start') + '</g>');
+          });
+          nodes.push('<g data-g="' + n + '"><circle cx="' + nx + '" cy="' + yb + '" r="11" fill="#0b1226" stroke="' + col + '" stroke-width="2.6"/><circle cx="' + nx + '" cy="' + yb + '" r="4.5" fill="' + tone(sb.pct || (sb.status === 'done' ? 100 : 0), sl) + '"/></g>');
+          var cx = T + sg * 120;
+          labs.push('<g data-g="' + n + '"><title>' + X(n + '.' + (o.i + 1) + ' ' + sb.name + (who(sb) ? ' · ' + who(sb) : '') + ' · ' + span(d.es, d.ef) + ' · ' + pl(sb.dur, 'day') + ' · ' + (sb.pct || 0) + '%') + '</title>' +
+            txt(cx, yb - 24, n + '.' + (o.i + 1) + '  ' + cut(sb.name, 24), 13, '#ffffff', 700, 'middle') +
+            txt(cx, yb - 8, (who(sb) ? cut(who(sb), 16) + ' · ' : '') + (d.es ? span(d.es, d.ef) + ' · ' : '') + sb.dur + 'd · ' + (sb.pct || 0) + '%', 11, sl ? '#fca5a5' : '#aeb9d6', 500, 'middle') + '</g>');
+        });
+        y += h;
+      });
+      // the trunk segment's pill: the level 1 task
+      var py = y + 30, mile = t.dur === 0, late = t.pct < 100 && t.ef && t.ef < t0, col = tone(t.pct, late, mile);
+      pills.push({ y: py, hue: hue, crit: isC, n: n, wf: t.pct >= 100 ? 1 : (t.pct || 0) / 100 });
+      nodes.push('<g data-g="' + n + '" class="tvpill"><title>' + X(n + ' ' + t.name + (who(t) ? ' · ' + who(t) : '') + ' · ' + span(t.es, t.ef) + ' · ' + pl(t.dur, 'day') + ' · ' + t.pct + '%' + (isC ? ' · on the critical path' : '')) + '</title>' +
+        '<rect x="' + (T - 165) + '" y="' + (py - 25) + '" width="330" height="50" rx="12" fill="#0d1730" stroke="' + hue[0] + '" stroke-width="2.4"/>' +
+        '<rect x="' + (T - 165) + '" y="' + (py - 25) + '" width="6" height="50" rx="3" fill="' + col + '"/>' +
+        '<text x="' + (T - 150) + '" y="' + (py - 6) + '" font-family="' + FONT + '" font-size="14" font-weight="800" fill="' + hue[0] + '">' + X(n + '  ' + cut(t.name, 30)) + '</text>' +
+        '<text x="' + (T - 150) + '" y="' + (py + 13) + '" font-family="' + FONT + '" font-size="11.5" font-weight="500" fill="' + (late ? '#fca5a5' : '#c3cce6') + '">' + X((who(t) ? cut(who(t), 18) + ' · ' : '') + (mile ? '◆ ' + pretty(t.es) : span(t.es, t.ef) + ' · ' + pl(t.dur, 'day')) + ' · ' + t.pct + '%') + '</text>' +
+        (isC ? '<text x="' + (T + 155) + '" y="' + (py - 6) + '" font-family="' + FONT + '" font-size="11" font-weight="800" fill="#ff5a6e" text-anchor="end" class="tvcpt">⚡</text>' : '') + '</g>');
+      y = py + 25 + 34;
+    });
+    // the project chip at the foot of the trunk, and its roots
+    var chipY = y + 20, chipH = 78, H = chipY + chipH + 150;
+    var trunkSeg = function (yTop, yBot, hue, crit, g, wf) { [-12, 0, 12].forEach(function (o, k) { trace('M' + (T + o) + ' ' + yBot + 'L' + (T + o) + ' ' + yTop, [hue[0], mix(hue[0], hue[1], .5), hue[1]][k], k === 1 ? 3.2 : 2.2, crit && k === 1, '', g, 0, k === 1 ? wf : 0); }); };
+    pills.forEach(function (pi, i) { var below = i + 1 < pills.length ? pills[i + 1].y - 25 : chipY; trunkSeg(pi.y + 25, below, pi.hue, pi.crit, pi.n, pi.wf); });
+    if (pills.length) trunkSeg(20, pills[0].y - 25, pills[0].hue, false, pills[0].n, pills[0].wf);
+    var gold = '#e8c35a', mgr = (p.charter || {}).manager || '';
+    nodes.push('<rect x="' + (T - 200) + '" y="' + (chipY + 6) + '" width="400" height="' + chipH + '" rx="14" fill="#6b4f12"/>' +
+      '<rect x="' + (T - 200) + '" y="' + chipY + '" width="400" height="' + chipH + '" rx="14" fill="#101a38" stroke="' + gold + '" stroke-width="3"/>');
+    for (var k = 0; k < 15; k++) { var px = T - 182 + k * 26; nodes.push('<rect x="' + (px - 3) + '" y="' + (chipY - 10) + '" width="6" height="11" rx="1.5" fill="' + gold + '"/><rect x="' + (px - 3) + '" y="' + (chipY + chipH - 1) + '" width="6" height="11" rx="1.5" fill="' + gold + '"/>'); }
+    nodes.push('<text x="' + T + '" y="' + (chipY + 32) + '" font-family="' + FONT + '" font-size="19" font-weight="800" fill="#ffe08a" text-anchor="middle" letter-spacing="1.5">' + X(cut((p.name || 'Project').toUpperCase(), 34)) + '</text>' +
+      '<text x="' + T + '" y="' + (chipY + 56) + '" font-family="' + FONT + '" font-size="12" font-weight="600" fill="#d9c58e" text-anchor="middle">' + X((R.start ? span(R.start, R.finish) + ' · ' + pl(workBetween(R.start, R.finish), 'working day') + ' · ' : '') + (R.pct || 0) + '% done') + '</text>');
+    var nSub = p.tasks.reduce(function (a, t) { return a + (t.subs || []).length; }, 0), nStep = p.tasks.reduce(function (a, t) { return a + (t.subs || []).reduce(function (b, s) { return b + (s.steps || []).length; }, 0); }, 0);
+    var ROOTS = [['Start', R.start ? prettyY(R.start) : '–'], ['Finish', R.finish ? prettyY(R.finish) : '–'], ['Project manager', mgr || '–'], ['Work', pl(rows.length, 'task') + ' · ' + pl(nSub, 'sub-task') + ' · ' + pl(nStep, 'step')]];
+    ROOTS.forEach(function (rt, i) {
+      var x = [T - 470, T - 170, T + 170, T + 470][i], ry = chipY + chipH + 70 + (i % 2) * 34, bx = T - 150 + i * 100;
+      trace(route([bx, chipY + chipH + 10], [x, ry]), 'hsl(' + (24 + i * 9) + ',85%,58%)', 2.2, false);
+      nodes.push('<circle cx="' + x + '" cy="' + ry + '" r="8" fill="#0b1226" stroke="hsl(' + (24 + i * 9) + ',90%,62%)" stroke-width="2.4"/>');
+      labs.push(txt(x, ry + 26, rt[0] + ': ' + cut(rt[1], 40), 12.5, '#f1dcb4', 600, 'middle'));
+    });
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" class="tv" id="tvSvg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '"><defs><filter id="tvGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>' +
+      '<pattern id="tvGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(120,150,230,.07)"/></pattern></defs><rect width="100%" height="100%" fill="#0a1124"/><rect width="100%" height="100%" fill="url(#tvGrid)"/>' +
+      '<rect x="0" y="' + (chipY + chipH / 2) + '" width="' + W + '" height="' + (H - chipY) + '" fill="#1a1008" opacity=".55"/>' +
+      base.join('') + '<g class="tvwg">' + wat.join('') + '</g><g class="tvcpg">' + cp.join('') + '</g><g class="tvchg">' + chg.join('') + '</g>' + nodes.join('') + labs.join('') + '</svg>';
+    return { svg: svg, w: W, h: H, crit: cp.length, any: rows.length, trunk: rows.map(function (r) { return { n: r.n, name: r.t.name, hue: TV_HUE[(r.n - 1) % TV_HUE.length] }; }) };
+  }
+  function treeTab(R) {
+    var g = treeSvg(R);
+    $('#planBody').innerHTML = '<div class="card" style="padding:12px"><div class="row wbs-bar"><div><h3 style="margin:0">🌿 Tree view</h3><small class="muted">Trunk: level 1 tasks (the first by the roots) · branches: level 1.1 sub-tasks · leaves: level 1.1.1 steps · read only: change the work on the Gantt</small></div><span class="sp"></span>' +
+      '<div class="pviews"><div class="tabs" style="margin:0"><button class="tab" data-tvfit="1"' + (S.tvFit !== false ? ' disabled' : '') + '>Fit to screen</button><button class="tab" data-tvfit="0"' + (S.tvFit === false ? ' disabled' : '') + '>Actual size</button></div>' +
+      '<div class="tabs" style="margin:0"><button class="tab on" data-treev title="Back to the Gantt chart">🌿 Tree view ✕</button></div></div></div>' +
+      '<div class="tv-leg"><button type="button" class="tv-cpk" id="tvCp" aria-pressed="false"' + (g.crit ? '' : ' disabled title="No critical path yet: add dates and links on the Gantt"') + '><i></i>⚡ Critical path</button>' +
+      '<span><i style="background:#94a3b8"></i>Not started</span><span><i style="background:#3b82f6"></i>In progress</span><span><i style="background:#22c55e"></i>Done</span><span><i style="background:#ef4444"></i>Late</span><span><i style="background:#a78bfa"></i>◆ Milestone</span>' +
+      '<span><i class="tv-water"></i>Done: water flows through it · under way: filled as far as it has got</span><span class="muted">Each part shows its owner · dates · days · % done</span></div>' +
+      (g.trunk.length ? '<div class="tv-trunk" role="group" aria-label="Trunk items: level 1 tasks"><b>Trunk</b>' + g.trunk.map(function (x) { return '<button type="button" class="tv-tk" data-tk="' + x.n + '" style="--lc:' + x.hue[0] + '" aria-pressed="false"><i style="background:linear-gradient(90deg,' + x.hue[0] + ',' + x.hue[1] + ',' + x.hue[0] + ')"></i>' + x.n + ' ' + esc(x.name) + '</button>'; }).join('') + '</div>' : '') +
+      '<div class="wbs-wrap tv-wrap' + (S.tvFit !== false ? ' fit' : '') + '" id="tvWrap">' + (g.any ? g.svg : '<div class="empty">No tasks yet: add them on the Gantt.</div>') + '</div></div>';
+    var B = $('#planBody'), svg = $('#tvSvg'), cpb = $('#tvCp'), pin = false;
+    B.querySelector('[data-treev]').onclick = function () { S.treeV = false; render(); };
+    B.querySelectorAll('[data-tvfit]').forEach(function (b) { b.onclick = function () { S.tvFit = b.getAttribute('data-tvfit') === '1'; render(); }; });
+    var cpOn = function (on) { if (svg) svg.classList.toggle('cp', on); cpb.classList.toggle('on', on); };
+    cpb.onmouseenter = function () { cpOn(true); }; cpb.onmouseleave = function () { cpOn(pin); }; cpb.onfocus = function () { cpOn(true); }; cpb.onblur = function () { cpOn(pin); };
+    cpb.onclick = function () { pin = !pin; cpb.setAttribute('aria-pressed', pin ? 'true' : 'false'); cpOn(pin); };
+    // ⚡ a trunk item: current runs up its trunk segment, out its branches and into its leaves; they turn vivid, the rest dims
+    if (!svg) return;
+    // 💧 water: a finished part flows (CSS), a part under way is filled to its % done
+    [].forEach.call(svg.querySelectorAll('.tvwat:not(.flow),.tvtube[data-wf]'), function (e) { var L = e.getTotalLength(), f = +e.getAttribute('data-wf') || 0; e.setAttribute('stroke-dasharray', (f * L) + ' ' + (L + 1)); });
+    var FX = [].map.call(svg.querySelectorAll('.tvfill,.tvspark'), function (e) { var L = e.getTotalLength(), sp = e.classList.contains('tvspark'), s = Math.max(12, Math.min(36, L * .2)); e.setAttribute('stroke-dasharray', sp ? s + ' ' + (L + s * 2) : L + ' ' + L); e.style.strokeDashoffset = sp ? s : L; return { e: e, L: L, s: s, sp: sp, g: e.getAttribute('data-g'), dp: +e.getAttribute('data-dp') }; });
+    var sel = '', t0 = 0, raf = 0, RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var run = function (now) {
+      var t = (now - t0) / 1000;
+      FX.forEach(function (f) { var on = f.g === sel, u = on ? (t - f.dp * .45) / .5 : -1, k = Math.max(0, Math.min(1, u));
+        if (f.sp) { var w = u <= 1 ? u : ((t - 1.6 - f.dp * .45) % 3) / .5; f.e.style.strokeDashoffset = on && w >= 0 && w <= 1 ? f.s - w * (f.L + f.s * 2) : f.s; }
+        else f.e.style.strokeDashoffset = on ? (RM ? 0 : f.L * (1 - k)) : f.L; });
+      raf = sel && !RM ? requestAnimationFrame(run) : 0;
+    };
+    var pick = function (n) {
+      sel = sel === n ? '' : n; svg.classList.toggle('sel', !!sel);
+      [].forEach.call(svg.querySelectorAll('[data-g]'), function (e) { e.classList.toggle('on', e.getAttribute('data-g') === sel); });
+      B.querySelectorAll('[data-tk]').forEach(function (b) { var on = b.getAttribute('data-tk') === sel; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      B.querySelector('.tv-trunk').classList.toggle('has', !!sel);
+      t0 = performance.now(); if (!raf) raf = requestAnimationFrame(run);
+    };
+    B.querySelectorAll('[data-tk]').forEach(function (b) { b.onclick = function () { pick(b.getAttribute('data-tk')); }; });
+    svg.addEventListener('click', function (e) { var el = e.target.closest('[data-g]'); pick(el ? el.getAttribute('data-g') : sel); });
   }
   try { S.gfit = localStorage.getItem('champGFit') !== '0'; } catch (e) {}
   function scheduleTab(R) {
@@ -2313,7 +2447,7 @@
       '<div class="tabs" style="margin:0"><button class="tab' + (S.zoom === 'day' ? ' on' : '') + '" data-zoom="day">Days</button><button class="tab' + (S.zoom === 'week' ? ' on' : '') + '" data-zoom="week">Weeks</button><button class="tab' + (S.links ? ' on' : '') + '" data-links title="Show the dependency arrows between the bars">🔗 Links</button>' + (gGap > 7 ? '<button class="tab' + (gFit ? ' on' : '') + '" data-gfit type="button" title="' + (gFit ? 'The chart starts at the plan (' + esc(dmy(R.start)) + ', ' + gGap + ' days from today). Click to show from today.' : 'Hide the ' + gGap + ' empty days before the plan starts (' + esc(dmy(R.start)) + ')') + '">⇥ Fit to the plan</button>' : '') + '</div>' +
       (p.baseline ? (function () { var bv = (p.baseRevs || []).slice(-1)[0], bb = p.baseline, late = R.finish && bb.finish ? (R.finish > bb.finish ? workBetween(bb.finish, R.finish) - 1 : R.finish < bb.finish ? -(workBetween(R.finish, bb.finish) - 1) : 0) : 0;
         return '<div class="tabs" style="margin:0"><button type="button" class="tab gbase-chip' + (late > 0 ? ' late' : '') + '" data-gbasev title="' + esc('The baseline the plan is measured against (the grey bars under each task). Click for every version, roll back and the AI analysis.') + '">📌 Baseline' + (bv ? ' <b>v' + bv.v + '</b>' : '') + ' · ' + esc(bomStamp(bb.at)) + (bb.cr || (bv && bv.cr) ? ' · ' + esc(bb.cr || bv.cr) : '') + ' · finish ' + esc(dmy(bb.finish)) + (late ? ' <span>(' + (late > 0 ? late + ' working days late' : -late + ' days early') + ')</span>' : ' <span>(on baseline)</span>') + '</button></div>'; })() : '') +
-      '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button></div></div></div>' +
+      '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button><button class="tab" data-treev title="See the plan as a tree: level 1 tasks are the trunk, 1.1 sub-tasks the branches, 1.1.1 steps the leaves, with the critical path">🌿 Tree view</button></div></div></div>' +
       (S.recAc ? '<div class="rec-bar"><span>💲 <b>Recording progress and actual costs' + (S.recAc.ms ? ': up to ' + esc(S.recAc.ms) : '') + '.</b> For each task, type its <b>Actual $</b> so far, in full (labour, subcontractors, hire and its materials), and check its <b>%</b> done. A BOM / BOQ row takes its actual cost from the BOM (click it to open the BOM / BOQ). Each entry is logged with who and when.</span><button class="btn btn-sm btn-gold" type="button" id="recDone">✓ Done</button></div>' : '') +
       '<div class="gsplit" id="gSplit"><div class="gpane gleft" id="gLeft"' + (S.split ? ' style="flex:0 0 ' + S.split + 'px;max-width:none"' : '') + '><table class="gt v-' + S.cols + (S.recAc ? ' v-r' : '') + '"><thead><tr><th>#</th><th title="Done">✓</th><th style="min-width:160px">Task <button type="button" class="gfz-chip" id="gFreezeBtn" title="Freeze columns (like Excel) and column widths">❄ ' + esc(gfzName()) + '</button></th><th style="min-width:136px">Resources <span class="muted" style="text-transform:none;letter-spacing:0">(★ lead)</span></th><th>Days</th><th>Start</th><th>Finish</th><th>After #</th><th title="Labour: people × hours (or days) each. Materials: quantity">People × Qty</th><th>Unit</th><th>Unit $</th><th>Cost</th><th>Actual $</th><th>Status</th><th>%</th><th></th></tr></thead><tbody>';
     var G = '';   // rows of the Gantt pane (kept the same height as the grid rows)
@@ -2393,7 +2527,8 @@
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
     B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { S.gfit = S.gfit === false;   // the range key changes, so the chart opens at the plan (fitted) or at today (not fitted)
       try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
-    B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
+    B.querySelectorAll('[data-treev]').forEach(function (b) { b.onclick = function () { S.treeV = true; S.wbs = false; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
+    B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.treeV = false; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
     B.querySelectorAll('[data-links]').forEach(function (b) { b.onclick = function () { S.links = !S.links; try { localStorage.setItem('champLinks', S.links ? '1' : ''); } catch (e) {} render(); }; });
     if ($('#depAi')) $('#depAi').onclick = depsDialog;
     if ($('#depUndo')) $('#depUndo').onclick = function () { var u = S.depUndo; if (!u || u.core !== S.core) return; S.plan.tasks.forEach(function (t) { if (u.pred[t.id]) t.pred = u.pred[t.id].slice(); }); S.depUndo = null; dirty('dependencies put back'); render(); toast('↶ The links are back as they were'); };
