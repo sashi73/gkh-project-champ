@@ -2295,6 +2295,8 @@
     nodes.forEach(function (n, i) { visit(i); });
     order.forEach(function (i) { var n = nodes[i], f0 = floor0(byI[i]), sm = f0, se = f0, sv = 0;
       n.pred.forEach(function (q) { if (EFm[q] > sm) sm = EFm[q]; if (EFe[q] > se || (EFe[q] === se && VAR[q] > sv)) { se = EFe[q]; sv = VAR[q]; } });
+      // a milestone after a task waits for that task's last (whole) day, so the tasks after it start on the milestone's day, not part-way through the day before
+      if (n.m === 0 && n.o === 0 && n.p === 0) { EFm[i] = Math.ceil(sm - 1e-9); EFe[i] = Math.ceil(se - 1e-9); VAR[i] = sv; return; }
       EFm[i] = sm + n.m; EFe[i] = se + (n.o + 4 * n.m + n.p) / 6; VAR[i] = sv + Math.pow((n.p - n.o) / 6, 2); });
     // a milestone sits on the working day after the task before it (as on the Gantt); the tasks after it still start on that day
     var finOf = function (A) { return A.map(function (v, i) { return nodes[i].m === 0 && nodes[i].pred.length ? Math.ceil(v - 1e-9) + 1 : v; }); }, FE = finOf(EFe), FM = finOf(EFm);
