@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 305,
+  "build": 306,
   "commit": "",
   "branch": "raidai",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-24 02:28",
+  "builtAt": "2026-11-24 02:33",
   "site": ""
 };

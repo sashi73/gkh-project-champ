@@ -1595,3 +1595,5 @@ html.dark .rd-why,body.dark .rd-why{background:rgba(255,255,255,.06)}
 .badge-soft.ai-rec{background:rgba(201,162,39,.18);color:#7a5c00}
 .ai-adv .ai-it{color:inherit}
 .rd-sortc{margin-left:4px}
+/* the Risk and Issue logs: what the second line of each row is */
+.rt th .th2{display:block;margin-top:2px;font-weight:600;font-size:10.5px;letter-spacing:0;text-transform:none;color:var(--muted);opacity:.9}
