@@ -323,4 +323,9 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 312 | 1.0.312| 2026-11-24 04:04| helpbox| `fb2878a` | Help: the circuit tree and the feature inventory share one box (Project Champ at a glance) like the other Help areas; the circuit tree fits  |
 | 313 | 1.0.313| 2026-11-24 04:10| helpbox| `f0538fe` | Features: the circuit tree is now a slide in the switching panel (Circuit tree, after Any language), with an Open full screen button, replac |
 | 314 | 1.0.314| 2026-11-24 04:15| helpbox| `f1bd83c` | Circuit tree, CodeRabbit fixes: the page grows when the heading and key need room and the board keeps a usable height; on phones the tree (a |
-| 315 | 1.0.315 | 2026-11-24 04:20 | helpbox | _this commit_ | _see git log_ |
+| 315 | 1.0.315| 2026-11-24 04:20| helpbox| `401e553` | Tree view and PERT chart on every project (Gantt toolbar: PERT · Tree view · WBS) |
+| 316 | 1.0.316| 2026-11-24 04:40| treepert| `969878e` | Tree view and PERT chart on every project (Gantt toolbar: PERT · Tree view · WBS) |
+| 317 | 1.0.317| 2026-11-24 04:49| treepert| `491202e` | Tree view and PERT, CodeRabbit fixes: Record actual costs opens the grid after a diagram; owners picked on the Board show by name; links ign |
+| 318 | 1.0.318| 2026-11-24 04:57| treepert| `f21e468` | PERT, CodeRabbit fixes: Record actual costs opens full screen again; the forecast is a forward pass in working days that keeps fractions to  |
+| 319 | 1.0.319| 2026-11-24 05:05| treepert| `a535252` | PERT: a milestone's forecast is the working day after the task before it, as on the Gantt (CodeRabbit) |
+| 320 | 1.0.320 | 2026-11-24 05:12 | treepert | _this commit_ | _see git log_ |
