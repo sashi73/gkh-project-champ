@@ -588,7 +588,7 @@ try {
       const pg = await cx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); await pg.addInitScript(() => { try { sessionStorage.setItem('champIntroSeen', '1'); sessionStorage.setItem('champToday', '1'); } catch (e) {} });
       await pg.goto(BASE + '/champ-tree.html?embed=1'); await pg.waitForTimeout(1500);
       const tr = await pg.evaluate(() => ({ leaves: document.querySelectorAll('text.lbl.leaf').length, h1: getComputedStyle(document.querySelector('.head h1')).display }));
-      await pg.goto(BASE + '/features.html'); await pg.waitForTimeout(800); const fe = await pg.evaluate(() => !!document.querySelector('.ftree iframe[src^="champ-tree.html"]'));
+      await pg.goto(BASE + '/features.html'); await pg.waitForTimeout(800); const fe = await pg.evaluate(() => !!document.querySelector('.fx-treeapp iframe[src^="champ-tree.html"]'));
       await pg.goto(BASE + '/admin/#help'); await pg.waitForTimeout(5000); await pg.evaluate(() => { ['champIntro', 'tdy', 'champFitPop'].forEach((i) => { const x = document.getElementById(i); if (x) x.remove(); }); });
       const card = await pg.$('[data-tree]'); if (card) await card.click(); await pg.waitForTimeout(800);
       const opened = await pg.evaluate(() => !!document.querySelector('#treeFS iframe')); await pg.keyboard.press('Escape'); await pg.waitForTimeout(300);
