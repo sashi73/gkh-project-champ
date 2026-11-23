@@ -1494,3 +1494,27 @@ html.dark .pmo-when,body.dark .pmo-when,html.dark .pmo-n,body.dark .pmo-n{backgr
 .pgm-menu label{display:grid!important;grid-template-columns:18px 10px 1fr;justify-items:start;margin:0!important;font-weight:500}
 .pgm-menu label input{width:auto!important;height:auto;margin:0!important;accent-color:#C9A227}
 .pgm-menu label small{grid-column:3}
+/* 🗂 New project: the program first, existing or new, both up front */
+.np-prog{display:flex;flex-direction:column;gap:10px;margin:2px 0 6px}
+.np-head b{font-size:15px}.np-head small{margin-left:6px}
+.np-seg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.np-seg button{display:flex;gap:12px;align-items:center;text-align:left;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line,#DDD6C6);background:var(--card,#fff);color:inherit;font:inherit;cursor:pointer;transition:border-color .15s,background .15s}
+.np-seg button i{display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:10px;background:#F4ECD6;font-style:normal;font-size:18px;font-weight:800;color:#8A6A12}
+.np-seg button span{display:flex;flex-direction:column}
+.np-seg button small{color:var(--muted,#7A7566);font-size:12px}
+.np-seg button:hover{border-color:#C9A227}
+.np-seg button.on{border-color:#C9A227;background:rgba(201,162,39,.08);box-shadow:0 0 0 3px rgba(201,162,39,.15)}
+.np-seg button.on i{background:#C9A227;color:#fff}
+.np-seg button:focus-visible,.np-list button:focus-visible{outline:2px solid #C9A227;outline-offset:2px}
+.np-old{display:flex;flex-direction:column;gap:8px}
+.np-find{display:none}
+.np-many .np-find{display:block}
+.np-list{display:flex;flex-wrap:wrap;gap:8px;max-height:190px;overflow:auto;padding:2px}
+.np-list button{display:inline-flex;align-items:center;gap:8px;padding:8px 13px;border-radius:999px;border:1px solid var(--line,#DDD6C6);background:var(--card,#fff);color:inherit;font:inherit;font-size:14px;cursor:pointer}
+.np-list button i{width:9px;height:9px;border-radius:50%;background:hsl(var(--h),55%,52%);flex:none}
+.np-list button:hover{border-color:#C9A227}
+.np-list button.on{background:#1F2328;border-color:#1F2328;color:#fff;font-weight:700}
+.np-list .muted a{font-weight:700}
+.np-new{display:flex;flex-direction:column;gap:6px;padding:12px 14px;border-radius:12px;background:rgba(201,162,39,.06);border:1px dashed #C9A227}
+.np-new label{margin:0}
+@media (max-width:640px){.np-seg{grid-template-columns:1fr}}

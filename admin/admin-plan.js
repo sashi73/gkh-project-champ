@@ -748,8 +748,13 @@
         '<b>Revit, Navisworks and AutoCAD</b> files (.rvt .nwd .nwc .dwg .dwf) are kept with the project as originals, with a tip on what to export. You can pick several files at once. <a href="#" id="cnSample">▶ Try a sample</a>: an imaginary 3-level allied health clinic (IFC model, TimeLiner schedule and clash report).</p></div>' +
         '<label class="btn btn-gold cn-pick">Choose a file<input type="file" id="cnFile" multiple accept=".pdf,.docx,.pptx,.xlsx,.txt,.md,.csv,.ifc,.xml,.dxf,.rvt,.rfa,.nwd,.nwc,.nwf,.dwg,.dwf,.dwfx" hidden></label></div><div id="cnDocOut"></div></div>' +
       '<form id="champNew" class="champ-form">' +
-      '<div class="champ-2"><label>Program <small class="muted">(every project belongs to one)</small><select name="progPick" required><option value="">Loading programs…</option></select></label>' +
-      '<label class="champ-newprog" hidden>New program name<input name="program" maxlength="80" placeholder="e.g. Hospital redevelopment"></label></div>' +
+      // 🗂 the program first: add to one you have, or start a new one (both choices up front, no scrolling to the end of a list)
+      '<div class="np-prog"><div class="np-head"><b>Choose a program, or create a new one</b> <small class="muted">every project belongs to a program</small></div>' +
+        '<div class="np-seg" role="radiogroup" aria-label="Program"><button type="button" role="radio" data-pm="old" aria-checked="true" class="on"><i>📂</i><span><b>Choose a program</b><small>one you already run</small></span></button>' +
+        '<button type="button" role="radio" data-pm="new" aria-checked="false"><i>＋</i><span><b>Create a new program</b><small>made when you save this project</small></span></button></div>' +
+        '<div class="np-old"><input type="search" class="np-find" placeholder="Search your programs…" aria-label="Search programs"><div class="np-list" role="listbox" aria-label="Programs"><span class="muted">Loading programs…</span></div></div>' +
+        '<div class="np-new champ-newprog" hidden><label>New program name<input name="program" maxlength="80" placeholder="e.g. Hospital redevelopment"></label><small class="muted">The program is created when you save this project. Add more projects to it later.</small></div>' +
+        '<select name="progPick" hidden tabindex="-1" aria-hidden="true"><option value=""></option></select></div>' +
       '<label>Project name<input name="name" required maxlength="120" placeholder="e.g. Head office fit-out, ERP rollout, Bridge deck repair"></label>' +
       '<p class="champ-fill" id="cnFill" hidden></p>' +
       '<label>Client<input name="client" required maxlength="120" placeholder="e.g. Acme Pty Ltd or Internal: Finance"></label>' +
@@ -780,12 +785,29 @@
         note.innerHTML = got.length ? '✨ Filled in from the <b>' + esc(d.program || name) + '</b> program' + (d.from.project && !d.from.program ? ' (its latest project, ' + esc(d.from.project) + ')' : d.from.project ? ' and its latest project' : '') + ': ' + esc(got.join(', ')) + '. Change anything that is different for this project.' : '';
       }).catch(function () {});
     };
-    var syncProg = function () { var isNew = pick.value === '__new'; newBox.hidden = !isNew; newIn.required = isNew; if (isNew) setTimeout(function () { newIn.focus(); }, 30); fillFrom(pick.value); };
+    var syncProg = function () { var isNew = pick.value === '__new'; newBox.hidden = !isNew; newIn.required = isNew; $('#champNew .np-old').hidden = isNew; if (isNew) setTimeout(function () { newIn.focus(); }, 30); fillFrom(pick.value); };
     pick.onchange = syncProg;
+    var NP = $('#champNew .np-prog'), npList = NP.querySelector('.np-list'), npFind = NP.querySelector('.np-find'), PROGS = [];
+    var setVal = function (v) { if (v && v !== '__new' && !Array.prototype.some.call(pick.options, function (o) { return o.value === v; })) { var o = document.createElement('option'); o.value = v; o.textContent = v; pick.appendChild(o); } pick.value = v; syncProg(); };
+    var mode = function (m) { NP.querySelectorAll('[data-pm]').forEach(function (b) { var on = b.getAttribute('data-pm') === m; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+      if (m === 'new') setVal('__new'); else { var sel = npList.querySelector('.on'); setVal(sel ? sel.getAttribute('data-p') : ''); if (!sel) setTimeout(function () { npFind.focus(); }, 30); } };
+    var drawList = function () { var q = npFind.value.trim().toLowerCase(), cur = pick.value, L = PROGS.filter(function (x) { return !q || x.toLowerCase().indexOf(q) >= 0; });
+      npList.innerHTML = L.length ? L.map(function (x) { return '<button type="button" role="option" data-p="' + esc(x) + '" aria-selected="' + (x === cur) + '" class="' + (x === cur ? 'on' : '') + '"><i style="--h:' + hue(x) + '"></i>' + esc(x) + '</button>'; }).join('')
+        : '<span class="muted">' + (PROGS.length ? 'No program matches. ' : 'No programs yet. ') + '<a href="#" data-np-new>Create a new program' + (q ? ' called “' + esc(npFind.value.trim()) + '”' : '') + '</a></span>'; };
+    var hue = function (x) { var h = 0; for (var i = 0; i < x.length; i++) h = (h * 31 + x.charCodeAt(i)) % 360; return h; };
+    NP.addEventListener('click', function (e) {
+      var m = e.target.closest('[data-pm]'); if (m) { mode(m.getAttribute('data-pm')); return; }
+      var p = e.target.closest('[data-p]'); if (p) { setVal(p.getAttribute('data-p')); drawList(); return; }
+      if (e.target.closest('[data-np-new]')) { e.preventDefault(); var q = npFind.value.trim(); mode('new'); if (q) newIn.value = q; }
+    });
+    npFind.addEventListener('input', drawList);
+    npFind.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var b = npList.querySelector('[data-p]'); if (b) b.click(); } });
     (M.champPrograms ? M.champPrograms() : Promise.resolve([])).then(function (L) {
-      pick.innerHTML = '<option value="">Choose a program…</option>' + L.map(function (x) { return '<option' + (x === want ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '<option value="__new">＋ New program…</option>';
+      PROGS = L; NP.classList.toggle('np-many', L.length > 8);
+      pick.innerHTML = '<option value=""></option>' + L.map(function (x) { return '<option' + (x === want ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '<option value="__new">new</option>';
+      drawList(); if (!L.length) mode('new');
       if (!want && L.length === 1) pick.value = L[0];
-      syncProg();
+      syncProg(); if (L.length) drawList();
     });
     // 📄 start from a document: the AI reads all of it (RAG) and fills in the form; the document goes with the project to Ask AI and the plan builder
     var CN = { sid: '', file: null, got: null };
@@ -855,7 +877,10 @@
     ['dragleave', 'drop'].forEach(function (ev) { dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); }); });
     dz.addEventListener('drop', function (e) { var L = e.dataTransfer && e.dataTransfer.files ? [].slice.call(e.dataTransfer.files) : []; if (L.length) cnPick(L); });
     $('#champNew').onsubmit = function (e) {
-      e.preventDefault(); var f = e.target, b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
+      e.preventDefault(); var f = e.target;
+      if (!f.progPick.value) { toast('Choose a program, or create a new one', true); var s0 = f.querySelector('.np-find'); if (s0) s0.focus(); return; }   // 🗂 the program comes first
+      if (f.progPick.value === '__new' && !f.program.value.trim()) { toast('Give the new program a name', true); f.program.focus(); return; }
+      var b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
       api('planNewProject', { name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
           docSid: CN.got ? CN.sid : '', brief: CN.got ? CN.got.briefText : '', docStart: CN.got ? CN.got.fields.start : '', docFinish: CN.got ? CN.got.fields.finish : '' })
         .then(function (r) {
