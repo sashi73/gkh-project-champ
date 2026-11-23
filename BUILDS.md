@@ -320,4 +320,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 309 | 1.0.309| 2026-11-24 03:23| tree| `0c7568d` | Champ circuit tree: on the Features page (desktop and phone), a Help card that opens it full screen (close or Esc), and Champ opens it when  |
 | 310 | 1.0.310| 2026-11-24 03:32| tree| `679684a` | Help: Project Champ feature inventory (every Help article and its sections plus the newer features, counted area by area, linked to the arti |
 | 311 | 1.0.311| 2026-11-24 03:37| tree| `7cc6138` | Champ circuit tree: Features page, Help full screen, and Champ opens it (#155) |
-| 312 | 1.0.312 | 2026-11-24 04:04 | helpbox | _this commit_ | _see git log_ |
+| 312 | 1.0.312| 2026-11-24 04:04| helpbox| `fb2878a` | Help: the circuit tree and the feature inventory share one box (Project Champ at a glance) like the other Help areas; the circuit tree fits  |
+| 313 | 1.0.313 | 2026-11-24 04:10 | helpbox | _this commit_ | _see git log_ |

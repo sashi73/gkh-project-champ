@@ -237,3 +237,5 @@
 .ftree-open{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:18px;color:#8f9bbb;font-size:14px}
 @media (min-width:761px){.ftree-open span{display:none}}
 @media (max-width:760px){.ftree{padding:64px 0 36px}.ftree-frame{height:680px;min-height:0}}
+.fx-treeapp iframe{display:block;width:100%;height:min(460px,56vh);border:0;background:#080d1c}
+@media (max-width:760px){.fx-treeapp iframe{height:300px}}

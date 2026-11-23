@@ -30,9 +30,9 @@
   @keyframes flow{to{background-position:-200% 0}}
   @media (prefers-reduced-motion:reduce){.key span.live i{animation:none}}
   /* the whole tree fits the window; on a phone it keeps its size and slides sideways */
-  .board{flex:1;min-height:0;overflow:auto;padding:0 8px 10px}
+  .board{flex:1 1 0;min-height:320px;overflow:auto;padding:0 8px 10px}   /* a short or zoomed window keeps a usable board: the page scrolls to it */
   svg#tree{display:block;width:100%;height:100%;margin:0 auto}
-  @media (max-width:760px){svg#tree{width:auto;height:auto;min-width:1320px}}
+  @media (max-width:760px){.solo svg#tree,.app svg#tree{width:auto;height:auto;min-width:1320px}}   /* in the Features page's small frame the whole tree stays fitted */
   .lbl{font-family:'IBM Plex Sans',sans-serif;fill:var(--ink);pointer-events:none}
   .lbl.leaf{font-size:16px;font-weight:500;fill:#e6ebf7}
   .lbl.br{font-size:23px;font-weight:700}
@@ -61,7 +61,7 @@
   .node,.grp[data-g] .lbl.br{cursor:pointer}
   @media (prefers-reduced-motion:reduce){.panel{transition:none}}
   /* embedded in the Features page: its own heading is on the page; in the dashboard's full screen the close button sits top right */
-  .embed .head h1,.embed .head p{display:none}.embed .head{padding-top:6px}.embed .wrap{height:100vh}
+  .embed .head h1,.embed .head p{display:none}.embed .head{padding-top:6px}.embed .wrap{height:100vh}.embed .board{min-height:240px}
   .app .head{padding-right:84px}
   .back{display:none;color:#c9d3ee;text-decoration:none;font-size:14px;margin-bottom:8px}.solo .back{display:inline-block}.back:hover{color:#fff}
   @media (max-width:760px){.head p{font-size:14px}}
