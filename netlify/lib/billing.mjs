@@ -176,7 +176,11 @@ export const allFinance = (ctx) => !!ctx && !ctx.scope && (ctx.owner || ctx.role
 export async function billCores(ctx) {   // null = every project
   if (allFinance(ctx)) return null;
   if (!ctx) return new Set();
-  if (ctx.pgm) return ctx.pgm.kind === 'project' && ctx.role === 'Project manager' ? new Set(ctx.scope) : new Set();   // 📁 a Project manager: the billing of their own projects; 🗺 a Program manager: no money
+  if (ctx.pgm) {   // 📁 a delivery lead (Project manager, Scrum Master, Product Owner): the billing of their own client projects; 🗺 a Program manager: no money
+    if (!(ctx.pgm.kind === 'project' && ['Project manager', 'Scrum Master', 'Product Owner'].includes(ctx.role))) return new Set();
+    const plans = await P.list().catch(() => []), inn = new Set(plans.filter((p) => ((p.budgetCfg || {}).ctype) === 'internal').map((p) => p.core));
+    return new Set((ctx.scope || []).filter((c) => !inn.has(c)));   // 🏢 an internal project has no billing at all
+  }   // 📁 a Project manager: the billing of their own projects; 🗺 a Program manager: no money
   if (ctx.scope) return new Set();
   const PG = await import('./programs.mjs'), [plans, jobs, progs] = await Promise.all([P.list(), J.all(), PG.list()]), jb = Object.fromEntries(jobs.map((j) => [j.core, j]));
   // 💵 the director named on a program sees its billing; a project manager, the projects they manage

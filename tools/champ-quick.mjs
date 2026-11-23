@@ -289,6 +289,23 @@ try {
         && sv.status === 200 && after && after.role === 'Program manager' && after.jobTitle === 'Head of health programs' && (bad.status >= 400 || (bad.j.user && bad.j.user.role !== 'Project director')),
         JSON.stringify([r.a, r.cores.length, r.me.role, r.me.money, per && per.role, per && per.login, sv.status, sv.j.error, after && [after.role, after.jobTitle], bad.status]).slice(0, 700)); }
 
+    // 🏃 Scrum Master and 🎯 Product Owner: project-level only; billing and raising invoices on their own client projects; an internal project has no billing at all
+    { const mkp = async (name, ctype, done) => { const r = await api('planNewProject', { name, client: 'Acme', program: 'Digital health' }); await api('planSave', { core: r.j.core, plan: { name, start: '2026-10-01', budgetCfg: { cont: 10, res: 5, margin: 20, gst: 10, ctype }, phases: [{ id: 'p1', name: 'Work' }],
+        tasks: [{ id: 't1', name: 'Design', phase: 'p1', dur: 5, qty: 10, unit: 'h', rate: 100, pct: done ? 100 : 0 }] } }); return r.j.core; };
+      const cli = await mkp('Sprint client project', 'fixed', true), inn = await mkp('Sprint internal project', 'internal', true), other = await mkp('Someone else\'s project', 'fixed', true);
+      const mk = await api('userCreate', { user: { email: 'sm1@example.com', name: 'Sam Scrum', password: 'Vaultpass2026x', role: 'Scrum Master', projAll: false, projects: [cli, inn] } });
+      const mk2 = await api('userCreate', { user: { email: 'po1@example.com', name: 'Paula Owner', password: 'Vaultpass2026x', role: 'Product Owner', projAll: false, projects: [cli] } });
+      { const ul = (await api('userList')).j.users || [], give = (em, role, projects) => { const u = ul.find((x) => x.username === em); return u ? api('userSave', { user: { id: u.id, name: u.name, role, projAll: false, projects } }) : null; };
+        await give('sm1@example.com', 'Scrum Master', [cli, inn]); await give('po1@example.com', 'Product Owner', [cli]); }
+      const r = await as('sm1@example.com', 'Vaultpass2026x', async () => { const me = await api('me'), l = await api('planList'), o = await api('planGet', { core: other }), f = await api('acctFinanceGet'), bc = await api('acctBillGet', { core: cli }), bi = await api('acctBillGet', { core: inn }), bo = await api('acctBillGet', { core: other }),
+        ro = await api('acctBillRaise', { core: other, tid: 't1' }), ri = await api('acctBillRaise', { core: inn, tid: 't1' }), rc = await api('acctBillRaise', { core: cli, tid: 't1' }), sv = await api('acctBillSave', { core: cli, contract: 1 }), cu = await api('custList');
+        return { me: me.j, cores: (l.j.plans || []).map((p) => p.core), o: o.status, f: f.status, fp: (f.j.projects || []).map((p) => p.core), bc: bc.status, can: bc.j.canRaise, bi: bi.status, bo: bo.status, ro: ro.status, ri: ri.status, rc: rc.status, rcE: rc.j.error || '', sv: sv.status, cu: cu.status }; });
+      const p2 = await as('po1@example.com', 'Vaultpass2026x', async () => { const me = await api('me'), l = await api('planList'); return { role: me.j.role, cores: (l.j.plans || []).map((p) => p.core) }; });
+      ok('Leads', '🏃 a Scrum Master and 🎯 a Product Owner see only their own projects; they see and raise invoices on their own client projects (not on someone else\'s); an internal project has no billing; contract values stay with the CFO; no customers',
+        mk.status === 200 && mk2.status === 200 && r.me.role === 'Scrum Master' && r.me.money === true && !r.me.scope && r.me.pgm && r.me.pgm.kind === 'project' && r.cores.includes(cli) && r.cores.includes(inn) && !r.cores.includes(other) && r.o === 403
+        && r.f === 200 && r.fp.includes(cli) && !r.fp.includes(inn) && !r.fp.includes(other) && r.bc === 200 && r.can === true && r.bi === 403 && r.bo === 403 && r.ro === 403 && r.ri === 403 && r.rc !== 403 && r.sv === 403 && r.cu === 403
+        && p2.role === 'Product Owner' && p2.cores.includes(cli) && !p2.cores.includes(other) && !p2.cores.includes(inn),
+        JSON.stringify([mk.status, mk.j.error, mk2.status, r, p2]).slice(0, 900)); }
     // 📍 the site picked from the list: town, state, country and postcode go with the project (Ask AI's location columns)
     { const pl = await api('planPlacesGet', { q: 'New South' }), st = (pl.j.places || []).find((x) => x.cc === 'AU');
       const np = await api('planNewProject', { name: 'Located project', client: 'Acme', program: 'Digital health', site: 'Parramatta NSW 2150, Australia', loc: { cc: 'AU', st: 'NSW', place: 'Parramatta, New South Wales, Australia', town: 'Parramatta', postcode: '2150' } });
