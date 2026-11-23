@@ -602,6 +602,28 @@ try {
         inv.rows >= 107 && new RegExp('\\b' + inv.rows + ' key features').test(inv.big) && Number((inv.big.match(/(\d+) sub-features/) || [])[1]) >= 295 && inv.links >= 85 && invCard, JSON.stringify([inv, invCard]));
       ok('Tree', '🌳 the circuit tree: on the Features page (its own heading there), a Help card opens it full screen, Esc and ✕ close it, and asking Champ "open the circuit tree" opens it',
         tr.leaves > 40 && tr.h1 === 'none' && fe && !!card && opened && closed && viaChamp && closed2 && !errs.length, JSON.stringify([tr, fe, !!card, opened, closed, viaChamp, closed2, errs]));
+      // 🌿 Tree view and 📈 PERT chart on a project: left of WBS on the Gantt toolbar
+      { const np = await api('planNewProject', { name: 'Tree view test', client: 'Northside Health', program: 'Digital health' }), tc = np.j.core, g0 = (await api('planGet', { core: tc })).j.plan || {}, ph = ((g0.phases || [])[0] || { id: 'p1' }).id;
+        const st = (id, name, off, dur, done) => ({ id, name, off, dur, owner: 'Lee', done: !!done });
+        const tasks = [{ id: 'tA', name: 'Kick-off', phase: ph, dur: 5, pred: [], res: [], owner: 'Sashi', pct: 100, status: 'done', subs: [{ id: 'sA1', name: 'Meeting', off: 0, dur: 2, owner: 'Ana', status: 'done', steps: [st('qA1', 'Book the room', 0, 1, 1), st('qA2', 'Send invites', 1, 1, 1)] }] },
+          { id: 'tB', name: 'Design', phase: ph, dur: 10, pred: ['tA'], res: [], owner: 'Kim', pct: 20, status: 'doing', subs: [{ id: 'sB1', name: 'High level design', off: 0, dur: 6, owner: 'Kim', status: 'doing', steps: [st('qB1', 'Draft', 0, 3, 1), st('qB2', 'Review', 3, 3)] }] },
+          { id: 'tC', name: 'Training', phase: ph, dur: 3, pred: ['tA'], res: [], owner: 'Ana', pct: 0, status: 'todo', subs: [] }, { id: 'tD', name: 'Go live', phase: ph, dur: 2, pred: ['tB', 'tC'], res: [], owner: 'Sashi', pct: 0, status: 'todo', subs: [] }];
+        const sv = await api('planSave', { core: tc, rev: g0.rev, plan: { ...g0, start: '2027-01-04', tasks } });
+        await pg.goto(BASE + '/admin/#plan/' + tc + '/schedule'); await pg.waitForTimeout(5000); await pg.evaluate(() => { ['champIntro', 'tdy', 'champFitPop'].forEach((i) => { const x = document.getElementById(i); if (x) x.remove(); }); });
+        const order = await pg.evaluate(() => [...document.querySelectorAll('.pv-wbs .tab')].map((b) => b.textContent.trim()));
+        await pg.click('.pv-wbs [data-treev]'); await pg.waitForTimeout(1200);
+        const tv = await pg.evaluate(() => ({ svg: !!document.querySelector('.tvx-svg'), keys: document.querySelectorAll('.tvx-key [data-k]').length, badges: document.querySelectorAll('.tvx .badge').length, crit: document.querySelectorAll('.tvx .cpl').length, water: document.querySelectorAll('.tvx .wat').length }));
+        await pg.$eval('.tvx-key [data-k="t1"]', (b) => b.dispatchEvent(new MouseEvent('mouseenter'))); await pg.waitForTimeout(3200);
+        const shown = await pg.evaluate(() => [...document.querySelectorAll('.tvx .badge.show text')].map((t) => t.textContent));
+        await pg.$eval('[data-pvclose]', (b) => b.click()); await pg.waitForTimeout(600); await pg.click('.pv-wbs [data-pertv]'); await pg.waitForTimeout(1500);
+        const pt = await pg.evaluate(() => ({ nodes: document.querySelectorAll('.ptx .node').length, crit: document.querySelectorAll('.ptx .node.crit').length, stats: document.querySelectorAll('.ptx-st').length, note: (document.querySelector('.ptx-note') || {}).textContent || '' }));
+        await pg.$eval('.ptx .node[data-i="2"]', (g) => g.dispatchEvent(new MouseEvent('click', { bubbles: true }))); await pg.waitForTimeout(300); await pg.fill('.ptx-ed [data-o]', '2'); await pg.fill('.ptx-ed [data-p]', '6'); await pg.click('.ptx-ed [data-sv]'); await pg.waitForTimeout(2500);
+        const saved = ((await api('planGet', { core: tc })).j.plan.tasks || []).filter((t) => t.id === 'tC')[0] || {};
+        const odds = await pg.evaluate(() => [...document.querySelectorAll('.ptx-st b')].map((b) => b.textContent));
+        ok('TreeView', '🌿 Tree view and 📈 PERT on every project, left of WBS (PERT · Tree view · WBS): the tree has a limb per level 1 task, the critical path, water for work done, and on hover a status (Done · 100%, Under way · 50%); PERT shows early and late dates, float and the critical path, and saves optimistic and pessimistic estimates for the odds',
+          sv.status === 200 && order.join('|') === '📈 PERT|🌿 Tree view|🌳 WBS' && tv.svg && tv.keys === 4 && tv.badges >= 5 && tv.crit > 0 && tv.water > 0 && shown.some((x) => /Under way · \d+%/.test(x)) &&
+          pt.nodes === 4 && pt.crit === 3 && pt.stats === 5 && /estimates/.test(pt.note) && saved.estO === 2 && saved.estP === 6 && /%$/.test(odds[2] || '') && !errs.length, JSON.stringify([sv.status, order, tv, shown, pt, saved.estO, saved.estP, odds, errs]));
+      }
     } finally { await br.close(); } }
 
   } catch (e) {

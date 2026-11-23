@@ -1608,7 +1608,7 @@
     dirty('undid the AI finish-by changes'); render(); toast('The plan is back the way it was before the AI changes');
   }
   function render() {
-    if (S.gfull && (S.tab !== 'schedule' || S.wbs)) { S.gfull = false; document.body.classList.remove('gantt-full'); }   // full screen is for the schedule grid only
+    if (S.gfull && (S.tab !== 'schedule' || S.wbs || S.treeV || S.pertV)) { S.gfull = false; document.body.classList.remove('gantt-full'); }   // full screen is for the schedule grid only
     pplLoad();   // v86: People for the pickers (once)
     var L0 = $('#gLeft'), R0 = $('#gRight');
     var st = { y: window.scrollY, x: window.scrollX, lt: L0 ? L0.scrollTop : 0, ll: L0 ? L0.scrollLeft : 0, rl: R0 ? R0.scrollLeft : null, tab: S.tab, core: S.core };
@@ -1706,7 +1706,7 @@
       });
     };
     if ($('#planBaseList')) $('#planBaseList').onclick = function () { baseVersions(); };
-    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, raid: function () { if (M.raidTab) M.raidTab({ S: S, dirty: dirty, saveNow: saveNow }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
+    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; S.treeV = false; S.pertV = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.pertV ? pertTab(R2) : S.treeV ? treeTab(R2) : S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, raid: function () { if (M.raidTab) M.raidTab({ S: S, dirty: dirty, saveNow: saveNow }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
   }
   function timePct(R) { var t = today(); if (!R.start || t < R.start) return 0; if (t >= R.finish) return 100; return Math.round(workBetween(R.start, t) / Math.max(1, workBetween(R.start, R.finish)) * 100); }
   function varDays(base, now) { var d = workBetween(base, now) - 1; if (now <= base) { d = -(workBetween(now, base) - 1); } return d === 0 ? 'on baseline' : d > 0 ? d + ' days behind baseline' : (-d) + ' days ahead of baseline'; }
@@ -2243,6 +2243,66 @@
     };
     $('#wbsPng').onclick = function () { save('image/png'); }; $('#wbsJpg').onclick = function () { save('image/jpeg'); };
   }
+  // ---------- 🌿 Tree view and 📈 PERT chart: the data from the plan; admin-treeview.js draws them ----------
+  var pvHead = function (icon, title, sub, key) { return '<div class="row wbs-bar"><div><h3 style="margin:0">' + icon + ' ' + title + '</h3><small class="muted">' + sub + '</small></div><span class="sp"></span><div class="tabs" style="margin:0"><button class="tab on" type="button" data-pvclose title="Back to the Gantt chart">' + icon + ' ' + title + ' ✕</button></div></div>'; };
+  var pvWho = function (o) { return o.owner || o.lead || (o.res && o.res[0]) || ''; };
+  var pvSpan = function (es, ef) { return es ? pretty(es) + (ef && ef !== es ? '–' + pretty(ef) : '') : ''; };
+  var pvCpm = function (p) { try { return cpm(p); } catch (e) { return null; } };
+  function treeTab(R) {
+    var p = S.plan, rows = ordered().filter(function (r) { return !r.t.hidden; }), Cp = pvCpm(p);
+    // what is critical: level 1 tasks with no float; inside one, the sub-task that ends with it, and inside that the step that ends with it
+    var critT = function (t) { return !!(Cp && Cp.tasks[t.id] && Cp.tasks[t.id].float === 0); };
+    var lastI = function (L, f) { var m = -1, k = -1; L.forEach(function (x, i) { var v = f(x); if (v >= m) { m = v; k = i; } }); return k; };
+    var tasks = rows.map(function (r) {
+      var t = r.t, ct = critT(t), subs = t.subs || [], ls = lastI(subs, function (x) { return (x.off || 0) + (x.dur || 0); });
+      return { n: String(r.n), name: t.name, owner: pvWho(t), r: t.dur === 0 ? '◆ ' + pretty(t.es) : pvSpan(t.es, t.ef), d: t.dur || 0, pct: t.pct || 0, crit: ct,
+        subs: subs.map(function (sb, j) {
+          var d = subDates(t, sb), steps = sb.steps || [], cs = ct && j === ls, lq = lastI(steps, function (q) { return (q.off || 0) + (q.dur || 0); });
+          var sp = sb.status === 'done' ? 100 : Math.max(0, Math.min(100, sb.pct || 0));
+          return { n: r.n + '.' + (j + 1), name: sb.name, owner: pvWho(sb), r: pvSpan(d.es, d.ef), d: sb.dur || 0, pct: sp, crit: cs,
+            steps: steps.map(function (q, k) { var qe = d.es ? (q.off ? addWork(d.es, q.off) : d.es) : '', qf = qe && q.dur > 1 ? addWork(qe, q.dur - 1) : qe;
+              return { n: r.n + '.' + (j + 1) + '.' + (k + 1), name: q.name, owner: pvWho(q), r: pvSpan(qe, qf), d: q.dur || 0, done: !!q.done, crit: cs && k === lq }; }) };
+        }) };
+    });
+    var nSub = tasks.reduce(function (a, t) { return a + t.subs.length; }, 0), nStep = tasks.reduce(function (a, t) { return a + t.subs.reduce(function (b, s) { return b + s.steps.length; }, 0); }, 0), nCrit = tasks.filter(function (t) { return t.crit; }).length;
+    var ch = p.charter || {}, facts = [R.start ? 'Starts ' + prettyY(R.start) : '', R.finish ? 'Ends ' + prettyY(R.finish) : '', R.start && R.finish ? pl(workBetween(R.start, R.finish), 'working day') : '', pl(tasks.length, 'task') + ' · ' + pl(nSub, 'sub-task'), pl(nStep, 'step'), nCrit ? nCrit + ' of ' + tasks.length + ' tasks critical' : '', p.client ? 'Customer ' + p.client : ''].filter(Boolean);
+    $('#planBody').innerHTML = '<div class="card tv-card" style="padding:12px">' + pvHead('🌿', 'Tree view', 'The core powers every level 1 task (a limb), its 1.1 sub-tasks (branches) and 1.1.1 steps (leaves). Hover or tap a task: current runs through it, then water fills to its % done. Read only: change the work on the Gantt') +
+      (tasks.length ? '<div id="tvHost"></div>' : '<div class="empty">No tasks yet: add them on the Gantt.</div>') + '</div>';
+    $('#planBody').querySelector('[data-pvclose]').onclick = function () { S.treeV = false; render(); };
+    if (tasks.length && M.treeView) M.treeView($('#tvHost'), { name: p.name || 'Project', r: R.start ? pvSpan(R.start, R.finish) + ' ' + R.finish.slice(0, 4) : '', pm: ch.manager || '', pct: R.pct || 0, facts: facts, tasks: tasks }, { fit: S.tvFit !== false, onFit: function (f) { S.tvFit = f; } });
+  }
+  function pertTab(R) {
+    var p = S.plan, rows = ordered().filter(function (r) { return !r.t.hidden; }), Cp = pvCpm(p), idx = {};
+    rows.forEach(function (r, i) { idx[r.t.id] = i; });
+    var fl = function (t) { return Cp && Cp.tasks[t.id] ? Cp.tasks[t.id].float : 0; };
+    var nodes = rows.map(function (r) {
+      var t = r.t, f = fl(t), m = t.dur || 0, est = t.estO != null && t.estP != null, o = est ? Math.min(t.estO, m) : m, pp = est ? Math.max(t.estP, m) : m;
+      var ls = t.es && f ? addWork(t.es, f) : t.es, lf = t.ef && f ? addWork(t.ef, f) : t.ef;
+      return { id: t.id, n: String(r.n), name: t.name, owner: pvWho(t), d: m, pred: (t.pred || []).map(function (x) { return idx[x]; }).filter(function (x) { return x != null; }),
+        es: t.es ? pretty(t.es) : '–', ef: t.ef ? pretty(t.ef) : '–', ls: ls ? pretty(ls) : '–', lf: lf ? pretty(lf) : '–', fl: f, pct: t.pct || 0, crit: !!(Cp && f === 0),
+        o: o, m: m, p: pp, te: Math.round((o + 4 * m + pp) / 6 * 10) / 10, sd: Math.round((pp - o) / 6 * 10) / 10, est: est };
+    });
+    // PERT along the network: the longest path with expected times, and how uncertain it is
+    var EFm = [], EFe = [], VAR = [], done = {}, order = [], visit = function (i) { if (done[i]) return; done[i] = 1; nodes[i].pred.forEach(visit); order.push(i); };
+    nodes.forEach(function (n, i) { visit(i); });
+    order.forEach(function (i) { var n = nodes[i], bm = 0, be = 0, bv = 0; n.pred.forEach(function (q) { if (EFm[q] > bm) bm = EFm[q]; if (EFe[q] > be || (EFe[q] === be && VAR[q] > bv)) { be = EFe[q]; bv = VAR[q]; } }); EFm[i] = bm + n.m; EFe[i] = be + (n.o + 4 * n.m + n.p) / 6; VAR[i] = bv + Math.pow((n.p - n.o) / 6, 2); });
+    var Mpath = Math.max.apply(0, EFm.concat([0])), k = EFe.indexOf(Math.max.apply(0, EFe.concat([0]))), TE = k >= 0 ? EFe[k] : 0, SD = k >= 0 ? Math.sqrt(VAR[k]) : 0;
+    var anyEst = nodes.some(function (n) { return n.est; }), fin = R.finish, shift = Math.round(TE - Mpath);
+    var expD = fin ? (shift > 0 ? addWork(fin, shift) : fin) : '', p90 = fin ? addWork(fin, Math.max(0, Math.round(TE + 1.2816 * SD - Mpath))) : '';
+    var prob = SD > 0 ? Math.round(M.normCdf((Mpath - TE) / SD) * 100) : (TE <= Mpath ? 100 : 0);
+    var stats = [['', fin ? prettyY(fin) : '–', 'Planned finish' + (R.start && fin ? ' · ' + pl(workBetween(R.start, fin), 'working day') : '')],
+      ['good', expD ? prettyY(expD) : '–', 'PERT expected finish · ' + (Math.round(TE * 10) / 10) + ' ± ' + (Math.round(SD * 10) / 10) + ' days'],
+      [prob < 50 ? 'warn' : '', anyEst ? prob + '%' : '–', 'Chance of finishing by ' + (fin ? pretty(fin) : 'the planned finish')],
+      ['', anyEst && p90 ? prettyY(p90) : '–', '90% confident of finishing by'],
+      ['', nodes.filter(function (n) { return n.crit; }).length + ' of ' + nodes.length, 'Tasks on the critical path']];
+    $('#planBody').innerHTML = '<div class="card tv-card" style="padding:12px">' + pvHead('📈', 'PERT chart', 'Level 1 tasks as a network: early and late dates, float, and three-point estimates. The red line is the critical path. Read only, apart from the estimates: change the work on the Gantt') +
+      (nodes.length ? '<div id="ptHost"></div>' : '<div class="empty">No tasks yet: add them on the Gantt.</div>') + '</div>';
+    $('#planBody').querySelector('[data-pvclose]').onclick = function () { S.pertV = false; render(); };
+    if (!nodes.length || !M.pertView) return;
+    M.pertView($('#ptHost'), { name: p.name || 'Project', nodes: nodes, stats: stats, start: R.start ? pretty(R.start) : '', finish: fin ? pretty(fin) : '', canEdit: true,
+      note: anyEst ? (nodes.some(function (n) { return !n.est; }) ? '* No estimates yet: optimistic and pessimistic are taken as its duration.' : '') : 'Add optimistic and pessimistic estimates (click a box) to see the chance of finishing on time. Until then they are taken as the duration.' },
+      { onEst: function (id, o, pp) { var t = p.tasks.filter(function (x) { return x.id === id; })[0]; if (!t) return; t.estO = o; t.estP = pp; dirty(); render(); } });
+  }
   try { S.gfit = localStorage.getItem('champGFit') !== '0'; } catch (e) {}
   function scheduleTab(R) {
     msBillLoad();
@@ -2313,7 +2373,7 @@
       '<div class="tabs" style="margin:0"><button class="tab' + (S.zoom === 'day' ? ' on' : '') + '" data-zoom="day">Days</button><button class="tab' + (S.zoom === 'week' ? ' on' : '') + '" data-zoom="week">Weeks</button><button class="tab' + (S.links ? ' on' : '') + '" data-links title="Show the dependency arrows between the bars">🔗 Links</button>' + (gGap > 7 ? '<button class="tab' + (gFit ? ' on' : '') + '" data-gfit type="button" title="' + (gFit ? 'The chart starts at the plan (' + esc(dmy(R.start)) + ', ' + gGap + ' days from today). Click to show from today.' : 'Hide the ' + gGap + ' empty days before the plan starts (' + esc(dmy(R.start)) + ')') + '">⇥ Fit to the plan</button>' : '') + '</div>' +
       (p.baseline ? (function () { var bv = (p.baseRevs || []).slice(-1)[0], bb = p.baseline, late = R.finish && bb.finish ? (R.finish > bb.finish ? workBetween(bb.finish, R.finish) - 1 : R.finish < bb.finish ? -(workBetween(R.finish, bb.finish) - 1) : 0) : 0;
         return '<div class="tabs" style="margin:0"><button type="button" class="tab gbase-chip' + (late > 0 ? ' late' : '') + '" data-gbasev title="' + esc('The baseline the plan is measured against (the grey bars under each task). Click for every version, roll back and the AI analysis.') + '">📌 Baseline' + (bv ? ' <b>v' + bv.v + '</b>' : '') + ' · ' + esc(bomStamp(bb.at)) + (bb.cr || (bv && bv.cr) ? ' · ' + esc(bb.cr || bv.cr) : '') + ' · finish ' + esc(dmy(bb.finish)) + (late ? ' <span>(' + (late > 0 ? late + ' working days late' : -late + ' days early') + ')</span>' : ' <span>(on baseline)</span>') + '</button></div>'; })() : '') +
-      '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button></div></div></div>' +
+      '<div class="tabs pv-wbs" style="margin:0"><button class="tab" data-pertv title="See the level 1 tasks as a PERT chart: early and late dates, float, three-point estimates and the odds of the planned finish">📈 PERT</button><button class="tab" data-treev title="See the plan as a circuit tree: level 1 tasks are the limbs, 1.1 sub-tasks the branches, 1.1.1 steps the leaves; hover one to see how much is done">🌿 Tree view</button><button class="tab" data-wbs title="See the plan as a Work Breakdown Structure (read only), and save it as a picture">🌳 WBS</button></div></div></div>' +
       (S.recAc ? '<div class="rec-bar"><span>💲 <b>Recording progress and actual costs' + (S.recAc.ms ? ': up to ' + esc(S.recAc.ms) : '') + '.</b> For each task, type its <b>Actual $</b> so far, in full (labour, subcontractors, hire and its materials), and check its <b>%</b> done. A BOM / BOQ row takes its actual cost from the BOM (click it to open the BOM / BOQ). Each entry is logged with who and when.</span><button class="btn btn-sm btn-gold" type="button" id="recDone">✓ Done</button></div>' : '') +
       '<div class="gsplit" id="gSplit"><div class="gpane gleft" id="gLeft"' + (S.split ? ' style="flex:0 0 ' + S.split + 'px;max-width:none"' : '') + '><table class="gt v-' + S.cols + (S.recAc ? ' v-r' : '') + '"><thead><tr><th>#</th><th title="Done">✓</th><th style="min-width:160px">Task <button type="button" class="gfz-chip" id="gFreezeBtn" title="Freeze columns (like Excel) and column widths">❄ ' + esc(gfzName()) + '</button></th><th style="min-width:136px">Resources <span class="muted" style="text-transform:none;letter-spacing:0">(★ lead)</span></th><th>Days</th><th>Start</th><th>Finish</th><th>After #</th><th title="Labour: people × hours (or days) each. Materials: quantity">People × Qty</th><th>Unit</th><th>Unit $</th><th>Cost</th><th>Actual $</th><th>Status</th><th>%</th><th></th></tr></thead><tbody>';
     var G = '';   // rows of the Gantt pane (kept the same height as the grid rows)
@@ -2393,7 +2453,10 @@
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
     B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { S.gfit = S.gfit === false;   // the range key changes, so the chart opens at the plan (fitted) or at today (not fitted)
       try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
-    B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { S.wbs = true; S.gfull = false; document.body.classList.remove('gantt-full'); render(); }; });
+    var pview = function (k) { S.wbs = k === 'wbs'; S.treeV = k === 'tree'; S.pertV = k === 'pert'; S.gfull = false; document.body.classList.remove('gantt-full'); render(); };
+    B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { pview('wbs'); }; });
+    B.querySelectorAll('[data-treev]').forEach(function (b) { b.onclick = function () { pview('tree'); }; });
+    B.querySelectorAll('[data-pertv]').forEach(function (b) { b.onclick = function () { pview('pert'); }; });
     B.querySelectorAll('[data-links]').forEach(function (b) { b.onclick = function () { S.links = !S.links; try { localStorage.setItem('champLinks', S.links ? '1' : ''); } catch (e) {} render(); }; });
     if ($('#depAi')) $('#depAi').onclick = depsDialog;
     if ($('#depUndo')) $('#depUndo').onclick = function () { var u = S.depUndo; if (!u || u.core !== S.core) return; S.plan.tasks.forEach(function (t) { if (u.pred[t.id]) t.pred = u.pred[t.id].slice(); }); S.depUndo = null; dirty('dependencies put back'); render(); toast('↶ The links are back as they were'); };
