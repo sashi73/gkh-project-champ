@@ -272,9 +272,10 @@ function clean(p, core) {
     // 🧩 RAID log: the assumptions the plan rests on (checked by a date; one that does not hold becomes a risk), and the dependencies outside the project
     //    (a supplier, an approval, another team, the client). Project-to-project links stay on the Dependency board and are shown in the RAID log too.
     assumptions: (Array.isArray(p.assumptions) ? p.assumptions : []).slice(0, 100).map((a) => ({ id: uid(a.id, 'a'), title: str(a.title, 200), detail: str(a.detail, 800), owner: str(a.owner, 80), check: ymdOk(a.check),
-      impact: ['Low', 'Medium', 'High'].includes(a.impact) ? a.impact : 'Medium', status: ['Unchecked', 'Holds', 'Does not hold'].includes(a.status) ? a.status : 'Unchecked', raised: ymdOk(a.raised), risk: str(a.risk, 40) })),
+      impact: ['Low', 'Medium', 'High'].includes(a.impact) ? a.impact : 'Medium', status: ['Unchecked', 'Holds', 'Does not hold'].includes(a.status) ? a.status : 'Unchecked', raised: ymdOk(a.raised), risk: str(a.risk, 40),
+      response: A_RESP.includes(a.response) ? a.response : 'Validate', action: str(a.action, 800) })),
     extDeps: (Array.isArray(p.extDeps) ? p.extDeps : []).slice(0, 100).map((d) => ({ id: uid(d.id, 'd'), title: str(d.title, 200), kind: ['Supplier', 'Approval', 'Another team', 'Client', 'Other'].includes(d.kind) ? d.kind : 'Other',
-      party: str(d.party, 120), need: ymdOk(d.need), owner: str(d.owner, 80), status: ['Waiting', 'On track', 'At risk', 'Delivered'].includes(d.status) ? d.status : 'Waiting', task: str(d.task, 40), note: str(d.note, 800), raised: ymdOk(d.raised) })),
+      party: str(d.party, 120), need: ymdOk(d.need), owner: str(d.owner, 80), status: ['Waiting', 'On track', 'At risk', 'Delivered'].includes(d.status) ? d.status : 'Waiting', task: str(d.task, 40), note: str(d.note, 800), raised: ymdOk(d.raised), response: D_RESP.includes(d.response) ? d.response : 'Expedite', action: str(d.action, 800) })),
     // v45: stakeholder list (RACI). Contact details stay in the plan and are never sent to the AI.
     stakeholders: (Array.isArray(p.stakeholders) ? p.stakeholders : []).slice(0, 100).map((x) => ({ id: uid(x.id, 's'), name: str(x.name, 120), role: str(x.role, 120),
       raci: ['R', 'A', 'C', 'I'].includes(x.raci) ? x.raci : 'I', phone: str(x.phone, 40), email: str(x.email, 160), sub: /^SC-\d{3,5}$/.test(x.sub || '') ? x.sub : '', person: /^P-\d{3,5}$/.test(x.person || '') ? x.person : '' })),
@@ -518,35 +519,45 @@ const out = (status, body) => new Response(JSON.stringify(body), { status, heade
 // Sent to the AI: the plan name, the kind of work and suburb, the risk/issue text and a few task names.
 // Never sent: the customer's name, phone number or email.
 const adviseCap = () => Math.max(150, Math.min(800, Number(env('AI_ADVISE_MAX_TOKENS', '400')) || 400));
+export const A_RESP = ['Validate', 'Contingency', 'Accept', 'Escalate'], D_RESP = ['Expedite', 'Workaround', 'Escalate', 'Accept'];
+// 🧩 the four RAID kinds: where they live in the plan, and the responses the AI chooses from
+const ADV = { risk: { list: 'risks', resp: ['Avoid', 'Mitigate', 'Transfer', 'Accept'] }, issue: { list: 'issues', resp: ['Fix now', 'Workaround', 'Escalate', 'Prevent'] },
+  assumption: { list: 'assumptions', resp: A_RESP }, dependency: { list: 'extDeps', resp: D_RESP } };
+export const ADVISE_KINDS = Object.keys(ADV);
 export async function advise(core, kind, id, ask, draft) {
+  const K = ADV[kind] || ADV.risk; kind = ADV[kind] ? kind : 'risk';
   const job = await J.find(core);
   if (!job) return { error: 'Job not found', code: 404 };
   const plan = await get(job.core);
   if (!plan) return { error: 'This job has no plan', code: 404 };
-  let item = (kind === 'risk' ? plan.risks : plan.issues || []).find((x) => x.id === id);
+  let item = (plan[K.list] || []).find((x) => x.id === id);
   if (draft && typeof draft === 'object') item = { ...(item || {}), ...draft };   // what is on screen (may not be saved yet)
   if (!item || !str(item.title, 200)) return { error: `Write the ${kind} first, then ask the AI.` };
   if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.', code: 503 };
   try { await checkLimit(); } catch (e) { return { error: e.message, code: 429 }; }
   schedule(plan);
-  const ctx = { work: str(job.service, 120), suburb: str(job.suburb, 60), plan: str(plan.name, 100), stage: job.stage,
+  const ctx = { work: str(job.service, 120), place: str(job.suburb, 60), plan: str(plan.name, 100), objective: str((plan.charter || {}).objective, 300), stage: job.stage,
     tasks: plan.tasks.slice(0, 20).map((t) => `${str(t.name, 50)} (${t.pct}%${t.ef ? ', finish ' + t.ef : ''})`) };
-  const it = kind === 'risk'
-    ? { risk: str(item.title, 200), cause: str(item.cause, 300), probability_1to5: int(item.p, 1, 5, 3), impact_1to5: int(item.i, 1, 5, 3), current_response: str(item.response, 20), current_action: str(item.action, 300) }
-    : { issue: str(item.title, 200), detail: str(item.detail, 300), priority: str(item.priority, 20), due: ymdOk(item.due), status: str(item.status, 20), notes_so_far: str(item.resolution, 300) };
-  const system = 'You are an experienced NSW residential building and remedial project manager (waterproofing, painting, tiling, construction). ' +
-    `Give POSSIBLE RESOLUTIONS for the ${kind} described, practical for a small builder: safe, compliant, customer-friendly. ` +
-    (kind === 'risk' ? 'Cover how to reduce the chance and the impact (PMI responses: avoid, mitigate, transfer, accept). ' : 'Cover the immediate fix and how to stop it happening again. ') +
-    'Be brief. Do not invent prices or regulations; say "check with" a licensed trade, engineer, insurer or council where that applies. ' +
-    'JSON only: {"options":[{"title":"max 60 chars","response":"' + (kind === 'risk' ? 'Avoid|Mitigate|Transfer|Accept' : 'Fix now|Workaround|Escalate|Prevent') + '","steps":["max 90 chars", "2-3 steps"],"effort":"Low|Medium|High"}] (2-3 options), "watch":"one short thing to keep an eye on"}';
+  const it = kind === 'risk' ? { risk: str(item.title, 200), cause: str(item.cause, 300), probability_1to5: int(item.p, 1, 5, 3), impact_1to5: int(item.i, 1, 5, 3), current_response: str(item.response, 20), current_action: str(item.action, 300) }
+    : kind === 'issue' ? { issue: str(item.title, 200), detail: str(item.detail, 300), priority: str(item.priority, 20), due: ymdOk(item.due), status: str(item.status, 20), notes_so_far: str(item.resolution, 300) }
+    : kind === 'assumption' ? { assumption: str(item.title, 200), how_we_check_it: str(item.detail, 300), impact_if_wrong: str(item.impact, 20), check_by: ymdOk(item.check), status: str(item.status, 20), current_action: str(item.action, 300) }
+    : { dependency: str(item.title, 200), from: str(item.kind, 20), who: str(item.party, 120), needed_by: ymdOk(item.need), status: str(item.status, 20), notes: str(item.note, 300), current_action: str(item.action, 300) };
+  const how = { risk: 'Cover how to reduce the chance and the impact (PMI risk responses).', issue: 'Cover the immediate fix and how to stop it happening again.',
+    assumption: 'Cover how to confirm the assumption early, and what to do if it turns out to be wrong.', dependency: 'Cover how to secure it on time, and the fallback if it is late.' }[kind];
+  const system = 'You are a senior project manager (PMP) advising on a project in GKH Project Champ. Australian English. ' +
+    `Give exactly THREE POSSIBLE SOLUTIONS for the ${kind} described, each a different approach, practical, safe and compliant. ${how} ` +
+    'Be brief. Do not invent prices or regulations; say "check with" the right specialist, engineer, insurer, vendor or authority where that applies. ' +
+    'JSON only: {"options":[{"title":"max 60 chars","response":"' + K.resp.join('|') + '","steps":["max 90 chars", "2-3 steps"],"effort":"Low|Medium|High"}] (exactly 3 options), "best":0, "watch":"one short thing to keep an eye on"} where best is the index of the option you recommend.';
   let o, used;
-  try { ({ data: o, used } = await llmJson([{ role: 'system', content: system }, { role: 'user', content: JSON.stringify({ ...it, extra_question: ask || '', job: ctx }) }], { maxTokens: adviseCap(), temperature: 0.3 })); }
+  try { ({ data: o, used } = await llmJson([{ role: 'system', content: system }, { role: 'user', content: JSON.stringify({ ...it, extra_question: ask || '', project: ctx }) }], { maxTokens: Math.max(adviseCap(), 550), temperature: 0.3 })); }
   catch (e) { return { error: e.message, code: Number.isInteger(e.code) && e.code >= 400 && e.code < 600 ? e.code : 502 }; }
   const today = await usage(true, used);
-  const options = (Array.isArray(o.options) ? o.options : []).slice(0, 4).map((x) => ({ title: str(x.title, 80), response: str(x.response, 20), effort: ['Low', 'Medium', 'High'].includes(x.effort) ? x.effort : '',
-    steps: (Array.isArray(x.steps) ? x.steps : []).slice(0, 4).map((t) => str(t, 140)).filter(Boolean) })).filter((x) => x.title);
-  if (!options.length) return { error: 'The AI did not suggest anything useful. Add more detail and try again.' };
-  return { kind, title: str(item.title, 200), options, watch: str(o.watch, 200), tokens: used, today };
+  // the usable solutions, each remembering where it was in the AI's list (so the recommendation stays with its solution)
+  const all = (Array.isArray(o.options) ? o.options : []).map((x, at) => ({ at, title: str(x && x.title, 80), response: K.resp.includes(x && x.response) ? x.response : K.resp[0], effort: ['Low', 'Medium', 'High'].includes(x && x.effort) ? x.effort : '',
+    steps: (Array.isArray(x && x.steps) ? x.steps : []).slice(0, 4).map((t) => str(t, 140)).filter(Boolean) })).filter((x) => x.title && x.steps.length && x.effort);   // a usable solution has a title, steps and an effort
+  if (all.length < 3) return { error: 'The AI gave fewer than three usable solutions. Press ✨ Ask AI again.', code: 502 };
+  const picked = all.slice(0, 3), bi = picked.findIndex((x) => x.at === o.best), best = bi >= 0 ? bi : 0, options = picked.map(({ at, ...x }) => x);
+  return { kind, title: str(item.title, 200), options, best, watch: str(o.watch, 200), tokens: used, today };
 }
 
 // v69: ✨ a short description (max 300 characters) of a theme (task) or a user story (sub-task) on the Board
@@ -1303,9 +1314,9 @@ export async function planPost(action, body, { who, by, audit, ctx }) {
     return out(200, r);
   }
   if (action === 'planAdvise') {
-    const r = await advise(core, body.kind === 'issue' ? 'issue' : 'risk', str(body.id, 20), str(body.ask, 300), body.item);
+    const kind = ADVISE_KINDS.includes(body.kind) ? body.kind : 'risk', r = await advise(core, kind, str(body.id, 40), str(body.ask, 300), body.item);
     if (r.error) return out(r.code || 400, { error: r.error });
-    if (audit) await audit(who, `Plan ${core}: asked AI about ${body.kind === 'issue' ? 'issue' : 'risk'} "${str(r.title, 60)}"`);
+    if (audit) await audit(who, `Plan ${core}: asked AI about ${kind} "${str(r.title, 60)}"`);
     return out(200, r);
   }
   if (action === 'planDelete') {
