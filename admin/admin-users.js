@@ -42,7 +42,7 @@
     if (u.kind === 'google' && !u.upgraded) return 'All (view only)';
     if (u.role === 'Program manager') return (u.programs || []).length ? (u.programs.length + ' program' + (u.programs.length > 1 ? 's' : '')) : 'No program yet';
     if (u.role === 'CEO' || u.role === 'CFO' || u.role === 'PMO Director' || ((u.projAll || u.kind === 'person') && LEADS.indexOf(u.role) < 0)) return 'All projects';
-    var L = (u.projects || []).map(function (c) { var p = S.plans.filter(function (x) { return x.core === c; })[0]; return p ? p.name : c; });
+    var L = (u.projects || []).map(function (c) { var p = S.plans.filter(function (x) { return x.core === c; })[0]; return esc(p ? p.name : c); });
     return L.length ? L.slice(0, 3).join(', ') + (L.length > 3 ? ' +' + (L.length - 3) : '') : '<span class="bad">None yet</span>';
   }
   function badge(u) {
@@ -143,7 +143,8 @@
       '<label class="full us-chk"><input type="checkbox" id="pmOn"' + (u.active !== false ? ' checked' : '') + '> <span><b>Can sign in</b> <small class="muted">Untick to switch the login off (they are signed out straight away)</small></span></label></div>' +
       '<div class="actions"><button class="btn" data-close type="button">' + (isNew ? 'Later' : 'Cancel') + '</button><button class="btn btn-gold" id="pmSave" type="button">Save permissions</button></div>');
     $('#modal .modal-card').classList.add('sc-wide');
-    var wire = function () { document.querySelectorAll('#pmMx input[type=radio]').forEach(function (r) { r.onchange = function () { mods[r.name.slice(3)] = r.value; role = 'Custom'; var c = document.querySelector('[name=pmRole][value="Custom"]'); if (c) c.checked = true; }; }); };
+    var wire = function () { document.querySelectorAll('#pmMx input[type=radio]').forEach(function (r) { r.onchange = function () { mods[r.name.slice(3)] = r.value; if (LEADS.concat('Program manager').indexOf(role) >= 0) return;   // 📁 a delivery lead or program manager keeps their role (and so their project scope and billing); only the module changes
+      role = 'Custom'; var c = document.querySelector('[name=pmRole][value="Custom"]'); if (c) c.checked = true; }; }); };
     var pmLock = function () { var pg = role === 'Program manager'; $('#pmPgmBox').hidden = !pg; $('#pmProjBox').hidden = pg; var pm = role === 'CEO' || role === 'CFO' || role === 'PMO Director', own = LEADS.indexOf(role) >= 0, a = $('#pmAll'); if (pm) a.checked = true; if (own) a.checked = false; a.disabled = pm || own; $('#pmProjs').hidden = a.checked; };
     document.querySelectorAll('[name=pmRole]').forEach(function (r) { r.onchange = function () { role = r.value; if (role !== 'Custom') { mods = roleMods(role); $('#pmMx').innerHTML = matrix(); wire(); if (role === 'Contractor') $('#pmAll').checked = false; } pmLock(); }; });
     $('#pmAll').onchange = function () { $('#pmProjs').hidden = this.checked; };

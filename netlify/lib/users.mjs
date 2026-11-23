@@ -328,7 +328,7 @@ export async function userPost(action, body, { ctx, audit, person, sub, project,
       }
       if (old && old.kind !== 'google') {   // permissions: role, modules, projects, on/off
         const role = PICK_ROLES.includes(f.role) ? f.role : old.role;
-        const mods = cleanMods(role === 'Custom' ? f.mods : ROLES[role], role);
+        const mods = cleanMods(role === 'Custom' || (ctx.owner && f.mods && typeof f.mods === 'object') ? f.mods : ROLES[role], role);   // the super user may change a module and keep the role (a delivery lead keeps their projects and billing)
         if (ONE_ROLE.includes(role) && old.role !== role) { const t = await ceoTaken(old.id, role); if (t) return out(400, { error: t }); }
         const projAll = ctx.scope ? false : role === 'PMO Director' || role === 'CEO' || role === 'CFO' ? true : [...DELIVERY, 'Program manager'].includes(role) ? false : f.projAll === true;
         const projects = projAll ? [] : await projectList(f.projects, project);
