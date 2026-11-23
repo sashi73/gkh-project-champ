@@ -317,4 +317,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 306 | 1.0.306| 2026-11-24 02:33| raidai| `8e456b6` | Risk and Issue logs: the headers name the second line (Risk / Cause or trigger, Issue / Details, Action / Owner and review date) |
 | 307 | 1.0.307| 2026-11-24 02:45| raidai| `dfb0acc` | Ask AI: each dialog keeps its own answer, applies to the item as it is now, cache per project; always three solutions with the recommendatio |
 | 308 | 1.0.308| 2026-11-24 02:53| raidai| `f07f157` | RAID log: matches the Risk and Issue logs; Ask AI 3 solutions for all four kinds (#154) |
-| 309 | 1.0.309 | 2026-11-24 03:23 | tree | _this commit_ | _see git log_ |
+| 309 | 1.0.309| 2026-11-24 03:23| tree| `0c7568d` | Champ circuit tree: on the Features page (desktop and phone), a Help card that opens it full screen (close or Esc), and Champ opens it when  |
+| 310 | 1.0.310 | 2026-11-24 03:32 | tree | _this commit_ | _see git log_ |

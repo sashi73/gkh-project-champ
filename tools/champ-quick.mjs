@@ -594,6 +594,10 @@ try {
       await pg.evaluate(() => window.MBS.guide && window.MBS.guide.ask('open the circuit tree')); await pg.waitForTimeout(1200);
       const viaChamp = await pg.evaluate(() => !!document.querySelector('#treeFS')); await pg.click('#treeFS .tree-x'); await pg.waitForTimeout(200);
       const closed2 = await pg.evaluate(() => !document.getElementById('treeFS'));
+      await pg.goto(BASE + '/admin/#help/features'); await pg.waitForTimeout(2500); const inv = await pg.evaluate(() => ({ big: (document.querySelector('.hc-big') || {}).textContent || '', rows: document.querySelectorAll('.hc-inv tbody tr').length, links: document.querySelectorAll('.hc-inv tbody a[href^="#help/"]').length }));
+      await pg.goto(BASE + '/admin/#help'); await pg.waitForTimeout(1500); const invCard = await pg.evaluate(() => !!document.querySelector('a[href="#help/features"]'));
+      ok('Inventory', '📋 Help › feature inventory: every Help article and its sections, plus the newer features, counted (107 key and 295 sub on 24 Nov 2026), each documented one linked to its article; a card on the Help home opens it',
+        inv.rows >= 107 && new RegExp('\\b' + inv.rows + ' key features').test(inv.big) && /\d{3} sub-features/.test(inv.big) && inv.links >= 85 && invCard, JSON.stringify([inv, invCard]));
       ok('Tree', '🌳 the circuit tree: on the Features page (its own heading there), a Help card opens it full screen, Esc and ✕ close it, and asking Champ "open the circuit tree" opens it',
         tr.leaves > 40 && tr.h1 === 'none' && fe && !!card && opened && closed && viaChamp && closed2 && !errs.length, JSON.stringify([tr, fe, !!card, opened, closed, viaChamp, closed2, errs]));
       await br.close(); }
