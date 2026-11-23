@@ -12,7 +12,7 @@
   var ABOUT = { R: 'might happen', A: 'taken as true, to check', I: 'has happened', D: 'needed from outside' };
   var KINDS = ['Supplier', 'Approval', 'Another team', 'Client', 'Other'];
   var RAGW = { red: 'Act now', amber: 'Watch', green: 'In hand', grey: 'Closed' }, ORDER = { red: 0, amber: 1, green: 2, grey: 3 };
-  var C = null, V = { core: '', type: '', open: true, q: '', links: null, linksFor: '' }, P2 = { type: '', open: true, q: '', prog: '', d: null };
+  var C = null, V = { core: '', type: '', open: true, q: '', links: null, linksFor: '', sort: 'log' }, P2 = { type: '', open: true, q: '', prog: '', d: null };
   var today = function () { var d = new Date(); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); };
   var day = function (s) { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }) : ''; };
   var addDays = function (s, n) { var d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
@@ -31,12 +31,15 @@
   }
   function items(p, td) {
     var out = [], n = { R: 0, A: 0, I: 0, D: 0 };
-    (p.risks || []).forEach(function (r) { out.push({ type: 'R', id: r.id, ref: 'R' + ++n.R, title: r.title, detail: r.cause, owner: r.owner, date: r.review, dl: 'Review', status: r.status, open: r.status !== 'Closed', score: (r.p || 3) * (r.i || 3), p: r.p, i: r.i, rag: rag('R', r, td) }); });
-    (p.assumptions || []).forEach(function (a) { out.push({ type: 'A', id: a.id, ref: 'A' + ++n.A, title: a.title, detail: a.detail, owner: a.owner, date: a.check, dl: 'Check by', status: a.status, open: a.status === 'Unchecked' || (a.status === 'Does not hold' && !a.risk), impact: a.impact, risk: a.risk, rag: rag('A', a, td) }); });
-    (p.issues || []).forEach(function (x) { out.push({ type: 'I', id: x.id, ref: 'I' + ++n.I, title: x.title, detail: x.detail, owner: x.owner, date: x.due, dl: 'Due', status: x.status, open: x.status !== 'Resolved', priority: x.priority, rag: rag('I', x, td) }); });
-    (p.extDeps || []).forEach(function (d) { out.push({ type: 'D', id: d.id, ref: 'D' + ++n.D, title: d.title, detail: d.note, owner: d.owner, date: d.need, dl: 'Needed by', status: d.status, open: d.status !== 'Delivered', kind: d.kind, party: d.party, rag: rag('D', d, td) }); });
+    (p.risks || []).forEach(function (r) { out.push({ type: 'R', ix: n.R, id: r.id, ref: 'R' + ++n.R, title: r.title, detail: r.cause, owner: r.owner, date: r.review, dl: 'Review', status: r.status, open: r.status !== 'Closed', score: (r.p || 3) * (r.i || 3), p: r.p, i: r.i, rag: rag('R', r, td) }); });
+    (p.assumptions || []).forEach(function (a) { out.push({ type: 'A', ix: n.A, id: a.id, ref: 'A' + ++n.A, title: a.title, detail: a.detail, owner: a.owner, date: a.check, dl: 'Check by', status: a.status, open: a.status === 'Unchecked' || (a.status === 'Does not hold' && !a.risk), impact: a.impact, risk: a.risk, rag: rag('A', a, td) }); });
+    (p.issues || []).forEach(function (x) { out.push({ type: 'I', ix: n.I, id: x.id, ref: 'I' + ++n.I, title: x.title, detail: x.detail, owner: x.owner, date: x.due, dl: 'Due', status: x.status, open: x.status !== 'Resolved', priority: x.priority, rag: rag('I', x, td) }); });
+    (p.extDeps || []).forEach(function (d) { out.push({ type: 'D', ix: n.D, id: d.id, ref: 'D' + ++n.D, title: d.title, detail: d.note, owner: d.owner, date: d.need, dl: 'Needed by', status: d.status, open: d.status !== 'Delivered', kind: d.kind, party: d.party, rag: rag('D', d, td) }); });
     return out;
   }
+  var TORD = { R: 0, A: 1, I: 2, D: 3 };
+  // the log order: R1, R2… exactly as the Risk log, then assumptions, I1, I2… as the Issue log, then dependencies (project links last)
+  var sortLog = function (L) { return L.sort(function (a, b) { return TORD[a.type] - TORD[b.type] || (a.link ? 1 : 0) - (b.link ? 1 : 0) || (a.ix || 0) - (b.ix || 0) || String(a.project || '').localeCompare(String(b.project || '')); }); };
   var sortW = function (L) { return L.sort(function (a, b) { return ORDER[a.rag] - ORDER[b.rag] || (b.score || 0) - (a.score || 0) || String(a.date || '9').localeCompare(String(b.date || '9')); }); };
   var dot = function (r) { return '<i class="rd-dot rd-' + r + '" title="' + esc(RAGW[r]) + '"></i>'; };
   var tchip = function (t) { return '<span class="rd-t rd-t' + t + '">' + TYPES[t][2] + ' ' + esc(TYPES[t][0]) + '</span>'; };
@@ -63,13 +66,13 @@
   }
   function soon(L, td, port) {
     var end = addDays(td, 14), S = L.filter(function (x) { return x.open && x.date && x.date <= end; }).sort(function (a, b) { return a.date < b.date ? -1 : 1; }).slice(0, 8);
-    return S.length ? '<ul class="rd-soon">' + S.map(function (x) { var late = x.date < td; return '<li>' + dot(x.rag) + '<span><b>' + esc(x.ref) + '</b> ' + esc(x.title) + (port && x.project ? ' <small>· ' + esc(x.project) + '</small>' : '') + '<small class="' + (late ? 'rd-late' : 'muted') + '">' + esc(x.dl) + ' ' + esc(day(x.date)) + (late ? ' · ' + dd(x.date, td) + ' days late' : '') + '</small></span></li>'; }).join('') + '</ul>' : '<p class="muted">Nothing due in the next 14 days.</p>';
+    return S.length ? '<ul class="rd-soon">' + S.map(function (x) { var late = x.date < td; return '<li>' + dot(x.rag) + '<span><b>' + esc(x.ref) + '</b> ' + esc(x.title) + (port && x.project ? ' <small>· ' + esc(x.project) + '</small>' : '') + '<small class="' + (late ? 'rd-late' : 'muted') + '">' + esc(x.dl) + ' ' + esc(day(x.date)) + (late ? ' · ' + dd(x.date, td) + (dd(x.date, td) === 1 ? ' day late' : ' days late') : '') + '</small></span></li>'; }).join('') + '</ul>' : '<p class="muted">Nothing due in the next 14 days.</p>';
   }
 
   /* ---------------- the project tab ---------------- */
   function tab(ctx) {
     C = ctx; var core = C.S.core, p = C.S.plan; p.assumptions = p.assumptions || []; p.extDeps = p.extDeps || [];
-    if (V.core !== core) { V = { core: core, type: '', open: true, q: '', links: null, linksFor: '' }; }
+    if (V.core !== core) { V = { core: core, type: '', open: true, q: '', links: null, linksFor: '', sort: V.sort || 'log' }; }
     if (V.linksFor !== core) { V.linksFor = core; api('planRaidList', { core: core, today: today() }).then(function (d) { if (V.core !== core) return; V.links = (d.items || []).filter(function (x) { return x.link; }); if (C.S.tab === 'raid' && C.S.core === core) draw(); }).catch(function (e) { if (V.core !== core) return; V.links = []; V.linksFor = ''; fail(e); }); }   // tried again when the tab opens again
     draw();
   }
@@ -78,7 +81,7 @@
     var B = $('#planBody'); if (!B || !C) return;
     var td = today(), L = all(), F = filt(L, V), ed = canEdit();
     B.innerHTML = '<div class="raid" id="raidTab">' +
-      '<div class="rd-head"><div><h2>🧩 RAID log</h2><p class="muted">Risks, assumptions, issues and dependencies in one place, worst first. Risks and issues are the same records as their own tabs.</p></div>' +
+      '<div class="rd-head"><div><h2>🧩 RAID log</h2><p class="muted">Risks, assumptions, issues and dependencies in one place. Risks and issues are the same records as the Risk and Issue logs, with the same numbers (R1, I1…). ✨ asks the AI for 3 possible solutions.</p></div>' +
       '<div class="rd-acts">' + (ed ? ['R', 'A', 'I', 'D'].map(function (t) { return '<button type="button" class="btn btn-sm" data-rd-add="' + t + '">＋ ' + esc(TYPES[t][0]) + '</button>'; }).join('') + '<button type="button" class="btn btn-sm btn-ai" id="rdAi">✨ Find with AI</button>' : '') +
         '<button type="button" class="btn btn-sm" id="rdXls">⬇ Excel</button><button type="button" class="btn btn-sm" id="rdPdf">🖨 PDF</button></div></div>' +
       quads(L, V, 'data-rd-q') +
@@ -88,6 +91,7 @@
     wire(B, V, draw);
     B.querySelectorAll('[data-rd-add]').forEach(function (b) { b.onclick = function () { edit(b.getAttribute('data-rd-add'), null); }; });
     B.querySelectorAll('[data-rd-ed]').forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-rd-ed').split('|'); edit(k[0], k[1]); }; });
+    B.querySelectorAll('[data-rd-ai]').forEach(function (b) { b.onclick = function () { var k = b.getAttribute('data-rd-ai').split('|'), it = (C.S.plan[LISTK[k[0]]] || []).filter(function (y) { return y.id === k[1]; })[0]; if (it && M.planAskAI) M.planAskAI(AIK[k[0]], it, draw); }; });
     B.querySelectorAll('[data-rd-risk]').forEach(function (b) { b.onclick = function () { toRisk(b.getAttribute('data-rd-risk')); }; });
     if ($('#rdAi')) $('#rdAi').onclick = findAi;
     $('#rdXls').onclick = function () { excel(L, C.S.plan.name || 'Project'); };
@@ -95,50 +99,52 @@
   }
   function bar(F, k) {
     return '<div class="rd-bar"><div class="rd-chips" role="group" aria-label="Type">' + [['', 'All']].concat(['R', 'A', 'I', 'D'].map(function (t) { return [t, TYPES[t][1]]; })).map(function (c) { return '<button type="button" class="rd-chip' + (F.type === c[0] ? ' on' : '') + '" aria-pressed="' + (F.type === c[0]) + '" data-' + k + '-t="' + c[0] + '">' + esc(c[1]) + '</button>'; }).join('') + '</div>' +
+      (F.sort ? '<div class="rd-chips rd-sortc" role="group" aria-label="Order">' + [['log', 'Log order'], ['worst', 'Worst first']].map(function (o) { return '<button type="button" class="rd-chip' + (F.sort === o[0] ? ' on' : '') + '" aria-pressed="' + (F.sort === o[0]) + '" data-' + k + '-sort="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
       '<label class="rd-tog"><input type="checkbox" data-' + k + '-open' + (F.open ? ' checked' : '') + '> Open only</label><input type="search" class="rd-find" data-' + k + '-q placeholder="Search…" aria-label="Search the RAID log" value="' + esc(F.q) + '"></div>';
   }
   function table(F, ed, port) {
     if (!F.length) return '<div class="empty rd-empty">' + (port ? 'Nothing matches.' : 'Nothing here yet. Add an assumption or a dependency, or press ✨ Find with AI to read the project for you.') + '</div>';
     return '<div class="table-wrap"><table class="rt rd-tab"><thead><tr><th></th><th>Ref</th><th>Type</th><th>' + (port ? 'Project · ' : '') + 'Item</th><th>Measure</th><th>Owner</th><th>Date</th><th>Status</th>' + (port ? '' : '<th></th>') + '</tr></thead><tbody>' +
-      sortW(F.slice()).map(function (x) {
+      (V.sort === 'log' && !port ? sortLog(F.slice()) : sortW(F.slice())).map(function (x) {
         var late = x.open && x.date && x.date < today();
         return '<tr class="' + (x.open ? '' : 'tdone') + '">' + '<td>' + dot(x.rag) + '</td><td class="nowrap"><b>' + esc(x.ref) + '</b></td><td>' + tchip(x.type) + '</td>' +
           '<td>' + (port ? '<a class="rd-proj" href="#plan/' + esc(x.core) + '/raid">' + esc(x.project) + '</a>' : '') + '<b class="rd-ti">' + esc(x.title || '(untitled)') + '</b>' + (x.detail ? '<small class="rd-de">' + esc(x.detail) + '</small>' : '') + '</td>' +
           '<td class="nowrap">' + measure(x) + '</td><td>' + esc(x.owner || '') + '</td><td class="nowrap' + (late ? ' rd-late' : '') + '">' + (x.date ? (x.dl ? '<small>' + esc(x.dl) + '</small><br>' : '') + esc(day(x.date)) : '') + '</td><td>' + esc(x.status || '') + '</td>' +
-          (port ? '' : '<td class="nowrap">' + (x.link ? '<a class="btn btn-sm" href="#deps">Board</a>' : ed ? '<button type="button" class="btn btn-sm" data-rd-ed="' + x.type + '|' + esc(x.id) + '" aria-label="Edit ' + esc(x.ref) + '">✎</button>' + (x.type === 'A' && x.status === 'Does not hold' && !x.risk ? ' <button type="button" class="btn btn-sm btn-gold" data-rd-risk="' + esc(x.id) + '">→ Risk</button>' : '') : '') + '</td>') + '</tr>';
+          (port ? '' : '<td class="nowrap">' + (x.link ? '<a class="btn btn-sm" href="#deps">Board</a>' : ed ? '<button type="button" class="btn btn-sm btn-ai" data-rd-ai="' + x.type + '|' + esc(x.id) + '" title="Ask AI: 3 possible solutions and a response" aria-label="Ask AI about ' + esc(x.ref) + '">✨</button> <button type="button" class="btn btn-sm" data-rd-ed="' + x.type + '|' + esc(x.id) + '" aria-label="Edit ' + esc(x.ref) + '">✎</button>' + (x.type === 'A' && x.status === 'Does not hold' && !x.risk ? ' <button type="button" class="btn btn-sm btn-gold" data-rd-risk="' + esc(x.id) + '">→ Risk</button>' : '') : '') + '</td>') + '</tr>';
       }).join('') + '</tbody></table></div>';
   }
   function wire(B, F, redraw) {
     B.querySelectorAll('[data-rd-q],[data-pr-q]').forEach(function (b) { b.onclick = function () { var t = b.getAttribute('data-rd-q') || b.getAttribute('data-pr-q'); F.type = F.type === t ? '' : t; redraw(); }; });
     B.querySelectorAll('[data-rd-t],[data-pr-t]').forEach(function (b) { b.onclick = function () { F.type = b.getAttribute('data-rd-t') != null ? b.getAttribute('data-rd-t') : b.getAttribute('data-pr-t'); redraw(); }; });
+    B.querySelectorAll('[data-rd-sort]').forEach(function (b) { b.onclick = function () { F.sort = b.getAttribute('data-rd-sort'); redraw(); }; });
     B.querySelectorAll('[data-rd-open],[data-pr-open]').forEach(function (c) { c.onchange = function () { F.open = c.checked; redraw(); }; });
     var q = B.querySelector('.rd-find'); if (q) q.oninput = function () { F.q = q.value; var pos = q.selectionStart; redraw(); var n = B.querySelector('.rd-find'); if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} } };
   }
 
   // ✎ one item: the fields of its type (risks and issues keep the fields of their own tabs)
-  var LISTK = { R: 'risks', A: 'assumptions', I: 'issues', D: 'extDeps' };
+  var LISTK = { R: 'risks', A: 'assumptions', I: 'issues', D: 'extDeps' }, AIK = { R: 'risk', A: 'assumption', I: 'issue', D: 'dependency' };
   function edit(t, id) {
     var p = C.S.plan, arr = p[LISTK[t]] = p[LISTK[t]] || [], x = id ? arr.filter(function (y) { return y.id === id; })[0] : null, mgr = (p.charter || {}).manager || '', td = today();
     if (id && !x) return;
-    var v = x || ({ R: { title: '', cause: '', p: 3, i: 3, response: 'Mitigate', action: '', owner: mgr, review: '', status: 'Open' }, A: { title: '', detail: '', owner: mgr, check: addDays(td, 14), impact: 'Medium', status: 'Unchecked' },
-      I: { title: '', detail: '', priority: 'Medium', owner: mgr, due: '', status: 'Open', resolution: '' }, D: { title: '', kind: 'Supplier', party: '', need: '', owner: mgr, status: 'Waiting', task: '', note: '' } })[t];
+    var v = x || ({ R: { title: '', cause: '', p: 3, i: 3, response: 'Mitigate', action: '', owner: mgr, review: '', status: 'Open' }, A: { title: '', detail: '', owner: mgr, check: addDays(td, 14), impact: 'Medium', status: 'Unchecked', response: 'Validate', action: '' },
+      I: { title: '', detail: '', priority: 'Medium', owner: mgr, raised: td, due: '', status: 'Open', resolution: '' }, D: { title: '', kind: 'Supplier', party: '', need: '', owner: mgr, status: 'Waiting', task: '', note: '', response: 'Expedite', action: '' } })[t];
     var inp = function (k, lab, type, ph) { return '<label>' + esc(lab) + '<input name="' + k + '" type="' + (type || 'text') + '" value="' + esc(v[k] == null ? '' : v[k]) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + (k === 'title' ? ' required maxlength="200"' : ' maxlength="800"') + '></label>'; };
     var sel = function (k, lab, L) { return '<label>' + esc(lab) + '<select name="' + k + '">' + L.map(function (o) { return '<option' + (String(o) === String(v[k]) ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></label>'; };
     var area = function (k, lab, ph) { return '<label>' + esc(lab) + '<textarea name="' + k + '" rows="3" maxlength="800" placeholder="' + esc(ph || '') + '">' + esc(v[k] || '') + '</textarea></label>'; };
     var tasks = (p.tasks || []).filter(function (k) { return k.name; }).slice(0, 300);
-    var F = { R: inp('title', 'Risk', '', 'What could go wrong?') + inp('cause', 'Cause or trigger') + '<div class="champ-2">' + sel('p', 'Probability (1 to 5)', [1, 2, 3, 4, 5]) + sel('i', 'Impact (1 to 5)', [1, 2, 3, 4, 5]) + '</div>' + '<div class="champ-2">' + sel('response', 'Response', ['Avoid', 'Mitigate', 'Transfer', 'Accept', 'Exploit']) + sel('status', 'Status', ['Open', 'Closed']) + '</div>' + inp('action', 'What we will do') + '<div class="champ-2">' + inp('owner', 'Owner') + inp('review', 'Review by', 'date') + '</div>',
-      A: inp('title', 'Assumption', '', 'What the plan takes as true, e.g. Council approval within 6 weeks') + area('detail', 'How we will check it', 'Who confirms it, and how') + '<div class="champ-2">' + sel('impact', 'Impact if it does not hold', ['Low', 'Medium', 'High']) + sel('status', 'Status', ['Unchecked', 'Holds', 'Does not hold']) + '</div><div class="champ-2">' + inp('owner', 'Owner') + inp('check', 'Check by', 'date') + '</div>',
-      I: inp('title', 'Issue', '', 'What happened?') + inp('detail', 'Details') + '<div class="champ-2">' + sel('priority', 'Priority', ['Low', 'Medium', 'High', 'Critical']) + sel('status', 'Status', ['Open', 'In progress', 'Resolved']) + '</div><div class="champ-2">' + inp('owner', 'Owner') + inp('due', 'Due', 'date') + '</div>' + inp('resolution', 'Resolution'),
+    var F = { R: inp('title', 'Risk', '', 'What could go wrong?') + inp('cause', 'Cause / trigger') + '<div class="champ-2">' + sel('p', 'Probability (P, 1 to 5)', [1, 2, 3, 4, 5]) + sel('i', 'Impact (I, 1 to 5)', [1, 2, 3, 4, 5]) + '</div>' + '<div class="champ-2">' + sel('response', 'Response', ['Avoid', 'Mitigate', 'Transfer', 'Accept', 'Exploit']) + sel('status', 'Status', ['Open', 'Closed']) + '</div>' + area('action', 'Action: what we will do') + '<div class="champ-2">' + inp('owner', 'Owner') + inp('review', 'Review date', 'date') + '</div>',
+      A: inp('title', 'Assumption', '', 'What the plan takes as true, e.g. Council approval within 6 weeks') + area('detail', 'How we will check it', 'Who confirms it, and how') + '<div class="champ-2">' + sel('impact', 'Impact if it does not hold', ['Low', 'Medium', 'High']) + sel('status', 'Status', ['Unchecked', 'Holds', 'Does not hold']) + '</div><div class="champ-2">' + inp('owner', 'Owner') + inp('check', 'Check by', 'date') + '</div><div class="champ-2">' + sel('response', 'Response', ['Validate', 'Contingency', 'Accept', 'Escalate']) + '<span></span></div>' + area('action', 'Action: what we will do if it does not hold'),
+      I: inp('title', 'Issue', '', 'What happened?') + inp('detail', 'Details') + '<div class="champ-2">' + sel('priority', 'Priority', ['Low', 'Medium', 'High', 'Critical']) + inp('owner', 'Owner') + '</div><div class="champ-2">' + inp('raised', 'Raised', 'date') + inp('due', 'Due', 'date') + '</div>' + sel('status', 'Status', ['Open', 'In progress', 'Resolved']) + area('resolution', 'Resolution: how it was fixed'),
       D: inp('title', 'Dependency', '', 'What we need, e.g. Switchboard delivered by the supplier') + '<div class="champ-2">' + sel('kind', 'From', KINDS) + inp('party', 'Who (supplier, team, authority)') + '</div><div class="champ-2">' + inp('need', 'Needed by', 'date') + sel('status', 'Status', ['Waiting', 'On track', 'At risk', 'Delivered']) + '</div>' +
-        '<div class="champ-2">' + inp('owner', 'Owner (chases it)') + '<label>Task that waits for it<select name="task"><option value="">None</option>' + tasks.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === v.task ? ' selected' : '') + '>' + esc(k.name) + '</option>'; }).join('') + '</select></label></div>' + area('note', 'Notes') };
+        '<div class="champ-2">' + inp('owner', 'Owner (chases it)') + '<label>Task that waits for it<select name="task"><option value="">None</option>' + tasks.map(function (k) { return '<option value="' + esc(k.id) + '"' + (k.id === v.task ? ' selected' : '') + '>' + esc(k.name) + '</option>'; }).join('') + '</select></label></div>' + '<div class="champ-2">' + sel('response', 'Response', ['Expedite', 'Workaround', 'Escalate', 'Accept']) + '<span></span></div>' + area('action', 'Action: how we secure it, and the fallback if it is late') + area('note', 'Notes') };
     M.modal('<h2>' + TYPES[t][2] + ' ' + (x ? 'Edit ' : 'New ') + esc(TYPES[t][0].toLowerCase()) + '</h2><form id="rdF" class="champ-form">' + F[t] +
-      '<div class="actions" style="justify-content:space-between">' + (x ? '<button type="button" class="btn btn-danger" id="rdDel">Delete</button>' : '<span></span>') + '<span><button type="button" class="btn" data-close>Cancel</button> <button class="btn btn-gold" type="submit">' + (x ? 'Save' : 'Add') + '</button></span></div></form>');
+      '<div class="actions" style="justify-content:space-between">' + '<span>' + (x ? '<button type="button" class="btn btn-danger" id="rdDel">Delete</button> ' : '') + '<button type="button" class="btn btn-ai" id="rdAsk" title="Saves this ' + TYPES[t][0].toLowerCase() + ', then asks the AI">✨ Ask AI: 3 solutions</button></span><span><button type="button" class="btn" data-close>Cancel</button> <button class="btn btn-gold" type="submit">' + (x ? 'Save' : 'Add') + '</button></span></div></form>');
     var f = $('#rdF'); setTimeout(function () { f.title.focus(); }, 30);
-    f.onsubmit = function (e) {
-      e.preventDefault(); var o = x || { id: uid(t.toLowerCase()), raised: td };
+    var keep = function () { var o = x || { id: uid(t.toLowerCase()), raised: td };
       Array.prototype.forEach.call(f.elements, function (el) { if (el.name) o[el.name] = el.name === 'p' || el.name === 'i' ? +el.value : el.value.trim(); });
-      if (!x) arr.push(o); C.dirty(TYPES[t][0] + (x ? ' changed' : ' added') + ' (RAID log)'); M.closeModal(); draw();
-    };
+      if (!x) { arr.push(o); x = o; } C.dirty(TYPES[t][0] + (id ? ' changed' : ' added') + ' (RAID log)'); return o; };
+    f.onsubmit = function (e) { e.preventDefault(); keep(); M.closeModal(); draw(); };
+    $('#rdAsk').onclick = function () { if (!f.reportValidity()) return; var o = keep(); draw(); if (M.planAskAI) M.planAskAI(AIK[t], o, draw); };
     if ($('#rdDel')) $('#rdDel').onclick = function () { M.confirmBox('Delete this ' + TYPES[t][0].toLowerCase() + '?', '“' + esc(x.title || '') + '” is removed from the project' + (t === 'R' || t === 'I' ? ' (and from its ' + TYPES[t][1] + ' tab)' : '') + '.', 'Delete', true).then(function (ok) { if (!ok) return; p[LISTK[t]] = arr.filter(function (y) { return y.id !== x.id; }); C.dirty(TYPES[t][0] + ' deleted (RAID log)'); M.closeModal(); draw(); }).catch(fail); };
   }
   // an assumption that does not hold becomes a risk (linked both ways)
