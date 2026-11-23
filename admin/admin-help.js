@@ -7,6 +7,8 @@
   var esc = M.esc, $ = function (s) { return document.querySelector(s); };
   var H = null, load = function () { if (!H) H = import('../assets/help/articles.js?v=2'); return H; };
 
+  // 🌳 the Champ circuit tree: the whole app on one screen, opened full screen (admin-tree.js)
+  var TREE = '<div class="card hc-tree"><span class="hc-ti" aria-hidden="true">🌳</span><div><h3>The Champ circuit tree</h3><p>See all of Project Champ on one screen: foundations, the core, every area and feature. Tap a branch to send current through it.</p></div><button class="btn btn-gold" type="button" data-tree>Open full screen</button></div>';
   function view(parts) {
     var mine = location.hash;   // a later screen owns the view if the user moved on while the articles loaded
     return load().then(function (m) {
@@ -18,6 +20,7 @@
         var q = id.slice(2), r = m.search(q, 12);   // the router has decoded it already
         V.innerHTML = top + '<div class="card hc-list"><p class="muted">' + (r.length ? r.length + ' results for “' + esc(q) + '”' : 'Nothing found for “' + esc(q) + '”. Try other words, or ask Champ.') + '</p>' +
           r.map(function (x) { var a = m.byId(x.id); return '<a href="#help/' + esc(x.id) + '/' + esc(x.sub) + '"><b>' + esc(x.h) + '</b><small>' + areaOf(a.a).i + ' ' + esc(a.t) + '</small></a>'; }).join('') + '</div>';
+        if (/tree|circuit|pokok|overview of champ|whole app/i.test(q)) V.querySelector('.hc-list').insertAdjacentHTML('beforebegin', TREE);
         $('#hcQ').value = q;
       } else if (id && m.byId(id)) {
         var a = m.byId(id), ar = areaOf(a.a), go = a.w && /^#/.test(a.w) && a.w.indexOf('<project>') < 0 ? a.w : '';
@@ -31,10 +34,11 @@
         if ($('#hcShow')) $('#hcShow').onclick = function () { M.guide.start(a.g); };
         var el = sub && document.getElementById('hcs-' + sub); if (el) setTimeout(function () { if (location.hash === mine) el.scrollIntoView({ block: 'start' }); }, 30);
       } else {
-        V.innerHTML = top + '<div class="hc-areas">' + m.AREAS.map(function (ar) {
+        V.innerHTML = top + TREE + '<div class="hc-areas">' + m.AREAS.map(function (ar) {
           return '<div class="card hc-area"><h3>' + ar.i + ' ' + esc(ar.n) + '</h3>' + m.ARTICLES.filter(function (a) { return a.a === ar.id; }).map(function (a) { return '<a href="#help/' + esc(a.id) + '">' + esc(a.t) + '</a>'; }).join('') + '</div>';
         }).join('') + '</div>';
       }
+      var tb = V.querySelector('[data-tree]'); if (tb) tb.onclick = function () { if (M.openTree) M.openTree(); };
       $('#hcF').onsubmit = function (e) { e.preventDefault(); var v = $('#hcQ').value.trim(); location.hash = v ? '#help/q=' + encodeURIComponent(v) : '#help'; };
       $('#hcChamp').onclick = function () { var v = $('#hcQ').value.trim(); if (M.guide) { if (v) M.guide.ask(v); else M.guide.ask('help'); } };
     });

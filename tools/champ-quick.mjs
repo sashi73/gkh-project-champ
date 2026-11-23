@@ -580,6 +580,24 @@ try {
       Buffer.from(pdf.file || '', 'base64').slice(0, 5).toString() === '%PDF-' && /Seq,When \(Sydney\)/.test(ct) && /Hash chain intact/.test(ct) && sub === 403, JSON.stringify([g.n, g.check, (g.recent || []).slice(0, 2), sub]).slice(0, 600));
   }
 
+    // 🌳 the circuit tree: on the Features page, in Help (full screen, closes), and when you ask Champ for it
+    { const { chromium } = await import('/home/claude/.npm-global/lib/node_modules/playwright/index.mjs'); const br = await chromium.launch(); const u = new URL(BASE);
+      const cx = await br.newContext({ viewport: { width: 1440, height: 900 } }); const [k, v] = cookie.split(';')[0].split('='); await cx.addCookies([{ name: k, value: v, domain: u.hostname, path: '/' }]);
+      const pg = await cx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); await pg.addInitScript(() => { try { sessionStorage.setItem('champIntroSeen', '1'); sessionStorage.setItem('champToday', '1'); } catch (e) {} });
+      await pg.goto(BASE + '/champ-tree.html?embed=1'); await pg.waitForTimeout(1500);
+      const tr = await pg.evaluate(() => ({ leaves: document.querySelectorAll('text.lbl.leaf').length, h1: getComputedStyle(document.querySelector('.head h1')).display }));
+      await pg.goto(BASE + '/features.html'); await pg.waitForTimeout(800); const fe = await pg.evaluate(() => !!document.querySelector('.ftree iframe[src^="champ-tree.html"]'));
+      await pg.goto(BASE + '/admin/#help'); await pg.waitForTimeout(5000); await pg.evaluate(() => { ['champIntro', 'tdy', 'champFitPop'].forEach((i) => { const x = document.getElementById(i); if (x) x.remove(); }); });
+      const card = await pg.$('[data-tree]'); if (card) await card.click(); await pg.waitForTimeout(800);
+      const opened = await pg.evaluate(() => !!document.querySelector('#treeFS iframe')); await pg.keyboard.press('Escape'); await pg.waitForTimeout(300);
+      const closed = await pg.evaluate(() => !document.getElementById('treeFS'));
+      await pg.evaluate(() => window.MBS.guide && window.MBS.guide.ask('open the circuit tree')); await pg.waitForTimeout(1200);
+      const viaChamp = await pg.evaluate(() => !!document.querySelector('#treeFS')); await pg.click('#treeFS .tree-x'); await pg.waitForTimeout(200);
+      const closed2 = await pg.evaluate(() => !document.getElementById('treeFS'));
+      ok('Tree', '🌳 the circuit tree: on the Features page (its own heading there), a Help card opens it full screen, Esc and ✕ close it, and asking Champ "open the circuit tree" opens it',
+        tr.leaves > 40 && tr.h1 === 'none' && fe && !!card && opened && closed && viaChamp && closed2 && !errs.length, JSON.stringify([tr, fe, !!card, opened, closed, viaChamp, closed2, errs]));
+      await br.close(); }
+
   } catch (e) {
   ok('Run', 'the quick check ran to the end', false, e.stack || String(e));
 } finally {
