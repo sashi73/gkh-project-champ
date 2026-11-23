@@ -2248,6 +2248,7 @@
   var pvWho = function (o) { return ownerOf(o) || (o.res && o.res[0]) || ''; };   // a stakeholder picked on the Board shows by name
   var pvSpan = function (es, ef) { return es ? pretty(es) + (ef && ef !== es ? '–' + pretty(ef) : '') : ''; };
   var pvCpm = function (p) { try { return cpm(p); } catch (e) { return null; } };
+  var subWork = function (d0, n) { var d = toD(d0); while (n > 0) { d = new Date(d.getTime() - 864e5); if (wk(d)) n--; } return toS(d); };   // n working days earlier
   function treeTab(R) {
     var p = S.plan, rows = ordered().filter(function (r) { return !r.t.hidden; }), Cp = pvCpm(p);
     // what is critical: level 1 tasks with no float; inside one, the sub-task that ends with it, and inside that the step that ends with it
@@ -2285,16 +2286,20 @@
     });
     // a link is critical only when it sets the next task's start (both on the critical path and no gap between them)
     nodes.forEach(function (n) { n.cpred = n.crit ? n.pred.filter(function (q) { var a = nodes[q]; return a.crit && a.efR && n.esR && n.esR <= (a.durR === 0 ? nextWork(a.efR) : addWork(a.efR, 1)); }) : []; });
-    // PERT: the plan scheduled again with each task's expected time, so start dates set by hand and the calendar still count; σ along the longest expected chain
-    var EFe = [], VAR = [], seen = {}, order = [], visit = function (i) { if (seen[i]) return; seen[i] = 1; nodes[i].pred.forEach(visit); order.push(i); };
+    // PERT forecast: a forward pass in working days from the plan's start, with fractions kept until the end; start dates set by hand still count,
+    // and σ is taken along the chain that controls the finish (the same pass that gives the expected finish)
+    var fin = R.finish, anyEst = nodes.some(function (n) { return n.est; }), st0 = R.start, byI = {};
+    rows.forEach(function (r, i) { byI[i] = r.t; });
+    var floor0 = function (t) { return st0 && t.snet && t.snet > st0 ? workBetween(st0, t.snet) - 1 : 0; };
+    var EFm = [], EFe = [], VAR = [], seen = {}, order = [], visit = function (i) { if (seen[i]) return; seen[i] = 1; nodes[i].pred.forEach(visit); order.push(i); };
     nodes.forEach(function (n, i) { visit(i); });
-    order.forEach(function (i) { var n = nodes[i], be = 0, bv = 0; n.pred.forEach(function (q) { if (EFe[q] > be || (EFe[q] === be && VAR[q] > bv)) { be = EFe[q]; bv = VAR[q]; } }); EFe[i] = be + (n.o + 4 * n.m + n.p) / 6; VAR[i] = bv + Math.pow((n.p - n.o) / 6, 2); });
-    var kk = EFe.indexOf(Math.max.apply(0, EFe.concat([0]))), SD = kk >= 0 ? Math.sqrt(VAR[kk]) : 0, anyEst = nodes.some(function (n) { return n.est; }), fin = R.finish, expD = fin;
-    if (fin && anyEst) { try { var q = JSON.parse(JSON.stringify(p)), te = {}; nodes.forEach(function (n) { te[n.id] = Math.max(n.m ? 1 : 0, Math.round((n.o + 4 * n.m + n.p) / 6)); });
-      q.tasks.forEach(function (t) { if (te[t.id] != null) t.dur = te[t.id]; }); schedule(q); expD = q.tasks.reduce(function (m, t) { return t.ef && t.ef > m ? t.ef : m; }, ''); } catch (e) { expD = fin; } finally { rollup(p, today()); } }
-    var planD = R.start && fin ? workBetween(R.start, fin) : 0, expW = R.start && expD ? workBetween(R.start, expD) : planD, TE = expW;
-    var p90 = expD ? addWork(expD, Math.round(1.2816 * SD)) : '';
-    var prob = SD > 0 ? Math.round(M.normCdf((planD - expW) / SD) * 100) : (expW <= planD ? 100 : 0);
+    order.forEach(function (i) { var n = nodes[i], f0 = floor0(byI[i]), sm = f0, se = f0, sv = 0;
+      n.pred.forEach(function (q) { if (EFm[q] > sm) sm = EFm[q]; if (EFe[q] > se || (EFe[q] === se && VAR[q] > sv)) { se = EFe[q]; sv = VAR[q]; } });
+      EFm[i] = sm + n.m; EFe[i] = se + (n.o + 4 * n.m + n.p) / 6; VAR[i] = sv + Math.pow((n.p - n.o) / 6, 2); });
+    var mxE = Math.max.apply(0, EFe.concat([0])), mxM = Math.max.apply(0, EFm.concat([0])), kk = EFe.indexOf(mxE), SD = kk >= 0 ? Math.sqrt(VAR[kk]) : 0;
+    var shift = Math.ceil(mxE - 1e-9) - Math.ceil(mxM - 1e-9), expD = fin && shift ? (shift > 0 ? addWork(fin, shift) : subWork(fin, -shift)) : fin, TE = Math.round(mxE * 10) / 10;
+    var p90 = expD ? addWork(expD, Math.max(0, Math.ceil(mxE + 1.2816 * SD - 1e-9) - Math.ceil(mxE - 1e-9))) : '';
+    var prob = SD > 0 ? Math.round(M.normCdf((mxM - mxE) / SD) * 100) : (mxE <= mxM ? 100 : 0);
     var stats = [['', fin ? prettyY(fin) : '–', 'Planned finish' + (R.start && fin ? ' · ' + pl(workBetween(R.start, fin), 'working day') : '')],
       ['good', expD ? prettyY(expD) : '–', 'PERT expected finish · ' + (Math.round(TE * 10) / 10) + ' ± ' + (Math.round(SD * 10) / 10) + ' days'],
       [prob < 50 ? 'warn' : '', anyEst ? prob + '%' : '–', 'Chance of finishing by ' + (fin ? pretty(fin) : 'the planned finish')],
@@ -7406,7 +7411,7 @@
     L.forEach(function (x, i) { if (x.t.id === msId) idx = i; });
     if (idx >= 0) { name = L[idx].t.name; for (var k = idx - 1; k >= 0; k--) if (L[k].t.dur === 0) { prevMs = k; break; } first = (L[prevMs + 1] || L[idx]).t.id; }
     else { var w = L.filter(function (x) { return x.t.dur > 0 && (x.t.pct || 0) > 0 && !(Number(x.t.actual) > 0); })[0] || L.filter(function (x) { return x.t.dur > 0 && (x.t.pct || 0) > 0; }).pop(); first = w ? w.t.id : ''; }
-    S.recAc = { ms: name, first: first, scrolled: false }; S.wbs = S.treeV = S.pertV = false; S.cols = 'c';   // cost entry is on the grid, not a diagram try { localStorage.setItem('mbsPlanCols', 'c'); } catch (e) {} S.gfull = true; document.body.classList.add('gantt-full');   // the $ Costs view, full screen
+    S.recAc = { ms: name, first: first, scrolled: false }; S.wbs = S.treeV = S.pertV = false; S.cols = 'c'; try { localStorage.setItem('mbsPlanCols', 'c'); } catch (e) {} S.gfull = true; document.body.classList.add('gantt-full');   // the $ Costs view, full screen
     if (S.tab !== 'schedule') location.hash = '#plan/' + encodeURIComponent(S.core) + '/schedule'; else render();
   }
   function costCheckIn(msId) {
