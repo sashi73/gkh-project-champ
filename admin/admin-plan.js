@@ -2296,7 +2296,9 @@
     order.forEach(function (i) { var n = nodes[i], f0 = floor0(byI[i]), sm = f0, se = f0, sv = 0;
       n.pred.forEach(function (q) { if (EFm[q] > sm) sm = EFm[q]; if (EFe[q] > se || (EFe[q] === se && VAR[q] > sv)) { se = EFe[q]; sv = VAR[q]; } });
       EFm[i] = sm + n.m; EFe[i] = se + (n.o + 4 * n.m + n.p) / 6; VAR[i] = sv + Math.pow((n.p - n.o) / 6, 2); });
-    var mxE = Math.max.apply(0, EFe.concat([0])), mxM = Math.max.apply(0, EFm.concat([0])), kk = EFe.indexOf(mxE), SD = kk >= 0 ? Math.sqrt(VAR[kk]) : 0;
+    // a milestone sits on the working day after the task before it (as on the Gantt); the tasks after it still start on that day
+    var finOf = function (A) { return A.map(function (v, i) { return nodes[i].m === 0 && nodes[i].pred.length ? Math.ceil(v - 1e-9) + 1 : v; }); }, FE = finOf(EFe), FM = finOf(EFm);
+    var mxE = Math.max.apply(0, FE.concat([0])), mxM = Math.max.apply(0, FM.concat([0])), kk = FE.indexOf(mxE), SD = kk >= 0 ? Math.sqrt(VAR[kk]) : 0;
     var shift = Math.ceil(mxE - 1e-9) - Math.ceil(mxM - 1e-9), expD = fin && shift ? (shift > 0 ? addWork(fin, shift) : subWork(fin, -shift)) : fin, TE = Math.round(mxE * 10) / 10;
     var p90 = expD ? addWork(expD, Math.max(0, Math.ceil(mxE + 1.2816 * SD - 1e-9) - Math.ceil(mxE - 1e-9))) : '';
     var prob = SD > 0 ? Math.round(M.normCdf((mxM - mxE) / SD) * 100) : (mxE <= mxM ? 100 : 0);
