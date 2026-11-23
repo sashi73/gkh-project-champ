@@ -24,11 +24,11 @@ export const TYPES = ['Employee', 'Contractor'];
 // (education, qualifications, certifications), a resume and the rate per hour they quote.
 export const GROUPS = ['Technical & general', 'Construction'];
 // 🔗 a person's Role is their login's role (Users & access): it follows them, and is set there. Their Job title is free text (e.g. Senior consultant)
-export const TECH_ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Finance personnel', 'Contractor', 'Project personnel'];
+export const TECH_ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Scrum Master', 'Product Owner', 'Finance personnel', 'Contractor', 'Project personnel'];
 const normRole = (r) => (r === 'Project director' ? 'PMO Director' : r);
 export const EMPLOYMENT = ['Full-time', 'Part-time', 'Casual', 'Apprentice', 'Trainee'];
 export const STATUS = ['Active', 'On leave', 'Inactive'];
-export const ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Site supervisor', 'Leading hand', 'Estimator', 'Tradesperson', 'Labourer', 'Apprentice', 'Designer', 'Engineer', 'Safety officer', 'Office / admin', 'Accounts', 'Sales', 'Other'];
+export const ROLES = ['CEO', 'CFO', 'PMO Director', 'Program manager', 'Project manager', 'Scrum Master', 'Product Owner', 'Site supervisor', 'Leading hand', 'Estimator', 'Tradesperson', 'Labourer', 'Apprentice', 'Designer', 'Engineer', 'Safety officer', 'Office / admin', 'Accounts', 'Sales', 'Other'];
 // tickets with an expiry (and whether the site needs it)
 export const TICKETS = [['whiteCard', 'White card (general construction induction)', true, false], ['licence', 'Trade licence', false, true], ['driver', 'Driver\'s licence', false, true], ['firstAid', 'First aid', false, true],
   ['heights', 'Working at heights', false, true], ['confined', 'Confined spaces', false, true], ['ewp', 'EWP (elevated work platform)', false, true], ['forklift', 'Forklift (LF)', false, true], ['asbestos', 'Asbestos awareness', false, true]];

@@ -84,11 +84,13 @@
     var pmoOk = !!(me.owner || me.role === 'CEO' || me.role === 'PMO Director') && !me.scope;   // 🧭 the PMO view: the PMO Director (their home), the CEO and the super user
     Array.prototype.forEach.call(document.querySelectorAll('[data-pmo]'), function (a) { a.hidden = !pmoOk; });
     Array.prototype.forEach.call(document.querySelectorAll('[data-pgmv]'), function (a) { a.hidden = me.role !== 'Program manager'; });   // 🗺 the Program view: program managers only (their home)
-    var finOk = !!(me.owner || me.role === 'CEO' || me.role === 'CFO') && !me.scope;   // 💵 Finance: the CEO, the CFO and the super user; 🔒 the vault: they, program directors and project managers (to file)
+    var lead = ['Project manager', 'Scrum Master', 'Product Owner'].indexOf(me.role) >= 0 && !!(me.pgm && me.pgm.kind === 'project');   // 📁 a delivery lead: the billing of their own client projects
+    var finOk = (!!(me.owner || me.role === 'CEO' || me.role === 'CFO') && !me.scope) || lead;   // 💵 Finance: the CEO, the CFO and the super user; 🔒 the vault: they, program directors and project managers (to file)
     Array.prototype.forEach.call(document.querySelectorAll('[data-fin]'), function (a) { a.hidden = !finOk; });
+    Array.prototype.forEach.call(document.querySelectorAll('a[data-fin]'), function (a) { var t = a.lastChild; if (t && t.nodeType === 3) t.nodeValue = lead ? 'Billing' : 'Finance'; });   // a delivery lead sees it as Billing (their projects)
     if (!me.scope && window.MBS && MBS.finBadge) setTimeout(function () { MBS.finBadge(true); }, 1500);   // 💵 Finance also shows for program directors and project managers with billing to see, with its red count
     Array.prototype.forEach.call(document.querySelectorAll('[data-archive]'), function (a) { a.hidden = !(!me.scope && (me.owner || me.role === 'CEO' || me.role === 'PMO Director' || me.role === 'Site administrator')); });   // 🗄 the project archive
-    Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['PMO Director', 'Project manager'].indexOf(me.role) >= 0 && !me.scope)); });
+    Array.prototype.forEach.call(document.querySelectorAll('[data-vault]'), function (a) { a.hidden = !(finOk || (['PMO Director', 'Project manager', 'Scrum Master', 'Product Owner'].indexOf(me.role) >= 0 && !me.scope)); });
     document.body.classList.toggle('is-ceo', me.role === 'CEO' || me.role === 'CFO');   // read-only on plans: no New project
     $('#who').textContent = me.name || me.user; $('#who').title = (me.owner ? 'Super user' : me.role) + ' · click to change your password';
     var r = $('#whoRole'); if (r) r.textContent = me.owner ? '⭐ Super user' : me.role;
