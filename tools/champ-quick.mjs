@@ -327,7 +327,7 @@ try {
         sv.status === 200 && (g.assumptions || []).length === 3 && g.assumptions[2].status === 'Unchecked' && (g.extDeps || []).length === 2 && g.extDeps[0].task === 't1'
         && by('a1').rag === 'red' && by('a2').rag === 'green' && by('i1').rag === 'red' && by('d1').rag === 'red' && by('d2').rag === 'grey' && by('r1').rag === 'red' && by('r1').score === 20
         && one.j.summary && one.j.summary.A.total === 3 && one.j.summary.D.total >= 3 && dep.status === 200 && /RAID upstream/.test(link.title || '') && L.every((x) => x.core === ra)
-        && port.status === 200 && (port.j.projects || []).some((x) => x.core === rb) && (port.j.items || []).filter((x) => x.link && (x.core === ra || x.core === rb)).length === 1 && rl.length >= 6 && rl.some((x) => x.type === 'Assumption' && x.rag === 'red')
+        && port.status === 200 && (port.j.projects || []).some((x) => x.core === rb) && (port.j.items || []).filter((x) => x.link && (x.core === ra || x.core === rb)).length === 1 && rl.length >= 6 && rl.some((x) => x.type === 'Assumption' && x.rag === 'red') && rl.filter((x) => x.dependency_kind === 'Project' && /RAID upstream/.test(x.title)).length === 1
         && pm.st === 200 && !pm.cores.includes(ra) && pm.o === 403,
         JSON.stringify([sv.status, (g.assumptions || []).map((a) => a.status), L.map((x) => x.id + ':' + x.rag), one.j.summary, dep.status, dep.j.error, link.title, rl.length, pm]).slice(0, 900)); }
     // 📍 the site picked from the list: town, state, country and postcode go with the project (Ask AI's location columns)

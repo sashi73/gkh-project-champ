@@ -308,4 +308,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 297 | 1.0.297| 2026-11-23 17:36| pmrole| `df448a3` | Users & access: changing a module keeps a delivery lead's or program manager's role (and so their projects and billing); project names escap |
 | 298 | 1.0.298| 2026-11-23 17:43| pmrole| `dfc604e` | Users & access: only the super user keeps the role when changing a module (others go to Custom, which the server checks) |
 | 299 | 1.0.299| 2026-11-23 17:50| pmrole| `75f29ce` | Scrum Master and Product Owner personas; delivery leads raise invoices on their own client projects (#151) |
-| 300 | 1.0.300 | 2026-11-23 18:21 | raid | _this commit_ | _see git log_ |
+| 300 | 1.0.300| 2026-11-23 18:21| raid| `7cb86de` | RAID log: a project tab (four quadrants, one register, heat map, due soon, assumptions and outside dependencies, assumption to risk, AI find |
+| 301 | 1.0.301 | 2026-11-23 18:31 | raid | _this commit_ | _see git log_ |

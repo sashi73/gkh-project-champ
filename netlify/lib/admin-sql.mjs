@@ -282,6 +282,9 @@ export async function tables() {
     return { id: d.id, from_job: d.from, to_job: d.to, from_project: A.name, from_program: A.program || '', to_project: B.name, to_program: B.program || '', type: TY[d.type] || d.type, lag_days: d.lag || 0,
       status: DSN[st.status] || st.status, buffer_days: st.slack == null ? null : st.slack, cross_program: (A.program || '') !== (B.program || ''), explanation: st.why || '', note: d.note || '' };
   });
+  // 🧩 the RAID log also lists each Dependency board link once, on the project that waits (other_job: the project it waits for)
+  for (const d of (await PGM.deps().catch(() => [])).filter((x) => cardBy[x.from] && cardBy[x.to])) { const A = cardBy[d.from], B = cardBy[d.to], st = PGM.depStatus(d, A, B);
+    raid_log.push({ _id: d.to + '/link/' + d.id, job: d.to, other_job: d.from, plan_name: B.name, type: 'Dependency', ref: 'P' + String(d.id).slice(-3).toUpperCase(), title: `Waits for ${A.name} to ${d.type === 'SS' ? 'start' : 'finish'}`, owner: '', date: '', status: DSN[st.status] || st.status, is_open: st.status !== 'done', rag: RAID.rag('D', { link: st.status }, todayS), score: null, priority: '', impact: '', depends_on: A.name, dependency_kind: 'Project' }); }
   const programs = (await PGM.list().catch(() => [])).map((p) => {
     const L = cardsAll.filter((c) => c.program === p.name), sum = (k) => L.reduce((t, c) => t + (c[k] || 0), 0), BAC = sum('BAC'), EV = sum('EV'), AC = sum('AC'), PV = sum('PV');
     const fin = L.map((c) => PGM.forecastFinish(c)).filter(Boolean).sort(), st = L.map((c) => c.start).filter(Boolean).sort();
@@ -552,7 +555,8 @@ function scoped(data, g) {
     let R = rows;
     // 🔒 a program's roll-up covers every project in it: a project manager (who sees only some of them) does not get it
     if (t === 'programs') { if (money) continue; R = rows.filter((r) => names.has(r.program_id || r.program)); }
-    else if (t === 'dependencies') R = rows.filter((r) => cores.has(r.from_job) && cores.has(r.to_job));   // 🔒 both ends must be their own projects (checked by project code, never by name)
+    else if (t === 'dependencies') R = rows.filter((r) => cores.has(r.from_job) && cores.has(r.to_job));
+    else if (t === 'raid_log') R = rows.filter((r) => cores.has(r.job) && (!r.other_job || cores.has(r.other_job)));   // 🔒 a link row needs both projects   // 🔒 both ends must be their own projects (checked by project code, never by name)
     else R = rows.filter((r) => cores.has(r.job_id || r.job || r.core));
     out[t] = money ? R : R.map((r) => Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k))));
   }

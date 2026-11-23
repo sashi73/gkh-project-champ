@@ -32,7 +32,7 @@
   function items(p, td) {
     var out = [], n = { R: 0, A: 0, I: 0, D: 0 };
     (p.risks || []).forEach(function (r) { out.push({ type: 'R', id: r.id, ref: 'R' + ++n.R, title: r.title, detail: r.cause, owner: r.owner, date: r.review, dl: 'Review', status: r.status, open: r.status !== 'Closed', score: (r.p || 3) * (r.i || 3), p: r.p, i: r.i, rag: rag('R', r, td) }); });
-    (p.assumptions || []).forEach(function (a) { out.push({ type: 'A', id: a.id, ref: 'A' + ++n.A, title: a.title, detail: a.detail, owner: a.owner, date: a.check, dl: 'Check by', status: a.status, open: a.status === 'Unchecked', impact: a.impact, risk: a.risk, rag: rag('A', a, td) }); });
+    (p.assumptions || []).forEach(function (a) { out.push({ type: 'A', id: a.id, ref: 'A' + ++n.A, title: a.title, detail: a.detail, owner: a.owner, date: a.check, dl: 'Check by', status: a.status, open: a.status === 'Unchecked' || (a.status === 'Does not hold' && !a.risk), impact: a.impact, risk: a.risk, rag: rag('A', a, td) }); });
     (p.issues || []).forEach(function (x) { out.push({ type: 'I', id: x.id, ref: 'I' + ++n.I, title: x.title, detail: x.detail, owner: x.owner, date: x.due, dl: 'Due', status: x.status, open: x.status !== 'Resolved', priority: x.priority, rag: rag('I', x, td) }); });
     (p.extDeps || []).forEach(function (d) { out.push({ type: 'D', id: d.id, ref: 'D' + ++n.D, title: d.title, detail: d.note, owner: d.owner, date: d.need, dl: 'Needed by', status: d.status, open: d.status !== 'Delivered', kind: d.kind, party: d.party, rag: rag('D', d, td) }); });
     return out;
@@ -70,7 +70,7 @@
   function tab(ctx) {
     C = ctx; var core = C.S.core, p = C.S.plan; p.assumptions = p.assumptions || []; p.extDeps = p.extDeps || [];
     if (V.core !== core) { V = { core: core, type: '', open: true, q: '', links: null, linksFor: '' }; }
-    if (V.linksFor !== core) { V.linksFor = core; api('planRaidList', { core: core, today: today() }).then(function (d) { if (V.core !== core) return; V.links = (d.items || []).filter(function (x) { return x.link; }); if (C.S.tab === 'raid' && C.S.core === core) draw(); }).catch(function () { V.links = []; }); }
+    if (V.linksFor !== core) { V.linksFor = core; api('planRaidList', { core: core, today: today() }).then(function (d) { if (V.core !== core) return; V.links = (d.items || []).filter(function (x) { return x.link; }); if (C.S.tab === 'raid' && C.S.core === core) draw(); }).catch(function (e) { if (V.core !== core) return; V.links = []; V.linksFor = ''; fail(e); }); }   // tried again when the tab opens again
     draw();
   }
   function all() { var td = today(); return items(C.S.plan, td).concat((V.links || []).map(function (x) { return Object.assign({}, x, { dl: '' }); })); }
@@ -139,7 +139,7 @@
       Array.prototype.forEach.call(f.elements, function (el) { if (el.name) o[el.name] = el.name === 'p' || el.name === 'i' ? +el.value : el.value.trim(); });
       if (!x) arr.push(o); C.dirty(TYPES[t][0] + (x ? ' changed' : ' added') + ' (RAID log)'); M.closeModal(); draw();
     };
-    if ($('#rdDel')) $('#rdDel').onclick = function () { M.confirmBox('Delete this ' + TYPES[t][0].toLowerCase() + '?', '“' + (x.title || '') + '” is removed from the project' + (t === 'R' || t === 'I' ? ' (and from its ' + TYPES[t][1] + ' tab)' : '') + '.', 'Delete', true).then(function (ok) { if (!ok) return; p[LISTK[t]] = arr.filter(function (y) { return y.id !== x.id; }); C.dirty(TYPES[t][0] + ' deleted (RAID log)'); M.closeModal(); draw(); }); };
+    if ($('#rdDel')) $('#rdDel').onclick = function () { M.confirmBox('Delete this ' + TYPES[t][0].toLowerCase() + '?', '“' + esc(x.title || '') + '” is removed from the project' + (t === 'R' || t === 'I' ? ' (and from its ' + TYPES[t][1] + ' tab)' : '') + '.', 'Delete', true).then(function (ok) { if (!ok) return; p[LISTK[t]] = arr.filter(function (y) { return y.id !== x.id; }); C.dirty(TYPES[t][0] + ' deleted (RAID log)'); M.closeModal(); draw(); }); };
   }
   // an assumption that does not hold becomes a risk (linked both ways)
   function toRisk(id) {
@@ -164,6 +164,7 @@
         return '<label class="rd-sug"><input type="checkbox" value="' + i + '" checked><span>' + tchip(x.type) + ' <b>' + esc(x.title) + '</b>' + (x.detail ? '<small>' + esc(x.detail) + '</small>' : '') + (x.why ? '<small class="rd-why">Why: ' + esc(x.why) + '</small>' : '') + '</span></label>'; }).join('') + '</div>' +
         '<div class="actions"><button type="button" class="btn" data-close>Cancel</button> <button type="button" class="btn btn-gold" id="rdSugGo">Add the ticked items</button></div>');
       $('#rdSugGo').onclick = function () {
+        if (!C || C.S.core !== core) { M.closeModal(); toast('You moved to another project: nothing was added.'); return; }
         var p = C.S.plan, mgr = (p.charter || {}).manager || '', td = today(), n = 0;
         document.querySelectorAll('.rd-sug input:checked').forEach(function (c) {
           var x = L[+c.value]; if (!x) return; n++;
@@ -216,7 +217,7 @@
   function portDraw() {
     var d = P2.d, L = d.items || [], F = filt(L, P2), progs = [];
     L.forEach(function (x) { if (x.program && progs.indexOf(x.program) < 0) progs.push(x.program); }); progs.sort();
-    var pr = {}; L.forEach(function (x) { var k = x.core; pr[k] = pr[k] || { core: k, name: x.project, program: x.program, red: 0, amber: 0, open: 0 }; if (x.open) pr[k].open++; if (x.rag === 'red') pr[k].red++; else if (x.rag === 'amber') pr[k].amber++; });
+    var pr = {}; (P2.prog ? L.filter(function (x) { return x.program === P2.prog; }) : L).forEach(function (x) { var k = x.core; pr[k] = pr[k] || { core: k, name: x.project, program: x.program, red: 0, amber: 0, open: 0 }; if (x.open) pr[k].open++; if (x.rag === 'red') pr[k].red++; else if (x.rag === 'amber') pr[k].amber++; });
     var PR = Object.keys(pr).map(function (k) { return pr[k]; }).sort(function (a, b) { return b.red - a.red || b.amber - a.amber || b.open - a.open; }).slice(0, 8);
     var v = M.view();
     v.innerHTML = '<div class="raid" data-port="1"><div class="rd-head"><div><p class="muted">Risks, assumptions, issues and dependencies across ' + (d.projects || []).length + ' project' + ((d.projects || []).length === 1 ? '' : 's') + ', worst first. Open a project to change its items.</p></div>' +

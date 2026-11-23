@@ -30,7 +30,7 @@ const ORDER = { red: 0, amber: 1, green: 2, grey: 3 };
 export function items(plan, today) {
   const out = [], n = { R: 0, A: 0, I: 0, D: 0 };
   for (const r of plan.risks || []) out.push({ type: 'R', id: r.id, ref: 'R' + ++n.R, title: r.title, detail: r.cause, owner: r.owner, date: r.review, status: r.status, open: r.status !== 'Closed', score: (r.p || 3) * (r.i || 3), p: r.p, i: r.i, rag: rag('R', r, today) });
-  for (const a of plan.assumptions || []) out.push({ type: 'A', id: a.id, ref: 'A' + ++n.A, title: a.title, detail: a.detail, owner: a.owner, date: a.check, status: a.status, open: a.status === 'Unchecked', impact: a.impact, rag: rag('A', a, today) });
+  for (const a of plan.assumptions || []) out.push({ type: 'A', id: a.id, ref: 'A' + ++n.A, title: a.title, detail: a.detail, owner: a.owner, date: a.check, status: a.status, open: a.status === 'Unchecked' || (a.status === 'Does not hold' && !a.risk), impact: a.impact, rag: rag('A', a, today) });
   for (const x of plan.issues || []) out.push({ type: 'I', id: x.id, ref: 'I' + ++n.I, title: x.title, detail: x.detail, owner: x.owner, date: x.due, status: x.status, open: x.status !== 'Resolved', priority: x.priority, rag: rag('I', x, today) });
   for (const d of plan.extDeps || []) out.push({ type: 'D', id: d.id, ref: 'D' + ++n.D, title: d.title, detail: d.note, owner: d.owner, date: d.need, status: d.status, open: d.status !== 'Delivered', kind: d.kind, party: d.party, rag: rag('D', d, today) });
   return out;
