@@ -310,4 +310,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 299 | 1.0.299| 2026-11-23 17:50| pmrole| `75f29ce` | Scrum Master and Product Owner personas; delivery leads raise invoices on their own client projects (#151) |
 | 300 | 1.0.300| 2026-11-23 18:21| raid| `7cb86de` | RAID log: a project tab (four quadrants, one register, heat map, due soon, assumptions and outside dependencies, assumption to risk, AI find |
 | 301 | 1.0.301| 2026-11-23 18:31| raid| `30c5da4` | RAID log, CodeRabbit fixes: title escaped in the delete confirmation; a failed assumption stays open until it has a risk; links retried afte |
-| 302 | 1.0.302 | 2026-11-23 18:38 | raid | _this commit_ | _see git log_ |
+| 302 | 1.0.302| 2026-11-23 18:38| raid| `3682fce` | RAID log: project tab and Portfolio › RAID log (#152) |
+| 303 | 1.0.303 | 2026-11-23 22:05 | raidsug | _this commit_ | _see git log_ |
