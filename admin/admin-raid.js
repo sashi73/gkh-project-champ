@@ -139,7 +139,7 @@
       Array.prototype.forEach.call(f.elements, function (el) { if (el.name) o[el.name] = el.name === 'p' || el.name === 'i' ? +el.value : el.value.trim(); });
       if (!x) arr.push(o); C.dirty(TYPES[t][0] + (x ? ' changed' : ' added') + ' (RAID log)'); M.closeModal(); draw();
     };
-    if ($('#rdDel')) $('#rdDel').onclick = function () { M.confirmBox('Delete this ' + TYPES[t][0].toLowerCase() + '?', '“' + esc(x.title || '') + '” is removed from the project' + (t === 'R' || t === 'I' ? ' (and from its ' + TYPES[t][1] + ' tab)' : '') + '.', 'Delete', true).then(function (ok) { if (!ok) return; p[LISTK[t]] = arr.filter(function (y) { return y.id !== x.id; }); C.dirty(TYPES[t][0] + ' deleted (RAID log)'); M.closeModal(); draw(); }); };
+    if ($('#rdDel')) $('#rdDel').onclick = function () { M.confirmBox('Delete this ' + TYPES[t][0].toLowerCase() + '?', '“' + esc(x.title || '') + '” is removed from the project' + (t === 'R' || t === 'I' ? ' (and from its ' + TYPES[t][1] + ' tab)' : '') + '.', 'Delete', true).then(function (ok) { if (!ok) return; p[LISTK[t]] = arr.filter(function (y) { return y.id !== x.id; }); C.dirty(TYPES[t][0] + ' deleted (RAID log)'); M.closeModal(); draw(); }).catch(fail); };
   }
   // an assumption that does not hold becomes a risk (linked both ways)
   function toRisk(id) {
