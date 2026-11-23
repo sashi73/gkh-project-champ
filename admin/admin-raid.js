@@ -82,10 +82,10 @@
     var td = today(), L = all(), F = filt(L, V), ed = canEdit();
     B.innerHTML = '<div class="raid" id="raidTab">' +
       '<div class="rd-head"><div><h2>🧩 RAID log</h2><p class="muted">Risks, assumptions, issues and dependencies in one place. Risks and issues are the same records as the Risk and Issue logs, with the same numbers (R1, I1…). ✨ asks the AI for 3 possible solutions.</p></div>' +
-      '<div class="rd-acts">' + (ed ? ['R', 'A', 'I', 'D'].map(function (t) { return '<button type="button" class="btn btn-sm" data-rd-add="' + t + '">＋ ' + esc(TYPES[t][0]) + '</button>'; }).join('') + '<button type="button" class="btn btn-sm btn-ai" id="rdAi">✨ Find with AI</button>' : '') +
+      '<div class="rd-acts">' + (ed ? '<button type="button" class="btn btn-sm btn-ai" id="rdAi">✨ Find with AI</button>' : '') +
         '<button type="button" class="btn btn-sm" id="rdXls">⬇ Excel</button><button type="button" class="btn btn-sm" id="rdPdf">🖨 PDF</button></div></div>' +
       quads(L, V, 'data-rd-q') +
-      '<div class="rd-main"><section class="card rd-reg">' + bar(V, 'rd') + table(F, ed, false) + '</section>' +
+      '<div class="rd-main"><section class="card rd-reg">' + bar(V, 'rd', ed ? addBtn(V.type) : '') + table(F, ed, false) + '</section>' +
       '<aside class="rd-side"><section class="card"><h3>Risk heat map</h3>' + heat(L) + '<p class="muted rd-note">Open risks by probability and impact. Red: act now.</p></section>' +
       '<section class="card"><h3>Due in the next 14 days</h3>' + soon(L, td) + '</section></aside></div></div>';
     wire(B, V, draw);
@@ -97,10 +97,15 @@
     $('#rdXls').onclick = function () { excel(L, C.S.plan.name || 'Project'); };
     $('#rdPdf').onclick = function () { pdf(L, C.S.plan.name || 'Project', false); };
   }
-  function bar(F, k) {
+  // ＋ the add button follows the filter: Risks → Add risk … ; All → a menu of the four
+  function addBtn(t) {
+    if (t) return '<button type="button" class="btn btn-sm btn-gold rd-add" data-rd-add="' + t + '">＋ Add ' + esc(TYPES[t][0].toLowerCase()) + '</button>';
+    return '<details class="rd-addm"><summary class="btn btn-sm btn-gold rd-add">＋ Add…</summary><div class="rd-addl" role="menu">' + ['R', 'A', 'I', 'D'].map(function (x) { return '<button type="button" role="menuitem" data-rd-add="' + x + '">' + TYPES[x][2] + ' ' + esc(TYPES[x][0]) + '<small>' + esc(ABOUT[x]) + '</small></button>'; }).join('') + '</div></details>';
+  }
+  function bar(F, k, add) {
     return '<div class="rd-bar"><div class="rd-chips" role="group" aria-label="Type">' + [['', 'All']].concat(['R', 'A', 'I', 'D'].map(function (t) { return [t, TYPES[t][1]]; })).map(function (c) { return '<button type="button" class="rd-chip' + (F.type === c[0] ? ' on' : '') + '" aria-pressed="' + (F.type === c[0]) + '" data-' + k + '-t="' + c[0] + '">' + esc(c[1]) + '</button>'; }).join('') + '</div>' +
       (F.sort ? '<div class="rd-chips rd-sortc" role="group" aria-label="Order">' + [['log', 'Log order'], ['worst', 'Worst first']].map(function (o) { return '<button type="button" class="rd-chip' + (F.sort === o[0] ? ' on' : '') + '" aria-pressed="' + (F.sort === o[0]) + '" data-' + k + '-sort="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>' : '') +
-      '<label class="rd-tog"><input type="checkbox" data-' + k + '-open' + (F.open ? ' checked' : '') + '> Open only</label><input type="search" class="rd-find" data-' + k + '-q placeholder="Search…" aria-label="Search the RAID log" value="' + esc(F.q) + '"></div>';
+      '<label class="rd-tog"><input type="checkbox" data-' + k + '-open' + (F.open ? ' checked' : '') + '> Open only</label><input type="search" class="rd-find" data-' + k + '-q placeholder="Search…" aria-label="Search the RAID log" value="' + esc(F.q) + '">' + (add ? '<span class="rd-addw">' + add + '</span>' : '') + '</div>';
   }
   function table(F, ed, port) {
     if (!F.length) return '<div class="empty rd-empty">' + (port ? 'Nothing matches.' : 'Nothing here yet. Add an assumption or a dependency, or press ✨ Find with AI to read the project for you.') + '</div>';

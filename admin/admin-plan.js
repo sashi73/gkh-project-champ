@@ -7134,15 +7134,17 @@
   function askAI(kind, item, after) {
     if (!item || !AKIND[kind]) return;
     if (!String(item.title || '').trim()) return toast('Write the ' + kind + ' first, then ask the AI', true);
-    var key = kind + ':' + item.id, K = AKIND[kind], core = S.core;
+    var core = S.core, key = core + ':' + kind + ':' + item.id, K = AKIND[kind], LIST = { risk: 'risks', issue: 'issues', assumption: 'assumptions', dependency: 'extDeps' }[kind];
     var meta = kind === 'risk' ? 'score ' + item.p * item.i + ' (P' + item.p + ' × I' + item.i + ')' : kind === 'issue' ? esc(item.priority) + ' priority' : kind === 'assumption' ? esc(item.impact) + ' impact if wrong' : esc(item.kind || '') + (item.party ? ' · ' + esc(item.party) : '');
     M.modal('<div class="ai-adv"><h2>✨ Ask AI: 3 possible solutions</h2>' +
       '<p class="muted" style="margin:6px 0 10px">' + K[0] + ': <b class="ai-it">' + esc(item.title) + '</b> · ' + meta + '</p>' +
       '<div class="inline-form" style="margin-top:0"><input id="aiAsk" maxlength="300" placeholder="Anything to add? e.g. the client needs it before Christmas (optional)"><button class="btn btn-sm btn-gold" id="aiGo" type="button">✨ Ask AI</button></div>' +
       '<div id="aiOut"></div>' +
       '<div class="actions" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close type="button">Close</button></div></div>');
+    var OUT = $('#aiOut'), GO = $('#aiGo'), ASK = $('#aiAsk'), live = function () { return OUT.isConnected && S.core === core; };   // this dialog's own elements: a late answer for another item is dropped
     var show = function (r) {
-      $('#aiOut').innerHTML = '<h3 class="ai-h">Possible solutions</h3>' +
+      if (!live()) return;
+      OUT.innerHTML = '<h3 class="ai-h">Possible solutions</h3>' +
         '<p class="muted" style="font-size:12.5px;margin:0 0 8px">Suggestions from AI. Check them with the right specialist before acting.</p>' +
         r.options.map(function (o, i) {
           return '<div class="ai-opt' + (i === r.best ? ' ai-best' : '') + '"><div class="row" style="justify-content:space-between;gap:8px;align-items:flex-start"><b>' + (i + 1) + '. ' + esc(o.title) + '</b><span class="nowrap">' + (i === r.best ? '<span class="badge-soft ai-rec">★ Recommended</span> ' : '') + (o.response ? '<span class="badge-soft">' + esc(o.response) + '</span>' : '') + (o.effort ? ' <span class="badge-soft">' + esc(o.effort) + ' effort</span>' : '') + '</span></div>' +
@@ -7151,10 +7153,11 @@
         }).join('') +
         (r.watch ? '<p style="margin:8px 0 0"><b>Keep an eye on:</b> ' + esc(r.watch) + '</p>' : '') +
         (r.tokens ? '<p class="muted" style="font-size:12px;margin:8px 0 0">Used about ' + Number(r.tokens).toLocaleString('en-AU') + ' tokens' + (r.today ? ' · today ' + r.today.questions + ' of ' + r.today.limit + ' AI questions' : '') + '.</p>' : '');
-      document.querySelectorAll('#aiOut [data-use]').forEach(function (b) {
+      OUT.querySelectorAll('[data-use]').forEach(function (b) {
         b.onclick = function () {
-          if (S.core !== core) { M.closeModal(); return; }
-          var o = r.options[+b.getAttribute('data-use')], text = (o.title + (o.steps.length ? ': ' + o.steps.join('; ') : '')).slice(0, 800);
+          var cur = S.core === core && (S.plan[LIST] || []).filter(function (x) { return x.id === item.id; })[0];   // the item as it is now in this plan
+          if (!cur) { M.closeModal(); toast('That ' + kind + ' is no longer in this project.', true); return; }
+          item = cur; var o = r.options[+b.getAttribute('data-use')], text = (o.title + (o.steps.length ? ': ' + o.steps.join('; ') : '')).slice(0, 800);
           if (kind === 'issue') { item.resolution = text; if (item.status === 'Open') item.status = 'In progress'; }
           else { item.action = text; if (o.response) item.response = o.response; }
           dirty('AI solution used for ' + kind + ': ' + item.title); M.closeModal(); (after || render)(); toast(kind === 'issue' ? 'Added as the resolution (status: In progress)' : 'Added as the response and action');
@@ -7162,24 +7165,24 @@
       });
     };
     if (S.advice[key]) show(S.advice[key]);
-    $('#aiGo').onclick = function () {
-      var b = $('#aiGo'); b.disabled = true; b.textContent = 'Thinking…';
-      $('#aiOut').innerHTML = '<p class="ask-think" style="margin:12px 0">Working out 3 possible solutions…</p>';
+    GO.onclick = function () {
+      GO.disabled = true; GO.textContent = 'Thinking…';
+      OUT.innerHTML = '<p class="ask-think" style="margin:12px 0">Working out 3 possible solutions…</p>';
       var draft = kind === 'risk' ? { title: item.title, cause: item.cause, p: item.p, i: item.i, response: item.response, action: item.action }
         : kind === 'issue' ? { title: item.title, detail: item.detail, priority: item.priority, due: item.due, status: item.status, resolution: item.resolution }
         : kind === 'assumption' ? { title: item.title, detail: item.detail, impact: item.impact, check: item.check, status: item.status, action: item.action }
         : { title: item.title, kind: item.kind, party: item.party, need: item.need, status: item.status, note: item.note, action: item.action };
-      var payload = { core: core, kind: kind, id: item.id, ask: $('#aiAsk').value, item: draft };
+      var payload = { core: core, kind: kind, id: item.id, ask: ASK.value, item: draft };
       var slow = function (e) { return /took too long|slow right now|Error 50[234]|Failed to fetch/i.test(String(e && e.message)); };
       api('planAdvise', payload).catch(function (e) {
         if (!slow(e)) throw e;
-        $('#aiOut').innerHTML = '<p class="ask-think" style="margin:12px 0">The AI is slow right now, trying once more…</p>';
+        if (live()) OUT.innerHTML = '<p class="ask-think" style="margin:12px 0">The AI is slow right now, trying once more…</p>';
         return api('planAdvise', payload);
-      }).then(function (r) { S.advice[key] = r; if ($('#aiOut')) show(r); })
-        .catch(function (e) { if ($('#aiOut')) $('#aiOut').innerHTML = '<p class="ai-err">' + esc(e.message) + '</p>'; })
-        .then(function () { var bb = $('#aiGo'); if (bb) { bb.disabled = false; bb.textContent = '✨ Ask AI'; } });
+      }).then(function (r) { S.advice[key] = r; show(r); })
+        .catch(function (e) { if (live()) OUT.innerHTML = '<p class="ai-err">' + esc(e.message) + '</p>'; })
+        .then(function () { if (GO.isConnected) { GO.disabled = false; GO.textContent = '✨ Ask AI'; } });
     };
-    if (!S.advice[key]) $('#aiGo').click();   // start straight away; ask again with more detail if needed
+    if (!S.advice[key]) GO.click();   // start straight away; ask again with more detail if needed
   }
   M.planAskAI = askAI;   // 🧩 the RAID log uses the same Ask AI for all four kinds
 

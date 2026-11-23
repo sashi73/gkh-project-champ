@@ -552,10 +552,11 @@ export async function advise(core, kind, id, ask, draft) {
   try { ({ data: o, used } = await llmJson([{ role: 'system', content: system }, { role: 'user', content: JSON.stringify({ ...it, extra_question: ask || '', project: ctx }) }], { maxTokens: Math.max(adviseCap(), 550), temperature: 0.3 })); }
   catch (e) { return { error: e.message, code: Number.isInteger(e.code) && e.code >= 400 && e.code < 600 ? e.code : 502 }; }
   const today = await usage(true, used);
-  const options = (Array.isArray(o.options) ? o.options : []).slice(0, 3).map((x) => ({ title: str(x.title, 80), response: K.resp.includes(x.response) ? x.response : '', effort: ['Low', 'Medium', 'High'].includes(x.effort) ? x.effort : '',
-    steps: (Array.isArray(x.steps) ? x.steps : []).slice(0, 4).map((t) => str(t, 140)).filter(Boolean) })).filter((x) => x.title);
-  if (!options.length) return { error: 'The AI did not suggest anything useful. Add more detail and try again.' };
-  const best = Number.isInteger(o.best) && o.best >= 0 && o.best < options.length ? o.best : 0;
+  // the usable solutions, each remembering where it was in the AI's list (so the recommendation stays with its solution)
+  const all = (Array.isArray(o.options) ? o.options : []).map((x, at) => ({ at, title: str(x && x.title, 80), response: K.resp.includes(x && x.response) ? x.response : K.resp[0], effort: ['Low', 'Medium', 'High'].includes(x && x.effort) ? x.effort : '',
+    steps: (Array.isArray(x && x.steps) ? x.steps : []).slice(0, 4).map((t) => str(t, 140)).filter(Boolean) })).filter((x) => x.title);
+  if (all.length < 3) return { error: 'The AI gave fewer than three usable solutions. Press ✨ Ask AI again.', code: 502 };
+  const picked = all.slice(0, 3), bi = picked.findIndex((x) => x.at === o.best), best = bi >= 0 ? bi : 0, options = picked.map(({ at, ...x }) => x);
   return { kind, title: str(item.title, 200), options, best, watch: str(o.watch, 200), tokens: used, today };
 }
 
