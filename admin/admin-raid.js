@@ -166,11 +166,12 @@
           return '<section class="rd-sg rd-sg' + t + '"><h3>' + TYPES[t][2] + ' ' + esc(TYPES[t][1]) + ' <small>' + G.length + '</small></h3>' + G.map(function (z) { var x = z[0];
             return '<label class="rd-sug"><input type="checkbox" value="' + z[1] + '" checked><span class="rd-sb"><b class="rd-stt">' + esc(x.title) + '</b>' + (meta(x) || x.date ? '<span class="rd-smeta">' + esc(meta(x)) + (x.date ? ' · ' + esc(day(x.date)) : '') + '</span>' : '') +
               (x.detail ? '<span class="rd-sd">' + esc(x.detail) + '</span>' : '') + (x.why ? '<span class="rd-why"><b>Why</b> ' + esc(x.why) + '</span>' : '') + '</span></label>'; }).join('') + '</section>'; }).join('') + '</div>' +
-        '<div class="rd-sfoot"><span><b id="rdSugN">' + L.length + '</b> of ' + L.length + ' ticked · <button type="button" class="linkbtn" id="rdSugAll">Tick all</button> · <button type="button" class="linkbtn" id="rdSugNone">Tick none</button></span><span><button type="button" class="btn" data-close>Cancel</button> <button type="button" class="btn btn-gold" id="rdSugGo">Add the ticked items</button></span></div></div>');
-      var cnt = function () { var n = document.querySelectorAll('.rd-sug input:checked').length; $('#rdSugN').textContent = n; $('#rdSugGo').disabled = !n; };
+        '<div class="rd-sfoot"><span><b id="rdSugN"></b> of <span id="rdSugOf"></span> ticked · <button type="button" class="linkbtn" id="rdSugAll">Tick all</button> · <button type="button" class="linkbtn" id="rdSugNone">Tick none</button></span><span><button type="button" class="btn" data-close>Cancel</button> <button type="button" class="btn btn-gold" id="rdSugGo">Add the ticked items</button></span></div></div>');
+      var cnt = function () { var all = document.querySelectorAll('.rd-sug input').length, n = document.querySelectorAll('.rd-sug input:checked').length; $('#rdSugN').textContent = n; $('#rdSugOf').textContent = all; $('#rdSugGo').disabled = !n; };
       document.querySelectorAll('.rd-sug input').forEach(function (c) { c.onchange = cnt; });
       $('#rdSugAll').onclick = function () { document.querySelectorAll('.rd-sug input').forEach(function (c) { c.checked = true; }); cnt(); };
       $('#rdSugNone').onclick = function () { document.querySelectorAll('.rd-sug input').forEach(function (c) { c.checked = false; }); cnt(); };
+      cnt();   // the count from the cards on screen
       $('#rdSugGo').onclick = function () {
         if (!C || C.S.core !== core) { M.closeModal(); toast('You moved to another project: nothing was added.'); return; }
         var p = C.S.plan, mgr = (p.charter || {}).manager || '', td = today(), n = 0;
