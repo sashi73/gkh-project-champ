@@ -240,12 +240,13 @@
   var setFocus0 = function (k) { svg.classList.toggle('focus', !!k); key.classList.toggle('has', !!k); key.querySelectorAll('span').forEach(function (sp) { var d = sp.getAttribute('data-k'); sp.classList.toggle('live', !!k && d === k); sp.classList.toggle('pow', !!k && !d); }); Object.keys(groups).forEach(function (g) { groups[g].forEach(function (e) { e.classList.toggle('on', g === k || (k && (g === 'Trunk' || g === 'Roots'))); }); }); };
   Object.keys(groups).forEach(function (g) { if (g === 'Trunk' || g === 'Roots') return; groups[g].forEach(function (e) { e.addEventListener('mouseenter', function () { setFocus(g); }); e.addEventListener('mouseleave', function () { setFocus(pinned); }); }); });
   var panel = document.getElementById('panel'), pbody = document.getElementById('pbody'), pinned = '';
-  var open = function (k) { var b = BR.filter(function (x) { return x.name === k; })[0]; if (!b) return; pinned = k; setFocus(k);
+  var open = function (k) { var b = BR.filter(function (x) { return x.name === k; })[0]; if (!b) return; if (!panel.classList.contains('open')) opener = document.activeElement; pinned = k; setFocus(k);
     var n = b.more.reduce(function (t, g) { return t + g[1].length; }, 0);
     pbody.innerHTML = '<div class="bar" style="background:linear-gradient(90deg,' + b.c[0] + ',' + b.c[1] + ')"></div><h2 style="color:' + b.c[0] + '">' + b.name + '</h2><p class="lead">' + b.about + ' ' + n + ' things in this area.</p>' +
       b.more.map(function (g) { return '<h3>' + g[0] + '</h3><ul>' + g[1].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }).join('');
-    panel.classList.add('open'); document.getElementById('px').focus(); };
-  var shut = function () { panel.classList.remove('open'); pinned = ''; setFocus(''); };
+    panel.inert = false; panel.classList.add('open'); document.getElementById('px').focus(); };
+  var opener = null; panel.inert = true;   // a closed panel is out of the tab order; focus goes back to what opened it
+  var shut = function () { panel.classList.remove('open'); panel.inert = true; pinned = ''; setFocus(''); if (opener && opener.focus && document.contains(opener)) try { opener.focus({ preventScroll: true }); } catch (e) {} opener = null; };
   document.getElementById('px').onclick = shut; addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; if (panel.classList.contains('open')) shut(); else if (window.parent !== window) { try { window.parent.postMessage({ champTree: 'close' }, location.origin); } catch (x) {} } });
   Object.keys(groups).forEach(function (g) { if (g === 'Trunk' || g === 'Roots') return; groups[g].forEach(function (e) { e.addEventListener('click', function () { open(g); }); }); });
   key.querySelectorAll('[data-k]').forEach(function (s) { s.tabIndex = 0; s.setAttribute('role', 'button'); s.onmouseenter = function () { setFocus(s.getAttribute('data-k')); }; s.onmouseleave = function () { setFocus(pinned); }; s.onclick = function () { open(s.getAttribute('data-k')); }; s.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(s.getAttribute('data-k')); } }; });
