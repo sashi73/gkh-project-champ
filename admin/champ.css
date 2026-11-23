@@ -1604,3 +1604,18 @@ html.dark .rd-why,body.dark .rd-why{background:rgba(255,255,255,.06)}
 .rd-addl button{display:grid;text-align:left;gap:1px;padding:8px 10px;border:0;border-radius:8px;background:none;color:inherit;font:inherit;font-weight:700;cursor:pointer}
 .rd-addl button small{font-weight:400;color:var(--muted);font-size:12px}
 .rd-addl button:hover,.rd-addl button:focus-visible{background:rgba(201,162,39,.12)}
+/* 🌳 the Champ circuit tree, full screen */
+#treeFS{position:fixed;inset:0;z-index:2147483000;background:#080d1c}
+#treeFS iframe{display:block;width:100%;height:100%;border:0}
+#treeFS .tree-x{position:absolute;top:14px;right:16px;min-width:44px;height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(232,195,90,.6);background:rgba(10,17,36,.9);color:#f4f6fc;font:600 15px/1 inherit;cursor:pointer;display:flex;align-items:center;gap:8px;box-shadow:0 8px 24px -8px rgba(0,0,0,.6)}
+#treeFS .tree-x:hover{background:#13204a}#treeFS .tree-x:focus-visible{outline:3px solid #e8c35a;outline-offset:2px}
+html.tree-open,html.tree-open body{overflow:hidden}
+.card.hc-tree{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;margin-bottom:16px;background:linear-gradient(120deg,#0e1730,#16244d);color:#eef2fb;border:1px solid rgba(232,195,90,.35)}
+.card.hc-tree h3{margin:0 0 4px;color:#fff;font-size:18px}.card.hc-tree p{margin:0;color:#c3cce6}.hc-tree .hc-ti{font-size:34px;line-height:1}
+@media (max-width:640px){.hc-tree{grid-template-columns:auto 1fr}.hc-tree .btn{grid-column:1/-1}}
+/* 📋 Help › feature inventory */
+.hc-big{font-size:18px;margin:6px 0}.hc-big b{font-size:26px;font-weight:800}
+.hc-inv h3{margin:0 0 10px}.hc-inv h3 small{font-weight:500;font-size:13px}
+.hc-inv td:first-child{min-width:220px;font-weight:600}.hc-inv td.num,.hc-inv th.num{text-align:right;white-space:nowrap}
+.hc-new{display:inline-block;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;background:rgba(201,162,39,.18);color:#7a5c00;vertical-align:middle}
+.card.hc-inv-card{background:linear-gradient(120deg,#1d1a10,#3a2f0f)}

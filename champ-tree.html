@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<script>(function(){var q=location.search;document.documentElement.className=/embed=1/.test(q)?'embed':/app=1/.test(q)?'app':'solo';})()</script>
+<title>Project Champ: the circuit tree</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--night:#0a1124;--ink:#eef2fb;--dim:#9aa6c4;--gold:#e8c35a}
+  *{box-sizing:border-box}
+  html{background:#080d1c}
+  html,body{margin:0;min-height:100%}
+  body{background:radial-gradient(120% 70% at 50% 0%,#14224a 0%,#0a1124 55%,#080d1c 100%) no-repeat #080d1c;color:var(--ink);font-family:'IBM Plex Sans',system-ui,sans-serif}
+  .wrap{min-height:100vh;display:flex;flex-direction:column}
+  .head{display:flex;flex-wrap:wrap;gap:12px 32px;align-items:flex-end;justify-content:space-between;padding:22px clamp(16px,3vw,36px) 6px}
+  .head h1{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:clamp(26px,3vw,38px);line-height:1.05;margin:0;color:#f4f6fc}
+  .head p{margin:6px 0 0;color:var(--dim);font-size:15px;line-height:1.5;max-width:620px}
+  .key{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13.5px;color:var(--dim)}
+  .key span{white-space:nowrap;cursor:pointer}.key b{color:var(--ink);font-weight:600}
+  .key i{display:inline-block;width:18px;height:4px;border-radius:2px;vertical-align:middle;margin-right:7px;background-size:200% 100%!important;transition:width .25s ease,height .25s ease,box-shadow .25s ease}
+  .key span{padding:4px 9px;margin:-4px -9px;border:1px solid transparent;transition:opacity .25s ease,background .25s ease,border-color .25s ease,box-shadow .25s ease}
+  .key.has span{opacity:.4}
+  .key.has span.pow{opacity:.85}
+  .key.has span.live{opacity:1;background:rgba(255,255,255,.07);border-color:var(--lc);box-shadow:0 0 20px -6px var(--lc);color:var(--ink)}
+  .key span.live b{color:var(--lc)}
+  .key span.live i{width:34px;height:6px;box-shadow:0 0 10px var(--lc);animation:flow 1.4s linear infinite}
+  @keyframes flow{to{background-position:-200% 0}}
+  @media (prefers-reduced-motion:reduce){.key span.live i{animation:none}}
+  .board{flex:1;overflow:auto;padding:0 8px 16px}
+  svg#tree{display:block;width:100%;min-width:1320px;height:auto;margin:0 auto;max-width:1900px}
+  .lbl{font-family:'IBM Plex Sans',sans-serif;fill:var(--ink);pointer-events:none}
+  .lbl.leaf{font-size:16px;font-weight:500;fill:#e6ebf7}
+  .lbl.br{font-size:23px;font-weight:700}
+  .lbl.root{font-size:16px;fill:#f1dcb4;font-weight:600}
+  .lbl.menu{font-size:14px;fill:#f2dc9c;font-weight:600}
+  .tag{fill:rgba(8,13,28,.86);stroke:rgba(150,170,220,.16);stroke-width:1}
+  .grp{transition:opacity .3s ease}
+  .grp .hl{opacity:0;transition:opacity .3s ease}
+  .focus .grp{opacity:.16}
+  .focus .grp.on .hl{opacity:1}
+  .vivid{filter:url(#glow) saturate(1.7) brightness(1.25)}
+  .focus .grp.on .lbl.leaf{font-weight:700;font-size:19px;fill:#fff}
+  .focus .grp.on .lbl.br{font-size:27px}
+  .focus .grp.on .tag{fill:rgba(8,13,28,.95);stroke:rgba(255,255,255,.35)}
+  .focus .grp.on{opacity:1}
+  .panel{position:fixed;top:0;right:0;bottom:0;width:min(400px,92vw);background:#0e1730;border-left:1px solid rgba(150,170,220,.2);box-shadow:-24px 0 60px -20px rgba(0,0,0,.6);padding:26px 24px 30px;overflow:auto;transform:translateX(102%);transition:transform .28s ease;z-index:5}
+  .panel.open{transform:none}
+  .panel h2{font-family:'Chakra Petch',sans-serif;font-size:28px;line-height:1.1;margin:0 40px 6px 0}
+  .panel .lead{color:var(--dim);margin:0 0 18px;font-size:15px;line-height:1.5}
+  .panel h3{font-size:13px;font-weight:600;color:var(--dim);margin:18px 0 8px}
+  .panel ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+  .panel li{font-size:14.5px;line-height:1.3;padding:7px 11px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(150,170,220,.16)}
+  .panel .x{position:absolute;top:18px;right:18px;width:40px;height:40px;border-radius:50%;border:1px solid rgba(150,170,220,.3);background:none;color:var(--ink);font-size:20px;cursor:pointer}
+  .panel .x:focus-visible,.key span:focus-visible{outline:2px solid #e8c35a;outline-offset:3px}
+  .panel .bar{height:4px;border-radius:2px;margin:0 0 14px;width:64px}
+  .node,.grp[data-g] .lbl.br{cursor:pointer}
+  @media (prefers-reduced-motion:reduce){.panel{transition:none}}
+  /* embedded in the Features page: its own heading is on the page; in the dashboard's full screen the close button sits top right */
+  .embed .head h1,.embed .head p{display:none}.embed .head{padding-top:6px}.embed .wrap{min-height:0}
+  .app .head{padding-right:84px}
+  .back{display:none;color:#c9d3ee;text-decoration:none;font-size:14px;margin-bottom:8px}.solo .back{display:inline-block}.back:hover{color:#fff}
+  @media (max-width:760px){.head p{font-size:14px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head"><div><a class="back" href="features.html">← Back to Project Champ</a><h1>Project Champ as a circuit tree</h1><p>The foundations are the roots, the core and its menu are the trunk, each area of the app is a branch, and its features are the leaves. Whether your team works Agile, Scrum, Kanban or Lean, guided by PMBOK, Champ powers it. Tap a branch, or its name in the key, to send current through what it powers and see everything in it.</p></div><div class="key" id="key"></div></header>
+  <aside class="panel" id="panel" aria-live="polite" aria-label="Everything in this branch"><button class="x" id="px" type="button" aria-label="Close">×</button><div id="pbody"></div></aside>
+  <div class="board"><svg id="tree" viewBox="0 -112 1800 1122" aria-label="Project Champ drawn as a circuit tree: foundations as roots, the core and its menu as the trunk, menu areas as branches and features as leaves"></svg></div>
+</div>
+<script>
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg', svg = document.getElementById('tree');
+  var el = function (n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; };
+  var RM = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var GROUND = 690, TX = 900, TOP = 300;
+
+  // 🌳 the tree: every area of Project Champ
+  // 🌿 eight branches: the leaves are drawn on the tree; "more" is everything in that area, shown in the side panel
+  var BR = [
+    { name: 'Leadership', c: ['#ffd65c', '#ff8a3d'], at: [872, 520], node: [390, 390], leaves: [['AI briefing', 300, 262, 'e'], ['CEO view', 255, 315, 'e'], ['PMO view', 225, 372, 'e'], ['Today', 225, 430, 'e'], ['Decisions', 255, 488, 'e'], ['Escalations', 490, 488, 's']], lab: 'down',
+      about: 'What the CEO, the CFO and the PMO Director look at first.',
+      more: [['CEO view', ['Portfolio health at a glance', 'Money across every project', '✨ AI briefing: concerns, positives, strategy', '✨ Ask the CEO adviser']], ['PMO view', ['Decisions waiting', 'Programs and their health', 'Watch list', 'Milestones due', 'Escalations', 'Team gaps']], ['Today', ['Tasks due and overdue', 'Reminders', 'What changed since yesterday']]] },
+    { name: 'Records & writing', c: ['#a9c8ff', '#5b7dff'], at: [872, 615], node: [300, 605], leaves: [['Rich text editor', 180, 545, 'e'], ['Meetings', 150, 602, 'e'], ['Comms', 165, 660, 'e'], ['Documents', 330, 668, 's'], ['Reports', 470, 665, 's'], ['Lessons learned', 520, 572, 's']], lab: 'up',
+      about: 'Everything written, stored, shared and exported.',
+      more: [['Write and format', ['Bold', 'Italic', 'Underline', 'Headings', 'Bullet and numbered lists', 'Tables', 'Links']], ['Export', ['PDF', 'Word', 'Excel', 'Gantt export', 'Print']], ['Documents', ['Upload and versions', 'Document control', 'Private vault (R2)', '✨ Document review']], ['Comms', ['Meeting notes', '✨ Meeting analysis', 'Action items', 'Lessons learned register']]] },
+    { name: 'Portfolio', c: ['#3ff5d2', '#1ea0ff'], at: [872, 430], node: [560, 200], leaves: [['Programs', 430, 250, 'e'], ['Dependency board', 420, 185, 'e'], ['RAID log', 450, 120, 'e'], ['Summary', 505, 55, 'e'], ['Pipeline board', 565, -20, 'e'], ['Heat map', 660, 215, 's']], lab: 'up',
+      about: 'Every project together: programs, links between projects, and the RAID log.',
+      more: [['Programs', ['Program dashboards', 'Program managers', 'Projects grouped by program']], ['Dependency board', ['Links between projects', 'Clashes and slack', 'Cross-program view']], ['RAID log', ['Risks, assumptions, issues, dependencies', 'Heat map and due soon', '✨ Find RAID items', 'Excel and PDF']], ['Pipeline', ['Leads to projects', 'Stages and value']]] },
+    { name: 'Plan & schedule', c: ['#b49bff', '#f06bff'], at: [886, 300], node: [760, 80], leaves: [['Gantt', 660, 15, 'e'], ['Critical path', 675, -40, 'e'], ['Backlog & Board', 720, -90, 'e'], ['Sprints', 800, -60, 's'], ['Baselines', 820, 0, 's'], ['Milestones', 720, 150, 'e'], ['BIM model', 870, 40, 's']], lab: 'up',
+      about: 'How the work is laid out in time.',
+      more: [['Gantt', ['Working days and holidays', '"After #" links', 'Start dates set by hand', 'Baselines and slippage', 'Milestones']], ['Agile', ['Backlog & Board', 'Sprints and sprint goals', 'User stories', 'Definition of Ready and Done', '✨ Describe a story']], ['Critical path', ['Float for every task', 'Near-critical warnings']], ['BIM', ['3D model viewer', 'Model linked to tasks']]] },
+    { name: 'Control', c: ['#ff9f6b', '#ff5f5f'], at: [928, 300], node: [1040, 80], leaves: [['Issues', 1005, -95, 'e'], ['Risks', 960, -55, 'e'], ['Scope charter', 1080, -90, 's'], ['Stakeholders', 1125, -40, 's'], ['SWMS', 1150, 30, 's'], ['Change control', 1110, 150, 's']], lab: 'up',
+      about: 'Keeping the project on its agreed course.',
+      more: [['Scope', ['Project charter', 'In scope and out of scope', 'Sign-off and approvals', 'Charter as PDF or Word']], ['Stakeholders', ['Register', 'RACI', 'One person accountable']], ['Risks and issues', ['Risk register with heat map', 'Issue log', '✨ 3 possible solutions', 'Same records as the RAID log']], ['Change', ['Change requests', '✨ Change impact', 'Variations']], ['Safety', ['SWMS']]] },
+    { name: 'Money', c: ['#8dff7a', '#14c98b'], at: [928, 430], node: [1260, 215], leaves: [['Milestone billing', 1245, 0, 's'], ['Earned value', 1300, 70, 's'], ['Contracts', 1350, 135, 's'], ['BOM / BOQ', 1380, 200, 's'], ['Costing', 1390, 265, 's'], ['Invoices', 1160, 250, 'e'], ['Finance vault', 1290, 320, 's']], lab: 'up',
+      about: 'Budget, cost and billing.',
+      more: [['Costing', ['Rates and quantities', 'Contingency, reserve and margin', 'GST', '✨ Work out the costing']], ['BOM / BOQ', ['Bill of materials', 'Versions and baseline', '✨ Estimate the BOM']], ['Earned value', ['PV, EV, AC', 'CPI and SPI', 'Forecast at completion']], ['Billing', ['Milestone billing on the Gantt', 'Invoices and PDFs', 'Aging', 'Raised by delivery leads', 'Internal projects: no billing']], ['Contracts', ['Contract value', 'Quotes and cooling-off']]] },
+    { name: 'People', c: ['#ff8fa3', '#ff3fa4'], at: [928, 520], node: [1470, 390], leaves: [['People', 1560, 270, 's'], ['Team calendar', 1595, 325, 's'], ['Workload', 1610, 385, 's'], ['Personas', 1600, 445, 's'], ['Job titles', 1570, 500, 's'], ['Users & access', 1330, 480, 'e']], lab: 'down',
+      about: 'Who works on what, and who sees what.',
+      more: [['People', ['Employees and contractors', 'Tickets and licences', 'Job titles']], ['Planning', ['Team calendar', 'Workload', 'Leave']], ['Personas', ['CEO, CFO, PMO Director', 'Program manager', 'Project manager, Scrum Master, Product Owner', 'Contractor and project personnel']], ['Access', ['Each login sees only its projects', 'Money only for those who need it']]] },
+    { name: 'AI', c: ['#5fe1ff', '#c46bff'], at: [928, 615], node: [1520, 605], leaves: [['3 solutions', 1520, 505, 'n'], ['Generate charter', 1640, 530, 's'], ['Project plan', 1660, 585, 's'], ['Work out the cost', 1615, 645, 's'], ['Ask AI & Reports', 1450, 672, 'e'], ['Find RAID items', 1395, 560, 'e']], lab: 'up',
+      about: 'Champ\'s AI works across every area.',
+      more: [['Create', ['✨ Generate the charter', '✨ Improve the charter', '✨ Project plan document', '✨ Plan from an uploaded document']], ['Estimate', ['✨ Work out the costing', '✨ Estimate the BOM', '✨ Change impact']], ['Advise', ['✨ 3 solutions for risks, issues, assumptions and dependencies', '✨ Find RAID items', '✨ CEO briefing', '✨ Meeting analysis', '✨ Document review']], ['Ask', ['Ask AI & Reports over all your data', 'Answers in 20+ languages']]] }
+  ];
+  var ROOTS = ['Users & access', 'Personas & scope', 'Audit trail', 'Private R2 vault', 'Serverless core', 'AI engine', 'Working-day scheduler', 'Ask AI data model', '20+ languages', 'Tested every build'];
+  var MENU = ['Today', 'PMO view', 'CEO view', 'Finance', 'Programs', 'RAID log', 'All projects', 'People', 'Workload', 'Ask AI & Reports'];
+
+  // defs: gradients and glow
+  var defs = el('defs', {});
+  var glow = el('filter', { id: 'glow', x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs);
+  el('feGaussianBlur', { stdDeviation: '2', result: 'b' }, glow); var mg = el('feMerge', {}, glow); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'SourceGraphic' }, mg);
+  var soft = el('filter', { id: 'soft', x: '-50%', y: '-50%', width: '200%', height: '200%' }, defs); el('feGaussianBlur', { stdDeviation: '7' }, soft);
+  var grad = function (id, a, b, x1, y1, x2, y2) { var g = el('linearGradient', { id: id, gradientUnits: 'userSpaceOnUse', x1: x1, y1: y1, x2: x2, y2: y2 }, defs); el('stop', { offset: '0', 'stop-color': a }, g); el('stop', { offset: '1', 'stop-color': b }, g); return 'url(#' + id + ')'; };
+  // the board: a faint PCB grid with pads, and the soil under the ground line
+  var pat = el('pattern', { id: 'pcb', width: 40, height: 40, patternUnits: 'userSpaceOnUse' }, defs);
+  el('path', { d: 'M40 0H0V40', fill: 'none', stroke: 'rgba(120,150,230,.07)', 'stroke-width': 1 }, pat); el('circle', { cx: 0, cy: 0, r: 1.6, fill: 'rgba(140,170,255,.16)' }, pat);
+  el('rect', { x: 0, y: -112, width: 1800, height: 1122, fill: 'url(#pcb)' });
+  var soil = el('linearGradient', { id: 'soil', x1: 0, y1: 0, x2: 0, y2: 1 }, defs); el('stop', { offset: 0, 'stop-color': '#2a1a0c', 'stop-opacity': '.0' }, soil); el('stop', { offset: '.12', 'stop-color': '#2a1608', 'stop-opacity': '.55' }, soil); el('stop', { offset: 1, 'stop-color': '#120804', 'stop-opacity': '.85' }, soil);
+  el('rect', { x: 0, y: GROUND - 20, width: 1800, height: 1000 - GROUND + 20, fill: 'url(#soil)' });
+
+  var BOX = [], cw = function (t, fs) { return t.length * fs * .56 + 16; };
+  var lbox = function (x, y, t, side, fs) { var w = cw(t, fs); return side === 's' ? [x + 4, y - 14, x + 12 + w, y + 14] : side === 'e' ? [x - 12 - w, y - 14, x - 4, y + 14] : [x - w / 2, y - 36, x + w / 2, y - 4]; };
+  var hits = function (b) { for (var i = 0; i < BOX.length; i++) { var o = BOX[i]; if (b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]) return true; } return false; };
+  BOX.push([560, 255, 1040, 700]);   // the trunk, its menu chips and the core chip
+  var layerT = el('g', {}), layerP = el('g', {}), layerN = el('g', {}), layerL = el('g', {});
+  var pulses = [], groups = {};
+  var grp = function (k) { if (!groups[k]) { groups[k] = [el('g', { class: 'grp', 'data-g': k }, layerT), el('g', { class: 'grp', 'data-g': k }, layerP), el('g', { class: 'grp', 'data-g': k }, layerN), el('g', { class: 'grp', 'data-g': k }, layerL)]; } return groups[k]; };
+
+  // ⚡ circuit routing: straight runs and 45° bends, like PCB traces
+  function route(a, b, diagFirst) {
+    var dx = b[0] - a[0], dy = b[1] - a[1], d = Math.min(Math.abs(dx), Math.abs(dy)), sx = Math.sign(dx), sy = Math.sign(dy);
+    if (diagFirst) { var m = [a[0] + sx * d, a[1] + sy * d]; return 'M' + a + 'L' + m + 'L' + b; }
+    var m2 = Math.abs(dx) > Math.abs(dy) ? [b[0] - sx * d, a[1]] : [a[0], b[1] - sy * d]; return 'M' + a + 'L' + m2 + 'L' + b;
+  }
+  // a trace: dark bed, coloured line, glow, and a travelling spark of current
+  var hx = function (c) { return [1, 3, 5].map(function (k) { return parseInt(c.slice(k, k + 2), 16); }); };
+  var mix = function (a, b, t) { var A = hx(a), B = hx(b); return '#' + A.map(function (v, k) { return ('0' + Math.round(v + (B[k] - v) * t).toString(16)).slice(-2); }).join(''); };
+  var CH = [];
+  function trace(d, stroke, w, g, depth, speed) {
+    var G = grp(g);
+    el('path', { d: d, fill: 'none', stroke: 'rgba(4,8,20,.9)', 'stroke-width': w + 4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, G[0]);
+    el('path', { d: d, fill: 'none', stroke: stroke, 'stroke-width': w, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: .8 }, G[0]);
+    // ⚡ when its circuit is selected the current runs along it: the colour fills in vivid and glowing behind a white spark
+    var halo = el('path', { d: d, fill: 'none', stroke: stroke, 'stroke-width': w + 6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', filter: 'url(#soft)', class: 'hl' }, G[1]);
+    var fill = el('path', { d: d, fill: 'none', stroke: stroke, 'stroke-width': w + 1.2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', filter: 'url(#glow)', class: 'hl vivid' }, G[1]);
+    var spark = el('path', { d: d, fill: 'none', stroke: '#fff', 'stroke-width': w + 1.6, 'stroke-linecap': 'round', filter: 'url(#glow)', class: 'hl' }, G[1]);
+    var L = fill.getTotalLength(), sl = Math.max(14, Math.min(40, L * .2));
+    [halo, fill].forEach(function (q) { q.setAttribute('stroke-dasharray', L + ' ' + L); q.style.strokeDashoffset = L; });
+    spark.setAttribute('stroke-dasharray', sl + ' ' + (L + sl * 2)); spark.style.strokeDashoffset = sl;
+    CH.push({ g: g, halo: halo, fill: fill, spark: spark, L: L, s: sl, depth: depth });
+  }
+  function pad(x, y, r, fill, g, cls) { var G = grp(g); var c = el('circle', { cx: x, cy: y, r: r + 4, fill: fill, opacity: .14, filter: 'url(#soft)' }, G[2]); el('circle', { cx: x, cy: y, r: r, fill: '#0b1226', stroke: fill, 'stroke-width': 2.2, class: cls || '' }, G[2]); el('circle', { cx: x, cy: y, r: Math.max(1.8, r * .38), fill: fill }, G[2]); return c; }
+  function text(x, y, s, cls, anchor, g, fill) { var t = el('text', { x: x, y: y, class: 'lbl ' + cls, 'text-anchor': anchor || 'middle', 'dominant-baseline': 'middle' }, grp(g)[3]); if (fill) t.style.fill = fill; t.textContent = s; return t; }
+
+  // 🪨 roots: the foundations, current flows up into the trunk
+  ROOTS.forEach(function (name, i) {
+    var n = ROOTS.length, x = 140 + i * (1520 / (n - 1)), y = 830 + (i % 2 ? 70 : 0) + (i === 0 || i === n - 1 ? -40 : 0);
+    var hue = 18 + i * 4.2, bx = TX - 28 + (i / (n - 1)) * 56, stroke = grad('rg' + i, 'hsl(' + hue + ',75%,46%)', 'hsl(' + (hue + 14) + ',95%,66%)', x, y, bx, GROUND);   // every root its own tone of copper to gold
+    trace(route([x, y], [bx, GROUND], i % 2 === 0), stroke, 2.6, 'Roots', 0, 230);
+    // a few rootlets
+    pad(x, y, 9, '#ffb347', 'Roots', 'node');
+    text(x, y + (y > 880 ? 28 : -24), name, 'root', 'middle', 'Roots');
+  });
+  // the ground line: the soil surface where roots meet trunk
+  trace('M60 ' + GROUND + 'L' + (TX - 60) + ' ' + GROUND, grad('gl', 'rgba(255,207,74,0)', '#ffcf4a', 60, 0, TX - 60, 0), 1.6, 'Trunk', 1, 180);
+  trace('M1740 ' + GROUND + 'L' + (TX + 60) + ' ' + GROUND, grad('gr', 'rgba(255,207,74,0)', '#ffcf4a', 1740, 0, TX + 60, 0), 1.6, 'Trunk', 1, 180);
+
+  // 🪵 the trunk: a bus of five gold traces, with the left menu mounted on it as chips
+  var tg = grad('tk', '#ffd86b', '#ff9f2e', 0, GROUND, 0, TOP);
+  var BUS = [['#ffd65c', '#ff8a3d'], ['#3ff5d2', '#1ea0ff'], ['#ffe9a3', '#e8b43a'], ['#8dff7a', '#14c98b'], ['#ff8fa3', '#ff3fa4']];   // the trunk bus: each line its own colour
+  [-28, -14, 0, 14, 28].forEach(function (o, k) { trace('M' + (TX + o) + ' ' + GROUND + 'L' + (TX + o) + ' ' + TOP, grad('bus' + k, BUS[k][0], BUS[k][1], 0, GROUND, 0, TOP), k === 2 ? 3.4 : 2.4, 'Trunk', 1, 300 + k * 25); });
+  MENU.forEach(function (m, i) {
+    var y = GROUND - 24 - i * ((GROUND - TOP - 94) / (MENU.length - 1)), left = i % 2 === 0, x = TX + (left ? -28 : 28), ex = TX + (left ? -66 : 66);
+    var G = grp('Trunk');
+    el('path', { d: 'M' + x + ' ' + y + 'H' + ex, stroke: '#ffcf4a', 'stroke-width': 1.4, opacity: .8 }, G[0]);
+    el('rect', { x: ex + (left ? -8 : 0), y: y - 4, width: 8, height: 8, rx: 1.5, fill: '#e8c35a' }, G[2]);
+    text(ex + (left ? -14 : 14), y, m, 'menu', left ? 'end' : 'start', 'Trunk');
+  });
+  // the core chip: a solid package. A shadow and a gold edge give it depth; pins on all four sides; a bevelled face
+  (function () {
+    var G = grp('Trunk'), w = 300, h = 88, x = TX - w / 2, y = TOP - h / 2;
+    var gold = grad('ck1', '#fff0b3', '#b8860b', 0, y, 0, y + h), face = grad('ck2', '#1f2b52', '#0b1124', 0, y, 0, y + h), edge = grad('ck3', '#a07a1e', '#5c4310', 0, y + h, 0, y + h + 8);
+    el('rect', { x: x - 6, y: y + 4, width: w + 12, height: h + 14, rx: 16, fill: '#000', opacity: .55, filter: 'url(#soft)' }, G[2]);
+    for (var k = 0; k < 13; k++) { var px = x + 16 + k * ((w - 32) / 12); el('rect', { x: px - 3, y: y - 11, width: 6, height: 13, rx: 1.5, fill: gold }, G[2]); el('rect', { x: px - 3, y: y + h + 4, width: 6, height: 13, rx: 1.5, fill: gold }, G[2]); }
+    for (var q = 0; q < 4; q++) { var py = y + 18 + q * ((h - 36) / 3); el('rect', { x: x - 12, y: py - 3, width: 14, height: 6, rx: 1.5, fill: gold }, G[2]); el('rect', { x: x + w - 2, y: py - 3, width: 14, height: 6, rx: 1.5, fill: gold }, G[2]); }
+    el('rect', { x: x, y: y + 6, width: w, height: h, rx: 12, fill: edge }, G[2]);                       // the package's thickness
+    el('rect', { x: x, y: y, width: w, height: h, rx: 12, fill: face, stroke: gold, 'stroke-width': 3.2 }, G[2]);
+    el('rect', { x: x + 9, y: y + 9, width: w - 18, height: h - 18, rx: 7, fill: 'none', stroke: 'rgba(255,255,255,.14)', 'stroke-width': 1.2 }, G[2]);
+    el('rect', { x: x + 10, y: y + 10, width: w - 20, height: (h - 20) * .45, rx: 6, fill: 'rgba(255,255,255,.05)' }, G[2]);   // light on the top half of the face
+    el('circle', { cx: x + 18, cy: y + h - 18, r: 4, fill: gold }, G[2]);                                 // pin 1
+    var t = text(TX, TOP - 8, 'PROJECT CHAMP', 'br', 'middle', 'Trunk', '#ffe08a'); t.style.fontSize = '24px'; t.style.letterSpacing = '.14em'; t.classList.add('notag');
+    text(TX, TOP + 17, 'the core', 'leaf', 'middle', 'Trunk', '#d9c58e').classList.add('notag');
+  })();
+
+  // 🌿 branches and 🍃 leaves
+  var key = document.getElementById('key');
+  key.innerHTML = '<span><i style="background:linear-gradient(90deg,#c97a2b,#ffd86b)"></i><b>Roots</b></span><span><i style="background:linear-gradient(90deg,#ffd65c,#3ff5d2,#ffe9a3,#8dff7a,#ff8fa3)"></i><b>Trunk</b></span>' +
+    BR.map(function (b) { return '<span data-k="' + b.name + '" style="--lc:' + b.c[0] + '"><i style="background:linear-gradient(90deg,' + b.c[0] + ',' + b.c[1] + ',' + b.c[0] + ')"></i><b>' + b.name + '</b> ' + b.leaves.length + '</span>'; }).join('');
+  BR.forEach(function (b) { var below = b.node[1] > 300, w = cw(b.name, 23); BOX.push([b.node[0] - 30, b.node[1] - 30, b.node[0] + 30, b.node[1] + 30]); BOX.push([b.node[0] - w / 2, b.node[1] + (below ? 18 : -48), b.node[0] + w / 2, b.node[1] + (below ? 50 : -14)]); });
+  BR.forEach(function (b, bi) {
+    var g = b.name, s = grad('b' + bi, b.c[0], b.c[1], b.at[0], b.at[1], b.node[0], b.node[1]);
+    trace(route(b.at, b.node, false), s, 3, g, 2, 320);
+    // a sister trace running alongside, for a thicker limb
+    b.leaves.forEach(function (lf, i) {
+      var lx = lf[1], ly = lf[2], side = lf[3], tone = mix(b.c[0], b.c[1], b.leaves.length > 1 ? i / (b.leaves.length - 1) : 0), ls = grad('l' + bi + '_' + i, mix(tone, '#ffffff', .15), tone, b.node[0], b.node[1], lx, ly);
+      trace(route(b.node, [lx, ly], Math.abs(lx - b.node[0]) > Math.abs(ly - b.node[1])), ls, 1.8, g, 3, 220);
+      pad(lx, ly, 6.5, tone, g, 'node');
+      text(lx + (side === 's' ? 12 : side === 'e' ? -12 : 0), ly + (side === 'n' ? -18 : 0), lf[0], 'leaf', side === 's' ? 'start' : side === 'e' ? 'end' : 'middle', g);
+    });
+    // the branch node
+    var G = grp(g); el('circle', { cx: b.node[0], cy: b.node[1], r: 26, fill: b.c[0], opacity: .3, filter: 'url(#soft)' }, G[2]);
+    el('circle', { cx: b.node[0], cy: b.node[1], r: 15, fill: '#0b1226', stroke: s, 'stroke-width': 3, class: 'node' }, G[2]);
+    el('circle', { cx: b.node[0], cy: b.node[1], r: 6, fill: b.c[0] }, G[2]);
+    var below = b.lab === 'down'; text(b.node[0], b.node[1] + (below ? 34 : -30), b.name, 'br', 'middle', g, b.c[0]);
+  });
+  svg.appendChild(layerT); svg.appendChild(layerP); svg.appendChild(layerN); svg.appendChild(layerL);
+
+  // hover a branch (or its key) to follow its circuit
+  var CUR = '', T0 = 0, RAF = 0;
+  var setFocus = function (k) { setFocus0(k); retag(); if (k !== CUR) { CUR = k; T0 = performance.now(); if (k && !RAF) RAF = requestAnimationFrame(charge); if (!k) reset(); } };
+  function reset() { CH.forEach(function (c) { c.halo.style.strokeDashoffset = c.L; c.fill.style.strokeDashoffset = c.L; c.spark.style.strokeDashoffset = c.s; }); }
+  // the charge: roots, then trunk, then the branch, then its leaves; each line fills in as the spark passes. After that a small spark every 3 s
+  function charge(now) {
+    var t = (now - T0) / 1000, START = [0, .35, .75, 1.15], DUR = [.45, .45, .45, .55];
+    CH.forEach(function (c) {
+      var lit = c.g === CUR || c.g === 'Trunk' || c.g === 'Roots'; if (!lit) { c.fill.style.strokeDashoffset = c.L; c.halo.style.strokeDashoffset = c.L; c.spark.style.strokeDashoffset = c.s; return; }
+      var d = Math.min(3, Math.round(c.depth)), u = (t - START[d]) / DUR[d], f = Math.max(0, Math.min(1, u));
+      c.fill.style.strokeDashoffset = c.L * (1 - f); c.halo.style.strokeDashoffset = c.L * (1 - f);
+      var w = u <= 1 ? u : ((t - 1.8 - START[d]) % 3) / DUR[d];   // the head of the charge, then a small spark every 3 s
+      c.spark.style.strokeDashoffset = w >= 0 && w <= 1 ? c.s - w * (c.L + c.s * 2) : c.s;
+    });
+    RAF = CUR && !RM ? requestAnimationFrame(charge) : 0;
+    if (RM && CUR) CH.forEach(function (c) { c.fill.style.strokeDashoffset = 0; c.halo.style.strokeDashoffset = 0; });
+  }
+  var setFocus0 = function (k) { svg.classList.toggle('focus', !!k); key.classList.toggle('has', !!k); key.querySelectorAll('span').forEach(function (sp) { var d = sp.getAttribute('data-k'); sp.classList.toggle('live', !!k && d === k); sp.classList.toggle('pow', !!k && !d); }); Object.keys(groups).forEach(function (g) { groups[g].forEach(function (e) { e.classList.toggle('on', g === k || (k && (g === 'Trunk' || g === 'Roots'))); }); }); };
+  Object.keys(groups).forEach(function (g) { if (g === 'Trunk' || g === 'Roots') return; groups[g].forEach(function (e) { e.addEventListener('mouseenter', function () { setFocus(g); }); e.addEventListener('mouseleave', function () { setFocus(pinned); }); }); });
+  var panel = document.getElementById('panel'), pbody = document.getElementById('pbody'), pinned = '';
+  var open = function (k) { var b = BR.filter(function (x) { return x.name === k; })[0]; if (!b) return; if (!panel.classList.contains('open')) opener = document.activeElement; pinned = k; setFocus(k);
+    var n = b.more.reduce(function (t, g) { return t + g[1].length; }, 0);
+    pbody.innerHTML = '<div class="bar" style="background:linear-gradient(90deg,' + b.c[0] + ',' + b.c[1] + ')"></div><h2 style="color:' + b.c[0] + '">' + b.name + '</h2><p class="lead">' + b.about + ' ' + n + ' things in this area.</p>' +
+      b.more.map(function (g) { return '<h3>' + g[0] + '</h3><ul>' + g[1].map(function (x) { return '<li>' + x + '</li>'; }).join('') + '</ul>'; }).join('');
+    panel.inert = false; panel.classList.add('open'); document.getElementById('px').focus(); };
+  var opener = null; panel.inert = true;   // a closed panel is out of the tab order; focus goes back to what opened it
+  var shut = function () { panel.classList.remove('open'); panel.inert = true; pinned = ''; setFocus(''); if (opener && opener.focus && document.contains(opener)) try { opener.focus({ preventScroll: true }); } catch (e) {} opener = null; };
+  document.getElementById('px').onclick = shut; addEventListener('keydown', function (e) { if (e.key !== 'Escape') return; if (panel.classList.contains('open')) shut(); else if (window.parent !== window) { try { window.parent.postMessage({ champTree: 'close' }, location.origin); } catch (x) {} } });
+  Object.keys(groups).forEach(function (g) { if (g === 'Trunk' || g === 'Roots') return; groups[g].forEach(function (e) { e.addEventListener('click', function () { open(g); }); }); });
+  key.querySelectorAll('[data-k]').forEach(function (s) { s.tabIndex = 0; s.setAttribute('role', 'button'); s.onmouseenter = function () { setFocus(s.getAttribute('data-k')); }; s.onmouseleave = function () { setFocus(pinned); }; s.onclick = function () { open(s.getAttribute('data-k')); }; s.onkeydown = function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(s.getAttribute('data-k')); } }; });
+
+  // ⚡ the current: sparks travel each trace; every 7 s a surge climbs from the roots to the leaves
+  // in a narrow window the tree scrolls sideways: start on the trunk
+  var board = document.querySelector('.board'); requestAnimationFrame(function () { board.scrollLeft = (board.scrollWidth - board.clientWidth) / 2; });
+  // a dark tag behind every label, so each word reads over the traces
+  document.fonts && document.fonts.ready.then(tags); setTimeout(tags, 900);
+  var tagged = false;
+  function retag() { if (!tagged) return; svg.querySelectorAll('text.lbl:not(.notag)').forEach(function (t) { var r = t.previousSibling, b = t.getBBox(); if (!r || r.getAttribute('class') !== 'tag') return; r.setAttribute('x', b.x - 6); r.setAttribute('y', b.y - 3); r.setAttribute('width', b.width + 12); r.setAttribute('height', b.height + 6); }); }
+  function tags() { if (tagged) return; tagged = true; svg.querySelectorAll('text.lbl:not(.notag)').forEach(function (t) { var b = t.getBBox(), r = document.createElementNS(NS, 'rect');
+    r.setAttribute('x', b.x - 6); r.setAttribute('y', b.y - 3); r.setAttribute('width', b.width + 12); r.setAttribute('height', b.height + 6); r.setAttribute('rx', 6); r.setAttribute('class', 'tag'); t.parentNode.insertBefore(r, t); }); }
+})();
+</script>
+</body>
+</html>

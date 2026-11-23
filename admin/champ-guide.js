@@ -510,8 +510,10 @@
       lastBot = full; speak(full);
     }).catch(function (e) { if (wait) wait.remove(); say('bot', (e && e.message) || 'I could not answer just now. Ask again in a moment.'); });
   }
+  var TREE_WORDS = /\b(circuit ?tree|champ ?tree|tree ?view|(open|show|see)( me)?( the)? (champ |circuit )?tree)\b|^tree$|pokok litar|pokok champ/i;   // 🌳 the circuit tree, full screen
   function ask(q) {
     openPanel(); say('me', q);
+    if (TREE_WORDS.test(q.trim()) && M.openTree) { reply('Opening the Champ circuit tree. Tap a branch to light it up; press Close or Esc to come back.'); setTimeout(M.openTree, 400); return; }
     if (stratOn() && !MENU_WORDS.test(q.trim())) return stratAsk(q);
     if (MENU_WORDS.test(q.trim())) return menu(true);
     var hit = (HOW.test(q) || q.split(/\s+/).length <= 4) ? local(q) : null; if (hit) return start(hit);   // "how do I make a charter?": straight to the guide

@@ -292,6 +292,7 @@
     }
     function ask(q, spoken, after) {
       q = String(q || '').trim(); if (!q || busy) return;
+      if (/\b(circuit ?tree|champ ?tree|tree ?view|(open|show|see)( me)?( the)? (champ |circuit )?tree)\b|^tree$/i.test(q)) { location.href = '/champ-tree.html'; return; }   // 🌳 the circuit tree
       var menu = log.querySelector('.cc-menu'); if (menu) menu.remove();
       log.querySelectorAll('.cc-fu, .cc-ahead').forEach(function (x) { x.remove(); });
       busy = true; msgs.push({ role: 'user', content: q }); ss('champChat', JSON.stringify(msgs.slice(-24)));
