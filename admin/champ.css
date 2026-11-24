@@ -1699,3 +1699,4 @@ html.tree-open,html.tree-open body{overflow:hidden}
 #pvFS .tvx-board.actual .tvx-svg{position:static;height:auto}
 #pvFS .ptx-stats{flex:none}#pvFS .ptx-how{margin:6px 0 0}
 .ptx .ptx-st.warn{background:rgba(255,60,60,.08);color:var(--ink)}.ptx .ptx-st.warn span{color:#ffb3b3}
+.tvx svg.nl .lbl.sb{font-size:20px}.tvx svg.nl .lbl.sm{font-size:15px}.tvx svg.nl .lbl.hb{font-size:22px}.tvx svg.nl .lbl.hm{font-size:15px}   /* level 1 and 1.1 only: bigger words */

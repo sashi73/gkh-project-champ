@@ -23,6 +23,7 @@
   }
 
   // ---------- 🌿 Tree view ----------
+  // opts.leaves: also draw the 1.1.1 steps as leaves (off by default)
   // D: { name, r, pm, pct, facts: [..], tasks: [{ n, name, owner, r, d, pct, crit, subs: [{ n, name, owner, r, d, pct, crit, steps: [{ n, name, owner, r, d, done, crit }] }] }] }
   M.treeView = function (host, D, opts) {
     opts = opts || {}; var id = 'tv' + (++UID), RM = RMq(), T = D.tasks || [];
@@ -35,10 +36,10 @@
       '<aside class="tvx-panel" aria-label="Task details"><button class="tvx-x" type="button" aria-label="Close">×</button><div class="tvx-pb"></div></aside></div>';
     var root = host.firstChild, svg = root.querySelector('svg'), key = root.querySelector('.tvx-key'), board = root.querySelector('.tvx-board');
     var el = function (n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; };
-    var N = T.length, ROW = 36;
+    var N = T.length, ROW = 36, LEAF = !!opts.leaves;   // level 1 and 1.1 only by default: the 1.1.1 steps are in each task's side panel, so the tree stays uncluttered
     // about 60% of the tasks grow above the main branch, the rest hang below it (banyan style); left half outer to inner, right half inner to outer
     var U = N <= 3 ? N : Math.ceil(N * .6), L = N - U, UL = Math.ceil(U / 2), UR = U - UL, LL = Math.ceil(L / 2), LR = L - LL;
-    var bh = function (s) { var n = (s.steps || []).length; return 52 + (n ? 26 + (n - 1) * ROW + 24 : 14) + 14; };
+    var bh = function (s) { var n = LEAF ? (s.steps || []).length : 0; return LEAF ? 52 + (n ? 26 + (n - 1) * ROW + 24 : 14) + 14 : 96; };   // without leaves each branch gets more room and bigger words
     var ch = function (t) { return (t.subs || []).reduce(function (a, s) { return a + bh(s); }, 0); };
     var mx0 = function (L0) { return L0.length ? Math.max.apply(0, L0) : 0; };
     var UP = mx0(T.slice(0, U).map(ch)), DN = mx0(T.slice(U).map(ch)), CH2 = 48;
@@ -54,7 +55,7 @@
       var j = i - U, lf = j < LL, q = lf ? j : j - LL;
       return { s: lf ? -1 : 1, up: false, X: lf ? TX - 200 - (LL - 1 - q) * SP : TX + 200 + q * SP, pin: lf ? TX - 150 - (LL - 1 - q) * 100 : TX + 150 + q * 100, lv: 66 + 14 * (lf ? q : LR - 1 - q) };
     });
-    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.classList.toggle('nl', !LEAF);
     var defs = el('defs', {});
     var glow = el('filter', { id: id + 'gl', filterUnits: 'userSpaceOnUse', x: 0, y: 0, width: W, height: H }, defs);   // a straight line has no height: the glow is measured on the whole drawing
     el('feGaussianBlur', { stdDeviation: '2', result: 'b' }, glow); var mg = el('feMerge', {}, glow); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'SourceGraphic' }, mg);
@@ -98,9 +99,9 @@
         var ny = y + 52, nx = X + s * 44, tone = mix(c[0], c[1], t.subs.length > 1 ? j / (t.subs.length - 1) : 0);
         trace(poly([[X, HY], [X, ny], [nx, ny]]), grad(c[1], tone, X, HY, nx, ny), 2.2, g, 1, u.crit, u.pct / 100);
         pad(nx, ny, 8, tone, g, u.crit);
-        var un = text(nx - s * 6, ny - 34, u.n + ' ' + cut(u.name, 30), 'sb', anc, g, tone, u.crit); badge(un, u.pct, g);
-        text(nx - s * 6, ny - 16, cut(meta(u, u.pct + '%'), 46), 'sm', anc, g, null, u.crit);
-        (u.steps || []).forEach(function (st, q) {
+        var un = text(nx - s * 6, ny - (LEAF ? 34 : 40), u.n + ' ' + cut(u.name, 30), 'sb', anc, g, tone, u.crit); badge(un, u.pct, g);
+        text(nx - s * 6, ny - (LEAF ? 16 : 17), cut(meta(u, u.pct + '%'), 46), 'sm', anc, g, null, u.crit);
+        (LEAF ? u.steps || [] : []).forEach(function (st, q) {
           var ly = ny + 26 + q * ROW, lx = nx + s * 86, lt = mix(tone, '#ffffff', .18);
           trace(poly([[nx, ny], [nx + s * 26, ny], [nx + s * 26, ly], [lx, ly]]), lt, 1.6, g, 2, st.crit, st.done ? 1 : 0);
           pad(lx, ly, 5.5, lt, g, st.crit);

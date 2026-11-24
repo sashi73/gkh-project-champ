@@ -331,4 +331,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 320 | 1.0.320| 2026-11-24 05:12| treepert| `f1ffd8e` | Tree view and PERT chart on every project (PERT · Tree view · WBS) (#157) |
 | 321 | 1.0.321| 2026-11-24 11:40| pvfull| `cf9b558` | Tree view and PERT open over the whole window (like the Champ circuit tree) with Close and Esc, and the drawing fills all the space: the tre |
 | 322 | 1.0.322| 2026-11-24 11:47| pvfull| `a07bffb` | Full-window views, CodeRabbit fixes: focus goes back to the PERT or Tree view button on close and stays on Close after a resize redraw; PERT |
-| 323 | 1.0.323 | 2026-11-24 11:52 | pvfull | _this commit_ | _see git log_ |
+| 323 | 1.0.323| 2026-11-24 11:52| pvfull| `dde0614` | Tree view and PERT open full screen and fill it (#158) |
+| 324 | 1.0.324 | 2026-11-24 12:28 | tvlevels | _this commit_ | _see git log_ |
