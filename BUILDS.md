@@ -332,4 +332,9 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 321 | 1.0.321| 2026-11-24 11:40| pvfull| `cf9b558` | Tree view and PERT open over the whole window (like the Champ circuit tree) with Close and Esc, and the drawing fills all the space: the tre |
 | 322 | 1.0.322| 2026-11-24 11:47| pvfull| `a07bffb` | Full-window views, CodeRabbit fixes: focus goes back to the PERT or Tree view button on close and stays on Close after a resize redraw; PERT |
 | 323 | 1.0.323| 2026-11-24 11:52| pvfull| `dde0614` | Tree view and PERT open full screen and fill it (#158) |
-| 324 | 1.0.324 | 2026-11-24 12:28 | tvlevels | _this commit_ | _see git log_ |
+| 324 | 1.0.324| 2026-11-24 12:28| tvlevels| `1575be4` | Tree view: level 1 tasks and 1.1 sub-tasks only, with bigger words; the 1.1.1 steps are in each task's side panel (tap a task) (#159) |
+| 325 | 1.0.325| 2026-11-25 09:09| esg| `6eeea35` | 🌿 ESG & Sustainability reporting module and the 🌱 CSO view |
+| 326 | 1.0.326| 2026-11-25 09:24| esg| `5d2cc74` | 💱 Carbon pricing, CBAM and the carbon credit framework; compact lists; review fixes |
+| 327 | 1.0.327| 2026-11-25 09:47| esg| `1c44be5` | 🧾 Electricity bills read by AI, 📥 CSV/Excel import, own ESG menu section; review fixes |
+| 328 | 1.0.328| 2026-11-25 10:01| esg| `a4f976d` | ESG review fixes: bills pending at once, numbers parsed before unit factors, keyboard file pickers, escaped import notes, bill costs per cur |
+| 329 | 1.0.329 | 2026-11-25 10:08 | esg | _this commit_ | _see git log_ |
