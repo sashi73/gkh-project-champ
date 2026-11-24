@@ -259,9 +259,21 @@ export function pricing(e, em) {
   return { schemes: p.schemes || [], eua, uk, cbamYear: yr0, cbamFactor: fac, cbam: cb, cbamEU: sum(cb, 'cost', (x) => x.cur === 'EUR'), cbamUK: sum(cb, 'cost', (x) => x.cur === 'GBP'), cbamEmb: sum(cb, 'emb'), exp: ex, shadow, icp,
     credits: cr, creditT: r2(credT, 0), highQualityPct: credT ? Math.round(hiQ / credT * 100) : null, byUse: cr.reduce((a, x) => { a[x.use || 'Not decided'] = r2((a[x.use || 'Not decided'] || 0) + (x.t || 0), 0); return a; }, {}) };
 }
+/* ---------------- 🧾 electricity bills: the evidence behind Scope 2 (read by the AI from the bill, checked by the user) ---------------- */
+function cleanBills(L) {
+  const seen = new Set();
+  return arr(L, 400).map((x) => { x = x && typeof x === 'object' ? x : {}; let id = str(x.id, 20).replace(/[^A-Za-z0-9]/g, ''); if (!id || seen.has(id)) id = uid(); seen.add(id);
+    return { id, file: str(x.file, 120), supplier: str(x.supplier, 80), site: str(x.site, 120), meter: str(x.meter, 40), from: /^\d{4}-\d{2}-\d{2}$/.test(String(x.from || '')) ? x.from : '', to: /^\d{4}-\d{2}-\d{2}$/.test(String(x.to || '')) ? x.to : '',
+      kwh: num(x.kwh), green: num(x.green), cost: num(x.cost), cur: str(x.cur, 6), note: str(x.note, 200) }; }).filter((x) => x.kwh != null || x.supplier || x.file);
+}
+export function billsSum(e) {
+  const L = e.bills || [], kwh = L.reduce((a, x) => a + (x.kwh || 0), 0), green = L.reduce((a, x) => a + (x.green || 0), 0), cost = L.reduce((a, x) => a + (x.cost || 0), 0);
+  const days = L.reduce((a, x) => a + (x.from && x.to ? Math.max(0, (Date.parse(x.to) - Date.parse(x.from)) / 864e5 + 1) : 0), 0);
+  return { n: L.length, mwh: r2(kwh / 1000, 3), greenMwh: r2(green / 1000, 3), cost: r2(cost, 2), days: Math.round(days), sites: [...new Set(L.map((x) => x.site).filter(Boolean))].length };
+}
 export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
-  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing) };
+  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills) };
   SECTIONS.forEach((s) => { out[s.id] = cleanSection(s.id, e[s.id]); });
   return out;
 }
@@ -350,11 +362,11 @@ export function compute(e) {
   const em = emissions(e), E = envScore(e, em), S = socScore(e), G = govScore(e), cv = coverage(e), chosen = (e.std || []).length ? e.std : ['IFRS_S2', 'GRI'];
   const readiness = Math.round(chosen.reduce((a, s) => a + (cv.pct[s] || 0), 0) / chosen.length);
   const filled = SECTIONS.filter((s) => s.id !== 'org').map((s) => ({ id: s.id, pillar: PILLAR_OF[s.id], n: s.fields.filter((f) => has((e[s.id] || {})[f[0]])).length, of: s.fields.length }));
-  return { method: METHOD, em, env: E, soc: S, gov: G, esg: Math.round((E.score + S.score + G.score) / 3), coverage: cv.pct, readiness, filled, avoid: avoided(e), price: pricing(e, em) };
+  return { method: METHOD, em, env: E, soc: S, gov: G, esg: Math.round((E.score + S.score + G.score) / 3), coverage: cv.pct, readiness, filled, avoid: avoided(e), price: pricing(e, em), bills: billsSum(e) };
 }
 
 /* ---------------- 📂 storage ---------------- */
-const summary = (e, c) => ({ id: e.id, name: (e.org || {}).name || 'Untitled', year: (e.org || {}).year || '', industry: (e.org || {}).industry || '', updated: e.updated || 0, esg: c ? c.esg : null, total: c ? c.em.total : null, std: e.std || [] });
+const summary = (e, c) => ({ id: e.id, rev: e.rev || 0, name: (e.org || {}).name || 'Untitled', year: (e.org || {}).year || '', industry: (e.org || {}).industry || '', updated: e.updated || 0, esg: c ? c.esg : null, total: c ? c.em.total : null, std: e.std || [] });
 export async function list() { const i = (await kv.get('esg-index')) || { ents: {} }; return Object.values(i.ents || {}).sort((a, b) => (b.updated || 0) - (a.updated || 0)); }
 export async function get(id) { id = String(id || '').replace(/[^A-Z0-9]/gi, '').slice(0, 24); return id ? kv.get('esg:' + id) : null; }
 async function put(e) { await kv.set('esg:' + e.id, e); const c = compute(e); await kv.update('esg-index', (x) => { x.ents = x.ents || {}; x.ents[e.id] = summary(e, c); return x; }, () => ({ ents: {} })); return c; }
@@ -382,6 +394,8 @@ export async function save(id, body, by) {
     if (JSON.stringify(x.avoid || []) !== JSON.stringify(nx.avoid)) changed.push('Carbon avoidance: ' + nx.avoid.length + ' item' + (nx.avoid.length === 1 ? '' : 's')); x.avoid = nx.avoid;
     if (JSON.stringify(x.credits || []) !== JSON.stringify(nx.credits)) changed.push('Carbon credits register'); x.credits = nx.credits;
     if (JSON.stringify(x.pricing || {}) !== JSON.stringify(nx.pricing)) changed.push('Carbon pricing and CBAM'); x.pricing = nx.pricing;
+    if (JSON.stringify(x.bills || []) !== JSON.stringify(nx.bills)) changed.push('Electricity bills: ' + nx.bills.length); x.bills = nx.bills;
+    if (body.source) changed.push('(imported from ' + str(body.source, 80) + ')');
     if (!changed.length) { res = { same: true }; return cur; }
     x.rev = (x.rev || 0) + 1; x.updated = Date.now();
     logIt(x, by, changed.length > 4 ? changed.slice(0, 4).join('; ') + ' and ' + (changed.length - 4) + ' more' : changed.join('; '));
@@ -389,7 +403,8 @@ export async function save(id, body, by) {
   }, () => null);
   if (res && res.error) return res;
   const c = compute(e);
-  if (!res) await kv.update('esg-index', (x) => { x.ents = x.ents || {}; x.ents[e.id] = summary(e, c); return x; }, () => ({ ents: {} }));
+  // the list entry: written on every save (so a retry repairs a half-finished one), never replaced by an older revision
+  await kv.update('esg-index', (x) => { x.ents = x.ents || {}; const old = x.ents[e.id]; if (!old || !(old.rev > (e.rev || 0))) x.ents[e.id] = summary(e, c); return x; }, () => ({ ents: {} }));
   return { entity: e, calc: c, cover: coverage(e).by };
 }
 export async function remove(id, by) { const e = await get(id); if (!e) return { error: 'Not found', code: 404 }; await kv.del('esg:' + e.id); await kv.del('esgdoc:' + e.id + ':statement').catch(() => {}); await kv.del('esgdoc:' + e.id + ':report').catch(() => {}); await kv.update('esg-index', (x) => { delete (x.ents || {})[e.id]; return x; }, () => ({ ents: {} })); return { ok: true, name: (e.org || {}).name }; }
@@ -443,6 +458,7 @@ function facts(e) {
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
     scores_out_of_100: { environment: c.env.score, social: c.soc.score, governance: c.gov.score, overall: c.esg, gri2_alignment: c.gov.gri }, women_pct: c.soc.womenPct, women_in_management_pct: c.soc.womenMgmtPct, women_on_board_pct: c.gov.boardWomenPct,
     gaps: [...c.env.why, ...c.soc.why, ...c.gov.why], standards_coverage_pct: c.coverage,
+    electricity_bills: (() => { const B = c.bills; return B.n ? { bills: B.n, sites: B.sites, total_MWh: B.mwh, renewable_MWh: B.greenMwh, days_covered: B.days, note: 'Scope 2 activity data is backed by the electricity bills' } : undefined; })(),
     carbon_pricing: (() => { const P = c.price; return { schemes_that_apply: P.schemes.map((id) => (CARBON_SCHEMES.find((x) => x.id === id) || {}).name), internal_carbon_price: P.icp, shadow_cost_scope1_2: P.shadow,
       cbam_lines: P.cbam.map((x) => ({ market: x.market, good: x.good, cn_code: x.cn, what: x.dest, tonnes: x.tonnes, embedded_tCO2e: x.emb, values: x.sv, est_cost: x.cost, currency: x.cur })), cbam_cost_eur: P.cbamEU, cbam_cost_gbp: P.cbamUK,
       carbon_price_exposures: P.exp.map((x) => ({ scheme: x.scheme, site: x.site, liable_tCO2e: x.liable, price: x.price, currency: x.cur, est_cost: x.cost })),
@@ -501,6 +517,34 @@ export async function writeDoc(id, kind, lang, by) {
   return rec;
 }
 const PILLAR = { env: 'Environment (emissions, energy, water, waste, climate risk and targets)', soc: 'Social (workforce, safety, diversity, human rights, Indigenous peoples, community, suppliers)', gov: 'Governance (board, ethics, anti-corruption, risk, cyber, certifications)' };
+/* ---------------- 📥 reading data in: electricity bills, and spreadsheets from other systems ---------------- */
+const BILL_SYS = 'You read electricity bills (utility invoices) for greenhouse gas reporting. Return JSON only. Never invent a number: leave a value null when the bill does not show it. Quantities are energy actually used in the billing period (not demand kW, not estimates of future use).';
+export async function readBill(text, file, by) {
+  if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.' };
+  try { await checkLimit(); } catch (err) { return { error: err.message }; }
+  text = String(text || '').slice(0, 24000); if (text.replace(/\s/g, '').length < 40) return { error: '“' + str(file, 120) + '” has no readable text. A scanned bill needs a text PDF (most suppliers can send one), or type the figures in.' };
+  const r = await llmJson([{ role: 'system', content: BILL_SYS }, { role: 'user', content: JSON.stringify({ task: 'Find every electricity account or meter on this bill. Keys: "bills": [{"supplier":"","site":"supply address or site name","meter":"NMI, MPAN, meter or account number","from":"YYYY-MM-DD","to":"YYYY-MM-DD","kwh": total electricity used in the period in kWh (add peak, off-peak, shoulder and controlled load; convert MWh to kWh),"green": kWh of GreenPower or renewable electricity bought on this bill (0 if none shown),"cost": total amount of the bill including tax,"cur":"AUD, MYR, SGD..."}], "warnings": ["anything unclear"]', file: str(file, 120), bill: text }) }],
+    { maxTokens: 1800, timeoutMs: 120000, temperature: 0 }).catch((err) => ({ error: err.message }));
+  if (r.error) return { error: r.error };
+  const bills = cleanBills(arr((r.data || {}).bills, 20).map((x) => ({ ...x, file }))), warnings = arr((r.data || {}).warnings, 6).map((x) => str(x, 200)).filter(Boolean);
+  await usage(1, r.used || 0);
+  return { bills, warnings, tokens: r.used || 0 };
+}
+// every field a spreadsheet can fill: "section.key" with its label and unit (also the import template)
+export function fieldList() { return SECTIONS.flatMap((sec) => sec.fields.map(([k, label, t, opts, hint]) => ({ id: sec.id + '.' + k, section: sec.title, label, type: t, unit: typeof opts === 'string' ? opts : t === 'p' ? '%' : '', options: Array.isArray(opts) ? opts : null }))); }
+export async function mapColumns(head, rows, by) {
+  if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.' };
+  try { await checkLimit(); } catch (err) { return { error: err.message }; }
+  const F = fieldList().map((f) => f.id + ' | ' + f.label + (f.unit ? ' (' + f.unit + ')' : ''));
+  const r = await llmJson([{ role: 'system', content: 'You map data exported from another system (an energy portal, HR, payroll, safety, finance or ERP report) onto ESG reporting fields. Return JSON only. Map only when you are sure; convert units when needed (give the factor). Never invent values.' },
+    { role: 'user', content: JSON.stringify({ task: 'The sheet is either long (one row per metric: a name column and a value column) or wide (one column per metric). Keys: "layout": "long" or "wide", "name_col": index of the metric-name column (long), "value_col": index of the value column (long), "map": [{"source": the metric name (long) or the column header (wide), "field": one of the field ids, "factor": number to multiply by to get the field unit (1 if none), "why": "short"}]. Wide sheets with several rows: say "sum" true in a map item when the rows should be added up (e.g. monthly kWh).', fields: F, header: arr(head, 60).map((x) => str(x, 80)), rows: arr(rows, 40).map((r0) => arr(r0, 60).map((x) => str(x, 80))) }) }],
+    { maxTokens: 2500, timeoutMs: 120000, temperature: 0 }).catch((err) => ({ error: err.message }));
+  if (r.error) return { error: r.error };
+  const ids = new Set(fieldList().map((f) => f.id)), d = r.data || {};
+  await usage(1, r.used || 0);
+  return { layout: d.layout === 'wide' ? 'wide' : 'long', nameCol: Number(d.name_col) || 0, valueCol: Number.isFinite(Number(d.value_col)) ? Number(d.value_col) : 1,
+    map: arr(d.map, 120).map((m) => ({ source: str(m && m.source, 80), field: str(m && m.field, 40), factor: Number(m && m.factor) || 1, sum: !!(m && m.sum), why: str(m && m.why, 160) })).filter((m) => m.source && ids.has(m.field)), tokens: r.used || 0 };
+}
 export async function insight(id, pillar, by) {
   const e = await get(id); if (!e) return { error: 'This reporting entity was not found' };
   if (!PILLAR[pillar]) return { error: 'Pick environment, social or governance' };

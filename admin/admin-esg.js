@@ -89,21 +89,26 @@
   }
 
   /* ---------- the reporting entity ---------- */
-  function load(id) { return api('esgGet', { id: id }).then(function (d) { V.id = d.entity.id; V.e = d.entity; V.calc = d.calc; V.cover = d.cover; V.docs = d.docs || {}; }); }
+  var DOCS = {};   // report id → its last narratives
+  function load(id) { return api('esgGet', { id: id }).then(function (d) { V.id = d.entity.id; V.e = d.entity; V.calc = d.calc; V.cover = d.cover; V.docs = DOCS[d.entity.id] = d.docs || {}; }); }
+  // after an AI job: copy the server's document history, log and insights onto the report object the form uses (never replace it)
+  function mergeMeta(ent) { return api('esgGet', { id: ent.id }).then(function (d) { ent.docs = d.entity.docs; ent.log = d.entity.log; ent.insights = d.entity.insights; DOCS[ent.id] = Object.assign(DOCS[ent.id] || {}, d.docs || {}); }); }
   function entityPage(id, tab) {
     var known = {}; GROUPS.forEach(function (g) { g[2].forEach(function (t) { known[t[0]] = 1; }); });
     V.tab = known[tab] ? tab : 'overview';
     var go = function () { draw(); };
     if (V.e && V.id === id) { go(); return Promise.resolve(); }
     view().innerHTML = '<div class="empty">Loading the report…</div>';
-    return schema().then(function () { return load(id); }).then(go);
+    // a save still running for this report finishes first, so the form is loaded with the saved revision
+    return schema().then(function () { return Q[id] ? saveNow(id).catch(function () {}) : null; }).then(function () { return load(id); }).then(go);
   }
   function draw() {
     var e = V.e, o = e.org || {};
     document.title = (o.name || 'ESG report') + ' · ESG · GKH Project Champ';
     view().innerHTML = '<div class="row plan-head" style="margin-bottom:12px"><a class="btn btn-sm" href="#esg">← ESG reports</a><h2 style="font-size:21px">' + esc(o.name || 'Untitled') + '</h2><span class="muted">' + esc([o.year, o.industry, o.country].filter(Boolean).join(' · ')) + '</span><span class="sp"></span>' +
-      '<span class="esg-saved muted" id="esgSaved" aria-live="polite"></span><button class="btn btn-sm" id="esgDel" type="button" title="Delete this ESG report">🗑</button></div>' +
+      '<span class="esg-saved muted" id="esgSaved" aria-live="polite"></span><button class="btn btn-sm" id="esgImp" type="button">📥 Import</button><button class="btn btn-sm" id="esgDel" type="button" title="Delete this ESG report">🗑</button></div>' +
       '<div class="grid pkpis" id="esgTiles">' + tilesHtml() + '</div>' + tabsHtml() + '<div id="esgBody"></div>';
+    $('#esgImp').onclick = function () { flush().catch(function () {}); importModal(); };
     $('#esgDel').onclick = function () { M.confirmBox('Delete this ESG report?', 'This deletes <b>' + esc(o.name || 'this report') + '</b>, its data, its AI narratives and its history. It cannot be undone.', 'Delete', true).then(function (ok) { if (!ok) return; api('esgDelete', { id: V.id }).then(function () { V.e = null; toast('Deleted'); location.hash = '#esg'; }).catch(fail); }); };
     var on = view().querySelector('#planTabs .tab.on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (x) {}
     body();
@@ -122,7 +127,7 @@
     wire(b);
   }
   // after a save: the tiles and the live results change, the fields being typed in stay as they are
-  function refresh() { if (V.tab === 'standards' && !document.activeElement.matches('input:not([type=checkbox]),select,textarea')) { var y = scrollY; body(); scrollTo(0, y); } var T = $('#esgTiles'); if (T) T.innerHTML = tilesHtml(); var r = $('#esgRes'); if (r) r.innerHTML = results(V.tab); var x = $('#esgLive'); if (x) x.innerHTML = live(V.tab); }
+  function refresh() { var bs = $('#esgBillSum'); if (bs) { bs.innerHTML = billSum(); wireUse(); } if (V.tab === 'standards' && !document.activeElement.matches('input:not([type=checkbox]),select,textarea')) { var y = scrollY; body(); scrollTo(0, y); } var T = $('#esgTiles'); if (T) T.innerHTML = tilesHtml(); var r = $('#esgRes'); if (r) r.innerHTML = results(V.tab); var x = $('#esgLive'); if (x) x.innerHTML = live(V.tab); }
 
   /* ---------- 💾 saving: a short pause after typing, then the changed sections; each report keeps its own queue ---------- */
   var Q = {};   // report id → { ent, parts, saving, timer, failed }
@@ -137,9 +142,10 @@
     var keys = Object.keys(S.parts); if (!keys.length) return Promise.resolve();
     S.parts = {}; var ent = S.ent, patch = {}; keys.forEach(function (k) { patch[k] = ent[k]; });
     if (V.e === ent) say('Saving…');
-    S.saving = api('esgSave', { id: id, rev: ent.rev, patch: patch }).then(function (d) {
+    var src = S.source; S.source = '';
+    S.saving = api('esgSave', { id: id, rev: ent.rev, patch: patch, source: src || undefined }).then(function (d) {
       keys.forEach(function (k) { if (!S.parts[k]) ent[k] = d.entity[k]; });   // keep anything typed while it saved
-      ent.rev = d.entity.rev; ent.log = d.entity.log; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
+      ent.rev = d.entity.rev; ent.log = d.entity.log; if (!S.parts.bills) ent.bills = d.entity.bills; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
       if (V.e === ent) { V.calc = d.calc; if (d.cover) V.cover = d.cover; say('✓ Saved'); refresh(); }
       S.saving = null; return Object.keys(S.parts).length ? saveNow(id) : null;
     }, function (e) {
@@ -174,14 +180,57 @@
     resources: 'Energy, water and waste, and the environmental management system.', climate: 'Climate-related risks, opportunities and targets: the heart of IFRS S2, AASB S2 and TCFD.',
     workforce: 'Who works here, and how safe they are. Women in management is measured against everyone in management.', rights: 'Human rights, labour standards, child labour, modern slavery and Indigenous peoples.',
     community: 'Community, suppliers and customers.', board: 'The board: its make-up, independence and oversight of sustainability.', ethics: 'Ethics, anti-corruption, risk, cyber security and tax.', certs: 'Management systems and certifications.' };
+  // a data tab: the activity data, and (for emissions) the factors and the electricity bills on their own sub-tabs, so no tab runs on for screens
   function formTab(sec) {
     var s = SC.sec[sec]; if (!s) return '<div class="empty">Not found</div>';
     var acts = s.fields.filter(function (f) { return !isF(f[0]); }), facs = s.fields.filter(function (f) { return isF(f[0]); }), p = pillarOf(sec);
-    return '<div class="esg-split"><div class="card"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">' + esc(s.title) + '</h3></div><p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(INTRO[sec] || '') + '</p>' +
-      '<div class="esg-form">' + acts.map(function (f) { return field(sec, f); }).join('') + '</div>' +
-      (facs.length ? '<details class="esg-facs"' + (sec === 'carbon' ? ' open' : '') + '><summary>Emission factors <small class="muted">(indicative defaults shown in grey: check them against the current official set before you report)</small></summary><div class="esg-form">' + facs.map(function (f) { return field(sec, f); }).join('') + '</div></details>' : '') +
-      '</div><div><div class="card esg-res" id="esgRes">' + results(sec) + '</div>' + (p ? insightCard(p) : '') + '</div></div>';
+    var SUB = [['data', sec === 'carbon' ? 'Fuels & electricity' : sec === 'scope3' ? 'Activity data' : 'Data']];
+    if (sec === 'carbon') SUB.push(['bills', 'Electricity bills' + ((V.e.bills || []).length ? ' (' + V.e.bills.length + ')' : '')]);
+    if (facs.length) SUB.push(['factors', 'Emission factors']);
+    var sub = (V.subs || {})[sec] || 'data'; if (!SUB.some(function (x) { return x[0] === sub; })) sub = 'data';
+    var left = sub === 'bills' ? billsCard() : sub === 'factors' ? '<div class="card"><h3 style="margin:0 0 4px">Emission factors</h3><p class="muted" style="margin:0 0 12px;font-size:13px">Indicative defaults are shown in grey: leave a factor blank to use the set\'s value, or type your own. Check them against the current official set before you report.</p><div class="esg-form">' + facs.map(function (f) { return field(sec, f); }).join('') + '</div></div>'
+      : '<div class="card"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">' + esc(s.title) + '</h3><span class="sp"></span><button class="btn btn-sm" type="button" data-import="1">📥 Import from a spreadsheet</button></div><p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(INTRO[sec] || '') + '</p><div class="esg-form">' + acts.map(function (f) { return field(sec, f); }).join('') + '</div></div>';
+    return (SUB.length > 1 ? subBar(SUB, sub, s.title) : '') + '<div class="esg-split"><div>' + left + '</div><div><div class="card esg-res" id="esgRes">' + results(sec) + '</div>' + (p ? insightCard(p) : '') + '</div></div>';
   }
+  /* ---------- 🧾 electricity bills: upload them, Champ reads the kWh, you check, Scope 2 uses the total ---------- */
+  function billSum() {
+    var B = V.calc.bills || {}, c = V.e.carbon || {}, differs = B.n && (Math.abs((c.elec || 0) - B.mwh) > 0.001 || Math.abs((c.green || 0) - B.greenMwh) > 0.001);
+    return (B.n ? '<div class="esg-billsum"><span><b>' + nf(B.mwh, 1) + '</b> MWh</span><span><b>' + nf(B.greenMwh, 1) + '</b> MWh renewable</span><span><b>' + B.n + '</b> bill' + (B.n === 1 ? '' : 's') + ' · ' + B.sites + ' site' + (B.sites === 1 ? '' : 's') + '</span><span><b>' + nf(B.days) + '</b> meter-days</span>' +
+        (differs ? '<button class="btn btn-sm btn-gold" type="button" id="blUse">Use the bills\' total for Scope 2</button>' : '<span class="t-green">✓ Scope 2 uses the bills\' total</span>') + '</div>' : '');
+  }
+  function billsCard() {
+    var L = V.e.bills || [], B = V.calc.bills || {}, c = V.e.carbon || {}, busy = V.ai[V.id + ':bills'];
+    var head = '<span>Bill</span><span>Site · meter</span><span>Period</span><span class="r">kWh</span><span></span>';
+    var line = function (x) { return '<span class="n">' + esc(x.supplier || 'Bill') + '<small class="muted">' + esc(x.file || '') + '</small></span><span>' + esc(x.site || '') + '<small class="muted">' + esc(x.meter || '') + '</small></span><span>' + esc(x.from && x.to ? dt(x.from) + ' to ' + dt(x.to) : '–') + '<small class="muted">' + (x.cost != null ? esc((x.cur || '') + ' ' + nf(x.cost, 2)) : '') + '</small></span><span class="r"><b>' + nf(x.kwh) + '</b>' + (x.green ? '<small class="t-green">' + nf(x.green) + ' green</small>' : '') + '</span>'; };
+    var ed = function (x, i) { return '<div class="esg-form esg-form-4" data-bli="' + i + '"><label>Supplier' + inp('data-bl', 'supplier', x.supplier, ' maxlength="80"') + '</label><label>Site' + inp('data-bl', 'site', x.site, ' maxlength="120"') + '</label><label>Meter or NMI' + inp('data-bl', 'meter', x.meter, ' maxlength="40"') + '</label><label>File' + inp('data-bl', 'file', x.file, ' maxlength="120"') + '</label>' +
+      '<label>From<input type="date" data-bl="from" value="' + esc(x.from || '') + '"></label><label>To<input type="date" data-bl="to" value="' + esc(x.to || '') + '"></label><label>Electricity used' + numIn('data-bl', 'kwh', x.kwh, 'kWh') + '</label><label>Of which renewable' + numIn('data-bl', 'green', x.green, 'kWh') + '</label>' +
+      '<label>Amount' + numIn('data-bl', 'cost', x.cost, '') + '</label><label>Currency' + inp('data-bl', 'cur', x.cur, ' maxlength="6"') + '</label><label class="full">Notes' + inp('data-bl', 'note', x.note, ' maxlength="200"') + '</label></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" type="button" data-bldel="' + i + '">🗑 Remove</button></div>'; };
+    var differs = B.n && (Math.abs((c.elec || 0) - B.mwh) > 0.001 || Math.abs((c.green || 0) - B.greenMwh) > 0.001);
+    return '<div class="card"><div class="row"><h3 style="margin:0">Electricity bills</h3><span class="sp"></span><label class="btn btn-sm btn-gold esg-up' + (busy ? ' dis' : '') + '">' + (busy ? '✨ Reading…' : '📄 Upload bills') + '<input type="file" id="blFile" accept=".pdf,application/pdf" multiple' + (busy ? ' disabled' : '') + '></label><button class="btn btn-sm" type="button" id="blAdd">＋ Type one in</button></div>' +
+      '<p class="muted" style="font-size:13px;margin:8px 0 0">Upload your electricity bills (PDF, several at once). ✨ Champ reads the supplier, site, meter, billing period, kWh used, GreenPower or renewable kWh and the amount. Check each line, then use the total for Scope 2. The bills stay with the report as evidence for assurance. For interval or portal data in a spreadsheet, use 📥 Import.</p>' +
+      '<div id="esgBillSum">' + billSum() + '</div>' + '</div>' +
+      rowList('bills', L, head, line, ed, 'No bills yet. Upload the year\'s electricity bills, or type one in.');
+  }
+  function wireUse() { var u = $('#blUse'); if (u) u.onclick = function () { var B = V.calc.bills; V.e.carbon = V.e.carbon || {}; V.e.carbon.elec = B.mwh; V.e.carbon.green = B.greenMwh; touch('carbon'); toast('Scope 2 now uses ' + nf(B.mwh, 1) + ' MWh from the bills'); }; }
+  function readBills(files) {
+    var id = V.id, ent = V.e, key = id + ':bills', list = Array.prototype.slice.call(files || []), added = 0, warn = [];
+    if (!list.length) return;
+    if (!M.readDoc) return fail(new Error('The document reader did not load. Reload the page.'));
+    V.ai[key] = true; body();
+    var one = function (f) {
+      if (!/\.pdf$/i.test(f.name)) { warn.push(f.name + ': only PDF bills can be read'); return Promise.resolve(); }
+      return M.readDoc(f).then(function (x) { return new Promise(function (res) { bg({ mode: 'esgBill', text: x.text, file: f.name }, function (r) {
+        ent.bills = ent.bills || []; r.bills.forEach(function (b) { b.id = 'N' + rid().slice(0, 10).toUpperCase(); ent.bills.push(b); added++; }); (r.warnings || []).forEach(function (w) { warn.push(f.name + ': ' + w); }); res(); },
+        function (e) { warn.push(f.name + ': ' + e.message); res(); }); }); }, function (e) { warn.push(f.name + ': ' + e.message); });
+    };
+    list.reduce(function (p, f) { return p.then(function () { return one(f); }); }, Promise.resolve()).then(function () {
+      V.ai[key] = false; if (added) { var S = q(id); S.ent = ent; S.parts.bills = 1; saveNow(id).catch(function (e) { if (!e.shown) fail(e); }); }
+      if (V.e === ent) body();
+      toast(added ? 'Read ' + pl(added, 'bill') + ': check each line' + (warn.length ? ' (' + warn.length + ' note' + (warn.length === 1 ? '' : 's') + ')' : '') : 'No bills could be read');
+      if (warn.length) M.modal('<h2>Notes from reading the bills</h2><ul class="esg-ul" style="margin:10px 0">' + warn.map(function (w) { return '<li>' + esc(w) + '</li>'; }).join('') + '</ul><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">OK</button></div>');
+    });
+  }
+
   function results(sec) {
     var c = V.calc, em = c.em, e = V.e;
     if (sec === 'org') return '<h3>What this report covers</h3>' + kvHtml([['Organisation', (e.org || {}).name], ['Reporting year', (e.org || {}).year], ['Period', [(e.org || {}).from, (e.org || {}).to].filter(Boolean).join(' to ')], ['Boundary', (e.org || {}).boundary], ['Assurance', (e.org || {}).assurance], ['Standards', (e.std || []).map(stdShort).join(', ')]]) +
@@ -222,7 +271,7 @@
   /* ---------- ✨ Champ's recommendations for a pillar ---------- */
   var PNAME = { env: 'Environment', soc: 'Social', gov: 'Governance' };
   function insightCard(p) {
-    var I = (V.e.insights || {})[p], busy = V.ai[p];
+    var I = (V.e.insights || {})[p], busy = V.ai[V.id + ':' + p];
     return '<div class="card esg-ai" id="esgAi-' + p + '"><div class="row"><h3 style="margin:0">✨ Champ on ' + PNAME[p] + '</h3><span class="sp"></span><button class="btn btn-sm btn-gold" type="button" data-ins="' + p + '"' + (busy ? ' disabled' : '') + '>' + (busy ? 'Thinking…' : I ? 'Ask again' : 'Get recommendations') + '</button></div>' +
       (I ? '<p style="margin:10px 0 6px"><b>' + esc(I.headline) + '</b></p>' + (I.strengths.length ? '<p class="muted" style="font-size:12.5px;margin:0 0 6px">Strengths: ' + esc(I.strengths.join(' · ')) + '</p>' : '') +
         '<ol class="esg-recs">' + I.recs.map(function (r) { return '<li><b>' + esc(r.title) + '</b>' + (r.standard ? ' <span class="pill">' + esc(r.standard) + '</span>' : '') + '<div class="muted">' + esc(r.why) + '</div><div>' + esc(r.how) + '</div></li>'; }).join('') + '</ol><small class="muted">' + esc(when(I.at)) + '</small>'
@@ -239,9 +288,79 @@
         return poll(); }); }).catch(onErr);
   }
   function askInsight(p) {
-    V.ai[p] = true; var box = $('#esgAi-' + p); if (box) box.outerHTML = insightCard(p);
-    flush().then(function () { bg({ mode: 'esgInsight', esg: V.id, pillar: p }, function (r) { V.ai[p] = false; V.e.insights = Object.assign({}, V.e.insights, (function () { var o = {}; o[p] = r.insight; return o; })()); var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } toast('Recommendations ready'); },
-      function (e) { V.ai[p] = false; var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } fail(e); }); }, function (e) { V.ai[p] = false; var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } if (!e.shown) fail(e); });
+    var id = V.id, ent = V.e, key = id + ':' + p, show = function () { if (V.e !== ent) return; var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } };
+    V.ai[key] = true; show();
+    var stop = function (e) { V.ai[key] = false; show(); if (!e.shown) fail(e); };
+    flush().then(function () { bg({ mode: 'esgInsight', esg: id, pillar: p }, function (r) { V.ai[key] = false; var o = {}; o[p] = r.insight; ent.insights = Object.assign({}, ent.insights, o); show(); toast('Recommendations ready'); }, stop); }, stop);
+  }
+
+  /* ---------- 📥 import: a CSV or Excel sheet from another system (energy portal, HR, payroll, safety, finance), matched to the ESG fields ---------- */
+  var norm = function (t) { return String(t == null ? '' : t).toLowerCase().replace(/\(.*?\)/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); };
+  function parseCsv(t) {
+    var rows = [], row = [], cur = '', qd = false, sep = (t.split('\n')[0].match(/;/g) || []).length > (t.split('\n')[0].match(/,/g) || []).length ? ';' : t.indexOf('\t') >= 0 && t.indexOf(',') < 0 ? '\t' : ',';
+    for (var i = 0; i < t.length; i++) { var ch = t[i];
+      if (qd) { if (ch === '"') { if (t[i + 1] === '"') { cur += '"'; i++; } else qd = false; } else cur += ch; }
+      else if (ch === '"') qd = true; else if (ch === sep) { row.push(cur); cur = ''; } else if (ch === '\n' || ch === '\r') { if (ch === '\r' && t[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; } else cur += ch; }
+    if (cur || row.length) { row.push(cur); rows.push(row); }
+    return rows.filter(function (r) { return r.some(function (x) { return String(x).trim(); }); });
+  }
+  function readSheet(f) {
+    if (/\.(csv|txt|tsv)$/i.test(f.name)) return f.text().then(function (t) { return parseCsv(t.replace(/^﻿/, '')); });
+    if (/\.xlsx$/i.test(f.name)) return new Promise(function (res, rej) { if (window.ExcelJS) return res(); var sc = document.createElement('script'); sc.src = 'vendor/exceljs.min.js'; sc.onload = res; sc.onerror = function () { rej(new Error('Could not load the Excel reader')); }; document.head.appendChild(sc); })
+      .then(function () { return f.arrayBuffer(); }).then(function (buf) { var wb = new window.ExcelJS.Workbook(); return wb.xlsx.load(buf).then(function () {
+        var best = null; wb.eachSheet(function (ws) { var rows = []; ws.eachRow({ includeEmpty: false }, function (r) { var v = []; r.eachCell({ includeEmpty: true }, function (c, n) { var x = c.value; if (x && typeof x === 'object') x = x.result != null ? x.result : x.text != null ? x.text : x.richText ? x.richText.map(function (t) { return t.text; }).join('') : x instanceof Date ? x.toISOString().slice(0, 10) : ''; v[n - 1] = x == null ? '' : x; }); rows.push(v); }); if (!best || rows.length > best.length) best = rows; });
+        return best || []; }); });
+    return Promise.reject(new Error('Choose a CSV or Excel (.xlsx) file. Old .xls files: open in Excel and save as .xlsx.'));
+  }
+  function toVal(f, v) {
+    if (v == null || String(v).trim() === '') return null;
+    if (f.type === 'n' || f.type === 'p') { var n = Number(String(v).replace(/[^0-9.\-eE]/g, '')); return isFinite(n) && String(v).replace(/[^0-9]/g, '') !== '' ? n : null; }
+    if (f.options) { var o = f.options.filter(function (x) { return norm(x) === norm(v); })[0] || (/^(y|yes|true|1)$/i.test(String(v).trim()) && f.options.indexOf('Yes') >= 0 ? 'Yes' : /^(n|no|false|0)$/i.test(String(v).trim()) && f.options.indexOf('No') >= 0 ? 'No' : null); return o; }
+    if (f.type === 'd') { var d = new Date(v); return isNaN(d) ? null : d.toISOString().slice(0, 10); }
+    return String(v).slice(0, f.type === 'l' ? 3000 : 200);
+  }
+  // match without AI: the template's field ids, or a field label in the first column (long sheets) or the header row (wide sheets)
+  function autoMap(rows) {
+    var F = SC.fields, byId = {}, byLabel = {}; F.forEach(function (f) { byId[f.id] = f; [f.label, (f.label.match(/\(([^)]+)\)/) || [])[1], f.id.split('.')[1]].forEach(function (n) { n = norm(n); if (n && !byLabel[n]) byLabel[n] = f; }); });
+    var head = rows[0] || [], out = [], hi = head.map(norm), idCol = hi.indexOf('field id'), vCol = hi.indexOf('value');
+    if (idCol < 0) for (var r = 0; r < Math.min(rows.length, 20) && idCol < 0; r++) rows[r].forEach(function (x, c) { if (byId[String(x).trim()] && idCol < 0) idCol = c; });
+    if (idCol >= 0) { rows.forEach(function (r0, i) { var f = byId[String(r0[idCol] || '').trim()]; if (!f) return; var vc = vCol >= 0 ? vCol : r0.length - 1; out.push({ f: f, raw: r0[vc], src: 'row ' + (i + 1) }); }); return out; }
+    rows.forEach(function (r0, i) { var f = byLabel[norm(r0[0])]; if (f && r0.length > 1) { var raw = null; for (var c = r0.length - 1; c >= 1; c--) if (String(r0[c]).trim() !== '') { raw = r0[c]; break; } out.push({ f: f, raw: raw, src: 'row ' + (i + 1) }); } });
+    if (!out.length) head.forEach(function (h, c) { var f = byLabel[norm(h)]; if (!f) return; var raw = null; for (var r = 1; r < rows.length; r++) if (String(rows[r][c]).trim() !== '') { raw = rows[r][c]; break; } out.push({ f: f, raw: raw, src: 'column ' + h }); });
+    return out;
+  }
+  function aiMap(rows, map) {
+    var byId = {}; SC.fields.forEach(function (f) { byId[f.id] = f; }); var out = [], head = rows[0] || [];
+    if (map.layout === 'long') rows.forEach(function (r0, i) { var m = map.map.filter(function (x) { return norm(x.source) === norm(r0[map.nameCol]); })[0]; if (!m) return; var n = Number(String(r0[map.valueCol]).replace(/[^0-9.\-eE]/g, '')); out.push({ f: byId[m.field], raw: isFinite(n) && m.factor !== 1 ? n * m.factor : r0[map.valueCol], src: 'row ' + (i + 1), why: m.why }); });
+    else map.map.forEach(function (m) { var c = head.map(norm).indexOf(norm(m.source)); if (c < 0) return; var vals = rows.slice(1).map(function (r0) { return r0[c]; }).filter(function (v) { return String(v).trim() !== ''; });
+      if (!vals.length) return; var raw = m.sum ? vals.reduce(function (a, v) { return a + (Number(String(v).replace(/[^0-9.\-eE]/g, '')) || 0); }, 0) : vals[0]; if (m.factor !== 1 && isFinite(Number(raw))) raw = Number(raw) * m.factor; out.push({ f: byId[m.field], raw: raw, src: 'column ' + m.source + (m.sum ? ' (sum of ' + vals.length + ')' : ''), why: m.why }); });
+    return out.filter(function (x) { return x.f; });
+  }
+  function importModal() {
+    M.modal('<h2>📥 Import data from a spreadsheet</h2><p class="muted" style="margin:4px 0 12px">Bring in metrics from another system: an energy or fleet portal, HR or payroll, safety, finance or your own workbook, as CSV or Excel. You check every value before it is saved, and the change log records the file.</p>' +
+      '<div class="esg-imp-drop"><label class="btn btn-gold">Choose a CSV or Excel file<input type="file" id="impFile" accept=".csv,.tsv,.txt,.xlsx" hidden></label><span class="muted" id="impName">or start from the template</span><button class="btn btn-sm" type="button" id="impTpl">⬇ Template (CSV, with your current values)</button></div>' +
+      '<div id="impBody"></div><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Close</button><button class="btn btn-gold" id="impGo" type="button" hidden>Import the ticked values</button></div>');
+    var rows = null, found = [], fname = '';
+    var show = function (note) {
+      var B = $('#impBody'); if (!B) return;
+      if (!found.length) { B.innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + (note || 'No field matched by name.') + ' <button class="btn btn-sm btn-gold" type="button" id="impAi">✨ Let Champ match the columns</button></div>'; var b0 = $('#impAi'); if (b0) b0.onclick = askAi; $('#impGo').hidden = true; return; }
+      B.innerHTML = '<p style="margin:12px 0 6px"><b>' + pl(found.length, 'value') + '</b> found in ' + esc(fname) + (note ? ' · ' + esc(note) : '') + ' <button class="btn btn-sm" type="button" id="impAi">✨ Match again with Champ</button></p><div class="tbl-wrap" style="max-height:46vh;overflow:auto"><table class="tbl esg-tbl"><thead><tr><th><input type="checkbox" id="impAll" checked aria-label="Tick all"></th><th>Field</th><th>Now</th><th>From the file</th><th>Where</th></tr></thead><tbody>' +
+        found.map(function (x, i) { var sec = x.f.id.split('.')[0], k = x.f.id.split('.')[1], now = (V.e[sec] || {})[k], v = toVal(x.f, x.raw), ok = v != null; x.v = v;
+          return '<tr><td><input type="checkbox" data-imp="' + i + '"' + (ok && String(v) !== String(now) ? ' checked' : '') + (ok ? '' : ' disabled') + '></td><td><b>' + esc(x.f.label) + '</b><div class="muted" style="font-size:11.5px">' + esc(x.f.section) + '</div></td><td>' + esc(now == null ? '–' : String(now)) + '</td><td>' + (ok ? '<b>' + esc(String(v)) + '</b> ' + esc(x.f.unit || '') : '<span class="t-amber">Not readable: ' + esc(String(x.raw == null ? '' : x.raw).slice(0, 40)) + '</span>') + '</td><td class="muted" style="font-size:11.5px">' + esc(x.src) + (x.why ? '<div>' + esc(x.why) + '</div>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
+      $('#impGo').hidden = false; $('#impAi').onclick = askAi; $('#impAll').onchange = function () { var c = this.checked; document.querySelectorAll('[data-imp]:not(:disabled)').forEach(function (x) { x.checked = c; }); };
+    };
+    var askAi = function () { var B = $('#impBody'); B.innerHTML = '<p class="ask-think" style="margin:12px 0">✨ Champ is matching the columns to the ESG fields…</p>'; $('#impGo').hidden = true;
+      bg({ mode: 'esgMap', head: rows[0], rows: rows.slice(1, 41) }, function (m) { found = aiMap(rows, m); show(found.length ? 'matched by Champ: check them' : 'Champ found nothing it could match'); }, function (e) { show(e.message); }); };
+    $('#impTpl').onclick = function () { var L = [['Field id', 'Section', 'Field', 'Unit', 'Value']].concat(SC.fields.filter(function (f) { return f.type !== 'l'; }).map(function (f) { var sec = f.id.split('.')[0], k = f.id.split('.')[1], v = (V.e[sec] || {})[k]; return [f.id, f.section, f.label, f.unit || (f.options ? f.options.join(' / ') : ''), v == null ? '' : v]; }));
+      var csv = '﻿' + L.map(function (r0) { return r0.map(function (x) { x = String(x); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(','); }).join('\r\n');
+      M.report.save(new Blob([csv], { type: 'text/csv' }), ((V.e.org || {}).name || 'ESG').replace(/[^\w-]+/g, '-') + '-ESG-data-template.csv'); };
+    $('#impFile').onchange = function () { var f = this.files[0]; if (!f) return; fname = f.name; $('#impName').textContent = f.name; $('#impBody').innerHTML = '<p class="muted" style="margin:12px 0">Reading…</p>';
+      readSheet(f).then(function (r) { rows = r; if (!rows.length) throw new Error('The file is empty.'); found = autoMap(rows); show(found.length ? 'matched by name' : ''); }).catch(function (e) { $('#impBody').innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + esc(e.message) + '</div>'; }); };
+    $('#impGo').onclick = function () { var n = 0, parts = {}; document.querySelectorAll('[data-imp]:checked').forEach(function (cb) { var x = found[+cb.getAttribute('data-imp')]; if (!x || x.v == null) return; var sec = x.f.id.split('.')[0], k = x.f.id.split('.')[1]; V.e[sec] = V.e[sec] || {}; V.e[sec][k] = x.v; parts[sec] = 1; n++; });
+      if (!n) return toast('Tick at least one value');
+      var S = q(V.id); S.ent = V.e; Object.keys(parts).forEach(function (k) { S.parts[k] = 1; }); S.source = fname;
+      saveNow(V.id).then(function () { toast('Imported ' + pl(n, 'value') + ' from ' + fname); }, function (e) { if (!e.shown) fail(e); });
+      var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); draw(); };
   }
 
   /* ---------- 📊 overview ---------- */
@@ -285,7 +404,7 @@
         return '<tr><td><b>' + esc(t[1]) + '</b></td><td><span class="pill md-' + t[2] + '">' + t[2] + '</span></td><td>' + sel(t[0], 'imp', m.imp) + '</td><td>' + sel(t[0], 'fin', m.fin) + '</td><td><input data-mat="' + t[0] + '" data-mf="note" maxlength="300" value="' + esc(m.note || '') + '"></td></tr>'; }).join('') + '</tbody></table></div></div>' +
       '<div><div class="card" id="esgLive">' + live('material') + '</div></div></div>';
   }
-  function live(t) { if (t === 'material') return '<h3>Matrix</h3>' + matrix() + '<p class="muted" style="font-size:12.5px">Topics in the shaded corner are material on both counts and lead the report.</p>'; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); if (t === 'pricing') return pricingSummary() + ((V.sub || 'cbam') === 'cbam' ? CBAM_DATES : ''); return ''; }
+  function live(t) { if (t === 'material') return '<h3>Matrix</h3>' + matrix() + '<p class="muted" style="font-size:12.5px">Topics in the shaded corner are material on both counts and lead the report.</p>'; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); if (t === 'pricing') return pricingSummary() + (((V.subs || {}).pricing || 'cbam') === 'cbam' ? CBAM_DATES : ''); return ''; }
   var CBAM_DATES = '<div class="esg-gaps esg-rule"><b>Key dates</b><ul><li><b>EU</b>: definitive regime from 1 Jan 2026; importers over 50 t a year need authorisation; certificate sales open 1 Feb 2027; first declaration and surrender for 2026 imports by 30 Sep 2027.</li><li>Default values carry a mark-up (10% in 2026, rising); verified actual data from the producer usually costs less.</li><li><b>UK</b>: starts 1 Jan 2027; return and payment for 2027 due 31 May 2028, then quarterly.</li></ul>';
 
   /* ---------- 🌱 carbon avoidance ---------- */
@@ -341,9 +460,12 @@
   /* ---------- 💱 pricing and CBAM: sub-tabs for border adjustments, carbon prices and the frameworks ---------- */
   var SUBS = [['cbam', 'Border adjustments (CBAM)'], ['prices', 'Carbon prices & taxes'], ['frame', 'Frameworks']];
   function pricingTab() {
-    var sub = V.sub || 'cbam';
-    return '<div class="esg-sub" role="tablist" aria-label="Carbon pricing">' + SUBS.map(function (x) { return '<button type="button" role="tab" class="' + (sub === x[0] ? 'on' : '') + '" aria-selected="' + (sub === x[0]) + '" data-sub="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>' +
+    var sub = (V.subs || {}).pricing || 'cbam';
+    return subBar(SUBS, sub, 'Carbon pricing') +
       (sub === 'prices' ? pricesSub() : sub === 'frame' ? frameSub() : cbamSub());
+  }
+  function subBar(SUBS, sub, label) {
+    return '<div class="esg-sub" role="tablist" aria-label="' + esc(label) + '">' + SUBS.map(function (x) { return '<button type="button" role="tab" class="' + (sub === x[0] ? 'on' : '') + '" aria-selected="' + (sub === x[0]) + '" data-sub="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>';
   }
   function pricingSummary() {
     var P = V.calc.price, f = function (n, c) { return n == null ? '–' : (c === 'EUR' ? '€' : c === 'GBP' ? '£' : '') + nf(n) + (c && c !== 'EUR' && c !== 'GBP' ? ' ' + c : ''); };
@@ -395,7 +517,7 @@
   /* ---------- 📄 the Sustainability Statement and the ESG Report ---------- */
   var THEME = 'forest';
   function docTab(kind) {
-    var N = V.docs[kind], rep = kind === 'report', l = (window.ChampI18n && window.ChampI18n.get && window.ChampI18n.get()) || 'en', L = (window.ChampI18n && window.ChampI18n.langs) || [['en', 'English']], busy = V.ai[kind];
+    var N = V.docs[kind], rep = kind === 'report', l = (window.ChampI18n && window.ChampI18n.get && window.ChampI18n.get()) || 'en', L = (window.ChampI18n && window.ChampI18n.langs) || [['en', 'English']], busy = V.ai[V.id + ':' + kind];
     var T = (M.studio && M.studio.themes && M.studio.themes()) || [];
     return '<div class="esg-split"><div class="card"><h3 style="margin-top:0">' + (rep ? '📘 ESG Report' : '📄 Sustainability Statement') + '</h3><p class="muted" style="font-size:13px">' +
       (rep ? 'A full report of about 60 pages in seven parts: introduction and strategy, governance, climate (IFRS S2 / AASB S2 / TCFD), environment, social, performance and roadmap, and reporting standards, with the data tables, charts, the avoided emissions, a content index for each standard you chose, a glossary and an approval page. ✨ Champ writes the narrative in seven parts at once (up to 100,000 tokens, about 3 to 6 minutes).'
@@ -412,9 +534,11 @@
     'Part 5 Social: our people, health and safety, diversity and inclusion, human rights and Indigenous peoples, communities, suppliers and customers', 'Part 6 Performance and roadmap: governance performance, ESG scorecard, targets and roadmap, reporting standards, data quality and assurance',
     'Appendices: performance data, content index, glossary, forward-looking statements, approval'];
   function writeDoc(kind) {
-    V.ai[kind] = true; var lang = $('#dLang').value; body();
-    flush().then(function () { bg({ mode: 'esgDoc', esg: V.id, kind: kind, lang: lang }, function (r) { V.ai[kind] = false; V.docs[kind] = r; load(V.id).then(function () { V.docs[kind] = r; if (V.tab === kind) draw(); toast((kind === 'report' ? 'ESG report' : 'Statement') + ' narrative written (' + nf(r.tokens) + ' tokens). Download the PDF or Word.'); }); },
-      function (e) { V.ai[kind] = false; if (V.tab === kind) body(); fail(e); }); }, function (e) { V.ai[kind] = false; if (V.tab === kind) body(); if (!e.shown) fail(e); });
+    var id = V.id, ent = V.e, key = id + ':' + kind, lang = $('#dLang').value;
+    V.ai[key] = true; body();
+    var stop = function (e) { V.ai[key] = false; if (V.e === ent && V.tab === kind) body(); if (!e.shown) fail(e); };
+    flush().then(function () { bg({ mode: 'esgDoc', esg: id, kind: kind, lang: lang }, function (r) { V.ai[key] = false; DOCS[id] = DOCS[id] || {}; DOCS[id][kind] = r;
+      mergeMeta(ent).catch(function () {}).then(function () { DOCS[id][kind] = r; if (V.e === ent) { V.docs = DOCS[id]; if (V.tab === kind) body(); } toast((kind === 'report' ? 'ESG report' : 'Statement') + ' narrative written (' + nf(r.tokens) + ' tokens). Download the PDF or Word.'); }); }, stop); }, stop);
   }
   function makeDoc(kind, fmt) {
     var lang = $('#dLang').value, msg = $('#dMsg'), say = function (t) { if (msg) msg.innerHTML = t ? '<span class="ask-think">' + esc(t) + '</span>' : ''; };
@@ -580,7 +704,12 @@
     if ($('#exAdd')) $('#exAdd').onclick = function () { P0().exp = P0().exp || []; add('exp', P0().exp, { site: 'New facility', cur: (V.e.org || {}).currency || 'AUD' }); };
     b.querySelectorAll('[data-pv]').forEach(function (el) { el.addEventListener('input', function () { P0()[el.getAttribute('data-pv')] = el.value; touch('pricing'); }); });
     b.querySelectorAll('[data-sch]').forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute('data-sch'), L = (P0().schemes || []).filter(function (x) { return x !== id; }); if (cb.checked) L.push(id); P0().schemes = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('pricing'); }; });
-    b.querySelectorAll('[data-sub]').forEach(function (x) { x.onclick = function () { V.sub = x.getAttribute('data-sub'); body(); }; });
+    bind('data-bli', 'data-bl', function () { return V.e.bills; }, 'bills'); del('data-bldel', function () { return V.e.bills; }, 'bills');
+    if ($('#blFile')) $('#blFile').onchange = function () { readBills(this.files); };
+    if ($('#blAdd')) $('#blAdd').onclick = function () { V.e.bills = V.e.bills || []; add('bills', V.e.bills, { supplier: 'New bill', cur: (V.e.org || {}).currency || '' }); };
+    wireUse();
+    b.querySelectorAll('[data-import]').forEach(function (x) { x.onclick = function () { flush().catch(function () {}); importModal(); }; });
+    b.querySelectorAll('[data-sub]').forEach(function (x) { x.onclick = function () { V.subs = V.subs || {}; V.subs[V.tab] = x.getAttribute('data-sub'); body(); }; });
     // 📄 documents
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };
     if ($('#dPdf')) $('#dPdf').onclick = function () { flush().then(function () { makeDoc(V.tab, 'pdf'); }, function (e) { if (!e.shown) fail(e); }); };
@@ -630,7 +759,7 @@
               '<td>' + (x.intensity != null ? nf(x.intensity, 1) + (x.bench ? ' <small class="' + (x.intensity <= x.bench ? 't-green' : 't-amber') + '">(' + (x.intensity <= x.bench ? '▼ ' : '▲ ') + nf(Math.abs(x.intensity / x.bench - 1) * 100) + '%)</small>' : '') : '–') + '</td><td>' + esc(x.tgt || '–') + (x.netZero ? '<div class="muted" style="font-size:11.5px">Net zero ' + esc(x.netZero) + '</div>' : '') + '</td><td>' + (x.avoided ? nf(x.avoided) + ' t' : '–') + '</td>' +
               '<td><b class="t-' + rag(x.readiness) + '">' + x.readiness + '%</b><div class="esg-std">' + x.std.slice(0, 4).map(function (z) { return '<span>' + esc(stdShort(z)) + '</span>'; }).join('') + '</div></td><td>' + docOf(x) + '</td><td>' + esc(x.assurance || 'None') + '</td></tr>'; }).join('') + '</tbody></table></div>' +
             '<p class="muted" style="font-size:12px;margin:8px 0 0">' + esc(d.method) + '. Scores are a management guide, not a rating agency score.</p></div></div>';
-      var ys = $('#csoYr'); if (ys) ys.onchange = function () { V.csoYear = this.value; csoPage(); };
+      var ys = $('#csoYr'); if (ys) ys.onchange = function () { V.csoYear = this.value; csoPage().catch(fail); };
       var ask = $('#csoAsk'); if (ask) ask.onclick = function () { if (M.guide && M.guide.ask) M.guide.ask('As my sustainability adviser, give me a CSO briefing across all our ESG reports: the footprint, the biggest risks and gaps, the reporting deadlines coming up, and the three things to do first.'); else toast('Open 🎙 Ask Champ, bottom right'); };
     });
   }

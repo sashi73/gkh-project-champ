@@ -1779,3 +1779,7 @@ html.dark .esg-in i,body.dark .esg-in i,html.dark .esg-dstate,body.dark .esg-dst
 @media (prefers-reduced-motion:reduce){.esg-chev{transition:none}}
 .cso-cbam{margin:0 0 14px;padding:12px 16px;font-size:13.5px;border-left:4px solid #0F9F8F}
 .esg-stale{margin-top:12px;padding:10px 12px;border-radius:10px;background:#FEF3C7;color:#7A4B00;font-size:12.5px}.cso-yr{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600}.cso-yr select{width:auto;margin:0}
+
+.esg-up{position:relative;overflow:hidden;cursor:pointer}.esg-up input{position:absolute;inset:0;opacity:0;cursor:pointer}.esg-up.dis{opacity:.6;pointer-events:none}
+.esg-billsum{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(46,158,106,.08);font-size:13px}.esg-billsum b{font-size:16px}
+.esg-imp-drop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px;border:1.5px dashed var(--line);border-radius:12px}

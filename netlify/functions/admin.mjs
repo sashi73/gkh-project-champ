@@ -316,7 +316,7 @@ async function handle(req, context) {
         const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
       }
       // 🌿 ESG & Sustainability: reporting entities (an organisation and its reporting year), their E, S and G data, scores, standards and the AI-written documents (netlify/lib/esg.mjs). Open to every signed-in user.
-      case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES }); }
+      case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES, fields: E.fieldList() }); }
       case 'esgAiStatus': { const id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40), r = id.length >= 12 ? await kv.get('aiplan:' + id) : null; return out(200, r && (r.esg || r.status !== 'done') ? r : { status: 'waiting' }); }   // the ESG AI job's progress (not other AI results)
         case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
       case 'esgList': { const E = await import('../lib/esg.mjs'); return out(200, { ents: await E.list() }); }
@@ -325,7 +325,7 @@ async function handle(req, context) {
         return out(200, { entity: e, calc: E.compute(e), cover: E.coverage(e).by, docs: { statement: st, report: rp } }); }
       case 'esgCreate': case 'esgSample': { const E = await import('../lib/esg.mjs'), r = action === 'esgSample' ? await E.sample(by) : await E.create(body, by); if (r.error) return bad(r.error, r.code || 400);
         await A.audit(who, `ESG: reporting entity ${action === 'esgSample' ? 'sample ' : ''}created: ${(r.entity.org || {}).name}`); return out(200, r); }
-      case 'esgSave': { const E = await import('../lib/esg.mjs'), r = await E.save(body.id, body, by); if (r.error) return out(r.code || 400, { error: r.error, entity: r.entity }); return out(200, r); }
+      case 'esgSave': { const E = await import('../lib/esg.mjs'), r = await E.save(body.id, { rev: body.rev, patch: body.patch, source: clean(body.source, 80) }, by); if (r.error) return out(r.code || 400, { error: r.error, entity: r.entity }); return out(200, r); }
       case 'esgDelete': { const E = await import('../lib/esg.mjs'), e = await E.get(body.id); if (!e) return bad('Not found', 404);
         if (!(ctx.owner || e.by === by || ['CEO', 'PMO Director'].includes(ctx.role))) return bad('Only the person who created this report, the CEO or the super user can delete it.', 403);
         const r = await E.remove(e.id, by); await A.audit(who, `ESG: reporting entity deleted: ${r.name}`); return out(200, r); }

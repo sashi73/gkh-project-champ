@@ -5,7 +5,7 @@ Update this file with every change to the module: the iteration log at the botto
 
 ## 1. What it is
 
-One menu item, **🌿 ESG & Sustainability** (left menu, under Reports), open to every signed-in user.
+One menu item, **🌿 ESG & Sustainability**, in its own section of the left menu (under Projects), open to every signed-in user.
 It is a **reporting framework**. Each *reporting entity* is one organisation for one reporting year.
 The section menu works like a project's, in six groups:
 
@@ -184,6 +184,20 @@ Status as checked in November 2026:
 
 The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `carbon_pricing`). The CSO view shows the CBAM exposure and flags weak credits.
 
+## 7b. Getting data in
+
+- **Electricity bills (Scope 2 evidence)**: in Scope 1 & 2 › Electricity bills, upload PDF bills (several at once).
+  - The text is read in the browser (pdf.js) and the AI (background mode `esgBill`) extracts each account or meter: supplier, site, meter or NMI, period, kWh, renewable kWh and the amount.
+  - Every line can be checked and edited; *Use the bills' total for Scope 2* sets the electricity and renewable MWh.
+  - Bills are kept in `entity.bills` as assurance evidence.
+  - Scanned image bills need a text PDF (no OCR yet).
+- **Spreadsheets from other systems**: 📥 Import, on the report header and on every data tab, reads a CSV or Excel (.xlsx) file and matches it to the fields in three ways:
+  - by the template's field ids (*⬇ Template* exports every field with its current value);
+  - by a field label in the first column (long sheets) or the header row (wide sheets);
+  - or ✨ by Champ (background mode `esgMap`), with unit factors and monthly sums.
+
+  The user ticks the values to import; the change log records the file name.
+
 ## 8. The AI
 
 - The system prompt (`BASE`) asks for a senior ESG reporting adviser who must not invent numbers, people, awards or certifications, and who writes balanced text that says what is not yet in place.
@@ -197,11 +211,12 @@ The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `car
 |---|---|---|
 | v1 | 2026-11-25 | First draft. One menu item; Setup, E, S, G, Carbon avoidance and Reporting tabs; 17 standards with an 82-entry disclosure index; scoring method v1; Sustainability Statement (under 10 pages) and ESG Report (about 60 pages, up to 100k tokens) in the charter and plan format; Champ answers ESG questions; Records (registry, documents, change log); 🌱 CSO view in Management & leadership. |
 | v1.1 | 2026-11-25 | Carbon pricing, CBAM (EU and UK) and the carbon credit framework (Pricing & CBAM tab with sub-tabs; credit integrity checks; report chapter; CSO exposure). Long registers became compact lists that open one item at a time. |
+| v1.2 | 2026-11-25 | Own menu section "ESG & Sustainability"; electricity bills read by AI for Scope 2; CSV and Excel import (template, by name, or matched by Champ); data tabs split into sub-tabs (data, bills, factors). |
 
 ## 10. Next iterations (backlog)
 
 - Year-on-year: link an entity to the previous year's for trends and restatements.
-- Import data from Project Champ projects (energy, travel, waste on sites) and from spreadsheets.
+- Import data from Project Champ projects (energy, travel, waste on sites); connectors to energy retailers' portals and accounting systems; OCR for scanned bills.
 - Evidence: attach source documents (bills, invoices, certificates) to each data point, for assurance.
 - Per-standard templates: a Bursa Malaysia sustainability statement layout with the performance data table, an ESRS sustainability statement structure, and the CDP questionnaire export.
 - Sign-off workflow: draft, review, board approval, publish.

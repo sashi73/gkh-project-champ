@@ -46,6 +46,13 @@ async function run(req) {
     // 💰 AI work that reads or writes money (costing, BOM, reports, the project plan document, change impacts, the watch, document reviews, the CEO's briefing):
     //    not for a login without money (contractors, project personnel ...)
     if (!U.seesMoney(ctx) && ['bom', 'cost', 'report', 'plandoc', 'charter', 'cr', 'fit', 'watch', 'watchAll', 'docAnalyse', 'docReview', 'ceoBrief', 'ceoAsk', 'vaultRedact', 'lessonsReport'].includes(body.mode)) { await kv.set('aiplan:' + id, { status: 'error', error: 'Cost and billing work is only for the project manager and the finance team.', at: Date.now() }); return ok(); }
+    if (body.mode === 'esgBill' || body.mode === 'esgMap') {   // 🌿 ESG: read an electricity bill, or map a spreadsheet's columns onto the ESG fields (anyone signed in; nothing is saved until the user applies it)
+      await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
+      const E = await import('../lib/esg.mjs');
+      const r = body.mode === 'esgBill' ? await E.readBill(body.text, String(body.file || '').slice(0, 120), `Admin (${session.u})`).catch((e) => ({ error: e.message })) : await E.mapColumns(body.head, body.rows, `Admin (${session.u})`).catch((e) => ({ error: e.message }));
+      await kv.set('aiplan:' + id, { esg: r.error ? null : r, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
+      return ok();
+    }
     if (body.mode === 'esgDoc' || body.mode === 'esgInsight') {   // 🌿 ESG: the Sustainability Statement or ESG Report narrative, or a pillar's recommendations (anyone signed in; not tied to a project)
       await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
       const E = await import('../lib/esg.mjs'), eid = String(body.esg || '').slice(0, 24);
