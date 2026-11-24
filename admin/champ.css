@@ -1685,7 +1685,7 @@ html.tree-open,html.tree-open body{overflow:hidden}
 @media (prefers-reduced-motion:reduce){.tvx .wat.flow,.tvx .cpl,.tvx .gauge,.tvx-wl i,.tvx-key button.live i,.ptx .cpon .e.crit,.ptx .wat.flow{animation:none}.tvx-panel{transition:none}.tvx .badge{transition:none}}
 
 /* ⛶ Tree view and PERT open over the whole window; the drawing fills all the space left under the heading */
-#pvFS{position:fixed;inset:0;z-index:2147483000;background:#080d1c;color:#eef2fb;display:flex;flex-direction:column}
+#pvFS{position:fixed;inset:0;z-index:2147483000;background:#080d1c;color:#eef2fb;display:flex;flex-direction:column;overflow:auto}   /* a short screen scrolls to the rest */
 #pvFS .pvfs-head{display:flex;align-items:center;gap:16px;padding:10px 16px 8px}
 #pvFS .pvfs-head>div{flex:1;min-width:0}#pvFS .pvfs-head h3{margin:0;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#pvFS .pvfs-head small{color:#9aa6c4;font-size:12.5px}
 #pvFS .tree-x{flex:none;min-width:44px;height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(232,195,90,.6);background:rgba(10,17,36,.9);color:#f4f6fc;font:600 15px/1 inherit;cursor:pointer}

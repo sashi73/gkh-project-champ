@@ -231,7 +231,8 @@
     // ↔ use the whole screen: pick the number of bands that draws the boxes biggest in the space there is, then spread the columns (or the bands) to fill it
     var box = root.querySelector('.ptx-board'), bw = box.clientWidth, bhh = box.clientHeight, A = opts.fill !== false && bw > 200 && bhh > 150 ? bw / bhh : 0;
     var Lo = lay(COLS <= 5 ? 1 : Math.ceil(COLS / 4), PX, GAP);
-    if (A) { var best = 0; for (var nb = 1; nb <= Math.min(COLS, 8); nb++) { var Lc = lay(nb, PX, GAP), sc = Math.min(bw / Lc.W, bhh / Lc.H); if (sc > best + 1e-6) { best = sc; Lo = Lc; } }
+    if (A) { var best = Math.min(bw / Lo.W, bhh / Lo.H); for (var nb = 1; nb <= Math.min(COLS, 8); nb++)   // keep the usual layout unless another draws the boxes bigger
+ { var Lc = lay(nb, PX, GAP), sc = Math.min(bw / Lc.W, bhh / Lc.H); if (sc > best + 1e-6) { best = sc; Lo = Lc; } }
       if (A > Lo.W / Lo.H) Lo = lay(Lo.NB, Math.max(PX, Math.min(560, (A * Lo.H - X0 - 70) / Lo.PER)), GAP);
       else if (Lo.NB > 1) Lo = lay(Lo.NB, PX, Math.min(420, GAP + (Lo.W / A - Lo.H) / (Lo.NB - 1))); }
     var NB = Lo.NB, PER = Lo.PER, rowsIn = Lo.rows, top = Lo.top; PX = Lo.PX; GAP = Lo.GAP;

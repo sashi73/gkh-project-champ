@@ -2254,19 +2254,19 @@
     if (document.fullscreenElement && o.contains(document.fullscreenElement)) document.exitFullscreen().catch(function () {});
     o.remove(); Array.prototype.forEach.call(document.body.children, function (c) { if (c.__pvInert) { c.inert = false; c.__pvInert = false; } });
     removeEventListener('resize', pvResize); removeEventListener('hashchange', pvHash); document.removeEventListener('keydown', pvKey, true);
-    if (pvOpener && document.contains(pvOpener)) try { pvOpener.focus({ preventScroll: true }); } catch (e) {} pvOpener = null;
+    var ob = pvOpener && document.querySelector('.pv-wbs [' + pvOpener + ']'); if (ob) try { ob.focus({ preventScroll: true }); } catch (e) {} pvOpener = null;   // the Gantt redrew: focus the button that opened it
   }
   function pvShell(icon, title, sub) {
     var o = document.getElementById('pvFS'), first = !o;
     if (first) {
-      pvOpener = document.activeElement; o = document.createElement('div'); o.id = 'pvFS'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); document.body.appendChild(o);
+      o = document.createElement('div'); o.id = 'pvFS'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); document.body.appendChild(o);
       Array.prototype.forEach.call(document.body.children, function (c) { if (c !== o && !c.inert) { c.inert = true; c.__pvInert = true; } });   // the page behind is out of reach while it is open
       addEventListener('resize', pvResize); addEventListener('hashchange', pvHash); document.addEventListener('keydown', pvKey, true);
     }
-    o.setAttribute('aria-label', title);
+    var had = o.contains(document.activeElement); o.setAttribute('aria-label', title);
     o.innerHTML = '<div class="pvfs-head"><div><h3>' + icon + ' ' + title + ' · ' + esc(S.plan.name || 'Project') + '</h3><small>' + sub + '</small></div><button class="tree-x" type="button" data-pvclose>✕ Close</button></div><div class="pvfs-body"></div>';
     o.querySelector('[data-pvclose]').onclick = pvClose;
-    if (first) o.querySelector('[data-pvclose]').focus();
+    if (first || had) o.querySelector('[data-pvclose]').focus();   // also after a redraw (a resize), so focus never drops out of the dialog
     return o.querySelector('.pvfs-body');
   }
   var pvWho = function (o) { return ownerOf(o) || (o.res && o.res[0]) || ''; };   // a stakeholder picked on the Board shows by name
@@ -2489,7 +2489,7 @@
     B.querySelectorAll('[data-zoom]').forEach(function (b) { b.onclick = function () { S.zoom = b.getAttribute('data-zoom'); render(); }; });
     B.querySelectorAll('[data-gfit]').forEach(function (b) { b.onclick = function () { S.gfit = S.gfit === false;   // the range key changes, so the chart opens at the plan (fitted) or at today (not fitted)
       try { localStorage.setItem('champGFit', S.gfit ? '1' : '0'); } catch (e) {} render(); var nb = document.querySelector('[data-gfit]'); if (nb) nb.focus(); }; });   // keyboard focus stays on the switch
-    var pview = function (k) { S.wbs = k === 'wbs'; S.treeV = k === 'tree'; S.pertV = k === 'pert'; S.gfull = false; document.body.classList.remove('gantt-full'); render(); };
+    var pview = function (k) { pvOpener = k === 'tree' ? 'data-treev' : k === 'pert' ? 'data-pertv' : null; S.wbs = k === 'wbs'; S.treeV = k === 'tree'; S.pertV = k === 'pert'; S.gfull = false; document.body.classList.remove('gantt-full'); render(); };
     B.querySelectorAll('[data-wbs]').forEach(function (b) { b.onclick = function () { pview('wbs'); }; });
     B.querySelectorAll('[data-treev]').forEach(function (b) { b.onclick = function () { pview('tree'); }; });
     B.querySelectorAll('[data-pertv]').forEach(function (b) { b.onclick = function () { pview('pert'); }; });
