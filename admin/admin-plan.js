@@ -2247,7 +2247,10 @@
   // ⛶ Tree view and PERT open over the whole window, like the Champ circuit tree; Close (or Esc) goes back to the Gantt
   var pvR = null, pvOpener = null, pvT = 0;
   function pvKey(e) { if (e.key !== 'Escape' || document.fullscreenElement) return; if (document.querySelector('#pvFS .tvx-panel.open')) return; var ed = document.querySelector('#pvFS .ptx-ed:not([hidden])'); if (ed) { ed.hidden = true; return; } e.preventDefault(); pvClose(); }
-  function pvResize() { clearTimeout(pvT); pvT = setTimeout(function () { if (pvR && document.getElementById('pvFS')) (S.pertV ? pertTab : treeTab)(pvR); }, 200); }
+  function pvResize() { clearTimeout(pvT); pvT = setTimeout(function () {
+    if (!pvR || !document.getElementById('pvFS')) return;
+    if (document.querySelector('#pvFS .ptx-ed:not([hidden]), #pvFS .tvx-panel.open')) { pvResize(); return; }   // an estimate being typed or a task's details open: redraw once they are closed
+    (S.pertV ? pertTab : treeTab)(pvR); }, 200); }
   function pvHash() { pvClose(); }
   function pvClose() {
     var o = document.getElementById('pvFS'); S.treeV = S.pertV = false; if (!o) return;

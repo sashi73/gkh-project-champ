@@ -330,4 +330,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 319 | 1.0.319| 2026-11-24 05:05| treepert| `a535252` | PERT: a milestone's forecast is the working day after the task before it, as on the Gantt (CodeRabbit) |
 | 320 | 1.0.320| 2026-11-24 05:12| treepert| `f1ffd8e` | Tree view and PERT chart on every project (PERT · Tree view · WBS) (#157) |
 | 321 | 1.0.321| 2026-11-24 11:40| pvfull| `cf9b558` | Tree view and PERT open over the whole window (like the Champ circuit tree) with Close and Esc, and the drawing fills all the space: the tre |
-| 322 | 1.0.322 | 2026-11-24 11:47 | pvfull | _this commit_ | _see git log_ |
+| 322 | 1.0.322| 2026-11-24 11:47| pvfull| `a07bffb` | Full-window views, CodeRabbit fixes: focus goes back to the PERT or Tree view button on close and stays on Close after a resize redraw; PERT |
+| 323 | 1.0.323 | 2026-11-24 11:52 | pvfull | _this commit_ | _see git log_ |
