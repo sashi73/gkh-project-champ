@@ -1683,3 +1683,19 @@ html.tree-open,html.tree-open body{overflow:hidden}
 .ptx-ed{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin:8px 0;padding:10px 12px;border-radius:10px;background:#0e1730;border:1px solid rgba(232,195,90,.4);font-size:13px}
 .ptx-ed[hidden]{display:none}.ptx-ed .muted{color:var(--dim)}.ptx-ed input{width:76px;margin-left:6px}.ptx-err{color:#ff8080}
 @media (prefers-reduced-motion:reduce){.tvx .wat.flow,.tvx .cpl,.tvx .gauge,.tvx-wl i,.tvx-key button.live i,.ptx .cpon .e.crit,.ptx .wat.flow{animation:none}.tvx-panel{transition:none}.tvx .badge{transition:none}}
+
+/* ⛶ Tree view and PERT open over the whole window; the drawing fills all the space left under the heading */
+#pvFS{position:fixed;inset:0;z-index:2147483000;background:#080d1c;color:#eef2fb;display:flex;flex-direction:column;overflow:auto}   /* a short screen scrolls to the rest */
+#pvFS .pvfs-head{display:flex;align-items:center;gap:16px;padding:10px 16px 8px}
+#pvFS .pvfs-head>div{flex:1;min-width:0}#pvFS .pvfs-head h3{margin:0;font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#pvFS .pvfs-head small{color:#9aa6c4;font-size:12.5px}
+#pvFS .tree-x{flex:none;min-width:44px;height:44px;padding:0 16px;border-radius:999px;border:1px solid rgba(232,195,90,.6);background:rgba(10,17,36,.9);color:#f4f6fc;font:600 15px/1 inherit;cursor:pointer}
+#pvFS .tree-x:hover{background:#13204a}#pvFS .tree-x:focus-visible{outline:3px solid #e8c35a;outline-offset:2px}
+#pvFS .pvfs-body{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 10px 10px}
+#pvFS .pvfs-body>.empty{margin:auto;color:#9aa6c4}
+#pvFS .pvfs-host{flex:1;min-height:0;display:flex;flex-direction:column}
+#pvFS .tvx,#pvFS .ptx{flex:1;min-height:0;display:flex;flex-direction:column;padding:8px 10px}
+#pvFS .tvx-board,#pvFS .ptx-board{flex:1;min-height:200px;position:relative}
+#pvFS .tvx-svg,#pvFS .ptx-svg{position:absolute;inset:0;width:100%;height:100%;max-height:none}
+#pvFS .tvx-board.actual .tvx-svg{position:static;height:auto}
+#pvFS .ptx-stats{flex:none}#pvFS .ptx-how{margin:6px 0 0}
+.ptx .ptx-st.warn{background:rgba(255,60,60,.08);color:var(--ink)}.ptx .ptx-st.warn span{color:#ffb3b3}

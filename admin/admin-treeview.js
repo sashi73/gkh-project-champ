@@ -35,22 +35,25 @@
       '<aside class="tvx-panel" aria-label="Task details"><button class="tvx-x" type="button" aria-label="Close">×</button><div class="tvx-pb"></div></aside></div>';
     var root = host.firstChild, svg = root.querySelector('svg'), key = root.querySelector('.tvx-key'), board = root.querySelector('.tvx-board');
     var el = function (n, a, p) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); (p || svg).appendChild(e); return e; };
-    var N = T.length, SP = 360, ROW = 36;
-    // where each task sits: about 60% of them grow above the main branch, the rest hang below it (banyan style); left half outer to inner, right half inner to outer
+    var N = T.length, ROW = 36;
+    // about 60% of the tasks grow above the main branch, the rest hang below it (banyan style); left half outer to inner, right half inner to outer
     var U = N <= 3 ? N : Math.ceil(N * .6), L = N - U, UL = Math.ceil(U / 2), UR = U - UL, LL = Math.ceil(L / 2), LR = L - LL;
-    var CW = Math.max(680, U * 100 + 140, 2 * (150 + (Math.max(LL, LR, 1) - 1) * 100) + 140);
-    var half = Math.max(70 + Math.max(UL, UR) * SP, 200 + Math.max(LL, LR) * SP, CW / 2 + 60) + 30, W = Math.round(half * 2), TX = Math.round(half);
+    var bh = function (s) { var n = (s.steps || []).length; return 52 + (n ? 26 + (n - 1) * ROW + 24 : 14) + 14; };
+    var ch = function (t) { return (t.subs || []).reduce(function (a, s) { return a + bh(s); }, 0); };
+    var mx0 = function (L0) { return L0.length ? Math.max.apply(0, L0) : 0; };
+    var UP = mx0(T.slice(0, U).map(ch)), DN = mx0(T.slice(U).map(ch)), CH2 = 48;
+    var LIMB = 40 + UP + 170, BOT = L ? LIMB + 130 + DN + 40 : LIMB + CH2 + 300, H = BOT + 30;
+    var CW = Math.max(680, U * 100 + 140, 2 * (150 + (Math.max(LL, LR, 1) - 1) * 100) + 140), mU = Math.max(UL, UR, 1), mL = Math.max(LL, LR);
+    // ↔ use the whole screen: on a wide screen the limbs spread out until the drawing is as wide as the space it has
+    var bw = board.clientWidth, bhh = board.clientHeight, SP = 360;
+    if (opts.fill !== false && bw > 200 && bhh > 200) { var tHalf = bw / bhh * H / 2, fit = Math.min((tHalf - 100) / mU, mL ? (tHalf - 230) / mL : 1e9); SP = Math.max(360, Math.min(900, fit)); }
+    var half = Math.max(70 + mU * SP, 200 + mL * SP, CW / 2 + 60) + 30, W = Math.round(half * 2), TX = Math.round(half);
     var POS = T.map(function (t, i) {
       if (i < U) { var left = i < UL, k = left ? i : i - UL;
         return { s: left ? -1 : 1, up: true, X: left ? TX - 70 - (UL - 1 - k) * SP : TX + 70 + k * SP, pin: TX + (i - (U - 1) / 2) * 100, lv: 66 + 14 * (left ? k : UR - 1 - k) }; }
       var j = i - U, lf = j < LL, q = lf ? j : j - LL;
       return { s: lf ? -1 : 1, up: false, X: lf ? TX - 200 - (LL - 1 - q) * SP : TX + 200 + q * SP, pin: lf ? TX - 150 - (LL - 1 - q) * 100 : TX + 150 + q * 100, lv: 66 + 14 * (lf ? q : LR - 1 - q) };
     });
-    var bh = function (s) { var n = (s.steps || []).length; return 52 + (n ? 26 + (n - 1) * ROW + 24 : 14) + 14; };
-    var ch = function (t) { return (t.subs || []).reduce(function (a, s) { return a + bh(s); }, 0); };
-    var mx0 = function (L0) { return L0.length ? Math.max.apply(0, L0) : 0; };
-    var UP = mx0(T.slice(0, U).map(ch)), DN = mx0(T.slice(U).map(ch)), CH2 = 48;
-    var LIMB = 40 + UP + 170, BOT = L ? LIMB + 130 + DN + 40 : LIMB + CH2 + 300, H = BOT + 30;
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     var defs = el('defs', {});
     var glow = el('filter', { id: id + 'gl', filterUnits: 'userSpaceOnUse', x: 0, y: 0, width: W, height: H }, defs);   // a straight line has no height: the glow is measured on the whole drawing
@@ -218,14 +221,23 @@
     // columns: how many links deep each task is; read left to right in bands of up to four columns, like lines of text
     var col = N.map(function () { return 0; }), seen = 0;
     for (var pass = 0; pass < N.length && seen !== -1; pass++) { seen = -1; N.forEach(function (n, i) { n.pred.forEach(function (p) { if (col[p] + 1 > col[i]) { col[i] = col[p] + 1; seen = 1; } }); }); }
-    var MAXC = N.length ? Math.max.apply(0, col) : 0, NB = MAXC + 1 <= 5 ? 1 : Math.ceil((MAXC + 1) / 4), PER = Math.ceil((MAXC + 1) / NB);
+    var MAXC = N.length ? Math.max.apply(0, col) : 0, COLS = MAXC + 1;
     // in each column: the critical tasks on the bottom line, the ones with float stacked above
     var slots = {}; N.forEach(function (n, i) { var k = col[i]; (slots[k] = slots[k] || []).push(i); });
     Object.keys(slots).forEach(function (k) { slots[k].sort(function (a, b) { return (N[b].crit ? 1 : 0) - (N[a].crit ? 1 : 0) || a - b; }); });
-    var rowsIn = []; for (var b = 0; b < NB; b++) { var m = 1; for (var c = b * PER; c < Math.min(MAXC + 1, (b + 1) * PER); c++) m = Math.max(m, (slots[c] || []).length); rowsIn.push(m); }
-    var top = [], yy = 30; rowsIn.forEach(function (r, b) { top.push(yy); yy += r * SLOT + GAP; });
+    var lay = function (nb, px, gap) { var per = Math.ceil(COLS / nb), rows = [], tops = [], y = 30;
+      for (var b = 0; b < nb; b++) { var m = 1; for (var c = b * per; c < Math.min(COLS, (b + 1) * per); c++) m = Math.max(m, (slots[c] || []).length); rows.push(m); }
+      rows.forEach(function (r) { tops.push(y); y += r * SLOT + gap; }); return { NB: nb, PER: per, rows: rows, top: tops, PX: px, GAP: gap, W: X0 + per * px + 70, H: y - gap + 50 }; };
+    // ↔ use the whole screen: pick the number of bands that draws the boxes biggest in the space there is, then spread the columns (or the bands) to fill it
+    var box = root.querySelector('.ptx-board'), bw = box.clientWidth, bhh = box.clientHeight, A = opts.fill !== false && bw > 200 && bhh > 150 ? bw / bhh : 0;
+    var Lo = lay(COLS <= 5 ? 1 : Math.ceil(COLS / 4), PX, GAP);
+    if (A) { var best = Math.min(bw / Lo.W, bhh / Lo.H); for (var nb = 1; nb <= Math.min(COLS, 8); nb++)   // keep the usual layout unless another draws the boxes bigger
+ { var Lc = lay(nb, PX, GAP), sc = Math.min(bw / Lc.W, bhh / Lc.H); if (sc > best + 1e-6) { best = sc; Lo = Lc; } }
+      if (A > Lo.W / Lo.H) Lo = lay(Lo.NB, Math.max(PX, Math.min(560, (A * Lo.H - X0 - 70) / Lo.PER)), GAP);
+      else if (Lo.NB > 1) Lo = lay(Lo.NB, PX, Math.min(420, GAP + (Lo.W / A - Lo.H) / (Lo.NB - 1))); }
+    var NB = Lo.NB, PER = Lo.PER, rowsIn = Lo.rows, top = Lo.top; PX = Lo.PX; GAP = Lo.GAP;
     N.forEach(function (n, i) { var b = Math.floor(col[i] / PER), s = slots[col[i]].indexOf(i); n.b = b; n.x = X0 + (col[i] - b * PER) * PX; n.y = top[b] + (rowsIn[b] - 1 - s) * SLOT + BH / 2; });
-    var W = X0 + PER * PX + 70, H = yy - GAP + 50, lineY = function (b) { return top[b] + (rowsIn[b] - 1) * SLOT + BH / 2; };
+    var W = Lo.W, H = Lo.H, lineY = function (b) { return top[b] + (rowsIn[b] - 1) * SLOT + BH / 2; };
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
     var defs = el('defs', {}), gl = el('filter', { id: id + 'gl', filterUnits: 'userSpaceOnUse', x: 0, y: 0, width: W, height: H }, defs);
     el('feGaussianBlur', { stdDeviation: '2.2', result: 'b' }, gl); var mg = el('feMerge', {}, gl); el('feMergeNode', { in: 'b' }, mg); el('feMergeNode', { in: 'SourceGraphic' }, mg);
