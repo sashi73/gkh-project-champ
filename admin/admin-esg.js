@@ -25,7 +25,7 @@
     ['Environment', 'eenv', [['carbon', 'Scope 1 & 2'], ['scope3', 'Scope 3'], ['resources', 'Energy, water & waste'], ['climate', 'Climate risk']]],
     ['Social', 'esoc', [['workforce', 'Workforce & safety'], ['rights', 'Human rights'], ['community', 'Community']]],
     ['Governance', 'egov', [['board', 'Board'], ['ethics', 'Ethics & risk'], ['certs', 'Certifications']]],
-    ['Carbon avoidance', 'eavoid', [['avoid', 'Avoided emissions'], ['credits', 'Carbon credits']]],
+    ['Carbon avoidance & credits', 'eavoid', [['avoid', 'Avoided emissions'], ['credits', 'Carbon credits'], ['pricing', 'Pricing & CBAM']]],
     ['Reporting', 'erep', [['statement', 'Statement'], ['report', 'ESG report'], ['records', 'Records']]]];
   var ICO = {
     overview: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
@@ -36,7 +36,7 @@
     workforce: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2c2.8.3 5 2.6 5 5.8"/>', rights: '<path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/>',
     community: '<path d="M3 21h18M5 21V10l7-5 7 5v11"/><path d="M10 21v-6h4v6"/>', board: '<rect x="3" y="9" width="18" height="6" rx="1.5"/><path d="M6 15v5M18 15v5M8 9V6M12 9V5M16 9V6"/>',
     ethics: '<path d="M12 3 4 6v6c0 4.5 3.3 8 8 9 4.7-1 8-4.5 8-9V6z"/><path d="m9 12 2 2 4-4"/>', certs: '<circle cx="12" cy="9" r="6"/><path d="m9 14.5-2 6.5 5-3 5 3-2-6.5"/>',
-    avoid: '<path d="M12 21c-4-3-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-3 8-7 11z"/><path d="M9 11.5c1.5-1 4.5-1 6 0M12 7v8"/>', credits: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/>',
+    avoid: '<path d="M12 21c-4-3-7-6.5-7-11a7 7 0 0 1 14 0c0 4.5-3 8-7 11z"/><path d="M9 11.5c1.5-1 4.5-1 6 0M12 7v8"/>', pricing: '<path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="16" r="3"/><path d="M18 14.5v3M16.8 16h2.4"/>', credits: '<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/>',
     statement: '<path d="M6 3h9l4 4v14H6z"/><path d="M9 10h7M9 14h7M9 18h4"/>', report: '<path d="M4 5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h12M9 7h6M9 11h6"/>', records: '<path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M8 13h8"/>' };
   var PIL = { env: ['carbon', 'scope3', 'resources', 'climate'], soc: ['workforce', 'rights', 'community'], gov: ['board', 'ethics', 'certs'] };
   var pillarOf = function (t) { return PIL.env.indexOf(t) >= 0 ? 'env' : PIL.soc.indexOf(t) >= 0 ? 'soc' : PIL.gov.indexOf(t) >= 0 ? 'gov' : ''; };
@@ -115,29 +115,41 @@
     else if (t === 'material') b.innerHTML = materialTab();
     else if (t === 'avoid') b.innerHTML = avoidTab();
     else if (t === 'credits') b.innerHTML = creditsTab();
+    else if (t === 'pricing') b.innerHTML = pricingTab();
     else if (t === 'statement' || t === 'report') b.innerHTML = docTab(t);
     else if (t === 'records') b.innerHTML = recordsTab();
     else b.innerHTML = formTab(t);
     wire(b);
   }
   // after a save: the tiles and the live results change, the fields being typed in stay as they are
-  function refresh() { var T = $('#esgTiles'); if (T) T.innerHTML = tilesHtml(); var r = $('#esgRes'); if (r) r.innerHTML = results(V.tab); var x = $('#esgLive'); if (x) x.innerHTML = live(V.tab); }
+  function refresh() { if (V.tab === 'standards' && !document.activeElement.matches('input:not([type=checkbox]),select,textarea')) { var y = scrollY; body(); scrollTo(0, y); } var T = $('#esgTiles'); if (T) T.innerHTML = tilesHtml(); var r = $('#esgRes'); if (r) r.innerHTML = results(V.tab); var x = $('#esgLive'); if (x) x.innerHTML = live(V.tab); }
 
-  /* ---------- 💾 saving: a short pause after typing, then the whole section ---------- */
-  var pend = {};
-  function touch(part) { pend[part] = 1; var s = $('#esgSaved'); if (s) s.textContent = 'Editing…'; clearTimeout(V.timer); V.timer = setTimeout(saveNow, 800); }
-  function saveNow() {
-    if (V.saving) { V.again = true; return; }
-    var keys = Object.keys(pend); if (!keys.length) return; pend = {};
-    var patch = {}; keys.forEach(function (k) { patch[k] = V.e[k]; });
-    V.saving = true; var s = $('#esgSaved'); if (s) s.textContent = 'Saving…';
-    api('esgSave', { id: V.id, rev: V.e.rev, patch: patch }).then(function (d) {
-      keys.forEach(function (k) { if (!pend[k]) V.e[k] = d.entity[k]; });   // keep anything typed while it saved
-      V.e.rev = d.entity.rev; V.e.log = d.entity.log; V.e.updated = d.entity.updated; V.calc = d.calc;
-      if (s) s.textContent = '✓ Saved'; refresh();
-    }).catch(function (e) { if (s) s.textContent = ''; if (/changed this report/i.test(e.message || '')) { toast(e.message); load(V.id).then(draw); return; } fail(e); })
-      .then(function () { V.saving = false; if (V.again || Object.keys(pend).length) { V.again = false; saveNow(); } });
+  /* ---------- 💾 saving: a short pause after typing, then the changed sections; each report keeps its own queue ---------- */
+  var Q = {};   // report id → { ent, parts, saving, timer, failed }
+  var q = function (id) { return (Q[id] = Q[id] || { parts: {}, saving: null }); };
+  function say(t, retry) { var s = $('#esgSaved'); if (!s) return; s.innerHTML = esc(t) + (retry ? ' <button type="button" class="btn btn-sm" id="esgRetry">Retry</button>' : ''); var r = $('#esgRetry'); if (r) r.onclick = function () { saveNow(V.id).catch(fail); }; }
+  function touch(part) { var id = V.id, S = q(id); S.ent = V.e; S.parts[part] = 1; say('Editing…'); clearTimeout(S.timer); S.timer = setTimeout(function () { saveNow(id).catch(function (e) { if (!e.shown) fail(e); }); }, 800); }
+  // resolves once every edit queued for this report (including those typed while it saved) is on the server
+  function saveNow(id) {
+    var S = Q[id]; if (!S) return Promise.resolve();
+    clearTimeout(S.timer);
+    if (S.saving) return S.saving.then(function () { return saveNow(id); });
+    var keys = Object.keys(S.parts); if (!keys.length) return Promise.resolve();
+    S.parts = {}; var ent = S.ent, patch = {}; keys.forEach(function (k) { patch[k] = ent[k]; });
+    if (V.e === ent) say('Saving…');
+    S.saving = api('esgSave', { id: id, rev: ent.rev, patch: patch }).then(function (d) {
+      keys.forEach(function (k) { if (!S.parts[k]) ent[k] = d.entity[k]; });   // keep anything typed while it saved
+      ent.rev = d.entity.rev; ent.log = d.entity.log; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
+      if (V.e === ent) { V.calc = d.calc; if (d.cover) V.cover = d.cover; say('✓ Saved'); refresh(); }
+      S.saving = null; return Object.keys(S.parts).length ? saveNow(id) : null;
+    }, function (e) {
+      S.saving = null; keys.forEach(function (k) { S.parts[k] = 1; });   // keep the failed edits so they can be saved again
+      if (/changed this report/i.test(e.message || '') && V.e === ent) { S.parts = {}; toast(e.message); e.shown = true; load(id).then(draw); throw e; }
+      if (V.e === ent) say('⚠ Not saved', true); throw e;
+    });
+    return S.saving;
   }
+  function flush() { return V.id ? saveNow(V.id) : Promise.resolve(); }
 
   /* ---------- 🧾 the data tabs (made from the schema the server checks against) ---------- */
   var isF = function (k) { return /^f[A-Z]/.test(k); };
@@ -227,11 +239,10 @@
         return poll(); }); }).catch(onErr);
   }
   function askInsight(p) {
-    flush(); V.ai[p] = true; var box = $('#esgAi-' + p); if (box) box.outerHTML = insightCard(p);
-    bg({ mode: 'esgInsight', esg: V.id, pillar: p }, function (r) { V.ai[p] = false; V.e.insights = Object.assign({}, V.e.insights, (function () { var o = {}; o[p] = r.insight; return o; })()); var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } toast('Recommendations ready'); },
-      function (e) { V.ai[p] = false; var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } fail(e); });
+    V.ai[p] = true; var box = $('#esgAi-' + p); if (box) box.outerHTML = insightCard(p);
+    flush().then(function () { bg({ mode: 'esgInsight', esg: V.id, pillar: p }, function (r) { V.ai[p] = false; V.e.insights = Object.assign({}, V.e.insights, (function () { var o = {}; o[p] = r.insight; return o; })()); var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } toast('Recommendations ready'); },
+      function (e) { V.ai[p] = false; var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } fail(e); }); }, function (e) { V.ai[p] = false; var b = $('#esgAi-' + p); if (b) { b.outerHTML = insightCard(p); wire($('#esgBody')); } if (!e.shown) fail(e); });
   }
-  function flush() { if (Object.keys(pend).length) { clearTimeout(V.timer); saveNow(); } }
 
   /* ---------- 📊 overview ---------- */
   function overview() {
@@ -274,7 +285,8 @@
         return '<tr><td><b>' + esc(t[1]) + '</b></td><td><span class="pill md-' + t[2] + '">' + t[2] + '</span></td><td>' + sel(t[0], 'imp', m.imp) + '</td><td>' + sel(t[0], 'fin', m.fin) + '</td><td><input data-mat="' + t[0] + '" data-mf="note" maxlength="300" value="' + esc(m.note || '') + '"></td></tr>'; }).join('') + '</tbody></table></div></div>' +
       '<div><div class="card" id="esgLive">' + live('material') + '</div></div></div>';
   }
-  function live(t) { if (t === 'material') return '<h3>Matrix</h3>' + matrix() + '<p class="muted" style="font-size:12.5px">Topics in the shaded corner are material on both counts and lead the report.</p>'; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); return ''; }
+  function live(t) { if (t === 'material') return '<h3>Matrix</h3>' + matrix() + '<p class="muted" style="font-size:12.5px">Topics in the shaded corner are material on both counts and lead the report.</p>'; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); if (t === 'pricing') return pricingSummary() + ((V.sub || 'cbam') === 'cbam' ? CBAM_DATES : ''); return ''; }
+  var CBAM_DATES = '<div class="esg-gaps esg-rule"><b>Key dates</b><ul><li><b>EU</b>: definitive regime from 1 Jan 2026; importers over 50 t a year need authorisation; certificate sales open 1 Feb 2027; first declaration and surrender for 2026 imports by 30 Sep 2027.</li><li>Default values carry a mark-up (10% in 2026, rising); verified actual data from the producer usually costs less.</li><li><b>UK</b>: starts 1 Jan 2027; return and payment for 2027 due 31 May 2028, then quarterly.</li></ul>';
 
   /* ---------- 🌱 carbon avoidance ---------- */
   function avoidSummary() {
@@ -283,27 +295,94 @@
       (cats.length ? '<h4 style="margin:12px 0 6px">By kind of solution</h4>' + bars(cats.map(function (k) { return [k, a.byCat[k]]; }), 't') : '') +
       '<div class="esg-gaps esg-rule"><b>How it is reported</b><ul><li>Avoided emissions sit <b>beside</b> the Scope 1, 2 and 3 inventory and are never subtracted from it (WBCSD Guidance on Avoided Emissions, GHG Protocol).</li><li>Each result = quantity × (baseline factor − solution factor) × the share attributed to you.</li><li>Your footprint this year: <b>' + tco(V.calc.em.total) + '</b>.</li></ul></div>';
   }
+  // a compact list: one line per item, and only the item being edited opens (so a long register never runs on for screens)
+  V.open = V.open || {};
+  function rowList(key, L, head, line, editor, empty) {
+    if (!L.length) return '<div class="card empty" style="padding:24px">' + empty + '</div>';
+    return '<div class="card esg-list"><div class="esg-lh">' + head + '</div>' + L.map(function (x, i) { var on = V.open[key] === x.id || (!V.open[key] && false);
+      return '<div class="esg-li' + (on ? ' on' : '') + '" data-li="' + key + '" data-i="' + i + '"><button type="button" class="esg-lr" data-open="' + key + '" data-id="' + esc(x.id || '') + '" aria-expanded="' + on + '">' + line(x, i) + '<i class="esg-chev" aria-hidden="true">›</i></button>' +
+        (on ? '<div class="esg-ed">' + editor(x, i) + '</div>' : '') + '</div>'; }).join('') + '</div>';
+  }
+  var opts = function (A, v) { return A.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); };
+  var inp = function (attr, k, v, extra) { return '<input ' + attr + '="' + k + '" value="' + esc(v == null ? '' : v) + '"' + (extra || '') + '>'; };
+  var numIn = function (attr, k, v, unit) { return '<span class="esg-in"><input type="number" step="any" ' + attr + '="' + k + '" value="' + esc(v == null ? '' : v) + '">' + (unit ? '<i>' + esc(unit) + '</i>' : '') + '</span>'; };
   function avoidTab() {
-    var L = V.e.avoid || [], o = function (A, v) { return A.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); }, calcs = {}; (V.calc.avoid.items || []).forEach(function (x) { calcs[x.id] = x.t; });
-    var row = function (x, i) { return '<div class="card esg-av" data-avi="' + i + '"><div class="row" style="gap:8px"><input class="esg-av-n" data-av="name" value="' + esc(x.name || '') + '" placeholder="Project or solution" maxlength="120"><span class="esg-av-t" title="Avoided in the year">' + (calcs[x.id] != null ? nf(calcs[x.id], 1) + ' tCO2e' : '–') + '</span><button class="btn btn-sm" type="button" data-avdel="' + i + '" title="Remove">✕</button></div>' +
-      '<div class="esg-form esg-form-4"><label>Kind<select data-av="cat">' + o(SC.avoidCats, x.cat) + '</select></label><label>Status<select data-av="status">' + o(SC.avoidStatus, x.status) + '</select></label><label>Verification<select data-av="verify">' + o(SC.avoidVerify, x.verify) + '</select></label><label>SDG<input data-av="sdg" value="' + esc(x.sdg || '') + '" maxlength="60" placeholder="e.g. SDG 7"></label>' +
-      '<label class="full">Baseline: what would have happened without it<input data-av="baseline" value="' + esc(x.baseline || '') + '" maxlength="240"></label>' +
-      '<label>Quantity<input type="number" step="any" data-av="qty" value="' + esc(x.qty == null ? '' : x.qty) + '"></label><label>Unit<input data-av="unit" value="' + esc(x.unit || '') + '" maxlength="30" placeholder="MWh, km, t…"></label><label>Baseline factor<span class="esg-in"><input type="number" step="any" data-av="base" value="' + esc(x.base == null ? '' : x.base) + '"><i>kgCO2e/unit</i></span></label><label>Solution factor<span class="esg-in"><input type="number" step="any" data-av="sol" value="' + esc(x.sol == null ? '' : x.sol) + '"><i>kgCO2e/unit</i></span></label>' +
-      '<label>Attributed to you<span class="esg-in"><input type="number" step="any" min="0" max="100" data-av="attr" value="' + esc(x.attr == null ? 100 : x.attr) + '"><i>%</i></span></label><label style="grid-column:span 3">Notes<input data-av="note" value="' + esc(x.note || '') + '" maxlength="400"></label></div></div>'; };
+    var L = V.e.avoid || [], calcs = {}; (V.calc.avoid.items || []).forEach(function (x) { calcs[x.id] = x.t; });
+    var head = '<span>Project or solution</span><span>Kind</span><span>Status</span><span class="r">tCO2e</span><span></span>';
+    var line = function (x) { return '<span class="n">' + esc(x.name || 'Untitled') + '</span><span class="muted">' + esc(x.cat || '') + '</span><span><span class="pill' + (x.status === 'Delivered' ? ' t-green' : '') + '">' + esc(x.status || '') + '</span>' + (x.verify === 'Third-party verified' ? ' <span class="pill t-green">Verified</span>' : '') + '</span><span class="r"><b>' + (calcs[x.id] != null ? nf(calcs[x.id], 1) : '–') + '</b></span>'; };
+    var ed = function (x, i) { return '<div class="esg-form esg-form-4" data-avi="' + i + '"><label class="full">Name' + inp('data-av', 'name', x.name, ' maxlength="120"') + '</label><label>Kind<select data-av="cat">' + opts(SC.avoidCats, x.cat) + '</select></label><label>Status<select data-av="status">' + opts(SC.avoidStatus, x.status) + '</select></label><label>Verification<select data-av="verify">' + opts(SC.avoidVerify, x.verify) + '</select></label><label>SDG' + inp('data-av', 'sdg', x.sdg, ' maxlength="60" placeholder="e.g. SDG 7"') + '</label>' +
+      '<label class="full">Baseline: what would have happened without it' + inp('data-av', 'baseline', x.baseline, ' maxlength="240"') + '</label>' +
+      '<label>Quantity' + numIn('data-av', 'qty', x.qty) + '</label><label>Unit' + inp('data-av', 'unit', x.unit, ' maxlength="30" placeholder="MWh, km, t…"') + '</label><label>Baseline factor' + numIn('data-av', 'base', x.base, 'kgCO2e/unit') + '</label><label>Solution factor' + numIn('data-av', 'sol', x.sol, 'kgCO2e/unit') + '</label>' +
+      '<label>Attributed to you' + numIn('data-av', 'attr', x.attr == null ? 100 : x.attr, '%') + '</label><label class="full">Notes' + inp('data-av', 'note', x.note, ' maxlength="400"') + '</label></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" type="button" data-avdel="' + i + '">🗑 Remove</button></div>'; };
     return '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Avoided emissions</h3><span class="sp"></span><select id="avTpl" aria-label="Add from a template"><option value="">＋ Add from a template…</option>' + SC.avoidTemplates.map(function (t, i) { return '<option value="' + i + '">' + esc(t.name) + '</option>'; }).join('') + '</select><button class="btn btn-sm btn-gold" type="button" id="avAdd">＋ Add</button></div>' +
-      '<p class="muted" style="font-size:13px;margin:8px 0 0">Emissions your projects, products and services avoid compared with what would have happened otherwise: solar instead of grid power, electric vehicles instead of diesel, recycling instead of landfill, or a service that cuts your customers\' emissions. Claim only the share that is yours.</p></div>' +
-      (L.length ? L.map(row).join('') : '<div class="card empty" style="padding:24px">No avoided emissions recorded yet. Add one, or start from a template.</div>') + '</div><div><div class="card" id="esgLive">' + avoidSummary() + '</div></div></div>';
+      '<p class="muted" style="font-size:13px;margin:8px 0 0">Emissions your projects, products and services avoid compared with what would have happened otherwise. Claim only the share that is yours. Press a line to edit it.</p></div>' +
+      rowList('avoid', L, head, line, ed, 'No avoided emissions recorded yet. Add one, or start from a template.') + '</div><div><div class="card" id="esgLive">' + avoidSummary() + '</div></div></div>';
   }
-  function creditsSummary() { var a = V.calc.avoid; return '<h3>Carbon credits</h3><div class="esg-big"><b>' + nf(a.credits) + '</b><span>tCO2e of credits retired</span></div>' + kvHtml([['Of which removals', tco(a.removals)], ['Avoidance credits', tco(a.credits - a.removals)], ['Your gross footprint', tco(V.calc.em.total)]]) +
-    '<div class="esg-gaps esg-rule"><b>How it is reported</b><ul><li>Gross emissions are reported before any credits. Credits are shown separately, with the registry and vintage (IFRS S2 §36, ESRS E1-7).</li><li>Removal credits take carbon out of the air; avoidance credits pay for emissions avoided elsewhere. Only removals count towards neutralising residual emissions at net zero.</li></ul></div>'; }
+  /* ---------- 🎫 carbon credits: the register, with integrity checks (ICVCM CCP, corresponding adjustments) and how each is used ---------- */
+  function creditsSummary() {
+    var a = V.calc.avoid, P = V.calc.price, uses = Object.keys(P.byUse || {});
+    return '<h3>Carbon credits</h3><div class="esg-big"><b>' + nf(a.credits) + '</b><span>tCO2e of credits retired</span></div>' + meter([['High quality', P.highQualityPct || 0, 100]]) + kvHtml([['Of which removals', tco(a.removals)], ['Avoidance credits', tco(a.credits - a.removals)], ['Your gross footprint', tco(V.calc.em.total)]]) +
+      (uses.length ? '<h4 style="margin:12px 0 6px">How they are used</h4>' + bars(uses.map(function (k) { return [k, P.byUse[k]]; }), 't') : '') +
+      '<div class="esg-gaps esg-rule"><b>Claiming credits</b><ul><li>Report gross emissions first; credits sit beside them (GHG Protocol, IFRS S2 §36(e), ESRS E1-7).</li><li><b>Quality</b>: prefer credits with the ICVCM CCP label; for compliance or a national claim, a corresponding adjustment.</li><li><b>Claims</b>: SBTi V2 treats credits as an ongoing emissions responsibility, never a substitute for cuts; only <b>removals</b> neutralise residual emissions at net zero. VCMI sets the claim tiers; ISO 14068-1 sets carbon-neutral claims.</li><li>Compliance use: Singapore up to 5% of taxable emissions (eligible ICCs); Japan GX-ETS up to 10% (J-Credits, JCM); Australia Safeguard (ACCUs, SMCs).</li></ul></div>';
+  }
   function creditsTab() {
-    var L = V.e.credits || [], o = function (v) { return SC.creditTypes.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); };
-    return '<div class="esg-split"><div class="card"><div class="row"><h3 style="margin:0">Carbon credits retired</h3><span class="sp"></span><button class="btn btn-sm btn-gold" type="button" id="crAdd">＋ Add credits</button></div><p class="muted" style="font-size:13px;margin:8px 0 12px">The credits retired for this reporting year, kept apart from the emissions inventory.</p>' +
-      (L.length ? '<div class="tbl-wrap"><table class="tbl esg-tbl"><thead><tr><th>Project</th><th>Type</th><th>Registry</th><th>Vintage</th><th>tCO2e</th><th>Cost</th><th>Purpose</th><th></th></tr></thead><tbody>' + L.map(function (x, i) {
-        return '<tr data-cri="' + i + '"><td><input data-cr="project" value="' + esc(x.project || '') + '" maxlength="140"></td><td><select data-cr="type">' + o(x.type) + '</select></td><td><input data-cr="registry" value="' + esc(x.registry || '') + '" placeholder="Verra, Gold Standard, ACCU…" maxlength="60"></td><td><input data-cr="vintage" value="' + esc(x.vintage || '') + '" maxlength="10" style="width:80px"></td><td><input type="number" step="any" data-cr="t" value="' + esc(x.t == null ? '' : x.t) + '" style="width:100px"></td><td><input type="number" step="any" data-cr="cost" value="' + esc(x.cost == null ? '' : x.cost) + '" style="width:100px"></td><td><input data-cr="purpose" value="' + esc(x.purpose || '') + '" maxlength="200"></td><td><button class="btn btn-sm" type="button" data-crdel="' + i + '">✕</button></td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="muted">No credits recorded for this year.</p>') +
-      '</div><div><div class="card" id="esgLive">' + creditsSummary() + '</div></div></div>';
+    var L = V.e.credits || [], Q = {}; (V.calc.price.credits || []).forEach(function (x) { Q[x.id] = x; });
+    var head = '<span>Project</span><span>Type · standard</span><span>Use</span><span class="r">tCO2e</span><span></span>';
+    var line = function (x) { var q = Q[x.id] || { flags: [] }; return '<span class="n">' + esc(x.project || 'Untitled') + '<small class="muted">' + esc([x.registry, x.vintage].filter(Boolean).join(' · ')) + '</small></span><span class="muted">' + esc(x.type || '') + (x.std ? '<small>' + esc(x.std) + '</small>' : '') + '</span><span>' + esc(x.use || '') + '<small>' + (q.flags.length ? '<span class="t-amber">⚠ ' + esc(q.flags[0]) + (q.flags.length > 1 ? ' +' + (q.flags.length - 1) : '') + '</span>' : '<span class="t-green">✓ Checks passed</span>') + '</small></span><span class="r"><b>' + nf(x.t) + '</b></span>'; };
+    var ed = function (x, i) { var q = Q[x.id] || { flags: [] }; return '<div class="esg-form esg-form-4" data-cri="' + i + '"><label class="full">Project' + inp('data-cr', 'project', x.project, ' maxlength="140"') + '</label>' +
+      '<label>Type<select data-cr="type">' + opts(SC.creditTypes, x.type) + '</select></label><label>Standard<select data-cr="std"><option value="">–</option>' + opts(SC.creditStds, x.std) + '</select></label><label>Registry' + inp('data-cr', 'registry', x.registry, ' maxlength="60" placeholder="Verra, ACCU register…"') + '</label><label>Vintage' + inp('data-cr', 'vintage', x.vintage, ' maxlength="10"') + '</label>' +
+      '<label>Retired' + numIn('data-cr', 't', x.t, 'tCO2e') + '</label><label>Cost' + numIn('data-cr', 'cost', x.cost, (V.e.org || {}).currency || '') + '</label><label>ICVCM CCP label<select data-cr="ccp">' + opts(['Unknown', 'Yes', 'No'], x.ccp) + '</select></label><label>Corresponding adjustment<select data-cr="ca">' + opts(['Unknown', 'Yes', 'No', 'Not needed'], x.ca) + '</select></label>' +
+      '<label class="full">Use and claim<select data-cr="use">' + opts(SC.creditUses, x.use) + '</select></label><label class="full">Purpose' + inp('data-cr', 'purpose', x.purpose, ' maxlength="200"') + '</label></div>' +
+      (q.flags.length ? '<div class="esg-gaps"><b>Integrity checks</b><ul>' + q.flags.map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul></div>' : '<div class="esg-gaps esg-rule"><b>✓ Integrity checks passed</b></div>') +
+      '<div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" type="button" data-crdel="' + i + '">🗑 Remove</button></div>'; };
+    return '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Carbon credits retired</h3><span class="sp"></span><button class="btn btn-sm btn-gold" type="button" id="crAdd">＋ Add credits</button></div><p class="muted" style="font-size:13px;margin:8px 0 0">The credits retired for this reporting year, kept apart from the emissions inventory, each checked for quality and for how it may be claimed. Press a line to edit it.</p></div>' +
+      rowList('credits', L, head, line, ed, 'No credits recorded for this year.') + '</div><div><div class="card" id="esgLive">' + creditsSummary() + '</div></div></div>';
   }
-
+  /* ---------- 💱 pricing and CBAM: sub-tabs for border adjustments, carbon prices and the frameworks ---------- */
+  var SUBS = [['cbam', 'Border adjustments (CBAM)'], ['prices', 'Carbon prices & taxes'], ['frame', 'Frameworks']];
+  function pricingTab() {
+    var sub = V.sub || 'cbam';
+    return '<div class="esg-sub" role="tablist" aria-label="Carbon pricing">' + SUBS.map(function (x) { return '<button type="button" role="tab" class="' + (sub === x[0] ? 'on' : '') + '" aria-selected="' + (sub === x[0]) + '" data-sub="' + x[0] + '">' + esc(x[1]) + '</button>'; }).join('') + '</div>' +
+      (sub === 'prices' ? pricesSub() : sub === 'frame' ? frameSub() : cbamSub());
+  }
+  function pricingSummary() {
+    var P = V.calc.price, f = function (n, c) { return n == null ? '–' : (c === 'EUR' ? '€' : c === 'GBP' ? '£' : '') + nf(n) + (c && c !== 'EUR' && c !== 'GBP' ? ' ' + c : ''); };
+    return '<h3>Carbon cost exposure</h3>' + kvHtml([['EU CBAM (' + P.cbamYear + ', CBAM factor ' + P.cbamFactor + '%)', f(P.cbamEU, 'EUR')], ['UK CBAM', f(P.cbamUK, 'GBP')], ['Embedded emissions in CBAM goods', nf(P.cbamEmb) + ' tCO2e'],
+      ['Carbon taxes and ETS', P.exp.length ? P.exp.map(function (x) { return f(x.cost, x.cur); }).join(' + ') : '–'], ['Internal carbon price', P.icp != null ? nf(P.icp) + ' per tCO2e · shadow cost ' + f(P.shadow) : 'Not set (Climate risk tab)']]);
+  }
+  function cbamSub() {
+    var P = V.calc.price, pr = V.e.pricing || {}, C = {}; (P.cbam || []).forEach(function (x) { C[x.id] = x; });
+    var head = '<span>Goods</span><span>Market · CN code</span><span>Tonnes</span><span class="r">Est. cost</span><span></span>';
+    var line = function (x) { var c = C[x.id] || {}; return '<span class="n">' + esc(x.good) + '<small class="muted">' + esc(x.dest || '') + '</small></span><span>' + esc(x.market) + ' CBAM' + (x.cn ? ' · ' + esc(x.cn) : '') + '<small class="muted">' + esc(x.sv || '') + '</small></span><span>' + nf(x.tonnes) + ' t<small class="muted">' + (c.emb != null ? nf(c.emb) + ' tCO2e embedded' : '') + '</small></span><span class="r"><b>' + (c.cost != null ? (c.cur === 'GBP' ? '£' : '€') + nf(c.cost) : '–') + '</b></span>'; };
+    var ed = function (x, i) { var c = C[x.id] || {}; return '<div class="esg-form esg-form-4" data-cbi="' + i + '"><label>Market<select data-cb="market">' + opts(['EU', 'UK'], x.market) + '</select></label><label>Goods<select data-cb="good">' + opts(SC.cbamGoods, x.good) + '</select></label><label>CN code' + inp('data-cb', 'cn', x.cn, ' maxlength="20" placeholder="e.g. 7308"') + '</label><label>Emissions data<select data-cb="sv">' + opts(['Default values', 'Actual (verified)'], x.sv) + '</select></label>' +
+      '<label class="full">What and where' + inp('data-cb', 'dest', x.dest, ' maxlength="80" placeholder="e.g. steel racking to Rotterdam"') + '</label>' +
+      '<label>Quantity' + numIn('data-cb', 'tonnes', x.tonnes, 't') + '</label><label>Specific embedded emissions' + numIn('data-cb', 'see', x.see, 'tCO2e/t') + '</label><label>CBAM benchmark' + numIn('data-cb', 'bench', x.bench, 'tCO2e/t') + '</label><label>Carbon price paid at origin' + numIn('data-cb', 'paid', x.paid, x.market === 'UK' ? '£/t' : '€/t') + '</label></div>' +
+      '<p class="muted" style="font-size:12px;margin:6px 0 0">' + (x.market === 'EU' ? 'Certificates = embedded emissions − benchmark × tonnes × the free allocation still given (' + (100 - P.cbamFactor) + '% in ' + P.cbamYear + '). Leave the benchmark blank to see the gross figure.' : 'UK CBAM taxes the embodied direct emissions at the published UK CBAM rate.') + (c.cost != null ? ' Estimate: <b>' + (c.cur === 'GBP' ? '£' : '€') + nf(c.cost) + '</b> on ' + nf(c.liable) + ' tCO2e.' : '') + '</p>' +
+      '<div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" type="button" data-cbdel="' + i + '">🗑 Remove</button></div>'; };
+    return '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Goods covered by a border adjustment</h3><span class="sp"></span><button class="btn btn-sm btn-gold" type="button" id="cbAdd">＋ Add goods</button></div>' +
+      '<p class="muted" style="font-size:13px;margin:8px 0 10px">Iron and steel, aluminium, cement, fertilisers, hydrogen (and electricity, EU only) that you export to or import into the EU or the UK, or handle as a customs representative. The price is your assumption: the EU price follows EU ETS auctions, the UK rate is published quarterly.</p>' +
+      '<div class="esg-form esg-form-4"><label>EU certificate price' + numIn('data-pv', 'euaPrice', pr.euaPrice, '€/tCO2e') + '</label><label>UK CBAM rate' + numIn('data-pv', 'ukRate', pr.ukRate, '£/tCO2e') + '</label><label style="grid-column:span 2">EU CBAM factor<span class="esg-fixed">' + P.cbamFactor + '% in ' + P.cbamYear + ' (2.5% 2026 → 100% 2034)</span></label></div></div>' +
+      rowList('cbam', pr.cbam || [], head, line, ed, 'No CBAM goods recorded. Add the goods you ship to or bring into the EU or the UK.') + '</div>' +
+      '<div><div class="card" id="esgLive">' + live('pricing') + '</div></div></div>';
+  }
+  function pricesSub() {
+    var P = V.calc.price, pr = V.e.pricing || {}, prices = SC.schemes.filter(function (x) { return x.kind === 'Carbon price'; }), E2 = {}; (P.exp || []).forEach(function (x) { E2[x.id] = x; });
+    var head = '<span>Facility or entity</span><span>Scheme</span><span>Liable tCO2e</span><span class="r">Est. cost</span><span></span>';
+    var nm = function (id) { return ((SC.schemes.filter(function (s) { return s.id === id; })[0]) || {}).name || 'Choose a scheme'; };
+    var line = function (x) { var c = E2[x.id] || {}; return '<span class="n">' + esc(x.site || 'Untitled') + '</span><span class="muted">' + esc(nm(x.scheme)) + '</span><span>' + nf(c.liable) + '</span><span class="r"><b>' + (c.cost != null ? nf(c.cost) + ' ' + esc(x.cur) : '–') + '</b></span>'; };
+    var ed = function (x, i) { return '<div class="esg-form esg-form-4" data-exi="' + i + '"><label class="full">Facility or entity' + inp('data-ex', 'site', x.site, ' maxlength="120"') + '</label><label style="grid-column:span 2">Scheme<select data-ex="scheme"><option value="">Choose…</option>' + prices.map(function (s) { return '<option value="' + s.id + '"' + (s.id === x.scheme ? ' selected' : '') + '>' + esc(s.name) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Covered emissions' + numIn('data-ex', 'covered', x.covered, 'tCO2e') + '</label><label>Baseline or free allowance' + numIn('data-ex', 'baseline', x.baseline, 'tCO2e') + '</label><label>Price' + numIn('data-ex', 'price', x.price, 'per tCO2e') + '</label><label>Currency' + inp('data-ex', 'cur', x.cur, ' maxlength="6"') + '</label><label>Met with credits' + numIn('data-ex', 'offsetPct', x.offsetPct, '%') + '</label>' +
+      '<label class="full">Notes' + inp('data-ex', 'note', x.note, ' maxlength="300"') + '</label></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" type="button" data-exdel="' + i + '">🗑 Remove</button></div>'; };
+    return '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Carbon taxes and emissions trading</h3><span class="sp"></span><button class="btn btn-sm btn-gold" type="button" id="exAdd">＋ Add</button></div>' +
+      '<p class="muted" style="font-size:13px;margin:8px 0 0">Facilities covered by a carbon tax or an ETS, for example a Safeguard facility above its baseline, a Singapore facility over 25,000 t, or a GX-ETS company. The cost is the emissions above the baseline × the price, less the share met with eligible credits.</p></div>' +
+      rowList('exp', pr.exp || [], head, line, ed, 'No facility is covered by a carbon tax or ETS yet.') + '</div><div><div class="card" id="esgLive">' + live('pricing') + '</div></div></div>';
+  }
+  function frameSub() {
+    var on = (V.e.pricing || {}).schemes || [], kinds = ['Border adjustment', 'Carbon price', 'Crediting', 'Integrity'];
+    return '<div class="card"><h3 style="margin-top:0">Carbon pricing and credit frameworks</h3><p class="muted" style="font-size:13px;margin:0 0 6px">Tick the ones that apply to you; they shape the report\'s carbon pricing section and Champ\'s advice. Status as checked in November 2026: confirm the details before you report.</p>' +
+      kinds.map(function (k) { return '<h4 class="esg-kh">' + esc(k === 'Border adjustment' ? 'Border adjustments' : k === 'Carbon price' ? 'Carbon taxes and emissions trading' : k === 'Crediting' ? 'Where credits come from' : 'Credit quality and claims') + '</h4><div class="esg-stds">' + SC.schemes.filter(function (x) { return x.kind === k; }).map(function (x) { var c = on.indexOf(x.id) >= 0;
+        return '<label class="esg-stdc' + (c ? ' on' : '') + '"><input type="checkbox" data-sch="' + x.id + '"' + (c ? ' checked' : '') + '><div><b>' + esc(x.name) + '</b><div class="esg-std-m"><span class="pill">' + esc(x.region) + '</span><span class="pill t-green">' + esc(x.status) + '</span></div><small class="muted">' + esc(x.note) + '</small><small><b>Credits:</b> ' + esc(x.credits) + '</small></div></label>'; }).join('') + '</div>'; }).join('') + '</div>';
+  }
   /* ---------- 📁 records: the registry, the documents written, every change ---------- */
   function recordsTab() {
     var e = V.e, c = V.calc;
@@ -324,18 +403,18 @@
       '<div class="form" style="margin-top:10px"><label>Language<select id="dLang" data-noi18n>' + L.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === l ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('') + '</select></label>' +
       '<label>Colour scheme<select id="dTheme">' + T.map(function (t) { return '<option value="' + t.id + '"' + (t.id === THEME ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></label></div>' +
       '<div class="row" style="gap:6px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="dAi" type="button"' + (busy ? ' disabled' : '') + '>' + (busy ? '✨ Writing…' : N ? '✨ Write it again' : '✨ Write with AI') + '</button><button class="btn" id="dPdf" type="button">⬇ PDF</button><button class="btn" id="dDocx" type="button">⬇ Word</button><span class="muted" id="dMsg" style="font-size:12.5px">' + (busy ? '<span class="ask-think">✨ Champ is writing…</span>' : '') + '</span></div>' +
-      '<div class="esg-dstate">' + (N ? '✓ Narrative v' + N.ver + ' written ' + esc(when(N.at)) + ' by ' + esc(N.by || '') + ' · ' + nf(N.tokens) + ' tokens' + (N.partial ? ' · <span class="t-amber">' + esc(N.partial) + '</span>' : '') + '. Write it again after you change the data.' : 'No narrative yet: the PDF and Word still work, with the data, charts and tables, and a note where the narrative goes.') + '</div></div>' +
+      (N && N.rev != null && N.rev < V.e.rev ? '<div class="esg-stale" role="status">⚠ The data has changed since this narrative was written (data version ' + N.rev + ', now ' + V.e.rev + '). The figures, tables and charts use today\'s data, so the text may quote older numbers: <b>write it again</b> before you publish. The documents are marked until you do.</div>' : '') + '<div class="esg-dstate">' + (N ? '✓ Narrative v' + N.ver + ' written ' + esc(when(N.at)) + ' by ' + esc(N.by || '') + ' · ' + nf(N.tokens) + ' tokens' + (N.partial ? ' · <span class="t-amber">' + esc(N.partial) + '</span>' : '') + '. Write it again after you change the data.' : 'No narrative yet: the PDF and Word still work, with the data, charts and tables, and a note where the narrative goes.') + '</div></div>' +
       '<div class="card"><h3 style="margin-top:0">Inside</h3><ol class="esg-toc">' + (rep ? REPORT_TOC : STATEMENT_TOC).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div></div>';
   }
   var STATEMENT_TOC = ['Message from leadership', 'About this statement', 'Governance and strategy', 'Material topics', 'Environment and climate', 'Social', 'Governance performance', 'Avoided emissions', 'Targets and outlook', 'Content index'];
   var REPORT_TOC = ['Part 1 Introduction and strategy: message from the CEO, about this report, our organisation, strategy, stakeholders, materiality, SDGs', 'Part 2 Governance: structure and oversight, ethics and integrity, risk management, cyber, privacy and tax',
-    'Part 3 Climate: governance and strategy, risks and opportunities, scenarios and resilience, metrics, targets and transition plan', 'Part 4 Environment: GHG emissions, energy, water and waste, biodiversity and compliance, avoided emissions and carbon credits',
+    'Part 3 Climate: governance and strategy, risks and opportunities, scenarios and resilience, metrics, targets and transition plan', 'Part 4 Environment: GHG emissions, energy, water and waste, biodiversity and compliance, avoided emissions, carbon pricing, CBAM and carbon credits',
     'Part 5 Social: our people, health and safety, diversity and inclusion, human rights and Indigenous peoples, communities, suppliers and customers', 'Part 6 Performance and roadmap: governance performance, ESG scorecard, targets and roadmap, reporting standards, data quality and assurance',
     'Appendices: performance data, content index, glossary, forward-looking statements, approval'];
   function writeDoc(kind) {
-    flush(); V.ai[kind] = true; var lang = $('#dLang').value; body();
-    bg({ mode: 'esgDoc', esg: V.id, kind: kind, lang: lang }, function (r) { V.ai[kind] = false; V.docs[kind] = r; load(V.id).then(function () { V.docs[kind] = r; if (V.tab === kind) draw(); toast((kind === 'report' ? 'ESG report' : 'Statement') + ' narrative written (' + nf(r.tokens) + ' tokens). Download the PDF or Word.'); }); },
-      function (e) { V.ai[kind] = false; if (V.tab === kind) body(); fail(e); });
+    V.ai[kind] = true; var lang = $('#dLang').value; body();
+    flush().then(function () { bg({ mode: 'esgDoc', esg: V.id, kind: kind, lang: lang }, function (r) { V.ai[kind] = false; V.docs[kind] = r; load(V.id).then(function () { V.docs[kind] = r; if (V.tab === kind) draw(); toast((kind === 'report' ? 'ESG report' : 'Statement') + ' narrative written (' + nf(r.tokens) + ' tokens). Download the PDF or Word.'); }); },
+      function (e) { V.ai[kind] = false; if (V.tab === kind) body(); fail(e); }); }, function (e) { V.ai[kind] = false; if (V.tab === kind) body(); if (!e.shown) fail(e); });
   }
   function makeDoc(kind, fmt) {
     var lang = $('#dLang').value, msg = $('#dMsg'), say = function (t) { if (msg) msg.innerHTML = t ? '<span class="ask-think">' + esc(t) + '</span>' : ''; };
@@ -365,6 +444,7 @@
     var mat = SC.topics.filter(function (tp) { return (e.mat || {})[tp[0]]; }).map(function (tp) { var m = e.mat[tp[0]], R = ['–', 'Low', 'Medium', 'High', 'Very high']; return { tp: tp, m: m, s: m.imp + m.fin }; }).sort(function (a, z) { return z.s - a.s; });
     return { e: e, c: c, o: o, em: em, ghg: ghg, s3: s3, people: people, gov: gov, idx: idx, av: av, avRows: avRows, mat: mat, std: (e.std || []).map(function (s) { return (SC.std[s] || {}).name || s; }) };
   }
+  var stale = function (N) { return N && N.rev != null && V.e && N.rev < V.e.rev ? ' · DRAFT: narrative older than the data' : ''; };
   var dt = function (s) { try { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''; } catch (x) { return s; } };
   var RT = ['–', 'Low', 'Medium', 'High', 'Very high'];
   function list(L) { return (L || []).map(function (x) { return '- ' + (typeof x === 'string' ? x : Object.values(x).join(': ')); }).join('\n'); }
@@ -389,7 +469,7 @@
       ch('Content index', 'Standards', [lim < 2 && X.idx.length ? { t: 'table', head: ['Standard', 'Reference', 'Disclosure', 'Status'], rows: X.idx, widths: [0.9, 1.1, 3.4, 0.9], size: 7 } : { t: 'table', head: ['Standard', 'Coverage'], rows: (X.e.std || []).map(function (s) { return [(SC.std[s] || {}).name || s, { t: (X.c.coverage[s] || 0) + '%', right: true }]; }), widths: [4, 1] }])
     ];
     return { lang: lang, flow: true, cover: 'band', kicker: 'Sustainability statement', title: X.o.name || 'Sustainability statement', subtitle: [X.o.year, X.o.industry].filter(Boolean).join(' · '), short: 'Sustainability statement',
-      headRight: [(X.o.year || '') + (N ? ' · narrative v' + N.ver : ''), 'Issued ' + dt(today)], footer: 'Sustainability statement · ' + (X.o.name || '').slice(0, 70),
+      headRight: [(X.o.year || '') + (N ? ' · narrative v' + N.ver : '') + stale(N), 'Issued ' + dt(today)], footer: 'Sustainability statement · ' + (X.o.name || '').slice(0, 70),
       stats: [{ v: String(X.c.esg), l: 'ESG score' }, { v: nf(X.em.total), l: 'tCO2e footprint' }, { v: X.c.soc.womenPct != null ? X.c.soc.womenPct + '%' : '–', l: 'Women in workforce' }, { v: X.c.readiness + '%', l: 'Report readiness' }],
       chapters: C, fileBase: ((X.o.name || 'Organisation') + '-Sustainability-Statement-' + (X.o.year || '') + (lang && lang !== 'en' ? '-' + lang : '')).replace(/[^\w.-]+/g, '-') };
   }
@@ -402,7 +482,7 @@
     var tbl = function (k, head, cols, widths, title) { var L = S[k] || []; return L.length ? { t: 'table', title: title, head: head, rows: L.map(function (x) { return cols.map(function (col, i) { var v = x[col] || ''; return i === 0 ? { t: v, b: true } : v; }); }), widths: widths, noTr: nl } : null; };
     var nn = function () { return ('0' + (n + 1)).slice(-2); };
     var D = { lang: lang, toc: true, kicker: 'ESG report', title: X.o.name || 'ESG report', short: 'ESG report', subtitle: (X.o.year ? X.o.year + ' · ' : '') + 'Environmental, social and governance report', coverNote: 'Prepared with GKH Project Champ · ' + dt(today),
-      headRight: [(X.o.year || '') + (N ? ' · narrative v' + N.ver : ''), X.o.reg || ''], footer: 'ESG report ' + (X.o.year || '') + ' · ' + (X.o.name || '').slice(0, 70),
+      headRight: [(X.o.year || '') + (N ? ' · narrative v' + N.ver : '') + stale(N), X.o.reg || ''], footer: 'ESG report ' + (X.o.year || '') + ' · ' + (X.o.name || '').slice(0, 70),
       meta: [['Organisation', X.o.name || ''], ['Reporting period', X.o.from && X.o.to ? dt(X.o.from) + ' to ' + dt(X.o.to) : X.o.year || ''], ['Industry', X.o.industry || ''], ['Boundary', X.o.boundary || ''], ['Assurance', X.o.assurance || 'None yet'], ['Standards', (X.e.std || []).map(stdShort).join(', ')]],
       stats: [{ v: String(c.esg), l: 'ESG score out of 100' }, { v: nf(em.total), l: 'tCO2e footprint' }, { v: nf(c.avoid.total), l: 'tCO2e avoided' }, { v: c.readiness + '%', l: 'Report readiness' }], chapters: [],
       fileBase: ((X.o.name || 'Organisation') + '-ESG-Report-' + (X.o.year || '') + (lang && lang !== 'en' ? '-' + lang : '')).replace(/[^\w.-]+/g, '-') };
@@ -439,8 +519,15 @@
     C.push(ch('Biodiversity and compliance', 'Nature', [T(S.biodiversity, miss), T(S.environmental_compliance), tbl('env_initiatives', ['Initiative', 'Outcome', 'Next'], ['initiative', 'outcome', 'next'], [2, 2.6, 2], 'Environmental initiatives')], 'Nature, compliance and initiatives'));
     C.push(ch('Avoided emissions and carbon credits', 'Beyond our footprint', [{ t: 'stats', items: [{ v: nf(c.avoid.total), l: 'tCO2e avoided' }, { v: nf(c.avoid.delivered), l: 'from delivered projects' }, { v: nf(c.avoid.verified), l: 'third-party verified' }, { v: nf(c.avoid.credits), l: 'tCO2e of credits retired' }] }, T(S.avoided_emissions, c.avoid.total ? miss : 'No avoided emissions were recorded for this year.'),
       X.avRows.length ? { t: 'table', title: 'Avoided emissions register', head: ['Project or solution', 'Kind', 'Baseline', 'Share', 'Status', 'Verification', 'tCO2e'], rows: X.avRows, widths: [2, 1.6, 1.8, 0.6, 0.9, 1, 0.8], size: 7.4 } : null,
-      (X.e.credits || []).length ? { t: 'table', title: 'Carbon credits retired', head: ['Project', 'Type', 'Registry', 'Vintage', 'tCO2e'], rows: X.e.credits.map(function (x) { return [{ t: x.project, b: true }, x.type, x.registry, x.vintage, { t: nf(x.t), right: true }]; }), widths: [2.4, 1.6, 1.2, 0.7, 0.8] } : null,
       { t: 'callout', title: 'How avoided emissions are reported', text: 'Avoided emissions are reported beside the Scope 1, 2 and 3 inventory and are **never subtracted from it**. Each result is the quantity times the difference between the baseline and the solution emission factors, times the share attributed to us (WBCSD Guidance on Avoided Emissions, 2023). Carbon credits are reported separately from gross emissions.' }], 'What our solutions avoid, reported separately'));
+    var P = c.price, eur = function (n) { return n == null ? '–' : '€' + nf(n); }, gbp = function (n) { return n == null ? '–' : '£' + nf(n); }, sch = (P.schemes || []).map(function (id) { return SC.schemes.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean);
+    C.push(ch('Carbon pricing, CBAM and carbon credits', 'Carbon markets', [{ t: 'stats', items: [{ v: eur(P.cbamEU), l: 'EU CBAM estimate (' + P.cbamYear + ')' }, { v: nf(P.cbamEmb), l: 'tCO2e embedded in CBAM goods' }, { v: P.icp != null ? nf(P.icp) : '–', l: 'internal carbon price per tCO2e' }, { v: nf(P.creditT), l: 'tCO2e of credits retired' }] },
+      T(S.carbon_pricing, miss),
+      sch.length ? { t: 'table', title: 'Carbon pricing and credit frameworks that apply', head: ['Framework', 'Kind', 'Status'], rows: sch.map(function (x) { return [{ t: x.name, b: true }, x.kind, x.status]; }), widths: [3, 1.2, 2.2] } : null,
+      P.cbam.length ? { t: 'table', title: 'Goods under a carbon border adjustment', head: ['Market', 'Goods', 'CN', 'Tonnes', 'tCO2e/t', 'Embedded tCO2e', 'Data', 'Estimate'], rows: P.cbam.map(function (x) { return [x.market, { t: x.good, b: true }, x.cn || '', { t: nf(x.tonnes), right: true }, { t: nf(x.see, 2), right: true }, { t: nf(x.emb), right: true }, x.sv, { t: x.cur === 'GBP' ? gbp(x.cost) : eur(x.cost), right: true }]; }), widths: [0.6, 1.3, 0.6, 0.8, 0.7, 1, 1.1, 0.9], size: 7.4, note: 'EU estimate uses a certificate price of ' + eur(P.eua) + ' per tCO2e and the ' + P.cbamYear + ' CBAM factor of ' + P.cbamFactor + '%; UK at ' + gbp(P.uk) + '. Assumptions, not quotes.' } : null,
+      P.exp.length ? { t: 'table', title: 'Carbon taxes and emissions trading', head: ['Facility', 'Scheme', 'Liable tCO2e', 'Price', 'Met with credits', 'Estimate'], rows: P.exp.map(function (x) { return [{ t: x.site, b: true }, ((SC.schemes.filter(function (s0) { return s0.id === x.scheme; })[0]) || {}).name || '', { t: nf(x.liable), right: true }, nf(x.price) + ' ' + x.cur, (x.offsetPct || 0) + '%', { t: nf(x.cost) + ' ' + x.cur, right: true }]; }), widths: [1.6, 2.2, 0.9, 0.9, 0.8, 1] } : null,
+      P.credits.length ? { t: 'table', title: 'Carbon credits retired', head: ['Project', 'Type', 'Standard', 'Vintage', 'tCO2e', 'Use', 'Integrity'], rows: P.credits.map(function (x) { return [{ t: x.project, b: true }, x.type, x.std || x.registry || '', x.vintage, { t: nf(x.t), right: true }, x.use, { t: x.flags.length ? x.flags.length + ' to check' : 'Passed', rag: x.flags.length ? 'A' : 'G', center: true }]; }), widths: [1.8, 1.3, 1.1, 0.6, 0.6, 1.6, 0.8], size: 7.2 } : null,
+      { t: 'callout', title: 'How credits are reported and claimed', text: 'Gross emissions are reported before any credits. Credits are kept in a separate register with their type, standard, vintage and use. Quality is checked against the ICVCM Core Carbon Principles and, for compliance or national claims, corresponding adjustments. Only removal credits can neutralise residual emissions at net zero (SBTi Corporate Net-Zero Standard V2.0).' }], 'Carbon taxes, border adjustments and the credits we hold'));
     C.push(part(5, 'Social', 'Our people, the communities we work in, and the people across our value chain.', [['20', 'Our people'], ['21', 'Health and safety'], ['22', 'Diversity, equity and inclusion'], ['23', 'Human rights and Indigenous peoples'], ['24', 'Communities, suppliers and customers']]));
     var w = X.e.workforce || {};
     C.push(ch('Our people', 'People', [T(S.people_strategy, miss), T(S.workforce_profile), [w.under18, w.a18, w.a41, w.a55].some(function (x) { return x != null; }) ? { t: 'chart', kind: 'donut', title: 'Age profile', data: { items: [['Under 18', w.under18], ['18 to 40', w.a18], ['41 to 55', w.a41], ['Over 55', w.a55]].filter(function (x) { return x[1]; }).map(function (x) { return { l: x[0], v: x[1], t: nf(x[1]) }; }), center: nf(w.fte), centerLabel: 'FTE' }, maxH: 60 } : null,
@@ -459,6 +546,7 @@
     C.push(ch('Appendix: content index', 'Appendix', [X.idx.length ? { t: 'table', head: ['Standard', 'Reference', 'Disclosure', 'Status'], rows: X.idx, widths: [0.9, 1.1, 3.4, 0.9], size: 7.2 } : T('Choose the standards in the Standards tab to build the content index.')], 'Where each disclosure is answered'));
     C.push(ch('Appendix: glossary and forward-looking statements', 'Appendix', [tbl('glossary', ['Term', 'Meaning'], ['term', 'meaning'], [1.3, 4]), T(S.forward_looking),
       { t: 'sign', title: 'Approval', intro: 'This ESG report was approved by the board on the date below.', rows: [{ role: 'Chair of the board', name: '' }, { role: 'Chief executive officer', name: '' }] }], 'Terms used, and approval'));
+    var cur = null; C.forEach(function (x) { if (x.divider) { cur = x; x.list = []; } else if (cur) cur.list.push([('0' + x.no).slice(-2), x.title]); });   // the part pages list their chapters with the real numbers
     return D;
   }
 
@@ -470,66 +558,79 @@
         touch(s); };
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', h);
     });
-    b.querySelectorAll('[data-std]').forEach(function (cb) { cb.onchange = function () { var s = cb.getAttribute('data-std'), L = (V.e.std || []).filter(function (x) { return x !== s; }); if (cb.checked) L.push(s); V.e.std = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('std');
-      clearTimeout(V.sTimer); V.sTimer = setTimeout(function () { load(V.id).then(function () { if (V.tab === 'standards') body(); refresh(); }); }, 1600); }; });
+    b.querySelectorAll('[data-std]').forEach(function (cb) { cb.onchange = function () { var s = cb.getAttribute('data-std'), L = (V.e.std || []).filter(function (x) { return x !== s; }); if (cb.checked) L.push(s); V.e.std = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('std'); }; });
     b.querySelectorAll('[data-mat]').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { var k = el.getAttribute('data-mat'), f = el.getAttribute('data-mf'); V.e.mat = V.e.mat || {}; var m = V.e.mat[k] = V.e.mat[k] || { imp: 0, fin: 0 }; m[f] = f === 'note' ? el.value : Number(el.value); touch('mat'); var lv = $('#esgLive'); if (lv) lv.innerHTML = live('material'); }); });
     b.querySelectorAll('[data-ins]').forEach(function (x) { x.onclick = function () { askInsight(x.getAttribute('data-ins')); }; });
-    // 🌱 avoided emissions and credits
-    var avSet = function (i, k, v) { var it = V.e.avoid[i]; if (!it) return; it[k] = v; touch('avoid'); };
-    b.querySelectorAll('[data-avi]').forEach(function (card) { var i = +card.getAttribute('data-avi'); card.querySelectorAll('[data-av]').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { avSet(i, el.getAttribute('data-av'), el.value); }); }); });
-    b.querySelectorAll('[data-avdel]').forEach(function (x) { x.onclick = function () { V.e.avoid.splice(+x.getAttribute('data-avdel'), 1); touch('avoid'); body(); }; });
-    var add = function (t) { V.e.avoid = V.e.avoid || []; V.e.avoid.push(t ? { name: t.name, cat: t.cat, unit: t.unit, base: t.base, sol: t.sol, baseline: t.baseline, attr: 100, status: 'Planned', verify: 'Estimate' } : { name: 'New project or solution', cat: 'Other', attr: 100, status: 'Planned', verify: 'Estimate' }); touch('avoid'); body(); };
-    if ($('#avAdd')) $('#avAdd').onclick = function () { add(null); };
-    if ($('#avTpl')) $('#avTpl').onchange = function () { if (this.value !== '') add(SC.avoidTemplates[+this.value]); };
-    b.querySelectorAll('[data-cri]').forEach(function (tr) { var i = +tr.getAttribute('data-cri'); tr.querySelectorAll('[data-cr]').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { V.e.credits[i][el.getAttribute('data-cr')] = el.value; touch('credits'); }); }); });
-    b.querySelectorAll('[data-crdel]').forEach(function (x) { x.onclick = function () { V.e.credits.splice(+x.getAttribute('data-crdel'), 1); touch('credits'); body(); }; });
-    if ($('#crAdd')) $('#crAdd').onclick = function () { V.e.credits = V.e.credits || []; V.e.credits.push({ project: 'New credit retirement', type: 'Removal credit (nature-based)' }); touch('credits'); body(); };
+    // 🌱 avoided emissions, 🎫 credits, 💱 pricing: lists that open one line at a time
+    b.querySelectorAll('[data-open]').forEach(function (x) { x.onclick = function () { var k = x.getAttribute('data-open'), id = x.getAttribute('data-id'); V.open[k] = V.open[k] === id ? '' : id; body(); }; });
+    var bind = function (sel, attr, getL, part) { b.querySelectorAll('[' + sel + ']').forEach(function (box) { var i = +box.getAttribute(sel); box.querySelectorAll('[' + attr + ']').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { var L = getL(), it = L && L[i]; if (!it) return; it[el.getAttribute(attr)] = el.value; touch(part); }); }); }); };
+    var P0 = function () { V.e.pricing = V.e.pricing || {}; return V.e.pricing; };
+    bind('data-avi', 'data-av', function () { return V.e.avoid; }, 'avoid');
+    bind('data-cri', 'data-cr', function () { return V.e.credits; }, 'credits');
+    bind('data-cbi', 'data-cb', function () { return P0().cbam; }, 'pricing');
+    bind('data-exi', 'data-ex', function () { return P0().exp; }, 'pricing');
+    var del = function (attr, getL, part) { b.querySelectorAll('[' + attr + ']').forEach(function (x) { x.onclick = function () { getL().splice(+x.getAttribute(attr), 1); touch(part); body(); }; }); };
+    del('data-avdel', function () { return V.e.avoid; }, 'avoid'); del('data-crdel', function () { return V.e.credits; }, 'credits'); del('data-cbdel', function () { return P0().cbam; }, 'pricing'); del('data-exdel', function () { return P0().exp; }, 'pricing');
+    var nid = function () { return 'N' + rid().slice(0, 10).toUpperCase(); };
+    var add = function (key, L, item) { item.id = nid(); L.push(item); V.open[key] = item.id; touch(key === 'cbam' || key === 'exp' ? 'pricing' : key); body(); };
+    if ($('#avAdd')) $('#avAdd').onclick = function () { V.e.avoid = V.e.avoid || []; add('avoid', V.e.avoid, { name: 'New project or solution', cat: 'Other', attr: 100, status: 'Planned', verify: 'Estimate' }); };
+    if ($('#avTpl')) $('#avTpl').onchange = function () { var t = SC.avoidTemplates[+this.value]; if (!t) return; V.e.avoid = V.e.avoid || []; add('avoid', V.e.avoid, { name: t.name, cat: t.cat, unit: t.unit, base: t.base, sol: t.sol, baseline: t.baseline, attr: 100, status: 'Planned', verify: 'Estimate' }); };
+    if ($('#crAdd')) $('#crAdd').onclick = function () { V.e.credits = V.e.credits || []; add('credits', V.e.credits, { project: 'New credit retirement', type: 'Removal credit (nature-based)', ccp: 'Unknown', ca: 'Unknown', use: 'Not decided' }); };
+    if ($('#cbAdd')) $('#cbAdd').onclick = function () { P0().cbam = P0().cbam || []; add('cbam', P0().cbam, { market: 'EU', good: 'Iron and steel', sv: 'Default values', dest: 'New goods' }); };
+    if ($('#exAdd')) $('#exAdd').onclick = function () { P0().exp = P0().exp || []; add('exp', P0().exp, { site: 'New facility', cur: (V.e.org || {}).currency || 'AUD' }); };
+    b.querySelectorAll('[data-pv]').forEach(function (el) { el.addEventListener('input', function () { P0()[el.getAttribute('data-pv')] = el.value; touch('pricing'); }); });
+    b.querySelectorAll('[data-sch]').forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute('data-sch'), L = (P0().schemes || []).filter(function (x) { return x !== id; }); if (cb.checked) L.push(id); P0().schemes = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('pricing'); }; });
+    b.querySelectorAll('[data-sub]').forEach(function (x) { x.onclick = function () { V.sub = x.getAttribute('data-sub'); body(); }; });
     // 📄 documents
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };
-    if ($('#dPdf')) $('#dPdf').onclick = function () { flush(); makeDoc(V.tab, 'pdf'); };
-    if ($('#dDocx')) $('#dDocx').onclick = function () { flush(); makeDoc(V.tab, 'docx'); };
+    if ($('#dPdf')) $('#dPdf').onclick = function () { flush().then(function () { makeDoc(V.tab, 'pdf'); }, function (e) { if (!e.shown) fail(e); }); };
+    if ($('#dDocx')) $('#dDocx').onclick = function () { flush().then(function () { makeDoc(V.tab, 'docx'); }, function (e) { if (!e.shown) fail(e); }); };
     if ($('#dTheme')) $('#dTheme').onchange = function () { THEME = this.value; };
   }
   // leaving with changes not yet saved: save them now
-  window.addEventListener('hashchange', function () { if (!/^#esg\//.test(location.hash) || location.hash.split('/')[1] !== V.id) flush(); });
-  window.addEventListener('beforeunload', function () { flush(); });
+  window.addEventListener('hashchange', function () { Object.keys(Q).forEach(function (id) { if (Object.keys(Q[id].parts).length) saveNow(id).catch(function () {}); }); });
+  window.addEventListener('beforeunload', function (ev) { var busy = Object.keys(Q).some(function (id) { return Object.keys(Q[id].parts).length || Q[id].saving; }); Object.keys(Q).forEach(function (id) { saveNow(id).catch(function () {}); }); if (busy) { ev.preventDefault(); ev.returnValue = ''; } });
 
   /* ---------- 🌱 the CSO view (Management & leadership): every ESG report at a glance, for the Chief Sustainability Officer ---------- */
   function csoPage() {
     view().innerHTML = '<div class="empty">Gathering every ESG report…</div>';
-    return Promise.all([schema(), api('esgCso', {})]).then(function (r) {
+    return Promise.all([schema(), api('esgCso', { year: V.csoYear || '' })]).then(function (r) {
       var d = r[1], T = d.totals, R = d.rows, v = view();
       document.title = 'CSO view · GKH Project Champ';
       var head = '<div class="row plan-head" style="margin-bottom:12px"><h2 style="font-size:21px">🌱 CSO view</h2><span class="muted">Every ESG report at a glance: the footprint, the scores, how ready each report is and what is due</span><span class="sp"></span>' +
-        (R.length ? '<button class="btn" type="button" id="csoAsk">✨ Brief me</button>' : '') + '<a class="btn btn-gold" href="#esg">🌿 ESG reports</a></div>';
+        (d.years.length > 1 ? '<label class="cso-yr">Reporting year <select id="csoYr">' + d.years.map(function (y) { return '<option' + (y === d.year ? ' selected' : '') + '>' + esc(y) + '</option>'; }).join('') + '</select></label>' : '') + (R.length ? '<button class="btn" type="button" id="csoAsk">✨ Brief me</button>' : '') + '<a class="btn btn-gold" href="#esg">🌿 ESG reports</a></div>';
       if (!R.length) { v.innerHTML = head + '<div class="card empty" style="padding:36px">No ESG reports yet. Open <a href="#esg">🌿 ESG &amp; Sustainability</a> and start one (or a sample) to see them here.</div>'; return; }
-      var flags = [];
-      R.forEach(function (x) { var L = function (t, c) { flags.push('<li><span class="dot dot-' + c + '"></span> <a href="#esg/' + esc(x.id) + '/overview"><b>' + esc(x.name) + '</b></a> ' + t + '</li>'); };
+      var flags = [], RY = R.filter(function (x) { return !d.year || x.year === d.year; });
+      RY.forEach(function (x) { var L = function (t, c) { flags.push('<li><span class="dot dot-' + c + '"></span> <a href="#esg/' + esc(x.id) + '/overview"><b>' + esc(x.name) + '</b></a> ' + t + '</li>'); };
         if (x.deaths) L('reported ' + pl(x.deaths, 'fatality') + ': the board needs the investigation and the actions', 'red');
         if (!x.tgt) L('has no emissions reduction target (IFRS S2 §33)', 'amber');
         if (x.readiness < 50) L('is ' + x.readiness + '% ready against its chosen standards', x.readiness < 30 ? 'red' : 'amber');
         if (!x.statement && !x.report) L('has no statement or report written yet', 'grey');
         if (!/limited|reasonable/i.test(x.assurance || '')) L('has no external assurance planned', 'grey');
+        if (x.creditQ != null && x.creditQ < 50) L('holds carbon credits where only ' + x.creditQ + '% pass the integrity checks', 'amber');
+        if (x.cbamEU) L('faces an estimated €' + nf(x.cbamEU) + ' of EU CBAM: first surrender due 30 September 2027', 'amber');
         if (x.bench && x.intensity != null && x.intensity > x.bench) L('runs ' + nf((x.intensity / x.bench - 1) * 100) + '% above the sector intensity', 'amber'); });
-      var mx = Math.max.apply(null, R.map(function (x) { return x.total || 0; }).concat([1]));
-      var stack = R.slice(0, 12).map(function (x) { var w = function (n) { return Math.max(0, (n || 0) / mx * 100); };
+      var mx = Math.max.apply(null, RY.map(function (x) { return x.total || 0; }).concat([1]));
+      var stack = RY.slice(0, 12).map(function (x) { var w = function (n) { return Math.max(0, (n || 0) / mx * 100); };
         return '<div class="cso-st"><a href="#esg/' + esc(x.id) + '/carbon">' + esc(x.name) + '</a><i><b class="s1" style="width:' + w(x.s1) + '%" title="Scope 1: ' + nf(x.s1) + ' t"></b><b class="s2" style="width:' + w(x.s2) + '%" title="Scope 2: ' + nf(x.s2) + ' t"></b><b class="s3" style="width:' + w(x.s3) + '%" title="Scope 3: ' + nf(x.s3) + ' t"></b></i><em>' + nf(x.total) + ' t</em></div>'; }).join('');
       var docOf = function (x) { var f = function (D, n) { return D ? '<span class="pill t-green" title="v' + D.ver + ', ' + esc(when(D.at)) + '">' + n + ' v' + D.ver + '</span>' : '<span class="pill">' + n + ' –</span>'; }; return f(x.statement, 'Statement') + ' ' + f(x.report, 'Report'); };
       v.innerHTML = head + '<div class="grid pkpis">' +
-          tile('Group footprint', nf(T.total) + ' tCO2e', 'Scope 1 ' + nf(T.s1) + ' · Scope 2 ' + nf(T.s2) + ' · Scope 3 ' + nf(T.s3), 'grey') +
-          tile('Average ESG score', (T.esg == null ? '–' : T.esg) + ' / 100', 'E ' + T.env + ' · S ' + T.soc + ' · G ' + T.gov + ' across ' + pl(T.n, 'report'), rag(T.esg)) +
+          tile('Group footprint' + (d.year ? ' ' + d.year : ''), nf(T.total) + ' tCO2e', 'Scope 1 ' + nf(T.s1) + ' · Scope 2 ' + nf(T.s2) + ' · Scope 3 ' + nf(T.s3), 'grey') +
+          tile('Average ESG score', (T.esg == null ? '–' : T.esg) + ' / 100', 'E ' + T.env + ' · S ' + T.soc + ' · G ' + T.gov + ' across ' + pl(T.n, 'report') + (d.year ? ' for ' + d.year : ''), rag(T.esg)) +
           tile('Report readiness', (T.readiness == null ? '–' : T.readiness) + '%', T.docs + ' of ' + T.n + ' with a document · ' + T.assured + ' assured', rag(T.readiness)) +
           tile('Avoided emissions', nf(T.avoided) + ' tCO2e', 'beside the footprint, not netted · ' + nf(T.credits) + ' t of credits retired', T.avoided ? 'green' : 'grey') + '</div>' +
+        ((T.cbamEU || T.cbamUK) ? '<div class="card cso-cbam">💱 <b>Carbon border adjustment exposure</b>: ' + (T.cbamEU ? '€' + nf(T.cbamEU) + ' EU CBAM' : '') + (T.cbamEU && T.cbamUK ? ' · ' : '') + (T.cbamUK ? '£' + nf(T.cbamUK) + ' UK CBAM' : '') + ' <span class="muted">(estimates from each report\'s Pricing &amp; CBAM tab)</span></div>' : '') +
         '<div class="esg-ov">' +
           '<div class="card"><h3>Emissions by organisation</h3><div class="cso-leg"><span class="s1">Scope 1</span><span class="s2">Scope 2</span><span class="s3">Scope 3</span></div>' + stack + '</div>' +
           '<div class="card"><h3>Readiness by standard</h3>' + (d.byStd.length ? bars(d.byStd.map(function (x) { return [stdShort(x.std) + ' (' + x.n + ')', x.cov]; }), '%') : '<p class="muted">No standards chosen yet.</p>') + '<p class="muted" style="font-size:12px;margin:0">The average share of each standard\'s disclosures covered by the data, across the reports that use it.</p></div>' +
           '<div class="card"><h3>Needs attention</h3>' + (flags.length ? '<ul class="cso-flags">' + flags.slice(0, 14).join('') + '</ul>' : '<p class="muted">Nothing flagged.</p>') + '</div>' +
           '<div class="card"><h3>Reporting calendar</h3>' + (d.calendar.length ? '<ul class="cso-cal">' + d.calendar.map(function (c) { var past = c.when < new Date().toISOString().slice(0, 10); return '<li class="' + (past ? 'past' : '') + '"><b>' + esc(dt(c.when)) + '</b><span class="pill">' + esc(stdShort(c.std)) + '</span><div>' + esc(c.what) + '</div></li>'; }).join('') + '</ul><p class="muted" style="font-size:12px;margin:8px 0 0">For the standards your reports use; status as checked November 2026. Confirm which group each organisation falls in.</p>' : '<p class="muted">Choose standards in the reports to see the dates that apply.</p>') + '</div>' +
-          '<div class="card esg-wide"><h3>Every report</h3><div class="tbl-wrap"><table class="tbl esg-tbl cso-tbl"><thead><tr><th>Organisation</th><th>Year</th><th>ESG</th><th>E · S · G</th><th>tCO2e</th><th>Intensity vs sector</th><th>Target</th><th>Avoided</th><th>Readiness</th><th>Documents</th><th>Assurance</th></tr></thead><tbody>' +
+          '<div class="card esg-wide"><h3>Every report <small class="muted" style="font-weight:500;font-size:12.5px">(all years; the figures above are for ' + esc(d.year || 'every year') + ')</small></h3><div class="tbl-wrap"><table class="tbl esg-tbl cso-tbl"><thead><tr><th>Organisation</th><th>Year</th><th>ESG</th><th>E · S · G</th><th>tCO2e</th><th>Intensity vs sector</th><th>Target</th><th>Avoided</th><th>Readiness</th><th>Documents</th><th>Assurance</th></tr></thead><tbody>' +
             R.map(function (x) { return '<tr><td><a href="#esg/' + esc(x.id) + '/overview"><b>' + esc(x.name) + '</b></a><div class="muted" style="font-size:11.5px">' + esc([x.industry, x.country].filter(Boolean).join(' · ')) + '</div></td><td>' + esc(x.year) + '</td><td><b class="t-' + rag(x.esg) + '">' + x.esg + '</b></td><td>' + x.env + ' · ' + x.soc + ' · ' + x.gov + '</td><td>' + nf(x.total) + '</td>' +
               '<td>' + (x.intensity != null ? nf(x.intensity, 1) + (x.bench ? ' <small class="' + (x.intensity <= x.bench ? 't-green' : 't-amber') + '">(' + (x.intensity <= x.bench ? '▼ ' : '▲ ') + nf(Math.abs(x.intensity / x.bench - 1) * 100) + '%)</small>' : '') : '–') + '</td><td>' + esc(x.tgt || '–') + (x.netZero ? '<div class="muted" style="font-size:11.5px">Net zero ' + esc(x.netZero) + '</div>' : '') + '</td><td>' + (x.avoided ? nf(x.avoided) + ' t' : '–') + '</td>' +
               '<td><b class="t-' + rag(x.readiness) + '">' + x.readiness + '%</b><div class="esg-std">' + x.std.slice(0, 4).map(function (z) { return '<span>' + esc(stdShort(z)) + '</span>'; }).join('') + '</div></td><td>' + docOf(x) + '</td><td>' + esc(x.assurance || 'None') + '</td></tr>'; }).join('') + '</tbody></table></div>' +
             '<p class="muted" style="font-size:12px;margin:8px 0 0">' + esc(d.method) + '. Scores are a management guide, not a rating agency score.</p></div></div>';
+      var ys = $('#csoYr'); if (ys) ys.onchange = function () { V.csoYear = this.value; csoPage(); };
       var ask = $('#csoAsk'); if (ask) ask.onclick = function () { if (M.guide && M.guide.ask) M.guide.ask('As my sustainability adviser, give me a CSO briefing across all our ESG reports: the footprint, the biggest risks and gaps, the reporting deadlines coming up, and the three things to do first.'); else toast('Open 🎙 Ask Champ, bottom right'); };
     });
   }

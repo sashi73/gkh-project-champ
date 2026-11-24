@@ -143,6 +143,8 @@ const DISC = [
   ['AASB_S2', 'AASB S2 §6-9', 'Climate governance', ['climate.boardClimate']], ['AASB_S2', 'AASB S2 §10-22', 'Strategy, scenario analysis and resilience', ['climate.risks', 'climate.scenario']], ['AASB_S2', 'AASB S2 §24-26', 'Risk management', ['ethics.erm']], ['AASB_S2', 'AASB S2 §29', 'Scope 1, 2 and 3 emissions (NGER method allowed)', ['carbon.diesel', 'carbon.elec', 'scope3.purch']], ['AASB_S2', 'AASB S2 §33-36', 'Climate targets', ['climate.tgtPct']],
   ['AASB_S1', 'AASB S1 §26-53', 'Governance, strategy, risk, metrics for other sustainability topics', ['board.susCommittee', 'mat']], ['GHGP', 'Ch 4-8', 'Boundary, Scope 1-2 inventory, base year', ['org.boundary', 'carbon.baseYear']], ['ISO14064', '5-9', 'GHG inventory and quantification', ['carbon.diesel', 'carbon.elec']],
   ['NGER', 'NGER', 'Scope 1, Scope 2 and energy', ['carbon.diesel', 'carbon.elec', 'resources.energyMWh']], ['SGX', 'Climate', 'Climate-related disclosures (ISSB)', ['climate.risks', 'carbon.elec']], ['NZCS', 'NZ CS 1', 'Governance, strategy, risk, metrics and targets', ['climate.boardClimate', 'climate.scenario', 'climate.tgtPct']],
+  ['IFRS_S2', 'S2 §36(e)', 'Planned use of carbon credits to meet targets', ['credits']], ['AASB_S2', 'AASB S2 §36(e)', 'Planned use of carbon credits', ['credits']], ['ESRS', 'ESRS E1-7', 'GHG removals and carbon credits', ['credits']], ['ESRS', 'ESRS E1-8', 'Internal carbon pricing', ['climate.carbonPrice']],
+  ['CDP', 'C11', 'Carbon pricing (schemes, internal price, credits)', ['pricing', 'climate.carbonPrice', 'credits']], ['GHGP', 'Ch 9', 'Offsets reported separately from the inventory', ['credits']],
   ['TNFD', 'LEAP', 'Nature-related dependencies and impacts', ['resources.biodiv', 'resources.waterStress']], ['SDG', 'SDGs', 'Contribution to the Sustainable Development Goals', ['mat']]
 ];
 export const DISCLOSURES = DISC.map((d, i) => ({ id: 'D' + (i + 1), std: d[0], ref: d[1], title: d[2], fields: d[3] }));
@@ -168,7 +170,8 @@ function cleanAvoid(L) {
 }
 function cleanCredits(L) {
   return arr(L, 40).map((x) => { x = x && typeof x === 'object' ? x : {};
-    return { id: str(x.id, 20).replace(/[^A-Za-z0-9]/g, '') || uid(), project: str(x.project, 140), type: CREDIT_TYPES.includes(x.type) ? x.type : 'Avoidance credit', registry: str(x.registry, 60), vintage: str(x.vintage, 10), t: num(x.t), cost: num(x.cost), purpose: str(x.purpose, 200) }; }).filter((x) => x.project);
+    return { id: str(x.id, 20).replace(/[^A-Za-z0-9]/g, '') || uid(), project: str(x.project, 140), type: CREDIT_TYPES.includes(x.type) ? x.type : 'Avoidance credit', registry: str(x.registry, 60), vintage: str(x.vintage, 10), t: num(x.t), cost: num(x.cost), purpose: str(x.purpose, 200),
+      std: CREDIT_STANDARDS.includes(x.std) ? x.std : '', ccp: ['Yes', 'No', 'Unknown'].includes(x.ccp) ? x.ccp : 'Unknown', ca: ['Yes', 'No', 'Not needed', 'Unknown'].includes(x.ca) ? x.ca : 'Unknown', use: CREDIT_USES.includes(x.use) ? x.use : 'Not decided', scheme: str(x.scheme, 20) }; }).filter((x) => x.project);
 }
 export function avoided(e) {
   const items = (e.avoid || []).map((x) => { const v = x.qty != null && x.base != null ? (x.qty * (x.base - (x.sol || 0)) / 1000) * (x.attr == null ? 1 : x.attr / 100) : null; return { ...x, t: v == null ? null : r2(v, 2) }; });
@@ -183,7 +186,7 @@ function cleanSection(sec, v) {
   const s = SECTIONS.find((x) => x.id === sec), o = {}; if (!s) return o; v = v && typeof v === 'object' ? v : {};
   s.fields.forEach(([k, , t, opts]) => {
     const x = v[k];
-    if (t === 'n' || t === 'p') { const n = num(x); if (n != null) o[k] = t === 'p' ? Math.max(0, Math.min(100, n)) : Math.max(-1e12, Math.min(1e12, n)); }
+    if (t === 'n' || t === 'p') { const n = num(x); if (n != null) o[k] = k === 'payGap' ? Math.max(-100, Math.min(100, n)) : t === 'p' ? Math.max(0, Math.min(100, n)) : Math.max(-1e12, Math.min(1e12, n)); }
     else if (t === 's' || t === 'y') { if (k === 'fset') { if (FACTOR_SETS[x]) o[k] = x; } else if ((opts || []).includes(x)) o[k] = x; }
     else if (t === 'd') { if (/^\d{4}-\d{2}-\d{2}$/.test(String(x || ''))) o[k] = x; }
     else { const t2 = str(x, t === 'l' ? 3000 : 200); if (t2) o[k] = t2; }
@@ -192,9 +195,73 @@ function cleanSection(sec, v) {
 }
 const RATE = ['', 'Low', 'Medium', 'High', 'Very high'];
 function cleanMat(m) { const o = {}; TOPICS.forEach(([k]) => { const x = (m || {})[k]; if (!x) return; const imp = Math.max(0, Math.min(4, Math.round(Number(x.imp) || 0))), fin = Math.max(0, Math.min(4, Math.round(Number(x.fin) || 0))); if (imp || fin) o[k] = { imp, fin, note: str(x.note, 300) }; }); return o; }
+/* ---------------- 💱 carbon pricing, border adjustments and the carbon credit framework (status checked November 2026; see docs/ESG-REGISTRY.md §7a) ---------------- */
+// kind: Carbon price (a tax or an ETS on your own emissions) · Border adjustment (a charge on embedded emissions of imports) · Crediting (who issues credits) · Integrity (how to judge and claim credits)
+export const CARBON_SCHEMES = [
+  { id: 'EU_CBAM', kind: 'Border adjustment', region: 'European Union', name: 'EU Carbon Border Adjustment Mechanism (CBAM)', status: 'Definitive regime since 1 January 2026',
+    note: 'Iron and steel, aluminium, cement, fertilisers, hydrogen and electricity imported into the EU. Importers above 50 tonnes a year must be authorised declarants. Certificates are priced on EU ETS auctions (quarterly average in 2026, weekly from 2027); sales open 1 February 2027 and the first declaration and surrender for 2026 imports is due 30 September 2027. A carbon price paid in the country of origin can be deducted.', credits: 'No offsets; only a carbon price effectively paid at origin reduces the charge.' },
+  { id: 'UK_CBAM', kind: 'Border adjustment', region: 'United Kingdom', name: 'UK Carbon Border Adjustment Mechanism', status: 'Starts 1 January 2027 (no transitional period)',
+    note: 'A tax on the embodied direct emissions of aluminium, cement, fertiliser, hydrogen, and iron and steel goods imported into the UK; electricity and indirect emissions are out of scope at the start. First accounting period is calendar 2027, with the return and payment due 31 May 2028, then quarterly.', credits: 'No offsets; relief for carbon prices paid overseas.' },
+  { id: 'EU_ETS', kind: 'Carbon price', region: 'European Union', name: 'EU Emissions Trading System', status: 'In force', note: 'Cap-and-trade for power, industry, aviation and maritime in the EU; sets the price used for CBAM certificates.', credits: 'No international credits.' },
+  { id: 'UK_ETS', kind: 'Carbon price', region: 'United Kingdom', name: 'UK Emissions Trading Scheme', status: 'In force', note: 'Cap-and-trade for power, industry and aviation; the reference for the UK CBAM rate.', credits: 'No international credits.' },
+  { id: 'AU_SGM', kind: 'Carbon price', region: 'Australia', name: 'Safeguard Mechanism (baselines, ACCUs and SMCs)', status: 'In force; 2026-27 review under way',
+    note: 'Facilities over 100,000 tCO2e of Scope 1 have production-adjusted baselines that decline 4.9% a year to 2030. Emissions above the baseline are covered by surrendering ACCUs or Safeguard Mechanism Credits (SMCs); facilities below earn SMCs. Data comes from NGER.', credits: 'ACCUs and SMCs (domestic).' },
+  { id: 'SG_TAX', kind: 'Carbon price', region: 'Singapore', name: 'Singapore carbon tax and International Carbon Credit framework', status: 'S$45/tCO2e for 2026 and 2027',
+    note: 'Facilities emitting 25,000 tCO2e or more. The rate rose from S$25 to S$45 per tonne in 2026, heading for S$50-80 by 2030.', credits: 'Eligible international carbon credits (from countries with an implementation agreement, with corresponding adjustments) for up to 5% of taxable emissions; unused 2025 quota carried into 2026.' },
+  { id: 'MY_TAX', kind: 'Carbon price', region: 'Malaysia', name: 'Malaysia carbon tax and National Carbon Market Policy', status: 'Carbon tax deferred (October 2026); Climate Change Bill pending',
+    note: 'Announced for iron and steel and energy from 2026, now deferred until the policy and enforcement framework (Climate Change Act) is in place. The National Carbon Market Policy was launched in April 2026; Bursa Carbon Exchange (BCX) trades voluntary credits, with nature-based supply from the Malaysia Forest Fund.', credits: 'Domestic credit verification under the National Carbon Market Policy; BCX contracts.' },
+  { id: 'JP_GXETS', kind: 'Carbon price', region: 'Japan', name: 'Japan GX-ETS', status: 'Mandatory from April 2026 (Phase 2, FY2026-2032)', note: 'Companies over 100,000 tCO2e of Scope 1; first allocations in 2027, with a price floor and ceiling.', credits: 'J-Credits and JCM credits for up to 10% of emissions.' },
+  { id: 'CN_ETS', kind: 'Carbon price', region: 'China', name: 'China national ETS', status: 'In force; expanding beyond power', note: 'Intensity-based ETS for power, being extended to steel, cement and aluminium.', credits: 'CCER (domestic) within limits.' },
+  { id: 'CORSIA', kind: 'Carbon price', region: 'International aviation', name: 'ICAO CORSIA', status: 'First phase 2024-2026', note: 'Airlines offset growth in international aviation emissions above the baseline.', credits: 'CORSIA-eligible emissions units (with host-country letters of authorisation).' },
+  { id: 'ART62', kind: 'Crediting', region: 'Paris Agreement', name: 'Article 6.2 cooperative approaches (ITMOs)', status: 'Operating bilaterally', note: 'Countries trade authorised mitigation outcomes with corresponding adjustments, for example Singapore and Japan (JCM) with host countries.', credits: 'ITMOs with corresponding adjustments.' },
+  { id: 'ART64', kind: 'Crediting', region: 'Paris Agreement', name: 'Article 6.4 Paris Agreement Crediting Mechanism (PACM)', status: 'First credits approved February 2026', note: 'The UN-supervised mechanism replacing the CDM; issues A6.4ERs, authorised or as mitigation contributions.', credits: 'A6.4ERs.' },
+  { id: 'ACCU', kind: 'Crediting', region: 'Australia', name: 'ACCU Scheme (Clean Energy Regulator)', status: 'In force', note: 'Australian Carbon Credit Units from registered projects under approved methods.', credits: 'ACCUs.' },
+  { id: 'VCS', kind: 'Crediting', region: 'Global', name: 'Verra VCS, Gold Standard and other independent standards', status: 'In force', note: 'The main voluntary crediting programmes; check the ICVCM CCP label on the methodology.', credits: 'VCUs, GS VERs and others.' },
+  { id: 'ICVCM', kind: 'Integrity', region: 'Global', name: 'ICVCM Core Carbon Principles (CCP label)', status: 'Assessing programmes and methodologies', note: 'A quality threshold for credits: additionality, permanence, robust quantification, no double counting, safeguards.', credits: 'Prefer CCP-labelled credits.' },
+  { id: 'VCMI', kind: 'Integrity', region: 'Global', name: 'VCMI Claims Code of Practice', status: 'In force', note: 'How a company may claim credit use (Silver, Gold, Platinum) once it is on track with science-based targets; Scope 3 Action claim.', credits: 'High-quality credits beyond the value chain.' },
+  { id: 'SBTI', kind: 'Integrity', region: 'Global', name: 'SBTi Corporate Net-Zero Standard V2.0', status: 'Published June 2026; targets under V2 from 2027', note: 'Credits complement, never replace, reductions: an ongoing emissions responsibility for unabated emissions, and removals to neutralise residual emissions at net zero.', credits: 'Removals for residual emissions; credits for ongoing emissions responsibility.' },
+  { id: 'ISO14068', kind: 'Integrity', region: 'Global', name: 'ISO 14068-1 Carbon neutrality', status: 'In force', note: 'Rules for carbon-neutral claims: reductions first, then offsetting with credits that meet quality criteria.', credits: 'Credits meeting the standard’s quality criteria.' }
+];
+// the EU CBAM factor: the share of embedded emissions that needs certificates as EU ETS free allocation is phased out (Directive 2003/87/EC Art 10a(1a))
+export const CBAM_FACTOR = { 2026: 2.5, 2027: 5, 2028: 10, 2029: 22.5, 2030: 48.5, 2031: 61, 2032: 73.5, 2033: 86, 2034: 100 };
+export const CBAM_GOODS = ['Iron and steel', 'Aluminium', 'Cement', 'Fertilisers', 'Hydrogen', 'Electricity'];
+export const CREDIT_STANDARDS = ['Verra VCS', 'Gold Standard', 'ACCU (Australia)', 'Article 6.4 PACM (A6.4ER)', 'Article 6.2 ITMO', 'J-Credit', 'JCM', 'Global Carbon Council', 'Puro.earth', 'Isometric', 'Bursa Carbon Exchange listing', 'Other'];
+export const CREDIT_USES = ['Compliance (carbon tax or ETS)', 'Ongoing emissions responsibility (contribution)', 'Neutralise residual emissions (net zero)', 'Carbon-neutral claim (ISO 14068-1)', 'Not decided'];
+const YNU = ['Yes', 'No', 'Unknown'], CA = ['Yes', 'No', 'Not needed', 'Unknown'], SV = ['Actual (verified)', 'Default values'];
+const SCHEME_IDS = new Set(CARBON_SCHEMES.map((x) => x.id));
+function cleanPricing(p) {
+  p = p && typeof p === 'object' ? p : {};
+  return { schemes: arr(p.schemes, 20).map(String).filter((x) => SCHEME_IDS.has(x)), euaPrice: num(p.euaPrice), ukRate: num(p.ukRate),
+    cbam: arr(p.cbam, 40).map((x) => { x = x && typeof x === 'object' ? x : {}; return { id: str(x.id, 20).replace(/[^A-Za-z0-9]/g, '') || uid(), market: x.market === 'UK' ? 'UK' : 'EU', good: CBAM_GOODS.includes(x.good) ? x.good : 'Iron and steel', cn: str(x.cn, 20), dest: str(x.dest, 80),
+      tonnes: num(x.tonnes), see: num(x.see), bench: num(x.bench), paid: num(x.paid), sv: SV.includes(x.sv) ? x.sv : 'Default values', note: str(x.note, 300) }; }).filter((x) => x.tonnes != null || x.cn || x.dest),
+    exp: arr(p.exp, 20).map((x) => { x = x && typeof x === 'object' ? x : {}; return { id: str(x.id, 20).replace(/[^A-Za-z0-9]/g, '') || uid(), scheme: SCHEME_IDS.has(x.scheme) ? x.scheme : '', site: str(x.site, 120), covered: num(x.covered), baseline: num(x.baseline), price: num(x.price), cur: str(x.cur, 6) || 'AUD', offsetPct: num(x.offsetPct), note: str(x.note, 300) }; }).filter((x) => x.site || x.covered != null) };
+}
+// what the carbon prices cost, what CBAM exposes, and how strong the credits are
+export function pricing(e, em) {
+  const p = e.pricing || {}, eua = p.euaPrice, uk = p.ukRate;
+  const yr0 = Number(String((e.org || {}).year || '').match(/\d{4}/) || 0) || new Date().getFullYear(), fac = yr0 >= 2034 ? 100 : CBAM_FACTOR[yr0] || (yr0 < 2026 ? 0 : 100);
+  // EU: certificates = embedded − the free allocation adjustment (benchmark × the free allocation still given); UK: tax on embedded direct emissions; both less any carbon price paid at origin
+  const cb = (p.cbam || []).map((x) => { const emb = x.tonnes != null && x.see != null ? x.tonnes * x.see : null, rate = x.market === 'UK' ? uk : eua;
+    const adj = x.market === 'EU' && emb != null && x.bench != null ? Math.min(emb, x.tonnes * x.bench * (1 - fac / 100)) : 0, liable = emb == null ? null : emb - adj;
+    const cost = liable != null && rate != null ? liable * Math.max(0, rate - (x.paid || 0)) : null; return { ...x, emb: r2(emb, 1), adj: r2(adj, 1), liable: r2(liable, 1), rate, cost: r2(cost, 0), cur: x.market === 'UK' ? 'GBP' : 'EUR' }; });
+  const sum = (L, k, f) => r2(L.filter(f || (() => true)).reduce((a, x) => a + (x[k] || 0), 0), 0);
+  const ex = (p.exp || []).map((x) => { const liable = x.baseline != null && x.covered != null ? Math.max(0, x.covered - x.baseline) : x.covered; const net = liable != null && x.price != null ? liable * x.price * (1 - Math.min(100, x.offsetPct || 0) / 100) : null; return { ...x, liable: r2(liable, 0), cost: r2(net, 0) }; });
+  const icp = (e.climate || {}).carbonPrice, shadow = icp != null && em ? r2(((em.s1t || 0) + (em.s2loc || 0)) * icp, 0) : null;
+  const yr = Number(String((e.org || {}).year || '').match(/\d{4}/) || 0) || new Date().getFullYear();
+  const cr = (e.credits || []).map((x) => { const flags = [];
+    if (x.ccp !== 'Yes') flags.push('No ICVCM CCP label confirmed');
+    if (/Compliance|Neutralise/.test(x.use || '') && x.ca !== 'Yes' && x.ca !== 'Not needed') flags.push('No corresponding adjustment confirmed');
+    if (/Neutralise/.test(x.use || '') && !/^Removal/.test(x.type)) flags.push('Only removal credits can neutralise residual emissions');
+    if (Number(x.vintage) && yr - Number(x.vintage) > 5) flags.push('Vintage more than five years old');
+    if (!x.registry) flags.push('Registry not recorded');
+    return { ...x, flags, quality: Math.max(0, 100 - flags.length * 25) }; });
+  const credT = cr.reduce((a, x) => a + (x.t || 0), 0), hiQ = cr.filter((x) => !x.flags.length).reduce((a, x) => a + (x.t || 0), 0);
+  return { schemes: p.schemes || [], eua, uk, cbamYear: yr0, cbamFactor: fac, cbam: cb, cbamEU: sum(cb, 'cost', (x) => x.cur === 'EUR'), cbamUK: sum(cb, 'cost', (x) => x.cur === 'GBP'), cbamEmb: sum(cb, 'emb'), exp: ex, shadow, icp,
+    credits: cr, creditT: r2(credT, 0), highQualityPct: credT ? Math.round(hiQ / credT * 100) : null, byUse: cr.reduce((a, x) => { a[x.use || 'Not decided'] = r2((a[x.use || 'Not decided'] || 0) + (x.t || 0), 0); return a; }, {}) };
+}
 export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
-  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits) };
+  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing) };
   SECTIONS.forEach((s) => { out[s.id] = cleanSection(s.id, e[s.id]); });
   return out;
 }
@@ -210,15 +277,15 @@ function emissions(e) {
   const s3c = { purch: has(s3.purch) ? s3.purch * g('fPurch') : null, freight: kgT(s3.freight, g('fFreight')), landfill: has(s3.landfill) ? s3.landfill * g('fLandfill') : null, recycled: has(s3.recycled) ? s3.recycled * g('fRecycled') : null,
     air: kgT(s3.air, g('fAir')), car: kgT(s3.car, g('fCar')), hotel: kgT(s3.hotel, g('fHotel')), commute: kgT(s3.commute, g('fCommute')), water: kgT(s3.water, g('fWater')) };
   const sum = (o) => Object.values(o).reduce((a, v) => a + (v || 0), 0), anyOf = (o) => Object.values(o).some((v) => v != null);
-  const S1 = anyOf(s1) ? sum(s1) : null, S3 = anyOf(s3c) ? sum(s3c) : null, total = (S1 || 0) + (s2loc || 0) + (S3 || 0);
+  const S1 = anyOf(s1) ? sum(s1) : null, S3 = anyOf(s3c) ? sum(s3c) : null, total = S1 == null && s2loc == null && S3 == null ? null : (S1 || 0) + (s2loc || 0) + (S3 || 0);   // nothing measured is not zero
   const rev = (e.org || {}).revenue, fte = (e.workforce || {}).fte || (e.org || {}).employees;
   // energy: what was entered, or fuels and electricity converted to MWh (GJ = L × energy content)
   const ec = { diesel: 0.0386, petrol: 0.0342, jet: 0.0367, lpg: 0.0257 }, gj = ['diesel', 'petrol', 'jet', 'lpg'].reduce((a, k) => a + (c[k] || 0) * ec[k], 0) + (c.gas || 0);
   const energy = has((e.resources || {}).energyMWh) ? e.resources.energyMWh : (gj || c.elec ? r2(gj / 3.6 + (c.elec || 0), 1) : null);
-  const s12 = (S1 || 0) + (s2loc || 0), base = c.baseT, bench = INTENSITY[(e.org || {}).industry];
+  const s12 = S1 == null && s2loc == null ? null : (S1 || 0) + (s2loc || 0), base = c.baseT, bench = INTENSITY[(e.org || {}).industry];
   return { s1: Object.fromEntries(Object.entries(s1).map(([k, v]) => [k, r2(v, 3)])), s1t: r2(S1, 3), s2loc: r2(s2loc, 3), s2mkt: r2(s2mkt, 3), s3: Object.fromEntries(Object.entries(s3c).map(([k, v]) => [k, r2(v, 3)])), s3t: r2(S3, 3), total: r2(total, 3), s12: r2(s12, 3),
-    intensity: rev ? r2(s12 / rev, 2) : null, perFte: fte ? r2(total / fte, 2) : null, bench: bench || null, vsBench: rev && bench ? r2((s12 / rev / bench - 1) * 100, 1) : null, energy, elecFactor: elecF, set: c.fset || 'IPCC', setLabel: set.label,
-    vsBase: base && s12 ? r2((s12 / base - 1) * 100, 1) : null, cars: r2(total / 4.6, 1) };
+    intensity: rev && s12 != null ? r2(s12 / rev, 2) : null, perFte: fte && total != null ? r2(total / fte, 2) : null, bench: bench || null, vsBench: rev && bench && s12 != null ? r2((s12 / rev / bench - 1) * 100, 1) : null, energy, elecFactor: elecF, set: c.fset || 'IPCC', setLabel: set.label,
+    vsBase: base > 0 && s12 != null ? r2((s12 / base - 1) * 100, 1) : null, cars: total == null ? null : r2(total / 4.6, 1) };
 }
 const yes = (v) => v === 'Yes' || v === 'Certified' || v === 'Validated' || v === 'Integrated' || v === 'Formal' || v === 'Deployed' || v === 'Formal and published';
 const part = (v) => v === 'Partly' || v === 'Committed' || v === 'Working towards it' || v === 'Basic' || v === 'Manual';
@@ -249,7 +316,7 @@ function socScore(e) {
   core += has(w.under18) && !w.under18 ? 4 : 0;
   core += h.indigPolicy === 'Yes' ? 3 : h.indigPolicy === 'Not applicable' ? 2 : 0; core += (h.indigPct || 0) >= 3 ? 2 : (h.indigPct || 0) >= 1 ? 1 : 0;
   core += has(w.trainHrs) ? Math.min(4, w.trainHrs / 6) : 0; core += has(w.payGap) ? (Math.abs(w.payGap) <= 5 ? 4 : Math.abs(w.payGap) <= 12 ? 2 : 0) : 0;
-  core = Math.max(0, Math.min(75, core));
+  core = Math.max(0, Math.min(75, core * 75 / 69));   // the core items add up to 69 at best: scaled onto the documented 75 points
   opt += pts(m.dei, 4) + pts(m.parental, 3) + pts(m.wellbeing, 3); opt += Math.min(4, (m.invest || 0) / 50000); opt += Math.min(4, (m.supAudit || 0) / 20); opt += Math.min(3, (m.localPct || 0) / 25);
   opt += Math.min(2, (m.divHires || 0) / 20); opt += m.grievance === 'Formal and published' ? 2 : m.grievance === 'Basic' ? 1 : 0; opt = Math.min(25, opt);
   if ((w.deaths || 0) > 0) why.push('A fatality in the year: report it openly with the investigation and actions.');
@@ -272,7 +339,7 @@ function govScore(e) {
   if (!yes(b.susCommittee)) why.push('No board sustainability committee yet.');
   return { score: Math.round(core + opt), core: Math.round(core), opt: Math.round(opt), gri: Math.round(gri), boardWomenPct: r2(bw, 1), radar, why };
 }
-function fieldHas(e, f) { if (f === 'mat') return Object.keys(e.mat || {}).length >= 3; const [s, k] = f.split('.'); return has((e[s] || {})[k]); }
+function fieldHas(e, f) { if (f === 'mat') return Object.keys(e.mat || {}).length >= 3; if (f === 'credits' || f === 'avoid') return (e[f] || []).length > 0; if (f === 'pricing') return !!((e.pricing || {}).cbam || []).length || !!((e.pricing || {}).exp || []).length; const [s, k] = f.split('.'); return has((e[s] || {})[k]); }
 export function coverage(e) {
   const by = {};
   DISCLOSURES.forEach((d) => { const n = d.fields.filter((f) => fieldHas(e, f)).length, st = n === d.fields.length ? 'Reported' : n ? 'Partly' : 'Not yet'; (by[d.std] = by[d.std] || []).push({ ...d, status: st }); });
@@ -283,7 +350,7 @@ export function compute(e) {
   const em = emissions(e), E = envScore(e, em), S = socScore(e), G = govScore(e), cv = coverage(e), chosen = (e.std || []).length ? e.std : ['IFRS_S2', 'GRI'];
   const readiness = Math.round(chosen.reduce((a, s) => a + (cv.pct[s] || 0), 0) / chosen.length);
   const filled = SECTIONS.filter((s) => s.id !== 'org').map((s) => ({ id: s.id, pillar: PILLAR_OF[s.id], n: s.fields.filter((f) => has((e[s.id] || {})[f[0]])).length, of: s.fields.length }));
-  return { method: METHOD, em, env: E, soc: S, gov: G, esg: Math.round((E.score + S.score + G.score) / 3), coverage: cv.pct, readiness, filled, avoid: avoided(e) };
+  return { method: METHOD, em, env: E, soc: S, gov: G, esg: Math.round((E.score + S.score + G.score) / 3), coverage: cv.pct, readiness, filled, avoid: avoided(e), price: pricing(e, em) };
 }
 
 /* ---------------- 📂 storage ---------------- */
@@ -302,18 +369,28 @@ export async function create(body, by) {
   const c = await put(e); return { entity: e, calc: c };
 }
 export async function save(id, body, by) {
-  const e = await get(id); if (!e) return { error: 'This reporting entity was not found', code: 404 };
-  if (body.rev != null && Number(body.rev) !== e.rev) return { error: 'Someone else changed this report since you opened it. Reload to see their changes.', code: 409, entity: e };
-  const nx = clean({ ...e, ...(body.patch || {}) }), changed = [];
-  SECTIONS.forEach((s) => { const a = e[s.id] || {}, b = nx[s.id]; s.fields.forEach(([k, label]) => { if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) changed.push(s.title + ': ' + label); }); e[s.id] = b; });
-  if (JSON.stringify(e.std || []) !== JSON.stringify(nx.std)) changed.push('Standards: ' + nx.std.join(', ')); e.std = nx.std;
-  if (JSON.stringify(e.mat || {}) !== JSON.stringify(nx.mat)) changed.push('Materiality ratings'); e.mat = nx.mat;
-  if (JSON.stringify(e.avoid || []) !== JSON.stringify(nx.avoid)) changed.push('Carbon avoidance: ' + nx.avoid.length + ' item' + (nx.avoid.length === 1 ? '' : 's')); e.avoid = nx.avoid;
-  if (JSON.stringify(e.credits || []) !== JSON.stringify(nx.credits)) changed.push('Carbon credits register'); e.credits = nx.credits;
-  if (!changed.length) return { entity: e, calc: compute(e) };
-  e.rev = (e.rev || 0) + 1; e.updated = Date.now();
-  logIt(e, by, changed.length > 4 ? changed.slice(0, 4).join('; ') + ' and ' + (changed.length - 4) + ' more' : changed.join('; '));
-  const c = await put(e); return { entity: e, calc: c };
+  id = String(id || '').replace(/[^A-Z0-9]/gi, '').slice(0, 24); if (!id) return { error: 'This reporting entity was not found', code: 404 };
+  let res = null;
+  // compare-and-set: the revision check and the write happen together, so two people saving at once cannot overwrite each other
+  const e = await kv.update('esg:' + id, (cur) => {
+    if (!cur) { res = { error: 'This reporting entity was not found', code: 404 }; return cur; }
+    if (body.rev != null && Number(body.rev) !== cur.rev) { res = { error: 'Someone else changed this report since you opened it. Reload to see their changes.', code: 409, entity: cur }; return cur; }
+    const x = structuredClone(cur), nx = clean({ ...x, ...(body.patch || {}) }), changed = [];
+    SECTIONS.forEach((sec) => { const a = x[sec.id] || {}, b = nx[sec.id]; sec.fields.forEach(([k, label]) => { if (JSON.stringify(a[k]) !== JSON.stringify(b[k])) changed.push(sec.title + ': ' + label); }); x[sec.id] = b; });
+    if (JSON.stringify(x.std || []) !== JSON.stringify(nx.std)) changed.push('Standards: ' + nx.std.join(', ')); x.std = nx.std;
+    if (JSON.stringify(x.mat || {}) !== JSON.stringify(nx.mat)) changed.push('Materiality ratings'); x.mat = nx.mat;
+    if (JSON.stringify(x.avoid || []) !== JSON.stringify(nx.avoid)) changed.push('Carbon avoidance: ' + nx.avoid.length + ' item' + (nx.avoid.length === 1 ? '' : 's')); x.avoid = nx.avoid;
+    if (JSON.stringify(x.credits || []) !== JSON.stringify(nx.credits)) changed.push('Carbon credits register'); x.credits = nx.credits;
+    if (JSON.stringify(x.pricing || {}) !== JSON.stringify(nx.pricing)) changed.push('Carbon pricing and CBAM'); x.pricing = nx.pricing;
+    if (!changed.length) { res = { same: true }; return cur; }
+    x.rev = (x.rev || 0) + 1; x.updated = Date.now();
+    logIt(x, by, changed.length > 4 ? changed.slice(0, 4).join('; ') + ' and ' + (changed.length - 4) + ' more' : changed.join('; '));
+    res = null; return x;
+  }, () => null);
+  if (res && res.error) return res;
+  const c = compute(e);
+  if (!res) await kv.update('esg-index', (x) => { x.ents = x.ents || {}; x.ents[e.id] = summary(e, c); return x; }, () => ({ ents: {} }));
+  return { entity: e, calc: c, cover: coverage(e).by };
 }
 export async function remove(id, by) { const e = await get(id); if (!e) return { error: 'Not found', code: 404 }; await kv.del('esg:' + e.id); await kv.del('esgdoc:' + e.id + ':statement').catch(() => {}); await kv.del('esgdoc:' + e.id + ':report').catch(() => {}); await kv.update('esg-index', (x) => { delete (x.ents || {})[e.id]; return x; }, () => ({ ents: {} })); return { ok: true, name: (e.org || {}).name }; }
 export async function lastDoc(id, kind) { return kv.get('esgdoc:' + String(id).replace(/[^A-Z0-9]/gi, '') + ':' + (kind === 'report' ? 'report' : 'statement')); }
@@ -341,7 +418,12 @@ export async function sample(by) {
       { name: 'Electric vans for Sydney and Melbourne deliveries', cat: 'Fleet electrification and low-emission transport', baseline: 'Diesel van per km', unit: 'km', qty: 640000, base: 0.32, sol: 0.12, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 11' },
       { name: 'Pallet and packaging recycling', cat: 'Circularity and recycling', baseline: 'Waste to landfill', unit: 't', qty: 820, base: 460, sol: 21, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 12' },
       { name: 'Consolidated low-carbon freight for retail customers', cat: 'Product or service that cuts customer emissions', baseline: 'Customers shipping part loads', unit: 'tonne-km', qty: 3500000, base: 0.11, sol: 0.07, attr: 50, status: 'Under way', verify: 'Estimate', sdg: 'SDG 9', note: 'Half the saving is attributed to GKH, half to the customers who changed how they ship.' }],
-    credits: [],
+    credits: [{ project: 'Human-induced regeneration, western NSW', type: 'Removal credit (nature-based)', std: 'ACCU (Australia)', registry: 'ACCU Scheme register', vintage: '2025', t: 300, cost: 10500, purpose: 'Part of the ongoing emissions responsibility for FY2026', ccp: 'Unknown', ca: 'Not needed', use: 'Ongoing emissions responsibility (contribution)' },
+      { project: 'Efficient cookstoves, Ghana', type: 'Avoidance credit', std: 'Gold Standard', registry: 'Gold Standard Impact Registry', vintage: '2019', t: 200, cost: 1600, purpose: 'Bought in 2022 for a carbon-neutral event', ccp: 'No', ca: 'Unknown', use: 'Carbon-neutral claim (ISO 14068-1)' }],
+    pricing: { schemes: ['EU_CBAM', 'AU_SGM', 'ACCU', 'ICVCM', 'VCMI', 'SBTI'], euaPrice: 75,
+      cbam: [{ market: 'EU', good: 'Iron and steel', cn: '7308', dest: 'Steel racking shipped to Rotterdam for a client (we act as indirect customs representative)', tonnes: 1200, see: 2.1, paid: 0, sv: 'Default values' },
+        { market: 'EU', good: 'Aluminium', cn: '7610', dest: 'Aluminium frames to Hamburg', tonnes: 140, see: 8.4, paid: 0, sv: 'Default values' }],
+      exp: [] },
     mat: { ghg: { imp: 4, fin: 4 }, energy: { imp: 3, fin: 3 }, safety: { imp: 4, fin: 3 }, people: { imp: 3, fin: 3 }, dei: { imp: 3, fin: 2 }, rights: { imp: 3, fin: 2 }, supply: { imp: 3, fin: 3 }, ethics: { imp: 2, fin: 3 }, cyber: { imp: 2, fin: 4 }, waste: { imp: 2, fin: 1 }, water: { imp: 1, fin: 1 }, community: { imp: 2, fin: 1 }, customers: { imp: 2, fin: 3 }, governance: { imp: 2, fin: 3 }, risk: { imp: 2, fin: 3 } }
   };
   return save(r.entity.id, { patch }, by);
@@ -361,6 +443,10 @@ function facts(e) {
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
     scores_out_of_100: { environment: c.env.score, social: c.soc.score, governance: c.gov.score, overall: c.esg, gri2_alignment: c.gov.gri }, women_pct: c.soc.womenPct, women_in_management_pct: c.soc.womenMgmtPct, women_on_board_pct: c.gov.boardWomenPct,
     gaps: [...c.env.why, ...c.soc.why, ...c.gov.why], standards_coverage_pct: c.coverage,
+    carbon_pricing: (() => { const P = c.price; return { schemes_that_apply: P.schemes.map((id) => (CARBON_SCHEMES.find((x) => x.id === id) || {}).name), internal_carbon_price: P.icp, shadow_cost_scope1_2: P.shadow,
+      cbam_lines: P.cbam.map((x) => ({ market: x.market, good: x.good, cn_code: x.cn, what: x.dest, tonnes: x.tonnes, embedded_tCO2e: x.emb, values: x.sv, est_cost: x.cost, currency: x.cur })), cbam_cost_eur: P.cbamEU, cbam_cost_gbp: P.cbamUK,
+      carbon_price_exposures: P.exp.map((x) => ({ scheme: x.scheme, site: x.site, liable_tCO2e: x.liable, price: x.price, currency: x.cur, est_cost: x.cost })),
+      credits: P.credits.map((x) => ({ project: x.project, type: x.type, standard: x.std, vintage: x.vintage, tCO2e: x.t, use: x.use, ccp_label: x.ccp, corresponding_adjustment: x.ca, integrity_flags: x.flags })), high_quality_share_pct: P.highQualityPct }; })(),
     avoided_emissions_tCO2e: { total: c.avoid.total, delivered: c.avoid.delivered, planned_or_under_way: c.avoid.planned, by_category: c.avoid.byCat, third_party_verified: c.avoid.verified, items: c.avoid.items.map((x) => ({ name: x.name, category: x.cat, baseline: x.baseline, tCO2e: x.t, attribution_pct: x.attr, status: x.status, verification: x.verify })), carbon_credits_retired: c.avoid.credits, of_which_removals: c.avoid.removals } }, material_topics: mat, insights: e.insights || {}, today: new Date().toISOString().slice(0, 10) };
 }
 const STATEMENT = [
@@ -379,7 +465,7 @@ const REPORT = [
     '"opportunities" (3-6 items {"opportunity":"","horizon":"Short|Medium|Long","financial_effect":"","action":""}), "scenario_analysis" (460-550 words: at least a 1.5°C orderly, a 2.5-3°C and a 4°C hot-house scenario, with assumptions and what changes for the business), "resilience" (260-340 words), "climate_risk_management" (320-400 words), ' +
     '"metrics_targets" (360-440 words: with the emission numbers, intensity and targets), "transition_plan" (360-440 words), "transition_actions" (5-8 items {"action":"","timing":"","emissions_effect":"","status":"Done|Under way|Planned"}).' },
   { ask: 'Write PART D (environmental performance) of a full ESG Report of about 60 pages. Keys: "ghg_methodology" (420-500 words: GHG Protocol, boundary, factor set and GWP values, Scope 2 location and market based, Scope 3 categories included and excluded, estimation and uncertainty), "emissions_performance" (460-550 words: analysis of the numbers, intensity, the sector comparison and the base year), ' +
-    '"scope3" (320-400 words), "energy" (320-400 words), "water" (300-380 words), "waste" (300-380 words), "biodiversity" (240-320 words), "environmental_compliance" (200-280 words), "avoided_emissions" (380-460 words: the projects and solutions that avoid emissions, the baselines and attribution, verification, why they are reported separately from and never netted against Scope 1-3 under the WBCSD Guidance on Avoided Emissions and the GHG Protocol, and the carbon credits retired, distinguishing avoidance and removal credits; if there are none, say what is planned), "env_initiatives" (5-8 items {"initiative":"","outcome":"","next":""}).' },
+    '"scope3" (320-400 words), "energy" (320-400 words), "water" (300-380 words), "waste" (300-380 words), "biodiversity" (240-320 words), "environmental_compliance" (200-280 words), "carbon_pricing" (320-420 words: the carbon prices, carbon taxes and border adjustments (EU and UK CBAM) that apply, the exposure in the data, the internal carbon price, and the carbon credits held: type, standard, integrity (ICVCM CCP label, corresponding adjustments) and how they are used and claimed under SBTi, VCMI or ISO 14068-1, never netted against gross emissions; say what is not yet in place), "avoided_emissions" (380-460 words: the projects and solutions that avoid emissions, the baselines and attribution, verification, why they are reported separately from and never netted against Scope 1-3 under the WBCSD Guidance on Avoided Emissions and the GHG Protocol, and the carbon credits retired, distinguishing avoidance and removal credits; if there are none, say what is planned), "env_initiatives" (5-8 items {"initiative":"","outcome":"","next":""}).' },
   { ask: 'Write PART E (social performance) of a full ESG Report of about 60 pages. Keys: "people_strategy" (320-400 words), "workforce_profile" (320-400 words: analysis of the numbers), "health_safety" (460-550 words: with injuries, fatalities, LTIFR, training and the safety system), "dei" (360-440 words), "training_development" (300-380 words), ' +
     '"human_rights" (360-440 words: ILO, child labour, modern slavery, living wage), "indigenous" (240-320 words), "community" (300-380 words), "supply_chain" (300-380 words), "customers_data" (220-300 words), "social_initiatives" (5-8 items {"initiative":"","outcome":"","next":""}).' },
   { ask: 'Write PART F (governance performance, targets and roadmap) of a full ESG Report of about 60 pages. Keys: "governance_performance" (360-440 words: the governance scores and GRI 2 alignment explained), "certifications" (260-340 words), "scorecard_commentary" (320-400 words: what the environment, social and governance scores mean and what moves them), ' +
@@ -394,10 +480,11 @@ export async function writeDoc(id, kind, lang, by) {
   if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.' };
   try { await checkLimit(); } catch (err) { return { error: err.message }; }
   const PARTS = kind === 'report' ? REPORT : STATEMENT, F = facts(e), budget = cap(kind), inTok = Math.ceil(JSON.stringify(F).length / 3.6) + 900;
-  const perOut = Math.max(3000, Math.min(8000, Math.floor((budget - PARTS.length * inTok) / PARTS.length)));
+  const perOut0 = Math.floor((budget - PARTS.length * inTok) / PARTS.length), perOut = Math.max(3000, Math.min(8000, Math.floor((budget - PARTS.length * inTok) / PARTS.length)));
+  if (perOut0 < 3000) return { error: 'There is too much data for the AI budget of ' + budget.toLocaleString('en-AU') + ' tokens (' + PARTS.length + ' parts need about ' + (PARTS.length * (inTok + 3000)).toLocaleString('en-AU') + '). Raise AI_ESG_' + (kind === 'report' ? 'MAX' : 'STATEMENT') + '_TOKENS, or shorten the long text fields.' };
   const L = LANG[lang] ? lang : 'en', sys = BASE + (L !== 'en' ? ` Write every value in ${LANG[L]} (natural, professional ${LANG[L]}; JSON keys stay in English; keep standard names such as IFRS S2, GRI 305, ESRS E1 and units as they are).` : '');
   const res = await Promise.all(PARTS.map((p) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ task: p.ask, organisation_data: F }) }], { maxTokens: perOut, timeoutMs: 420000, temperature: 0.35 })
-    .then((r) => ({ data: r.data || {}, used: r.used || 0 })).catch((err) => ({ data: {}, used: 0, error: err.message }))));
+    .then((r) => ({ data: r.data || {}, used: r.used || 0, cut: !!(r.cutOff || (r.data && r.data._cutOff)) })).catch((err) => ({ data: {}, used: 0, error: err.message }))));
   const failed = res.filter((r) => r.error); if (failed.length === res.length) return { error: 'The AI could not write the ' + (kind === 'report' ? 'ESG report' : 'sustainability statement') + ': ' + failed[0].error };
   const raw = Object.assign({}, ...res.map((r) => r.data)), tokens = res.reduce((a, r) => a + (r.used || 0), 0);
   const sections = {};   // text stays text (long), lists stay lists of small objects
@@ -405,10 +492,11 @@ export async function writeDoc(id, kind, lang, by) {
     if (typeof v === 'string') sections[kk] = str(v, 9000);
     else if (Array.isArray(v)) sections[kk] = v.slice(0, 24).map((x) => (x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).slice(0, 8).map(([a, b]) => [str(a, 30), str(b, 1500)])) : str(x, 600))).filter((x) => (typeof x === 'string' ? x : Object.values(x).join('')));
   });
-  const prev = await lastDoc(e.id, kind), ver = ((prev && prev.ver) || 0) + 1;
-  const rec = { at: Date.now(), by: str(by, 60), kind, ver, lang: L, tokens, cap: budget, parts: PARTS.length, partial: failed.length ? failed.length + ' of ' + PARTS.length + ' parts could not be written' : '', method: METHOD, std: e.std || [], sections };
-  await kv.set('esgdoc:' + e.id + ':' + kind, rec);
-  await kv.update('esg:' + e.id, (x) => { if (!x) return x; x.docs = [{ kind, ver, at: rec.at, by: rec.by, lang: L, tokens, std: rec.std, partial: rec.partial }].concat(x.docs || []).slice(0, 40); logIt(x, by, (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' narrative v' + ver + ' written by AI (' + tokens.toLocaleString('en-AU') + ' tokens)'); return x; }, () => null).catch(() => {});
+  const cut = res.filter((r) => r.cut).length;
+  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [failed.length ? failed.length + ' of ' + PARTS.length + ' parts could not be written' : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: e.rev, sections };
+  // the version is given out atomically, so two people writing at once get v2 and v3, not two v2s
+  const saved = await kv.update('esgdoc:' + e.id + ':' + kind, (prev) => ({ ...rec, ver: ((prev && prev.ver) || 0) + 1 }), () => null), ver = saved.ver; rec.ver = ver;
+  await kv.update('esg:' + e.id, (x) => { if (!x) return x; x.docs = [{ kind, ver, at: rec.at, by: rec.by, lang: L, tokens, std: rec.std, partial: rec.partial, rev: rec.rev }].concat(x.docs || []).sort((a, b) => (b.kind === a.kind ? b.ver - a.ver : b.at - a.at)).slice(0, 40); logIt(x, by, (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' narrative v' + ver + ' written by AI (' + tokens.toLocaleString('en-AU') + ' tokens)'); return x; }, () => null).catch(() => {});
   await usage(1, tokens);
   return rec;
 }
@@ -439,25 +527,27 @@ export const CALENDAR = [
   { std: 'CDP', when: '2027-06-30', what: 'CDP disclosure cycle: questionnaire usually due mid-year (check the CDP timeline)' },
   { std: 'NGER', when: '2027-10-31', what: 'NGER report for 2026-27 due 31 October' }
 ];
-export async function cso() {
+export async function cso(year) {
   const ids = Object.keys(((await kv.get('esg-index')) || { ents: {} }).ents || {}), rows = [];
   for (const id of ids.slice(0, 200)) {
     const e = await get(id); if (!e) continue; const c = compute(e), o = e.org || {};
     const chosen = e.std || [], docs = e.docs || [], last = (k) => docs.filter((d) => d.kind === k)[0] || null;
     rows.push({ id: e.id, name: o.name || 'Untitled', year: o.year || '', industry: o.industry || '', country: o.country || '', updated: e.updated || 0, esg: c.esg, env: c.env.score, soc: c.soc.score, gov: c.gov.score,
       s1: c.em.s1t, s2: c.em.s2loc, s3: c.em.s3t, total: c.em.total, intensity: c.em.intensity, bench: c.em.bench, vsBase: c.em.vsBase, renew: (e.resources || {}).renewPct,
-      tgt: (e.climate || {}).tgtPct != null ? (e.climate.tgtPct + '% by ' + (e.climate.tgtYear || '?')) : '', netZero: (e.climate || {}).netZero || '', avoided: c.avoid.total, credits: c.avoid.credits,
+      tgt: (e.climate || {}).tgtPct != null ? (e.climate.tgtPct + '% by ' + (e.climate.tgtYear || '?')) : '', netZero: (e.climate || {}).netZero || '', avoided: c.avoid.total, credits: c.avoid.credits, cbamEU: c.price.cbamEU, cbamUK: c.price.cbamUK, creditQ: c.price.highQualityPct,
       readiness: c.readiness, coverage: c.coverage, std: chosen, gaps: c.env.why.concat(c.soc.why, c.gov.why).slice(0, 4),
       women: c.soc.womenPct, ltifr: (e.workforce || {}).ltifr, deaths: (e.workforce || {}).deaths, indep: (e.board || {}).indepPct, assurance: o.assurance || '',
       statement: last('statement'), report: last('report'), insights: Object.keys(e.insights || {}).length });
   }
   rows.sort((a, b) => (b.total || 0) - (a.total || 0));
-  const sum = (k) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0), avg = (k) => { const L = rows.filter((r) => r[k] != null); return L.length ? Math.round(L.reduce((a, r) => a + r[k], 0) / L.length) : null; };
-  const stdUse = {}; rows.forEach((r) => r.std.forEach((s) => { stdUse[s] = stdUse[s] || { n: 0, cov: 0 }; stdUse[s].n++; stdUse[s].cov += r.coverage[s] || 0; }));
+  // the headline figures are for one reporting year (adding different years would double count); the table keeps every report and its year
+  const years = [...new Set(rows.map((r) => r.year).filter(Boolean))].sort().reverse(), yr = years.includes(year) ? year : years[0] || '', Y = rows.filter((r) => !yr || r.year === yr);
+  const sum = (k) => Y.reduce((a, r) => a + (Number(r[k]) || 0), 0), avg = (k) => { const L = Y.filter((r) => r[k] != null); return L.length ? Math.round(L.reduce((a, r) => a + r[k], 0) / L.length) : null; };
+  const stdUse = {}; Y.forEach((r) => r.std.forEach((s) => { stdUse[s] = stdUse[s] || { n: 0, cov: 0 }; stdUse[s].n++; stdUse[s].cov += r.coverage[s] || 0; }));
   const byStd = Object.keys(stdUse).map((s) => ({ std: s, name: (STANDARDS.find((x) => x.id === s) || {}).name || s, n: stdUse[s].n, cov: Math.round(stdUse[s].cov / stdUse[s].n) })).sort((a, b) => b.n - a.n);
   const used = new Set(Object.keys(stdUse)), cal = CALENDAR.filter((d) => used.has(d.std)).sort((a, b) => a.when.localeCompare(b.when));
-  return { method: METHOD, rows, totals: { n: rows.length, s1: sum('s1'), s2: sum('s2'), s3: sum('s3'), total: sum('total'), avoided: sum('avoided'), credits: sum('credits'), esg: avg('esg'), env: avg('env'), soc: avg('soc'), gov: avg('gov'), readiness: avg('readiness'),
-    docs: rows.filter((r) => r.statement || r.report).length, assured: rows.filter((r) => /limited|reasonable/i.test(r.assurance)).length, targets: rows.filter((r) => r.tgt).length }, byStd, calendar: cal };
+  return { method: METHOD, rows, years, year: yr, totals: { n: Y.length, s1: sum('s1'), s2: sum('s2'), s3: sum('s3'), total: sum('total'), avoided: sum('avoided'), credits: sum('credits'), cbamEU: sum('cbamEU'), cbamUK: sum('cbamUK'), esg: avg('esg'), env: avg('env'), soc: avg('soc'), gov: avg('gov'), readiness: avg('readiness'),
+    docs: Y.filter((r) => r.statement || r.report).length, assured: Y.filter((r) => /limited|reasonable/i.test(r.assurance)).length, targets: Y.filter((r) => r.tgt).length }, byStd, calendar: cal };
 }
 
 // for Champ (Ask Champ): a short view of every reporting entity, and the open one in full

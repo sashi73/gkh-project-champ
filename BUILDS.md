@@ -333,4 +333,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 322 | 1.0.322| 2026-11-24 11:47| pvfull| `a07bffb` | Full-window views, CodeRabbit fixes: focus goes back to the PERT or Tree view button on close and stays on Close after a resize redraw; PERT |
 | 323 | 1.0.323| 2026-11-24 11:52| pvfull| `dde0614` | Tree view and PERT open full screen and fill it (#158) |
 | 324 | 1.0.324| 2026-11-24 12:28| tvlevels| `1575be4` | Tree view: level 1 tasks and 1.1 sub-tasks only, with bigger words; the 1.1.1 steps are in each task's side panel (tap a task) (#159) |
-| 325 | 1.0.325 | 2026-11-25 09:09 | esg | _this commit_ | _see git log_ |
+| 325 | 1.0.325| 2026-11-25 09:09| esg| `6eeea35` | 🌿 ESG & Sustainability reporting module and the 🌱 CSO view |
+| 326 | 1.0.326 | 2026-11-25 09:24 | esg | _this commit_ | _see git log_ |

@@ -144,6 +144,46 @@ This follows the WBCSD *Guidance on Avoided Emissions* (2023) and the GHG Protoc
 - Each item has a status (Planned, Under way, Delivered) and a verification level (Estimate, Internal review, Third-party verified).
 - **Carbon credits retired** are kept in a separate register (avoidance or removal; registry; vintage). Gross emissions are always reported first.
 
+## 7a. Carbon pricing, CBAM and the carbon credit framework
+
+The **Pricing & CBAM** tab has three sub-tabs.
+
+- **Border adjustments (CBAM)**: lines for EU and UK CBAM goods (tonnes, specific embedded emissions, CBAM benchmark, carbon price paid at origin; default or actual data).
+  - EU estimate = (embedded − tonnes × benchmark × the free allocation still given) × (certificate price − price paid at origin).
+  - The EU CBAM factor runs 2.5% (2026), 5%, 10%, 22.5%, 48.5% (2030), 61%, 73.5%, 86%, 100% (2034), from Directive 2003/87/EC Art 10a(1a).
+  - UK estimate = embodied direct emissions × UK CBAM rate.
+  - Prices are the user's own assumptions.
+- **Carbon prices & taxes**: facilities under a carbon tax or ETS.
+  - Cost = (covered − baseline) × price × (1 − share met with credits).
+  - The internal carbon price (Climate risk tab) gives a shadow cost on Scope 1 and 2.
+- **Frameworks**: the `CARBON_SCHEMES` catalogue, ticked per entity. It has four kinds:
+  - Border adjustments: EU CBAM, UK CBAM.
+  - Carbon prices: EU ETS, UK ETS, Australia Safeguard (ACCUs and SMCs), Singapore carbon tax and ICCs, Malaysia carbon tax and the National Carbon Market Policy, Japan GX-ETS, China ETS, CORSIA.
+  - Crediting: Article 6.2, Article 6.4 PACM, ACCU Scheme, Verra and Gold Standard.
+  - Integrity: ICVCM CCP, VCMI, SBTi Net-Zero V2, ISO 14068-1.
+
+The carbon credits register records the standard, ICVCM CCP label, corresponding adjustment and use. The integrity checks flag:
+- no CCP label;
+- no corresponding adjustment for compliance or neutralisation;
+- avoidance credits used to neutralise;
+- a vintage more than five years old;
+- no registry.
+
+Status as checked in November 2026:
+
+| Scheme | Status |
+|---|---|
+| EU CBAM | Definitive since 1 Jan 2026. 50 t threshold. Certificate sales from 1 Feb 2027. First declaration and surrender 30 Sep 2027. |
+| UK CBAM | From 1 Jan 2027. No electricity or indirect emissions at the start. First return 31 May 2028. |
+| Singapore carbon tax | S$45 in 2026-27. Eligible ICCs up to 5%. 2025 quota carried forward. |
+| Malaysia carbon tax | Deferred October 2026. National Carbon Market Policy launched April 2026. |
+| Japan GX-ETS | Mandatory from April 2026. J-Credits and JCM up to 10%. |
+| Australia Safeguard | Baselines decline 4.9% a year to 2030. 2026-27 review under way. |
+| Article 6.4 | First credits approved Feb 2026. |
+| SBTi Corporate Net-Zero Standard V2.0 | Published June 2026. |
+
+The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `carbon_pricing`). The CSO view shows the CBAM exposure and flags weak credits.
+
 ## 8. The AI
 
 - The system prompt (`BASE`) asks for a senior ESG reporting adviser who must not invent numbers, people, awards or certifications, and who writes balanced text that says what is not yet in place.
@@ -156,6 +196,7 @@ This follows the WBCSD *Guidance on Avoided Emissions* (2023) and the GHG Protoc
 | Version | Date | Change |
 |---|---|---|
 | v1 | 2026-11-25 | First draft. One menu item; Setup, E, S, G, Carbon avoidance and Reporting tabs; 17 standards with an 82-entry disclosure index; scoring method v1; Sustainability Statement (under 10 pages) and ESG Report (about 60 pages, up to 100k tokens) in the charter and plan format; Champ answers ESG questions; Records (registry, documents, change log); 🌱 CSO view in Management & leadership. |
+| v1.1 | 2026-11-25 | Carbon pricing, CBAM (EU and UK) and the carbon credit framework (Pricing & CBAM tab with sub-tabs; credit integrity checks; report chapter; CSO exposure). Long registers became compact lists that open one item at a time. |
 
 ## 10. Next iterations (backlog)
 
