@@ -15,11 +15,26 @@ export const AREAS = [
   { id: 'ai', n: 'Champ & AI', i: '🎙' },
   { id: 'people', n: 'People & teams', i: '👥' },
   { id: 'cust', n: 'Customers & reports', i: '📨' },
+  { id: 'esg', n: 'ESG & Sustainability', i: '🌿' },
   { id: 'admin', n: 'Admin & access', i: '🔐' },
   { id: 'site', n: 'The website', i: '🌐' }
 ];
 
 export const ARTICLES = [
+  // ---------------- ESG & Sustainability ----------------
+  { id: 'esg', a: 'esg', t: 'ESG & Sustainability reporting', w: '#esg', k: 'esg sustainability report statement carbon emissions scope 1 2 3 ghg climate ifrs s1 s2 aasb esrs csrd gri tcfd sasb cdp bursa nsrf nger materiality social governance board net zero avoided emissions carbon credits',
+    s: 'Measure environment, social and governance performance for an organisation and a reporting year, map it to the standards you report to, and let Champ write a Sustainability Statement (under 10 pages) or a full ESG Report (about 60 pages) as PDF or Word.',
+    subs: [
+      { id: 'start', h: 'Start an ESG report', st: ['Press 🌿 ESG & Sustainability in the menu (under Reports).', 'Press ＋ New report, give the organisation name, the reporting year, the industry, the country and the currency, and press Create.', 'Or press 🧪 Start with a sample to see a finished example.'], tip: 'One report is one organisation for one reporting year. Anyone signed in can use it.' },
+      { id: 'tabs', h: 'The sections', st: ['Setup: Overview (scores, emissions, readiness, materiality, what to do next), Organisation, Standards and Materiality.', 'Environment: Scope 1 & 2, Scope 3, Energy, water & waste, Climate risk.', 'Social: Workforce & safety, Human rights, Community.', 'Governance: Board, Ethics & risk, Certifications.', 'Carbon avoidance: Avoided emissions and Carbon credits.', 'Reporting: Statement, ESG report and Records.'] },
+      { id: 'emissions', h: 'Work out the emissions', st: ['In Scope 1 & 2, choose the emission factor set for your country: it fills the factors.', 'Enter fuels, refrigerant top-ups and the electricity you bought; renewable electricity gives the market-based Scope 2.', 'In Scope 3, enter the categories you can measure; blank factors use the indicative defaults shown in grey.', 'The results on the right update as you type and everything saves by itself.'], tip: 'Default factors are indicative: check them against the current official set (NGA Factors, DESNZ, EPA, your grid operator) before you publish.' },
+      { id: 'standards', h: 'Choose your standards', st: ['Open Standards and tick every framework you report to: AASB S1 and S2, IFRS S1 and S2, ESRS / CSRD, GRI, TCFD, SASB, CDP, Bursa Malaysia, GHG Protocol, ISO 14064, NGER, SGX, NZ CS, TNFD or the SDGs.', 'The disclosure index shows each disclosure as Reported, Partly or Not yet, with a link to add the data.', 'Report readiness on the top tiles is how much of your chosen standards your data covers.'] },
+      { id: 'materiality', h: 'Rate the material topics', st: ['Open Materiality and rate each topic for impact (on people and the planet) and financial effect (on the organisation).', 'The matrix shows the topics material on both counts in the shaded corner: they lead the report.'] },
+      { id: 'avoid', h: 'Report avoided emissions and carbon credits', st: ['Open Avoided emissions and press ＋ Add, or pick a template (solar, LED, electric vehicles, recycling, low-carbon freight).', 'Give the baseline, the quantity, the baseline and solution emission factors, and the share attributed to you.', 'Record retired credits in Carbon credits, with the type (avoidance or removal), registry and vintage.'], tip: 'Avoided emissions are reported beside Scope 1-3 and never subtracted from them (WBCSD guidance).' },
+      { id: 'ai', h: 'Champ\'s recommendations', st: ['On any Environment, Social or Governance tab, press Get recommendations in the ✨ Champ box.', 'Champ gives five practical steps from your data, each tied to the disclosure it improves. They are also used when Champ writes the report.'] },
+      { id: 'documents', h: 'The Sustainability Statement and the ESG Report', st: ['Open Statement (under 10 pages) or ESG report (about 60 pages).', 'Choose the language and the colour scheme, then press ✨ Write with AI. Champ writes the narrative (the report in seven parts at once, about 3 to 6 minutes).', 'Press ⬇ PDF or ⬇ Word. The documents have the data tables, charts and a content index for each standard you chose.'] },
+      { id: 'records', h: 'Records', st: ['Records shows the scoring method, the factor set, every document written (version, date, tokens) and the change log of every edit.'] }
+    ] },
   // ---------------- Getting started ----------------
   { id: 'sign-in', a: 'start', t: 'Sign in to the console', w: 'login.html', k: 'login log in password eye show password forgot microphone mic check',
     s: 'Sign in with the email and password your project manager gave you. The eye shows what you typed; the console checks your microphone so Champ can hear you.',

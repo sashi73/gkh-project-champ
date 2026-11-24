@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 324,
+  "build": 325,
   "commit": "",
-  "branch": "tvlevels",
+  "branch": "esg",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-24 12:28",
+  "builtAt": "2026-11-25 09:09",
   "site": ""
 };
