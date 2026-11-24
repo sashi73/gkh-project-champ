@@ -195,7 +195,7 @@
   /* ---------- 🧾 electricity bills: upload them, Champ reads the kWh, you check, Scope 2 uses the total ---------- */
   function billSum() {
     var B = V.calc.bills || {}, c = V.e.carbon || {}, differs = B.n && (Math.abs((c.elec || 0) - B.mwh) > 0.001 || Math.abs((c.green || 0) - B.greenMwh) > 0.001);
-    return (B.n ? '<div class="esg-billsum"><span><b>' + nf(B.mwh, 1) + '</b> MWh</span><span><b>' + nf(B.greenMwh, 1) + '</b> MWh renewable</span><span><b>' + B.n + '</b> bill' + (B.n === 1 ? '' : 's') + ' · ' + B.sites + ' site' + (B.sites === 1 ? '' : 's') + '</span><span><b>' + nf(B.days) + '</b> meter-days</span>' +
+    return (B.n ? '<div class="esg-billsum"><span><b>' + nf(B.mwh, 1) + '</b> MWh</span><span><b>' + nf(B.greenMwh, 1) + '</b> MWh renewable</span><span><b>' + B.n + '</b> bill' + (B.n === 1 ? '' : 's') + ' · ' + B.sites + ' site' + (B.sites === 1 ? '' : 's') + '</span><span><b>' + nf(B.days) + '</b> meter-days</span>' + Object.keys(B.cost || {}).map(function (k) { return '<span><b>' + nf(B.cost[k], 0) + '</b> ' + esc(k) + '</span>'; }).join('') +
         (differs ? '<button class="btn btn-sm btn-gold" type="button" id="blUse">Use the bills\' total for Scope 2</button>' : '<span class="t-green">✓ Scope 2 uses the bills\' total</span>') + '</div>' : '');
   }
   function billsCard() {
@@ -206,8 +206,8 @@
       '<label>From<input type="date" data-bl="from" value="' + esc(x.from || '') + '"></label><label>To<input type="date" data-bl="to" value="' + esc(x.to || '') + '"></label><label>Electricity used' + numIn('data-bl', 'kwh', x.kwh, 'kWh') + '</label><label>Of which renewable' + numIn('data-bl', 'green', x.green, 'kWh') + '</label>' +
       '<label>Amount' + numIn('data-bl', 'cost', x.cost, '') + '</label><label>Currency' + inp('data-bl', 'cur', x.cur, ' maxlength="6"') + '</label><label class="full">Notes' + inp('data-bl', 'note', x.note, ' maxlength="200"') + '</label></div><div class="row" style="justify-content:flex-end;margin-top:8px"><button class="btn btn-sm" type="button" data-bldel="' + i + '">🗑 Remove</button></div>'; };
     var differs = B.n && (Math.abs((c.elec || 0) - B.mwh) > 0.001 || Math.abs((c.green || 0) - B.greenMwh) > 0.001);
-    return '<div class="card"><div class="row"><h3 style="margin:0">Electricity bills</h3><span class="sp"></span><label class="btn btn-sm btn-gold esg-up' + (busy ? ' dis' : '') + '">' + (busy ? '✨ Reading…' : '📄 Upload bills') + '<input type="file" id="blFile" accept=".pdf,application/pdf" multiple' + (busy ? ' disabled' : '') + '></label><button class="btn btn-sm" type="button" id="blAdd">＋ Type one in</button></div>' +
-      '<p class="muted" style="font-size:13px;margin:8px 0 0">Upload your electricity bills (PDF, several at once). ✨ Champ reads the supplier, site, meter, billing period, kWh used, GreenPower or renewable kWh and the amount. Check each line, then use the total for Scope 2. The bills stay with the report as evidence for assurance. For interval or portal data in a spreadsheet, use 📥 Import.</p>' +
+    return '<div class="card"><div class="row"><h3 style="margin:0">Electricity bills</h3><span class="sp"></span><button class="btn btn-sm btn-gold" type="button" id="blPick"' + (busy ? ' disabled' : '') + '>' + (busy ? '✨ Reading…' : '📄 Upload bills') + '</button><input type="file" id="blFile" accept=".pdf,application/pdf" multiple hidden><button class="btn btn-sm" type="button" id="blAdd">＋ Type one in</button></div>' +
+      '<p class="muted" style="font-size:13px;margin:8px 0 0">Upload your electricity bills (PDF, several at once). ✨ Champ reads the supplier, site, meter, billing period, kWh used, GreenPower or renewable kWh and the amount. Check each line, then use the total for Scope 2. The figures stay with the report; keep the original bills for assurance. For interval or portal data in a spreadsheet, use 📥 Import.</p>' +
       '<div id="esgBillSum">' + billSum() + '</div>' + '</div>' +
       rowList('bills', L, head, line, ed, 'No bills yet. Upload the year\'s electricity bills, or type one in.');
   }
@@ -220,7 +220,7 @@
     var one = function (f) {
       if (!/\.pdf$/i.test(f.name)) { warn.push(f.name + ': only PDF bills can be read'); return Promise.resolve(); }
       return M.readDoc(f).then(function (x) { return new Promise(function (res) { bg({ mode: 'esgBill', text: x.text, file: f.name }, function (r) {
-        ent.bills = ent.bills || []; r.bills.forEach(function (b) { b.id = 'N' + rid().slice(0, 10).toUpperCase(); ent.bills.push(b); added++; }); (r.warnings || []).forEach(function (w) { warn.push(f.name + ': ' + w); }); res(); },
+        ent.bills = ent.bills || []; r.bills.forEach(function (b) { b.id = 'N' + rid().slice(0, 10).toUpperCase(); ent.bills.push(b); added++; }); if (r.bills.length) { var S0 = q(id); S0.ent = ent; S0.parts.bills = 1; } (r.warnings || []).forEach(function (w) { warn.push(f.name + ': ' + w); }); res(); },
         function (e) { warn.push(f.name + ': ' + e.message); res(); }); }); }, function (e) { warn.push(f.name + ': ' + e.message); });
     };
     list.reduce(function (p, f) { return p.then(function () { return one(f); }); }, Promise.resolve()).then(function () {
@@ -329,21 +329,22 @@
     if (!out.length) head.forEach(function (h, c) { var f = byLabel[norm(h)]; if (!f) return; var raw = null; for (var r = 1; r < rows.length; r++) if (String(rows[r][c]).trim() !== '') { raw = rows[r][c]; break; } out.push({ f: f, raw: raw, src: 'column ' + h }); });
     return out;
   }
+  var numOf = function (v) { var t = String(v == null ? '' : v).replace(/[^0-9.\-eE]/g, ''); var n = Number(t); return t !== '' && isFinite(n) ? n : null; };
   function aiMap(rows, map) {
     var byId = {}; SC.fields.forEach(function (f) { byId[f.id] = f; }); var out = [], head = rows[0] || [];
-    if (map.layout === 'long') rows.forEach(function (r0, i) { var m = map.map.filter(function (x) { return norm(x.source) === norm(r0[map.nameCol]); })[0]; if (!m) return; var n = Number(String(r0[map.valueCol]).replace(/[^0-9.\-eE]/g, '')); out.push({ f: byId[m.field], raw: isFinite(n) && m.factor !== 1 ? n * m.factor : r0[map.valueCol], src: 'row ' + (i + 1), why: m.why }); });
+    if (map.layout === 'long') rows.forEach(function (r0, i) { var m = map.map.filter(function (x) { return norm(x.source) === norm(r0[map.nameCol]); })[0]; if (!m) return; var n = numOf(r0[map.valueCol]); out.push({ f: byId[m.field], raw: n != null && m.factor !== 1 ? n * m.factor : r0[map.valueCol], src: 'row ' + (i + 1), why: m.why }); });
     else map.map.forEach(function (m) { var c = head.map(norm).indexOf(norm(m.source)); if (c < 0) return; var vals = rows.slice(1).map(function (r0) { return r0[c]; }).filter(function (v) { return String(v).trim() !== ''; });
-      if (!vals.length) return; var raw = m.sum ? vals.reduce(function (a, v) { return a + (Number(String(v).replace(/[^0-9.\-eE]/g, '')) || 0); }, 0) : vals[0]; if (m.factor !== 1 && isFinite(Number(raw))) raw = Number(raw) * m.factor; out.push({ f: byId[m.field], raw: raw, src: 'column ' + m.source + (m.sum ? ' (sum of ' + vals.length + ')' : ''), why: m.why }); });
+      if (!vals.length) return; var raw = m.sum ? vals.reduce(function (a, v) { return a + (numOf(v) || 0); }, 0) : vals[0]; if (m.factor !== 1 && numOf(raw) != null) raw = numOf(raw) * m.factor; out.push({ f: byId[m.field], raw: raw, src: 'column ' + m.source + (m.sum ? ' (sum of ' + vals.length + ')' : ''), why: m.why }); });
     return out.filter(function (x) { return x.f; });
   }
   function importModal() {
     M.modal('<h2>📥 Import data from a spreadsheet</h2><p class="muted" style="margin:4px 0 12px">Bring in metrics from another system: an energy or fleet portal, HR or payroll, safety, finance or your own workbook, as CSV or Excel. You check every value before it is saved, and the change log records the file.</p>' +
-      '<div class="esg-imp-drop"><label class="btn btn-gold">Choose a CSV or Excel file<input type="file" id="impFile" accept=".csv,.tsv,.txt,.xlsx" hidden></label><span class="muted" id="impName">or start from the template</span><button class="btn btn-sm" type="button" id="impTpl">⬇ Template (CSV, with your current values)</button></div>' +
+      '<div class="esg-imp-drop"><button class="btn btn-gold" type="button" id="impPick">Choose a CSV or Excel file</button><input type="file" id="impFile" accept=".csv,.tsv,.txt,.xlsx" hidden><span class="muted" id="impName">or start from the template</span><button class="btn btn-sm" type="button" id="impTpl">⬇ Template (CSV, with your current values)</button></div>' +
       '<div id="impBody"></div><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Close</button><button class="btn btn-gold" id="impGo" type="button" hidden>Import the ticked values</button></div>');
     var rows = null, found = [], fname = '';
     var show = function (note) {
       var B = $('#impBody'); if (!B) return;
-      if (!found.length) { B.innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + (note || 'No field matched by name.') + ' <button class="btn btn-sm btn-gold" type="button" id="impAi">✨ Let Champ match the columns</button></div>'; var b0 = $('#impAi'); if (b0) b0.onclick = askAi; $('#impGo').hidden = true; return; }
+      if (!found.length) { B.innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + esc(note || 'No field matched by name.') + ' <button class="btn btn-sm btn-gold" type="button" id="impAi">✨ Let Champ match the columns</button></div>'; var b0 = $('#impAi'); if (b0) b0.onclick = askAi; $('#impGo').hidden = true; return; }
       B.innerHTML = '<p style="margin:12px 0 6px"><b>' + pl(found.length, 'value') + '</b> found in ' + esc(fname) + (note ? ' · ' + esc(note) : '') + ' <button class="btn btn-sm" type="button" id="impAi">✨ Match again with Champ</button></p><div class="tbl-wrap" style="max-height:46vh;overflow:auto"><table class="tbl esg-tbl"><thead><tr><th><input type="checkbox" id="impAll" checked aria-label="Tick all"></th><th>Field</th><th>Now</th><th>From the file</th><th>Where</th></tr></thead><tbody>' +
         found.map(function (x, i) { var sec = x.f.id.split('.')[0], k = x.f.id.split('.')[1], now = (V.e[sec] || {})[k], v = toVal(x.f, x.raw), ok = v != null; x.v = v;
           return '<tr><td><input type="checkbox" data-imp="' + i + '"' + (ok && String(v) !== String(now) ? ' checked' : '') + (ok ? '' : ' disabled') + '></td><td><b>' + esc(x.f.label) + '</b><div class="muted" style="font-size:11.5px">' + esc(x.f.section) + '</div></td><td>' + esc(now == null ? '–' : String(now)) + '</td><td>' + (ok ? '<b>' + esc(String(v)) + '</b> ' + esc(x.f.unit || '') : '<span class="t-amber">Not readable: ' + esc(String(x.raw == null ? '' : x.raw).slice(0, 40)) + '</span>') + '</td><td class="muted" style="font-size:11.5px">' + esc(x.src) + (x.why ? '<div>' + esc(x.why) + '</div>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>';
@@ -351,6 +352,7 @@
     };
     var askAi = function () { var B = $('#impBody'); B.innerHTML = '<p class="ask-think" style="margin:12px 0">✨ Champ is matching the columns to the ESG fields…</p>'; $('#impGo').hidden = true;
       bg({ mode: 'esgMap', head: rows[0], rows: rows.slice(1, 41) }, function (m) { found = aiMap(rows, m); show(found.length ? 'matched by Champ: check them' : 'Champ found nothing it could match'); }, function (e) { show(e.message); }); };
+    $('#impPick').onclick = function () { $('#impFile').click(); };
     $('#impTpl').onclick = function () { var L = [['Field id', 'Section', 'Field', 'Unit', 'Value']].concat(SC.fields.filter(function (f) { return f.type !== 'l'; }).map(function (f) { var sec = f.id.split('.')[0], k = f.id.split('.')[1], v = (V.e[sec] || {})[k]; return [f.id, f.section, f.label, f.unit || (f.options ? f.options.join(' / ') : ''), v == null ? '' : v]; }));
       var csv = '﻿' + L.map(function (r0) { return r0.map(function (x) { x = String(x); return /[",\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }).join(','); }).join('\r\n');
       M.report.save(new Blob([csv], { type: 'text/csv' }), ((V.e.org || {}).name || 'ESG').replace(/[^\w-]+/g, '-') + '-ESG-data-template.csv'); };
@@ -705,6 +707,7 @@
     b.querySelectorAll('[data-pv]').forEach(function (el) { el.addEventListener('input', function () { P0()[el.getAttribute('data-pv')] = el.value; touch('pricing'); }); });
     b.querySelectorAll('[data-sch]').forEach(function (cb) { cb.onchange = function () { var id = cb.getAttribute('data-sch'), L = (P0().schemes || []).filter(function (x) { return x !== id; }); if (cb.checked) L.push(id); P0().schemes = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('pricing'); }; });
     bind('data-bli', 'data-bl', function () { return V.e.bills; }, 'bills'); del('data-bldel', function () { return V.e.bills; }, 'bills');
+    if ($('#blPick')) $('#blPick').onclick = function () { $('#blFile').click(); };
     if ($('#blFile')) $('#blFile').onchange = function () { readBills(this.files); };
     if ($('#blAdd')) $('#blAdd').onclick = function () { V.e.bills = V.e.bills || []; add('bills', V.e.bills, { supplier: 'New bill', cur: (V.e.org || {}).currency || '' }); };
     wireUse();

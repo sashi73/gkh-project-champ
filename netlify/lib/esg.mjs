@@ -267,9 +267,9 @@ function cleanBills(L) {
       kwh: num(x.kwh), green: num(x.green), cost: num(x.cost), cur: str(x.cur, 6), note: str(x.note, 200) }; }).filter((x) => x.kwh != null || x.supplier || x.file);
 }
 export function billsSum(e) {
-  const L = e.bills || [], kwh = L.reduce((a, x) => a + (x.kwh || 0), 0), green = L.reduce((a, x) => a + (x.green || 0), 0), cost = L.reduce((a, x) => a + (x.cost || 0), 0);
+  const L = e.bills || [], kwh = L.reduce((a, x) => a + (x.kwh || 0), 0), green = L.reduce((a, x) => a + (x.green || 0), 0), cost = L.reduce((a, x) => { if (x.cost != null) { const k = x.cur || 'unknown currency'; a[k] = r2((a[k] || 0) + x.cost, 2); } return a; }, {});   // costs are added per currency, never across
   const days = L.reduce((a, x) => a + (x.from && x.to ? Math.max(0, (Date.parse(x.to) - Date.parse(x.from)) / 864e5 + 1) : 0), 0);
-  return { n: L.length, mwh: r2(kwh / 1000, 3), greenMwh: r2(green / 1000, 3), cost: r2(cost, 2), days: Math.round(days), sites: [...new Set(L.map((x) => x.site).filter(Boolean))].length };
+  return { n: L.length, mwh: r2(kwh / 1000, 3), greenMwh: r2(green / 1000, 3), cost, days: Math.round(days), sites: [...new Set(L.map((x) => x.site).filter(Boolean))].length };
 }
 export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
@@ -458,7 +458,7 @@ function facts(e) {
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
     scores_out_of_100: { environment: c.env.score, social: c.soc.score, governance: c.gov.score, overall: c.esg, gri2_alignment: c.gov.gri }, women_pct: c.soc.womenPct, women_in_management_pct: c.soc.womenMgmtPct, women_on_board_pct: c.gov.boardWomenPct,
     gaps: [...c.env.why, ...c.soc.why, ...c.gov.why], standards_coverage_pct: c.coverage,
-    electricity_bills: (() => { const B = c.bills; return B.n ? { bills: B.n, sites: B.sites, total_MWh: B.mwh, renewable_MWh: B.greenMwh, days_covered: B.days, note: 'Scope 2 activity data is backed by the electricity bills' } : undefined; })(),
+    electricity_bills: (() => { const B = c.bills; const el = (e.carbon || {}).elec, rec = B.mwh > 0 && el > 0 && Math.abs(B.mwh - el) / el <= 0.05; return B.n ? { bills: B.n, sites: B.sites, total_MWh: B.mwh, renewable_MWh: B.greenMwh, days_covered: B.days, reported_electricity_MWh: el, note: rec ? 'The reported electricity reconciles with the bills (within 5%)' : 'The bills do not reconcile with the reported electricity: say so, do not claim the bills support Scope 2' } : undefined; })(),
     carbon_pricing: (() => { const P = c.price; return { schemes_that_apply: P.schemes.map((id) => (CARBON_SCHEMES.find((x) => x.id === id) || {}).name), internal_carbon_price: P.icp, shadow_cost_scope1_2: P.shadow,
       cbam_lines: P.cbam.map((x) => ({ market: x.market, good: x.good, cn_code: x.cn, what: x.dest, tonnes: x.tonnes, embedded_tCO2e: x.emb, values: x.sv, est_cost: x.cost, currency: x.cur })), cbam_cost_eur: P.cbamEU, cbam_cost_gbp: P.cbamUK,
       carbon_price_exposures: P.exp.map((x) => ({ scheme: x.scheme, site: x.site, liable_tCO2e: x.liable, price: x.price, currency: x.cur, est_cost: x.cost })),

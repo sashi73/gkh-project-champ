@@ -189,7 +189,7 @@ The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `car
 - **Electricity bills (Scope 2 evidence)**: in Scope 1 & 2 › Electricity bills, upload PDF bills (several at once).
   - The text is read in the browser (pdf.js) and the AI (background mode `esgBill`) extracts each account or meter: supplier, site, meter or NMI, period, kWh, renewable kWh and the amount.
   - Every line can be checked and edited; *Use the bills' total for Scope 2* sets the electricity and renewable MWh.
-  - Bills are kept in `entity.bills` as assurance evidence.
+  - The extracted figures and the file name are kept in `entity.bills`; the PDFs themselves are not stored, so keep the original bills for assurance. Costs are totalled per currency. The AI says the bills support Scope 2 only when they reconcile with the reported electricity (within 5%).
   - Scanned image bills need a text PDF (no OCR yet).
 - **Spreadsheets from other systems**: 📥 Import, on the report header and on every data tab, reads a CSV or Excel (.xlsx) file and matches it to the fields in three ways:
   - by the template's field ids (*⬇ Template* exports every field with its current value);
