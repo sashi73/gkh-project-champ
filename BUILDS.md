@@ -328,4 +328,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 317 | 1.0.317| 2026-11-24 04:49| treepert| `491202e` | Tree view and PERT, CodeRabbit fixes: Record actual costs opens the grid after a diagram; owners picked on the Board show by name; links ign |
 | 318 | 1.0.318| 2026-11-24 04:57| treepert| `f21e468` | PERT, CodeRabbit fixes: Record actual costs opens full screen again; the forecast is a forward pass in working days that keeps fractions to  |
 | 319 | 1.0.319| 2026-11-24 05:05| treepert| `a535252` | PERT: a milestone's forecast is the working day after the task before it, as on the Gantt (CodeRabbit) |
-| 320 | 1.0.320 | 2026-11-24 05:12 | treepert | _this commit_ | _see git log_ |
+| 320 | 1.0.320| 2026-11-24 05:12| treepert| `f1ffd8e` | Tree view and PERT chart on every project (PERT · Tree view · WBS) (#157) |
+| 321 | 1.0.321 | 2026-11-24 11:40 | pvfull | _this commit_ | _see git log_ |

@@ -1706,7 +1706,7 @@
       });
     };
     if ($('#planBaseList')) $('#planBaseList').onclick = function () { baseVersions(); };
-    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; S.treeV = false; S.pertV = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ return S.pertV ? pertTab(R2) : S.treeV ? treeTab(R2) : S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, raid: function () { if (M.raidTab) M.raidTab({ S: S, dirty: dirty, saveNow: saveNow }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
+    ({ overview: overview, schedule: function (R2) { if (M.focus && M.focus.core === S.core) { S.wbs = false; S.treeV = false; S.pertV = false; if (phone()) S.phoneGantt = true; }   /* 🎯 Today: open on the grid, where its row is */ var out = S.wbs ? wbsTab(R2) : phone() && !S.phoneGantt ? phoneSchedule(R2) : scheduleTab(R2); if (S.treeV || S.pertV) { pvR = R2; (S.pertV ? pertTab : treeTab)(R2); } else pvClose(); return out; }, budget: budgetTab, critical: criticalTab, board: agileView, bom: bomTab, scope: scope, raid: function () { if (M.raidTab) M.raidTab({ S: S, dirty: dirty, saveNow: saveNow }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, risks: risks, issues: issues, stake: stakeholders, contracts: contractsTab, docs: docsTab, comms: commsTab, reports: reportsTab, swms: swmsTab, change: changeTab, lessons: function () { if (M.lessonsTab) M.lessonsTab({ S: S, dirty: dirty, saveNow: saveNow, today: today, piLoad: piLoad, storeFile: storeFile }); else $('#planBody').innerHTML = '<div class="empty">Loading…</div>'; }, intel: intelTab }[S.tab] || scheduleTab)(R);
   }
   function timePct(R) { var t = today(); if (!R.start || t < R.start) return 0; if (t >= R.finish) return 100; return Math.round(workBetween(R.start, t) / Math.max(1, workBetween(R.start, R.finish)) * 100); }
   function varDays(base, now) { var d = workBetween(base, now) - 1; if (now <= base) { d = -(workBetween(now, base) - 1); } return d === 0 ? 'on baseline' : d > 0 ? d + ' days behind baseline' : (-d) + ' days ahead of baseline'; }
@@ -2244,7 +2244,31 @@
     $('#wbsPng').onclick = function () { save('image/png'); }; $('#wbsJpg').onclick = function () { save('image/jpeg'); };
   }
   // ---------- 🌿 Tree view and 📈 PERT chart: the data from the plan; admin-treeview.js draws them ----------
-  var pvHead = function (icon, title, sub, key) { return '<div class="row wbs-bar"><div><h3 style="margin:0">' + icon + ' ' + title + '</h3><small class="muted">' + sub + '</small></div><span class="sp"></span><div class="tabs" style="margin:0"><button class="tab on" type="button" data-pvclose title="Back to the Gantt chart">' + icon + ' ' + title + ' ✕</button></div></div>'; };
+  // ⛶ Tree view and PERT open over the whole window, like the Champ circuit tree; Close (or Esc) goes back to the Gantt
+  var pvR = null, pvOpener = null, pvT = 0;
+  function pvKey(e) { if (e.key !== 'Escape' || document.fullscreenElement) return; if (document.querySelector('#pvFS .tvx-panel.open')) return; var ed = document.querySelector('#pvFS .ptx-ed:not([hidden])'); if (ed) { ed.hidden = true; return; } e.preventDefault(); pvClose(); }
+  function pvResize() { clearTimeout(pvT); pvT = setTimeout(function () { if (pvR && document.getElementById('pvFS')) (S.pertV ? pertTab : treeTab)(pvR); }, 200); }
+  function pvHash() { pvClose(); }
+  function pvClose() {
+    var o = document.getElementById('pvFS'); S.treeV = S.pertV = false; if (!o) return;
+    if (document.fullscreenElement && o.contains(document.fullscreenElement)) document.exitFullscreen().catch(function () {});
+    o.remove(); Array.prototype.forEach.call(document.body.children, function (c) { if (c.__pvInert) { c.inert = false; c.__pvInert = false; } });
+    removeEventListener('resize', pvResize); removeEventListener('hashchange', pvHash); document.removeEventListener('keydown', pvKey, true);
+    if (pvOpener && document.contains(pvOpener)) try { pvOpener.focus({ preventScroll: true }); } catch (e) {} pvOpener = null;
+  }
+  function pvShell(icon, title, sub) {
+    var o = document.getElementById('pvFS'), first = !o;
+    if (first) {
+      pvOpener = document.activeElement; o = document.createElement('div'); o.id = 'pvFS'; o.setAttribute('role', 'dialog'); o.setAttribute('aria-modal', 'true'); document.body.appendChild(o);
+      Array.prototype.forEach.call(document.body.children, function (c) { if (c !== o && !c.inert) { c.inert = true; c.__pvInert = true; } });   // the page behind is out of reach while it is open
+      addEventListener('resize', pvResize); addEventListener('hashchange', pvHash); document.addEventListener('keydown', pvKey, true);
+    }
+    o.setAttribute('aria-label', title);
+    o.innerHTML = '<div class="pvfs-head"><div><h3>' + icon + ' ' + title + ' · ' + esc(S.plan.name || 'Project') + '</h3><small>' + sub + '</small></div><button class="tree-x" type="button" data-pvclose>✕ Close</button></div><div class="pvfs-body"></div>';
+    o.querySelector('[data-pvclose]').onclick = pvClose;
+    if (first) o.querySelector('[data-pvclose]').focus();
+    return o.querySelector('.pvfs-body');
+  }
   var pvWho = function (o) { return ownerOf(o) || (o.res && o.res[0]) || ''; };   // a stakeholder picked on the Board shows by name
   var pvSpan = function (es, ef) { return es ? pretty(es) + (ef && ef !== es ? '–' + pretty(ef) : '') : ''; };
   var pvCpm = function (p) { try { return cpm(p); } catch (e) { return null; } };
@@ -2267,9 +2291,8 @@
     });
     var nSub = tasks.reduce(function (a, t) { return a + t.subs.length; }, 0), nStep = tasks.reduce(function (a, t) { return a + t.subs.reduce(function (b, s) { return b + s.steps.length; }, 0); }, 0), nCrit = tasks.filter(function (t) { return t.crit; }).length;
     var ch = p.charter || {}, facts = [R.start ? 'Starts ' + prettyY(R.start) : '', R.finish ? 'Ends ' + prettyY(R.finish) : '', R.start && R.finish ? pl(workBetween(R.start, R.finish), 'working day') : '', pl(tasks.length, 'task') + ' · ' + pl(nSub, 'sub-task'), pl(nStep, 'step'), nCrit ? nCrit + ' of ' + tasks.length + ' tasks critical' : '', p.client ? 'Customer ' + p.client : ''].filter(Boolean);
-    $('#planBody').innerHTML = '<div class="card tv-card" style="padding:12px">' + pvHead('🌿', 'Tree view', 'The core powers every level 1 task (a limb), its 1.1 sub-tasks (branches) and 1.1.1 steps (leaves). Hover or tap a task: current runs through it, then water fills to its % done. Read only: change the work on the Gantt') +
-      (tasks.length ? '<div id="tvHost"></div>' : '<div class="empty">No tasks yet: add them on the Gantt.</div>') + '</div>';
-    $('#planBody').querySelector('[data-pvclose]').onclick = function () { S.treeV = false; render(); };
+    var host = pvShell('🌿', 'Tree view', 'The core powers every level 1 task (a limb), its 1.1 sub-tasks (branches) and 1.1.1 steps (leaves). Hover or tap a task: current runs through it, then water fills to its % done. Read only: change the work on the Gantt');
+    host.innerHTML = tasks.length ? '<div id="tvHost" class="pvfs-host"></div>' : '<div class="empty">No tasks yet: add them on the Gantt.</div>';
     if (tasks.length && M.treeView) M.treeView($('#tvHost'), { name: p.name || 'Project', r: R.start ? pvSpan(R.start, R.finish) + ' ' + R.finish.slice(0, 4) : '', pm: ch.manager || '', pct: R.pct || 0, facts: facts, tasks: tasks }, { fit: S.tvFit !== false, onFit: function (f) { S.tvFit = f; } });
   }
   function pertTab(R) {
@@ -2309,9 +2332,8 @@
       [prob < 50 ? 'warn' : '', anyEst ? prob + '%' : '–', 'Chance of finishing by ' + (fin ? pretty(fin) : 'the planned finish')],
       ['', anyEst && p90 ? prettyY(p90) : '–', '90% confident of finishing by'],
       ['', nodes.filter(function (n) { return n.crit; }).length + ' of ' + nodes.length, 'Tasks on the critical path']];
-    $('#planBody').innerHTML = '<div class="card tv-card" style="padding:12px">' + pvHead('📈', 'PERT chart', 'Level 1 tasks as a network: early and late dates, float, and three-point estimates. The red line is the critical path. Read only, apart from the estimates: change the work on the Gantt') +
-      (nodes.length ? '<div id="ptHost"></div>' : '<div class="empty">No tasks yet: add them on the Gantt.</div>') + '</div>';
-    $('#planBody').querySelector('[data-pvclose]').onclick = function () { S.pertV = false; render(); };
+    var host = pvShell('📈', 'PERT chart', 'Level 1 tasks as a network: early and late dates, float, and three-point estimates. The red line is the critical path. Read only, apart from the estimates: change the work on the Gantt');
+    host.innerHTML = nodes.length ? '<div id="ptHost" class="pvfs-host"></div>' : '<div class="empty">No tasks yet: add them on the Gantt.</div>';
     if (!nodes.length || !M.pertView) return;
     M.pertView($('#ptHost'), { name: p.name || 'Project', nodes: nodes, stats: stats, start: R.start ? pretty(R.start) : '', finish: fin ? pretty(fin) : '', canEdit: true,
       note: anyEst ? (nodes.some(function (n) { return !n.est; }) ? '* No estimates yet: optimistic and pessimistic are taken as its duration.' : '') : 'Add optimistic and pessimistic estimates (click a box) to see the chance of finishing on time. Until then they are taken as the duration.' },
