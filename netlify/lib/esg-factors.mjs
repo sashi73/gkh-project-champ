@@ -46,7 +46,7 @@ fuels('Global', '2006 IPCC Guidelines, default combustion factors', 'IPCC', '200
 
 /* ---- ❄ refrigerants and other gases: global warming potentials (100-year) ---- */
 const GWP = [['R-410A', 2088, 1924, 2256], ['R-134a', 1430, 1300, 1530], ['R-32', 675, 677, 771], ['R-404A', 3922, 3943, 4728], ['R-407C', 1774, 1624, 1908], ['R-22 (HCFC-22)', 1810, 1760, 1960],
-  ['R-1234yf', 4, 1, 1], ['R-744 (CO2)', 1, 1, 1], ['SF6 (switchgear)', 22800, 23500, 25200], ['Methane (fossil)', 25, 28, 29.8], ['Nitrous oxide', 298, 265, 273]];
+  ['R-1234yf', 4, 1, 1], ['R-744 (CO2)', 1, 1, 1], ['SF6 (switchgear)', 22800, 23500, 25200], ['Methane (fossil, with CO2 from oxidation)', 25, 30, 29.8], ['Methane (non-fossil)', 25, 28, 27.0], ['Nitrous oxide', 298, 265, 273]];
 GWP.forEach(([gas, ar4, ar5, ar6]) => [['AR4', ar4, 'IPCC Fourth Assessment Report'], ['AR5', ar5, 'IPCC Fifth Assessment Report'], ['AR6', ar6, 'IPCC Sixth Assessment Report']].forEach(([ar, v, src]) =>
   R.push({ cat: 'Refrigerant and gas', field: 'carbon.refGwp', unit: 'kgCO2e/kg (GWP100)', country: 'Global', region: '', name: gas, value: v, source: src, std: 'IPCC ' + ar, year: ar, note: ar === 'AR5' ? 'AR5 is used by NGER, the GHG Protocol and most current reporting' : ar === 'AR6' ? 'IFRS S2 and ESRS point to the latest assessment report' : 'Older inventories only' })));
 

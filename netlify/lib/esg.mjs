@@ -278,6 +278,8 @@ export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
   const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills), efsrc: cleanEfSrc(e.efsrc) };
   SECTIONS.forEach((s) => { out[s.id] = cleanSection(s.id, e[s.id]); });
+  // a source record only stands while the field still holds its value (an import or a typed value replaces it)
+  Object.keys(out.efsrc).forEach((fk) => { const [sec, key] = fk.split('.'), cur = (out[sec] || {})[key], src = out.efsrc[fk]; if (!(cur == null ? src.value == null : Number(cur) === Number(src.value))) delete out.efsrc[fk]; });
   return out;
 }
 

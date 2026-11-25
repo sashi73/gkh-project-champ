@@ -145,7 +145,7 @@
     var src = S.source; S.source = '';
     S.saving = api('esgSave', { id: id, rev: ent.rev, patch: patch, source: src || undefined }).then(function (d) {
       keys.forEach(function (k) { if (!S.parts[k]) ent[k] = d.entity[k]; });   // keep anything typed while it saved
-      ent.rev = d.entity.rev; ent.log = d.entity.log; if (!S.parts.bills) ent.bills = d.entity.bills; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
+      ent.rev = d.entity.rev; ent.log = d.entity.log; if (!S.parts.bills) ent.bills = d.entity.bills; if (!S.parts.efsrc) ent.efsrc = d.entity.efsrc; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
       if (V.e === ent) { V.calc = d.calc; if (d.cover) V.cover = d.cover; say('✓ Saved'); refresh(); }
       S.saving = null; return Object.keys(S.parts).length ? saveNow(id) : null;
     }, function (e) {
@@ -208,9 +208,9 @@
     var fields = EF.map(function (x) { return x.field; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
     return '<div class="card"><div class="row"><h3 style="margin:0">Emission factor library</h3><span class="muted" style="font-size:13px">' + EF.length + ' factors from ' + uniq('std').length + ' sources, ' + uniq('country').length + ' countries and regions</span></div>' +
       '<p class="muted" style="font-size:13px;margin:6px 0 12px">Search by country, state, fuel, gas or source, then press <b>Use</b> to put the factor in your report. The report records which factor and edition you used. Values are copied from the published sources: check them against the current release before you report.</p>' +
-      '<div class="esg-form esg-form-4 esg-lf"><label style="grid-column:span 2">Search<input id="lfQ" type="search" value="' + esc(LF.q) + '" placeholder="e.g. New South Wales, Sabah, diesel, R-410A, DESNZ, IEA"></label>' + sel('lfCountry', 'country', 'Country', uniq('country')) + sel('lfCat', 'cat', 'Kind', uniq('cat')) +
+      '<div class="esg-form esg-form-4 esg-lf"><label class="esg-span-2">Search<input id="lfQ" type="search" value="' + esc(LF.q) + '" placeholder="e.g. New South Wales, Sabah, diesel, R-410A, DESNZ, IEA"></label>' + sel('lfCountry', 'country', 'Country', uniq('country')) + sel('lfCat', 'cat', 'Kind', uniq('cat')) +
         sel('lfStd', 'std', 'Source or standard', uniq('std')) + '<label>For the field<select id="lfField"><option value="">Any</option>' + fields.map(function (f) { var nm = FIELDN[f] || ((SC.fields.filter(function (y) { return y.id === f; })[0] || {}).label || f).replace(/^Factor: /, ''); return '<option value="' + f + '"' + (f === LF.field ? ' selected' : '') + '>' + esc(nm) + '</option>'; }).join('') + '</select></label>' +
-        '<label style="grid-column:span 2;align-self:end"><button class="btn btn-sm" type="button" id="lfClear">Clear the filters</button></label></div><div id="lfRes">' + libRows() + '</div></div>';
+        '<label class="esg-span-2" style="align-self:end"><button class="btn btn-sm" type="button" id="lfClear">Clear the filters</button></label></div><div id="lfRes">' + libRows() + '</div></div>';
   }
   function libRows() {
     var q = LF.q.toLowerCase().split(/\s+/).filter(Boolean), used = {}; Object.keys(V.e.efsrc || {}).forEach(function (k) { used[V.e.efsrc[k].id] = k; });
@@ -629,7 +629,7 @@
       13: [em.total != null && nf(em.total) + ' tCO2e footprint', c.avoid.total && nf(c.avoid.total) + ' tCO2e avoided'], 16: [t.corruptCases != null && pl(t.corruptCases, 'corruption incident'), t.code && 'code of conduct: ' + t.code], 17: [c.price.creditT && nf(c.price.creditT) + ' tCO2e of credits retired'] };
     var ai = {}; (S.sdgs || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) ai[n] = x; });
     (e.avoid || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) (M[n] = M[n] || []).push(x.name); });
-    return (SC.sdgs || []).map(function (g, i) { var n = i + 1, a = ai[n] || {}, met = a.metric || (M[n] || []).filter(Boolean).join('; ');
+    return (SC.sdgs || []).map(function (g, i) { var n = i + 1, a = ai[n] || {}, met = (M[n] || []).filter(Boolean).join('; ') || a.metric || '';   // today's reported figures first; the AI's only where the data has none
       return { n: n, goal: 'SDG ' + n + ' ' + g, rel: a.relevance || '', text: a.contribution || '', metric: met }; });
   }
   function sdgTable(rows, nl, small) {
@@ -737,7 +737,9 @@
     C.push(ch('Targets and roadmap', 'Roadmap', [tbl('targets', ['Pillar', 'Target', 'Baseline', 'Year', 'Status'], ['pillar', 'target', 'baseline', 'target_year', 'status'], [0.6, 3, 1.6, 0.7, 1]) || T(null, miss), tbl('roadmap', ['Year', 'Focus', 'Actions'], ['year', 'focus', 'actions'], [0.8, 1.6, 4], 'Three-year roadmap')], 'Where we are heading'));
     C.push(ch('Reporting standards', 'Standards', [T(S.standards_overview, miss), tbl('alignment', ['Standard', 'How we apply it', 'Gaps', 'Next steps'], ['standard', 'how_applied', 'gaps', 'next_steps'], [1.2, 3.4, 1.6, 1.6]), tbl('sasb_metrics', ['Industry metric', 'Value', 'Unit', 'Note'], ['metric', 'value', 'unit', 'note'], [2.4, 1, 0.8, 2.4], 'Industry (SASB) metrics')], 'How this report meets each framework'));
     C.push(ch('Data quality and assurance', 'Assurance', [T(S.data_quality, miss), T(S.assurance_readiness), { t: 'callout', title: 'Emission factors', text: 'Emissions are calculated with the ' + em.setLabel + ' factor set and any factors we entered ourselves. Default factors are indicative and are checked against the current official set before publication.' }, (function () { var src = X.e.efsrc || {}, rows = SC.fields.filter(function (f) { return /^(carbon\.f[A-Z]|carbon\.refGwp|scope3\.f[A-Z])/.test(f.id); }).map(function (f) { var sec = f.id.split('.')[0], k = f.id.split('.')[1], v = (X.e[sec] || {})[k], d = src[f.id];
-      if (v == null && !d) return null; return [{ t: f.label.replace(/^Factor: /, ''), b: true }, { t: v == null ? '–' : String(v), right: true }, f.unit, d ? d.label : 'Default of the factor set']; }).filter(Boolean);
+      // the value the calculation uses (an override, else the set's or the default), and where it came from
+        var eff = v != null ? v : defOf(sec, k), same = d && Number(d.value) === Number(eff), setL = sec === 'carbon' && k !== 'refGwp' ? 'Factor set: ' + ((SC.factorSets[(X.e.carbon || {}).fset] || SC.factorSets.IPCC).label) : 'GKH indicative default';
+        if (eff == null || eff === '') return null; return [{ t: f.label.replace(/^Factor: /, ''), b: true }, { t: String(eff), right: true }, f.unit, same ? d.label : v != null ? 'Entered by the organisation' : setL]; }).filter(Boolean);
       return rows.length ? { t: 'table', title: 'Emission factors used', head: ['Factor', 'Value', 'Unit', 'Source'], rows: rows, widths: [1.4, 0.8, 1, 3], size: 7.4 } : null; })()], 'Data sources, controls and assurance'));
     C.push(ch('Appendix: content index', 'Appendix', [X.idx.length ? { t: 'table', head: ['Standard', 'Reference', 'Disclosure', 'Status'], rows: X.idx, widths: [0.9, 1.1, 3.4, 0.9], size: 7.2 } : T('Choose the standards in the Standards tab to build the content index.')], 'Where each disclosure is answered'));
     C.push(ch('Appendix: glossary and forward-looking statements', 'Appendix', [tbl('glossary', ['Term', 'Meaning'], ['term', 'meaning'], [1.3, 4]), T(S.forward_looking),
