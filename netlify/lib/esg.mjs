@@ -271,9 +271,12 @@ export function billsSum(e) {
   const days = L.reduce((a, x) => a + (x.from && x.to ? Math.max(0, (Date.parse(x.to) - Date.parse(x.from)) / 864e5 + 1) : 0), 0);
   return { n: L.length, mwh: r2(kwh / 1000, 3), greenMwh: r2(green / 1000, 3), cost, days: Math.round(days), sites: [...new Set(L.map((x) => x.site).filter(Boolean))].length };
 }
+// where each emission factor came from: { 'carbon.fElec': { id: 'EF12', label: 'NGA 2025-26 · New South Wales', value: 0.64 } } (only for the factor fields)
+const EF_FIELDS = new Set(['carbon.fDiesel', 'carbon.fPetrol', 'carbon.fJet', 'carbon.fLpg', 'carbon.fGas', 'carbon.fElec', 'carbon.refGwp', 'scope3.fPurch', 'scope3.fFreight', 'scope3.fLandfill', 'scope3.fRecycled', 'scope3.fAir', 'scope3.fCar', 'scope3.fHotel', 'scope3.fCommute', 'scope3.fWater']);
+function cleanEfSrc(o) { const out = {}; if (o && typeof o === 'object') Object.keys(o).slice(0, 30).forEach((k) => { const x = o[k]; if (EF_FIELDS.has(k) && x && typeof x === 'object') out[k] = { id: str(x.id, 12), label: str(x.label, 200), value: num(x.value) }; }); return out; }
 export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
-  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills) };
+  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills), efsrc: cleanEfSrc(e.efsrc) };
   SECTIONS.forEach((s) => { out[s.id] = cleanSection(s.id, e[s.id]); });
   return out;
 }
@@ -395,6 +398,7 @@ export async function save(id, body, by) {
     if (JSON.stringify(x.credits || []) !== JSON.stringify(nx.credits)) changed.push('Carbon credits register'); x.credits = nx.credits;
     if (JSON.stringify(x.pricing || {}) !== JSON.stringify(nx.pricing)) changed.push('Carbon pricing and CBAM'); x.pricing = nx.pricing;
     if (JSON.stringify(x.bills || []) !== JSON.stringify(nx.bills)) changed.push('Electricity bills: ' + nx.bills.length); x.bills = nx.bills;
+    if (JSON.stringify(x.efsrc || {}) !== JSON.stringify(nx.efsrc)) changed.push('Emission factor sources: ' + Object.keys(nx.efsrc).filter((k) => JSON.stringify((x.efsrc || {})[k]) !== JSON.stringify(nx.efsrc[k])).map((k) => (nx.efsrc[k] || {}).label || k + ' cleared').join('; ')); x.efsrc = nx.efsrc;
     if (body.source) changed.push('(imported from ' + str(body.source, 80) + ')');
     if (!changed.length) { res = { same: true }; return cur; }
     x.rev = (x.rev || 0) + 1; x.updated = Date.now();
@@ -458,6 +462,7 @@ function facts(e) {
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
     scores_out_of_100: { environment: c.env.score, social: c.soc.score, governance: c.gov.score, overall: c.esg, gri2_alignment: c.gov.gri }, women_pct: c.soc.womenPct, women_in_management_pct: c.soc.womenMgmtPct, women_on_board_pct: c.gov.boardWomenPct,
     gaps: [...c.env.why, ...c.soc.why, ...c.gov.why], standards_coverage_pct: c.coverage,
+    emission_factor_sources: Object.keys(e.efsrc || {}).length ? Object.fromEntries(Object.entries(e.efsrc).map(([k, v]) => [k, v.label])) : undefined,
     electricity_bills: (() => { const B = c.bills; const el = (e.carbon || {}).elec, o = e.org || {}, L = e.bills || [], close = B.mwh > 0 && el > 0 && Math.abs(B.mwh - el) / el <= 0.05;
       // the bills support the year only if every bill sits inside the reporting period (a month's grace each side for billing cycles)
       const lo = o.from ? Date.parse(o.from) - 31 * 864e5 : null, hi = o.to ? Date.parse(o.to) + 31 * 864e5 : null, inYear = !!(lo && hi) && L.length > 0 && L.every((x) => x.from && x.to && Date.parse(x.from) >= lo && Date.parse(x.to) <= hi);

@@ -172,7 +172,9 @@
     else if (t === 'l') ctl = '<textarea id="' + id + '" rows="4" data-s="' + sec + '" data-k="' + k + '">' + esc(val) + '</textarea>';
     else ctl = '<span class="esg-in"><input id="' + id + '" data-s="' + sec + '" data-k="' + k + '" ' + (t === 'n' || t === 'p' ? 'type="number" step="any" inputmode="decimal"' + (t === 'p' ? ' min="0" max="100"' : '') : t === 'd' ? 'type="date"' : 'type="text" maxlength="200"') +
       ' value="' + esc(val) + '"' + (isF(k) || k === 'refGwp' ? ' placeholder="' + esc(nf(defOf(sec, k), 4).replace(/,/g, '')) + '"' : '') + '>' + (unit ? '<i>' + esc(unit) + '</i>' : '') + '</span>';
-    return '<label class="esg-f' + (t === 'l' ? ' full' : '') + '" for="' + id + '"><span>' + esc(label) + '</span>' + ctl + (hint ? '<small class="muted">' + esc(hint) + '</small>' : '') + '</label>';
+    var fk = sec + '.' + k, isEf = isF(k) || k === 'refGwp', src = isEf && (V.e.efsrc || {})[fk];
+    if (isEf) ctl = '<span class="esg-efrow">' + ctl + '<button type="button" class="btn btn-sm esg-find" data-find="' + fk + '" title="Find a factor in the library" aria-label="Find ' + esc(label) + ' in the emission factor library">🔎</button></span>';
+    return '<label class="esg-f' + (t === 'l' ? ' full' : '') + '" for="' + id + '"><span>' + esc(label) + '</span>' + ctl + (src ? '<small class="esg-efsrc">📚 ' + esc(src.label) + '</small>' : hint ? '<small class="muted">' + esc(hint) + '</small>' : '') + '</label>';
   }
   var INTRO = { org: 'Who is reporting, for what period, and how. This becomes the basis of preparation in the statement and the report.',
     carbon: 'Scope 1 (fuels you burn and refrigerant leaks) and Scope 2 (electricity you buy). The factor set fills the emission factors; leave a factor blank to use the set\'s value, or type your own.',
@@ -187,11 +189,55 @@
     var SUB = [['data', sec === 'carbon' ? 'Fuels & electricity' : sec === 'scope3' ? 'Activity data' : 'Data']];
     if (sec === 'carbon') SUB.push(['bills', 'Electricity bills' + ((V.e.bills || []).length ? ' (' + V.e.bills.length + ')' : '')]);
     if (facs.length) SUB.push(['factors', 'Emission factors']);
+    if (facs.length) SUB.push(['library', 'Factor library']);
     var sub = (V.subs || {})[sec] || 'data'; if (!SUB.some(function (x) { return x[0] === sub; })) sub = 'data';
+    if (sub === 'library') return subBar(SUB, sub, s.title) + libraryCard(sec);
     var left = sub === 'bills' ? billsCard() : sub === 'factors' ? '<div class="card"><h3 style="margin:0 0 4px">Emission factors</h3><p class="muted" style="margin:0 0 12px;font-size:13px">Indicative defaults are shown in grey: leave a factor blank to use the set\'s value, or type your own. Check them against the current official set before you report.</p><div class="esg-form">' + facs.map(function (f) { return field(sec, f); }).join('') + '</div></div>'
       : '<div class="card"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">' + esc(s.title) + '</h3><span class="sp"></span><button class="btn btn-sm" type="button" data-import="1">📥 Import from a spreadsheet</button></div><p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(INTRO[sec] || '') + '</p><div class="esg-form">' + acts.map(function (f) { return field(sec, f); }).join('') + '</div></div>';
     return (SUB.length > 1 ? subBar(SUB, sub, s.title) : '') + '<div class="esg-split"><div>' + left + '</div><div><div class="card esg-res" id="esgRes">' + results(sec) + '</div>' + (p ? insightCard(p) : '') + '</div></div>';
   }
+  /* ---------- 📚 the emission factor library: every published factor, searchable by country, kind and source; one press fills the field ---------- */
+  var EF = null, LF = { q: '', country: '', cat: '', std: '', field: '', n: 40 };
+  var efLoad = function () { return EF ? Promise.resolve(EF) : api('esgFactors', {}).then(function (d) { EF = d.factors; return EF; }); };
+  var FIELDN = { 'carbon.fElec': 'Grid electricity', 'carbon.fDiesel': 'Diesel', 'carbon.fPetrol': 'Petrol', 'carbon.fJet': 'Jet fuel', 'carbon.fLpg': 'LPG', 'carbon.fGas': 'Natural gas', 'carbon.refGwp': 'Refrigerant GWP' };
+  function efLabel(x) { return x.std + ' ' + x.year + ' · ' + [x.name, x.region, x.country === 'Global' ? '' : x.country].filter(Boolean).join(', '); }
+  function libraryCard(sec) {
+    if (!EF) { efLoad().then(function () { if (V.tab === sec) body(); }).catch(fail); return '<div class="card empty">Loading the emission factor library…</div>'; }
+    var uniq = function (k) { return EF.map(function (x) { return x[k]; }).filter(function (v, i, a) { return v && a.indexOf(v) === i; }).sort(); };
+    var sel = function (id, k, all, L) { return '<label>' + all + '<select id="' + id + '"><option value="">All</option>' + L.map(function (v) { return '<option' + (v === LF[k] ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') + '</select></label>'; };
+    var fields = EF.map(function (x) { return x.field; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    return '<div class="card"><div class="row"><h3 style="margin:0">Emission factor library</h3><span class="muted" style="font-size:13px">' + EF.length + ' factors from ' + uniq('std').length + ' sources, ' + uniq('country').length + ' countries and regions</span></div>' +
+      '<p class="muted" style="font-size:13px;margin:6px 0 12px">Search by country, state, fuel, gas or source, then press <b>Use</b> to put the factor in your report. The report records which factor and edition you used. Values are copied from the published sources: check them against the current release before you report.</p>' +
+      '<div class="esg-form esg-form-4 esg-lf"><label style="grid-column:span 2">Search<input id="lfQ" type="search" value="' + esc(LF.q) + '" placeholder="e.g. New South Wales, Sabah, diesel, R-410A, DESNZ, IEA"></label>' + sel('lfCountry', 'country', 'Country', uniq('country')) + sel('lfCat', 'cat', 'Kind', uniq('cat')) +
+        sel('lfStd', 'std', 'Source or standard', uniq('std')) + '<label>For the field<select id="lfField"><option value="">Any</option>' + fields.map(function (f) { var nm = FIELDN[f] || ((SC.fields.filter(function (y) { return y.id === f; })[0] || {}).label || f).replace(/^Factor: /, ''); return '<option value="' + f + '"' + (f === LF.field ? ' selected' : '') + '>' + esc(nm) + '</option>'; }).join('') + '</select></label>' +
+        '<label style="grid-column:span 2;align-self:end"><button class="btn btn-sm" type="button" id="lfClear">Clear the filters</button></label></div><div id="lfRes">' + libRows() + '</div></div>';
+  }
+  function libRows() {
+    var q = LF.q.toLowerCase().split(/\s+/).filter(Boolean), used = {}; Object.keys(V.e.efsrc || {}).forEach(function (k) { used[V.e.efsrc[k].id] = k; });
+    var L = EF.filter(function (x) { if (LF.country && x.country !== LF.country) return false; if (LF.cat && x.cat !== LF.cat) return false; if (LF.std && x.std !== LF.std) return false; if (LF.field && x.field !== LF.field) return false;
+      var hay = [x.cat, x.name, x.region, x.country, x.std, x.source, x.year, x.unit, FIELDN[x.field] || ''].join(' ').toLowerCase(); return q.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    var home = ((V.e.org || {}).country || '').toLowerCase(); L.sort(function (a, b) { return (b.country.toLowerCase() === home) - (a.country.toLowerCase() === home); });
+    if (!L.length) return '<p class="muted" style="margin:12px 0">No factor matches. Try fewer words, or clear the filters. For a country not listed, the IEA national average or the IPCC defaults apply.</p>';
+    return '<p class="muted" style="font-size:12.5px;margin:10px 0 6px">' + pl(L.length, 'factor') + (L.length > LF.n ? ', showing the first ' + LF.n : '') + '</p><div class="tbl-wrap"><table class="tbl esg-tbl esg-eflib"><thead><tr><th>Kind</th><th>Factor</th><th>Country · region</th><th class="r">Value</th><th>Source</th><th></th></tr></thead><tbody>' +
+      L.slice(0, LF.n).map(function (x) { var u = used[x.id]; return '<tr' + (u ? ' class="on"' : '') + '><td>' + esc(x.cat) + '</td><td><b>' + esc(x.name || FIELDN[x.field] || '') + '</b></td><td>' + esc(x.country) + (x.region ? '<div class="muted" style="font-size:11.5px">' + esc(x.region) + '</div>' : '') + '</td>' +
+        '<td class="r"><b>' + esc(String(x.value)) + '</b><div class="muted" style="font-size:11.5px">' + esc(x.unit) + '</div></td><td>' + esc(x.std) + ' · ' + esc(x.year) + '<div class="muted" style="font-size:11.5px" title="' + esc(x.source + (x.note ? '. ' + x.note : '')) + '">' + esc(x.source) + (x.note ? ' · ' + esc(x.note) : '') + '</div></td>' +
+        '<td>' + (u ? '<span class="pill t-green">✓ In use</span>' : '<button class="btn btn-sm btn-gold" type="button" data-efuse="' + x.id + '">Use</button>') + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      (L.length > LF.n ? '<div class="row" style="justify-content:center;margin-top:10px"><button class="btn btn-sm" type="button" id="lfMore">Show ' + Math.min(40, L.length - LF.n) + ' more</button></div>' : '');
+  }
+  function useFactor(id) {
+    var x = EF.filter(function (y) { return y.id === id; })[0]; if (!x) return;
+    var sec = x.field.split('.')[0], k = x.field.split('.')[1], prev = (V.e[sec] || {})[k];
+    V.e[sec] = V.e[sec] || {}; V.e[sec][k] = x.value; V.e.efsrc = Object.assign({}, V.e.efsrc); V.e.efsrc[x.field] = { id: x.id, label: efLabel(x), value: x.value };
+    touch(sec); touch('efsrc');
+    toast((FIELDN[x.field] || 'Factor') + ' set to ' + x.value + ' ' + x.unit + ' (' + x.std + ' ' + x.year + ')' + (prev != null && String(prev) !== String(x.value) ? ', was ' + prev : ''));
+    var r = $('#lfRes'); if (r) { r.innerHTML = libRows(); wireLib(); }
+  }
+  function wireLib() {
+    var r = $('#lfRes'); if (!r) return;
+    r.querySelectorAll('[data-efuse]').forEach(function (b) { b.onclick = function () { useFactor(b.getAttribute('data-efuse')); }; });
+    var m = $('#lfMore'); if (m) m.onclick = function () { LF.n += 40; r.innerHTML = libRows(); wireLib(); };
+  }
+
   /* ---------- 🧾 electricity bills: upload them, Champ reads the kWh, you check, Scope 2 uses the total ---------- */
   function billSum() {
     var B = V.calc.bills || {}, c = V.e.carbon || {}, differs = B.n && (Math.abs((c.elec || 0) - B.mwh) > 0.001 || Math.abs((c.green || 0) - B.greenMwh) > 0.001);
@@ -668,7 +714,9 @@
       { t: 'table', title: 'What would raise the scores', head: ['Pillar', 'Next step'], rows: [['Environment', c.env.why], ['Social', c.soc.why], ['Governance', c.gov.why]].reduce(function (a, p) { return a.concat((p[1] || []).map(function (x) { return [{ t: p[0], b: true }, x]; })); }, []), widths: [1, 4], empty: 'No gaps flagged.' }], 'Environment, social and governance scores'));
     C.push(ch('Targets and roadmap', 'Roadmap', [tbl('targets', ['Pillar', 'Target', 'Baseline', 'Year', 'Status'], ['pillar', 'target', 'baseline', 'target_year', 'status'], [0.6, 3, 1.6, 0.7, 1]) || T(null, miss), tbl('roadmap', ['Year', 'Focus', 'Actions'], ['year', 'focus', 'actions'], [0.8, 1.6, 4], 'Three-year roadmap')], 'Where we are heading'));
     C.push(ch('Reporting standards', 'Standards', [T(S.standards_overview, miss), tbl('alignment', ['Standard', 'How we apply it', 'Gaps', 'Next steps'], ['standard', 'how_applied', 'gaps', 'next_steps'], [1.2, 3.4, 1.6, 1.6]), tbl('sasb_metrics', ['Industry metric', 'Value', 'Unit', 'Note'], ['metric', 'value', 'unit', 'note'], [2.4, 1, 0.8, 2.4], 'Industry (SASB) metrics')], 'How this report meets each framework'));
-    C.push(ch('Data quality and assurance', 'Assurance', [T(S.data_quality, miss), T(S.assurance_readiness), { t: 'callout', title: 'Emission factors', text: 'Emissions are calculated with the ' + em.setLabel + ' factor set and any factors we entered ourselves. Default factors are indicative and are checked against the current official set before publication.' }], 'Data sources, controls and assurance'));
+    C.push(ch('Data quality and assurance', 'Assurance', [T(S.data_quality, miss), T(S.assurance_readiness), { t: 'callout', title: 'Emission factors', text: 'Emissions are calculated with the ' + em.setLabel + ' factor set and any factors we entered ourselves. Default factors are indicative and are checked against the current official set before publication.' }, (function () { var src = X.e.efsrc || {}, rows = SC.fields.filter(function (f) { return /^(carbon\.f[A-Z]|carbon\.refGwp|scope3\.f[A-Z])/.test(f.id); }).map(function (f) { var sec = f.id.split('.')[0], k = f.id.split('.')[1], v = (X.e[sec] || {})[k], d = src[f.id];
+      if (v == null && !d) return null; return [{ t: f.label.replace(/^Factor: /, ''), b: true }, { t: v == null ? '–' : String(v), right: true }, f.unit, d ? d.label : 'Default of the factor set']; }).filter(Boolean);
+      return rows.length ? { t: 'table', title: 'Emission factors used', head: ['Factor', 'Value', 'Unit', 'Source'], rows: rows, widths: [1.4, 0.8, 1, 3], size: 7.4 } : null; })()], 'Data sources, controls and assurance'));
     C.push(ch('Appendix: content index', 'Appendix', [X.idx.length ? { t: 'table', head: ['Standard', 'Reference', 'Disclosure', 'Status'], rows: X.idx, widths: [0.9, 1.1, 3.4, 0.9], size: 7.2 } : T('Choose the standards in the Standards tab to build the content index.')], 'Where each disclosure is answered'));
     C.push(ch('Appendix: glossary and forward-looking statements', 'Appendix', [tbl('glossary', ['Term', 'Meaning'], ['term', 'meaning'], [1.3, 4]), T(S.forward_looking),
       { t: 'sign', title: 'Approval', intro: 'This ESG report was approved by the board on the date below.', rows: [{ role: 'Chair of the board', name: '' }, { role: 'Chief executive officer', name: '' }] }], 'Terms used, and approval'));
@@ -680,7 +728,8 @@
   function wire(b) {
     b.querySelectorAll('[data-s][data-k]').forEach(function (el) {
       var h = function () { var s = el.getAttribute('data-s'), k = el.getAttribute('data-k'); V.e[s] = V.e[s] || {}; var v = el.value; if (v === '') delete V.e[s][k]; else V.e[s][k] = v;
-        if (k === 'fset' && SC.factorSets[v]) { var set = SC.factorSets[v], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; Object.keys(m).forEach(function (fk) { V.e.carbon[fk] = set[m[fk]]; var i = $('#ef-carbon-' + fk); if (i) { i.value = set[m[fk]]; i.placeholder = set[m[fk]]; } }); }
+        if (k === 'fset' && SC.factorSets[v]) { var set = SC.factorSets[v], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; V.e.efsrc = Object.assign({}, V.e.efsrc); Object.keys(m).forEach(function (fk) { V.e.carbon[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; var i = $('#ef-carbon-' + fk); if (i) { i.value = set[m[fk]]; i.placeholder = set[m[fk]]; } }); touch('efsrc'); }
+        var fk = s + '.' + k; if (V.e.efsrc && V.e.efsrc[fk] && String(V.e.efsrc[fk].value) !== String(v)) { V.e.efsrc = Object.assign({}, V.e.efsrc); V.e.efsrc[fk] = { id: '', label: 'Entered by you', value: v === '' ? null : Number(v) }; touch('efsrc'); var sm = el.closest('label') && el.closest('label').querySelector('.esg-efsrc'); if (sm) sm.textContent = '📚 Entered by you'; }
         touch(s); };
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', h);
     });
@@ -712,6 +761,13 @@
     if ($('#blAdd')) $('#blAdd').onclick = function () { V.e.bills = V.e.bills || []; add('bills', V.e.bills, { supplier: 'New bill', cur: (V.e.org || {}).currency || '' }); };
     wireUse();
     b.querySelectorAll('[data-import]').forEach(function (x) { x.onclick = function () { flush().catch(function () {}); importModal(); }; });
+    if ($('#lfQ')) { var rerun = function () { LF.n = 40; var r = $('#lfRes'); if (r) { r.innerHTML = libRows(); wireLib(); } };
+      $('#lfQ').oninput = function () { LF.q = this.value; rerun(); };
+      [['#lfCountry', 'country'], ['#lfCat', 'cat'], ['#lfStd', 'std'], ['#lfField', 'field']].forEach(function (p0) { $(p0[0]).onchange = function () { LF[p0[1]] = this.value; rerun(); }; });
+      $('#lfClear').onclick = function () { LF = { q: '', country: '', cat: '', std: '', field: '', n: 40 }; body(); };
+      wireLib(); }
+    b.querySelectorAll('[data-find]').forEach(function (x) { x.onclick = function (ev) { ev.preventDefault(); var f = x.getAttribute('data-find'), cty = (V.e.org || {}).country || '';
+      LF = { q: '', country: '', cat: '', std: '', field: f, n: 40 }; efLoad().then(function () { if (EF.some(function (y) { return y.field === f && y.country === cty; })) LF.country = cty; V.subs = V.subs || {}; V.subs[V.tab] = 'library'; body(); var y = $('#esgBody'); if (y && y.scrollIntoView) y.scrollIntoView({ block: 'start' }); }).catch(fail); }; });
     b.querySelectorAll('[data-sub]').forEach(function (x) { x.onclick = function () { V.subs = V.subs || {}; V.subs[V.tab] = x.getAttribute('data-sub'); body(); }; });
     // 📄 documents
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };

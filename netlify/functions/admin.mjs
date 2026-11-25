@@ -319,6 +319,7 @@ async function handle(req, context) {
       case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES, fields: E.fieldList() }); }
       case 'esgAiStatus': { const id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40), r = id.length >= 12 ? await kv.get('aiplan:' + id) : null; return out(200, r && (r.esg || r.status !== 'done') ? r : { status: 'waiting' }); }   // the ESG AI job's progress (not other AI results)
         case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
+      case 'esgFactors': { const F = await import('../lib/esg-factors.mjs'); return out(200, { factors: F.EF_LIBRARY }); }
       case 'esgList': { const E = await import('../lib/esg.mjs'); return out(200, { ents: await E.list() }); }
       case 'esgGet': { const E = await import('../lib/esg.mjs'), e = await E.get(body.id); if (!e) return bad('This reporting entity was not found', 404);
         const [st, rp] = await Promise.all([E.lastDoc(e.id, 'statement'), E.lastDoc(e.id, 'report')]);
