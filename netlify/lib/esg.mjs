@@ -606,8 +606,18 @@ export async function writeDoc(id, kind, lang, by) {
   const perOut0 = Math.floor((budget - PARTS.length * inTok) / PARTS.length), perOut = Math.max(3000, Math.min(8000, Math.floor((budget - PARTS.length * inTok) / PARTS.length)));
   if (perOut0 < 3000) return { error: 'There is too much data for the AI budget of ' + budget.toLocaleString('en-AU') + ' tokens (' + PARTS.length + ' parts need about ' + (PARTS.length * (inTok + 3000)).toLocaleString('en-AU') + '). Raise AI_ESG_' + (kind === 'report' ? 'MAX' : 'STATEMENT') + '_TOKENS, or shorten the long text fields.' };
   const L = LANG[lang] ? lang : 'en', sys = BASE + (L !== 'en' ? ` Write every value in ${LANG[L]} (natural, professional ${LANG[L]}; JSON keys stay in English; keep standard names such as IFRS S2, GRI 305, ESRS E1 and units as they are).` : '');
-  const res = await Promise.all(PARTS.map((p) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ task: p.ask, organisation_data: F }) }], { maxTokens: perOut, timeoutMs: 420000, temperature: 0.35 })
-    .then((r) => ({ data: r.data || {}, used: r.used || 0, cut: !!(r.cutOff || (r.data && r.data._cutOff)) })).catch((err) => ({ data: {}, used: 0, error: err.message }))));
+  // every part is asked for; a part that fails or comes back empty is asked again (up to twice, while there is time), so the whole document gets written
+  const t0 = Date.now(), keysOf = (p) => [...new Set([...p.ask.matchAll(/"([a-z][a-z0-9_]{2,})"\s*\(/g)].map((m) => m[1]))];
+  const one = (p, tries, ms) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ task: p.ask + (tries ? ' Keep each text at the lower end of its word range, and return complete, valid JSON.' : ''), organisation_data: F }) }], { maxTokens: perOut, timeoutMs: ms, temperature: 0.35 })
+    .then((r) => { const d = r.data && typeof r.data === 'object' ? r.data : {}; if (!Object.keys(d).filter((k) => k !== '_cutOff').length) throw new Error('the AI returned an empty answer'); return { data: d, used: r.used || 0, cut: !!(r.cutOff || d._cutOff) }; })
+    .catch((err) => ({ data: {}, used: 0, error: err.message }));
+  const res = await Promise.all(PARTS.map((p) => one(p, 0, 420000)));
+  for (let round = 1; round <= 2; round++) {
+    const left = 840000 - (Date.now() - t0), todo = res.map((r, i) => (r.error ? i : -1)).filter((i) => i >= 0);
+    if (!todo.length || left < 150000) break;
+    const again = await Promise.all(todo.map((i) => one(PARTS[i], round, Math.min(360000, left - 45000))));
+    todo.forEach((i, j) => { const used = (res[i].used || 0) + (again[j].used || 0); res[i] = again[j].error ? { ...res[i], used, error: again[j].error } : { ...again[j], used, retried: round }; });
+  }
   const failed = res.filter((r) => r.error); if (failed.length === res.length) return { error: 'The AI could not write the ' + (kind === 'report' ? 'ESG report' : 'sustainability statement') + ': ' + failed[0].error };
   const raw = Object.assign({}, ...res.map((r) => r.data)), tokens = res.reduce((a, r) => a + (r.used || 0), 0);
   const sections = {};   // text stays text (long), lists stay lists of small objects
@@ -615,8 +625,12 @@ export async function writeDoc(id, kind, lang, by) {
     if (typeof v === 'string') sections[kk] = str(v, 9000);
     else if (Array.isArray(v)) sections[kk] = v.slice(0, 24).map((x) => (x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).slice(0, 8).map(([a, b]) => [str(a, 30), str(b, 1500)])) : str(x, 600))).filter((x) => (typeof x === 'string' ? x : Object.values(x).join('')));
   });
+  // a part the AI still could not write keeps its text from the latest earlier version, so no chapter is left empty
+  const prevDoc = failed.length ? await kv.get('esgdoc:' + e.id + ':' + kind).catch(() => null) : null, kept = [], lost = [];
+  res.forEach((r, i) => { if (!r.error) return; const name = (PARTS[i].ask.match(/PART ([A-Z]) \(([^)]+)\)/) || [])[0] || ('part ' + (i + 1)), ks = keysOf(PARTS[i]).filter((k) => prevDoc && prevDoc.sections && prevDoc.sections[k] != null && sections[k] == null);
+    if (ks.length) { ks.forEach((k) => { sections[k] = prevDoc.sections[k]; }); kept.push(name + ' kept from v' + prevDoc.ver); } else lost.push(name + ' (' + str(r.error, 90) + ')'); });
   const cut = res.filter((r) => r.cut).length;
-  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [failed.length ? failed.length + ' of ' + PARTS.length + ' parts could not be written' : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: e.rev, sections };
+  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [lost.length ? lost.length + ' of ' + PARTS.length + ' parts could not be written: ' + lost.join('; ') : '', kept.length ? 'the AI could not rewrite ' + kept.join(', ') : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: e.rev, sections };
   // the version is given out atomically, so two people writing at once get v2 and v3, not two v2s
   const saved = await kv.update('esgdoc:' + e.id + ':' + kind, (prev) => ({ ...rec, ver: ((prev && prev.ver) || 0) + 1 }), () => null), ver = saved.ver; rec.ver = ver;
   await kv.update('esg:' + e.id, (x) => { if (!x) return x; x.docs = [{ kind, ver, at: rec.at, by: rec.by, lang: L, tokens, std: rec.std, partial: rec.partial, rev: rec.rev }].concat(x.docs || []).sort((a, b) => (b.kind === a.kind ? b.ver - a.ver : b.at - a.at)).slice(0, 40); logIt(x, by, (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' narrative v' + ver + ' written by AI (' + tokens.toLocaleString('en-AU') + ' tokens)'); return x; }, () => null).catch(() => {});
