@@ -349,4 +349,12 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 338 | 1.0.338| 2026-11-25 20:03| sdg-fix| `1a24c51` | SDG map: count only delivered avoided-emissions projects as a measure (#164) |
 | 339 | 1.0.339| 2026-11-26 01:45| esg-vault| `237b40b` | 🗄 Sustainability vault, 🎯 29 material topics, 📊 chart-rich reports with UN SDG icons, 93 factor sets |
 | 340 | 1.0.340| 2026-11-26 02:02| esg-vault| `42d12dd` | ESG vault review fixes: staff logins only (scoped logins refused), vaults created once, edits keyed to their vault and never overwrite newer |
-| 341 | 1.0.341 | 2026-11-26 02:12 | esg-vault | _this commit_ | _see git log_ |
+| 341 | 1.0.341| 2026-11-26 02:12| esg-vault| `e49974f` | 🗄 Sustainability vault, 29 material topics, chart-rich reports with SDG icons, 93 factor sets (#165) |
+| 342 | 1.0.342| 2026-11-26 08:48| esg-sectors| `0376fd7` | ESG: 131 industries in 14 sector groups, and a labelled double materiality matrix with a numbered key and a note on why it matters |
+| 343 | 1.0.343| 2026-11-26 08:57| esg-sectors| `05a326b` | ESG matrix: every dot stays inside its rating cell, however many share it |
+| 344 | 1.0.344| 2026-11-26 09:05| esg-sectors| `ecdcbb1` | ESG documents: a part that fails or comes back empty is asked again (up to twice), a part that still fails keeps its text from the last vers |
+| 345 | 1.0.345| 2026-11-26 09:20| esg-sectors| `6caea98` | ESG documents: a part counts only when its narrative sections are there; reused text must be in the same language and keeps its older data v |
+| 346 | 1.0.346| 2026-11-26 09:29| esg-sectors| `b5ec319` | ESG documents: any narrative section left out is asked for again and merged; {text} answers are read as text; a section still missing is nam |
+| 347 | 1.0.347| 2026-11-26 09:37| esg-sectors| `4d09505` | ESG documents: the cut-short note stays while cut text remains, and every section still missing after a restore is named |
+| 348 | 1.0.348| 2026-11-26 09:50| esg-sectors| `71f3d23` | ESG documents: tables left out are named too; the quick check answers every key a part asks for |
+| 349 | 1.0.349 | 2026-11-26 09:56 | esg-sectors | _this commit_ | _see git log_ |
