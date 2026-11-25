@@ -301,7 +301,9 @@
         didParseCell: function (h) { if (h.section !== 'body') return; var c = cellOf(b.rows[h.row.index][h.column.index]);
           if (c.b) h.cell.styles.fontStyle = 'bold'; if (c.center) h.cell.styles.halign = 'center'; if (c.right) h.cell.styles.halign = 'right';
           if (c.rag) { h.cell.styles.fillColor = RAG[c.rag]; h.cell.styles.textColor = C.white; h.cell.styles.fontStyle = 'bold'; h.cell.styles.halign = 'center'; }
-          if (c.fill) { h.cell.styles.fillColor = c.fill; } if (c.total) { h.cell.styles.fillColor = C.tint; h.cell.styles.fontStyle = 'bold'; } },
+          if (c.fill) { h.cell.styles.fillColor = c.fill; } if (c.total) { h.cell.styles.fillColor = C.tint; h.cell.styles.fontStyle = 'bold'; }
+          if (c.img) { var ih = c.imgH || 12; h.cell.styles.minCellHeight = ih + 3; h.cell.styles.cellPadding = { top: 1.5, bottom: 1.5, left: ih + 4.4, right: 2.2 }; } },
+        didDrawCell: function (h) { if (h.section !== 'body') return; var r0 = b.rows[h.row.index]; if (!r0) return; var c = cellOf(r0[h.column.index]); if (!c.img) return; var ih = c.imgH || 12; try { doc.addImage(c.img, 'JPEG', h.cell.x + 2.2, h.cell.y + (h.cell.height - ih) / 2, ih, ih); } catch (x) {} },
         didDrawPage: function (h) { if (h.pageNumber > 1 || doc.getNumberOfPages() > 1) { /* header on continuation pages */ } }
       });
       // autoTable may have added pages: give them the continuation band + footer
@@ -410,7 +412,7 @@
         if (!b.rows || !b.rows.length) { if (b.empty) kids.push(box([P(T(b.empty, { italics: true, color: HEX(C.muted) }))], C.tint, { bar: 1, pad: 100 })); return; }
         var ws = b.widths || b.head.map(function () { return 1; }), sum = ws.reduce(function (a, v) { return a + v; }, 0); ws = ws.map(function (v) { return Math.floor(v * TW / sum); }); ws[ws.length - 1] += TW - ws.reduce(function (a, v) { return a + v; }, 0);
         var cell = function (c0, w, o) { var c = cellOf(c0); o = o || {}; var f = c.rag ? RAG[c.rag] : c.fill || (c.total ? C.tint : o.fill); return new X.TableCell({ width: { size: w, type: X.WidthType.DXA }, shading: f ? shade(f) : undefined, borders: { top: NB, left: NB, right: NB, bottom: LB }, margins: { top: 70, bottom: 70, left: 100, right: 100 }, verticalAlign: X.VerticalAlign.CENTER,
-          children: [P(T(c.t == null ? '' : c.t, { bold: !!(c.b || c.rag || c.total || o.head), color: o.head ? HEX(C.gold2) : c.rag ? 'FFFFFF' : HEX(C.text), size: o.head ? 15 : 16 }), { spacing: { after: 0, line: 250 }, alignment: c.rag || c.center ? X.AlignmentType.CENTER : c.right ? X.AlignmentType.RIGHT : X.AlignmentType.LEFT })] }); };
+          children: (c.img ? [P(new X.ImageRun({ type: 'jpg', data: u8(c.img), transformation: { width: Math.round((c.imgH || 12) * 3.2), height: Math.round((c.imgH || 12) * 3.2) } }), { spacing: { after: 40 } })] : []).concat([P(T(c.t == null ? '' : c.t, { bold: !!(c.b || c.rag || c.total || o.head), color: o.head ? HEX(C.gold2) : c.rag ? 'FFFFFF' : HEX(C.text), size: o.head ? 15 : 16 }), { spacing: { after: 0, line: 250 }, alignment: c.rag || c.center ? X.AlignmentType.CENTER : c.right ? X.AlignmentType.RIGHT : X.AlignmentType.LEFT })]) }); };
         kids.push(new X.Table({ width: { size: TW, type: X.WidthType.DXA }, columnWidths: ws, borders: NOB, rows: [new X.TableRow({ tableHeader: true, children: b.head.map(function (h, i) { return cell(h, ws[i], { head: 1, fill: C.ink }); }) })]
           .concat(b.rows.map(function (r, ri) { return new X.TableRow({ cantSplit: true, children: r.map(function (c, i) { return cell(c, ws[i], { fill: ri % 2 ? C.cream : null }); }) }); })) }));
         if (b.note) kids.push(P(T(b.note, { size: 14, color: HEX(C.muted), italics: true }), { spacing: { before: 60 } })); gap(80);
@@ -522,7 +524,7 @@
     css = css.replace(/#[0-9A-F]{6}\b/g, function (h) { return TH[h] ? '#' + HEX(TH[h]) : h; });
     var A = D._art, o = [];
     var stats = function (items) { return '<div class="stats" style="grid-template-columns:repeat(' + items.length + ',1fr)">' + items.map(function (x) { return '<div class="st"><i></i><b>' + esc(x.v) + '</b><small>' + esc(x.l) + '</small></div>'; }).join('') + '</div>'; };
-    var cell = function (c0) { var c = c0 && typeof c0 === 'object' ? c0 : { t: c0 }; return '<td class="' + (c.rag || '') + (c.total ? ' tot' : '') + '"' + (c.fill ? ' style="background:rgb(' + c.fill.join(',') + ')"' : '') + (c.right ? ' align="right"' : c.center ? ' align="center"' : '') + '>' + (c.b ? '<b>' + esc(c.t) + '</b>' : esc(c.t)) + '</td>'; };
+    var cell = function (c0) { var c = c0 && typeof c0 === 'object' ? c0 : { t: c0 }; return '<td class="' + (c.rag || '') + (c.total ? ' tot' : '') + '"' + (c.fill ? ' style="background:rgb(' + c.fill.join(',') + ')"' : '') + (c.right ? ' align="right"' : c.center ? ' align="center"' : '') + '>' + (c.img ? '<img src="' + c.img + '" alt="" style="width:' + (c.imgH || 12) + 'mm;height:' + (c.imgH || 12) + 'mm;vertical-align:middle;margin-right:6px;float:left">' : '') + (c.b ? '<b>' + esc(c.t) + '</b>' : esc(c.t)) + '</td>'; };
     var tbl = function (b) { if (!b.rows || !b.rows.length) return b.empty ? '<div class="call">' + esc(b.empty) + '</div>' : ''; return '<table><thead><tr>' + b.head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' + b.rows.map(function (r) { return '<tr>' + r.map(cell).join('') + '</tr>'; }).join('') + '</tbody></table>' + (b.note ? '<p class="cap" style="text-transform:none">' + esc(b.note) + '</p>' : ''); };
     var blk = function (b) {
       if (b.t === 'p') return md(b.text); if (b.t === 'h') return '<h3>' + esc(b.text) + '</h3>'; if (b.t === 'stats') return stats(b.items);

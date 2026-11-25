@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 338,
+  "build": 339,
   "commit": "",
-  "branch": "sdg-fix",
+  "branch": "esg-vault",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-25 20:03",
+  "builtAt": "2026-11-26 01:45",
   "site": ""
 };

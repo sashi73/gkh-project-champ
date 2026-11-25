@@ -220,7 +220,49 @@ The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `car
 
   The user ticks the values to import; the change log records the file name.
 
-## 8. The AI
+## 7c. Sustainability vault and the GKH ESG Progress Index
+
+The vault (`netlify/lib/esg-vault.mjs`, `admin/admin-svault.js`) is a menu item in the ESG & Sustainability section. There is one vault per organisation, kept across years, matched to the ESG reports by the organisation's name.
+
+**Data by month**
+- 26 measures, grouped as energy, fuels, water and waste, value chain, people and safety, and business.
+- One value per measure per month; the source of each is recorded (typed in, from a bill, or imported).
+- *Months from the bills* spreads the electricity bills from the reports over the days they cover.
+- CSV or Excel import: one row per value, or wide by month.
+- Years follow the organisation's financial year; its start month is a setting.
+
+**Evidence**
+- Files are filed under the month they belong to and one of eight folders, and listed by year and month.
+- Storage: R2 under `svault/<key>/`, or kept in the store up to 3.5 MB.
+
+**Years**
+- A year with an ESG report uses the report.
+- A year without one is calculated from the vault's months, using the latest report's factors and settings.
+- Until all 12 months are in, a year is marked *so far*. It has no index, and it is compared with the target at its rate so far (months × 12 ÷ months gathered).
+
+**GKH ESG Progress Index v1**
+- The base year (the first full year) is 100.
+- Ten measures are each compared with the base year. For a measure where lower is better, the ratio is base ÷ now; where higher is better, it is now ÷ base. A small offset protects small numbers, and each ratio is held between 0.25 and 4.
+- The ten measures and their weights:
+  - Scope 1 and 2 intensity 30
+  - Scope 3 intensity 10
+  - renewable share 10
+  - energy intensity 5
+  - water intensity 5
+  - waste diverted 5
+  - LTIFR 10
+  - women in management 7.5
+  - training hours 7.5
+  - governance score 10
+- The index is the weighted average of the measures found in both years, × 100.
+- Intensities are per $M of revenue when revenue is known in both years; otherwise that measure is left out.
+
+**Target path**
+- A straight line runs from the base-year emissions (Scope 1+2, or 1+2+3) to the reduction target, then to net zero.
+- On track means at or below the line; Close means up to 5% above; Off track means more.
+- The page also shows the yearly cut still needed, the rate achieved so far and the share of the planned cut done.
+
+
 
 - The system prompt (`BASE`) asks for a senior ESG reporting adviser who must not invent numbers, people, awards or certifications, and who writes balanced text that says what is not yet in place.
 - The facts the AI receives (`facts()`): organisation, chosen standards, all data entered, computed results, gaps, coverage, avoided emissions, material topics, earlier recommendations.
@@ -234,7 +276,9 @@ The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `car
 | v1 | 2026-11-25 | First draft. One menu item; Setup, E, S, G, Carbon avoidance and Reporting tabs; 17 standards with an 82-entry disclosure index; scoring method v1; Sustainability Statement (under 10 pages) and ESG Report (about 60 pages, up to 100k tokens) in the charter and plan format; Champ answers ESG questions; Records (registry, documents, change log); 🌱 CSO view in Management & leadership. |
 | v1.1 | 2026-11-25 | Carbon pricing, CBAM (EU and UK) and the carbon credit framework (Pricing & CBAM tab with sub-tabs; credit integrity checks; report chapter; CSO exposure). Long registers became compact lists that open one item at a time. |
 | v1.2 | 2026-11-25 | Own menu section "ESG & Sustainability"; electricity bills read by AI for Scope 2; CSV and Excel import (template, by name, or matched by Champ); data tabs split into sub-tabs (data, bills, factors). |
-| v1.5 | 2026-11-25 | SDG map: 17 tiles with GKH's own pictograms in the report's colours, shaded by relevance (official UN SDG icons are not used: commercial use needs UN permission). |
+| v1.7 | 2026-11-26 | Richer documents: charts in every main chapter (scope donuts, Scope 1 sources, Scope 2, intensity against the sector, Scope 3, renewables, waste, gender, safety, scores, materiality matrix, governance radar, avoided emissions, CBAM, credits, coverage), a Progress year on year chapter from the vault; UN SDG icons (supplied by GKH, in assets/sdg/) in the SDG map, the 17-goal table and beside each chapter for the goals it contributes to; every statement or report made is filed in the Sustainability vault (Published reports), tagged with the company and the year, replacing an earlier copy of the same name. |
+| v1.6 | 2026-11-26 | Sustainability vault (monthly data, evidence by year and month, GKH ESG Progress Index, target path); 29 material topics with GRI/ESRS references, impact kind, horizon, stakeholders and response, sector suggestions; 93 factor sets (every country in the library). |
+| v1.5 | 2026-11-25 | SDG map: 17 tiles shaded by relevance (GKH pictograms; replaced in v1.7 by the UN icons GKH supplied). |
 | v1.4 | 2026-11-25 | The 17 UN SDGs are covered by default: SDG ticked on every new report; the ESG report has a chapter with all 17 goals (relevance, contribution, the reported measure); the statement has a short SDG table; the measures come from the data even before the AI writes. |
 | v1.3 | 2026-11-25 | Emission factor library (156 factors, 58 countries and regions, 13 sources), searchable by country, kind, source and field; 🔎 on each factor; source recorded per factor and printed in the report. |
 

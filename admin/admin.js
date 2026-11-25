@@ -110,7 +110,7 @@
       if (window.ChampPhone && window.ChampPhone.is && window.MBS.phoneApp) { window.MBS.phoneApp.start(me); return; }   // 📱 a phone: only Today, like a messenger (champ-phone-app.js)
       $('#app').hidden = false;
       if (me.mustChange && window.MBS.users) { view.innerHTML = '<div class="empty">Set your own password to carry on.</div>'; window.MBS.users.changePassword(true); return; }
-      if (me.scope) { var h = location.hash.slice(1), pc = (h.match(/^plan\/([^/]+)/) || [])[1]; if (!(/^(portfolio|raid|me|help|esg|cso)/.test(h) || (pc && me.scope.indexOf(pc) >= 0))) { location.hash = '#' + firstPage(); todayShow(); return; } }   // v91: their project only
+      if (me.scope) { var h = location.hash.slice(1), pc = (h.match(/^plan\/([^/]+)/) || [])[1]; if (!(/^(portfolio|raid|me|help|esg|cso|svault)/.test(h) || (pc && me.scope.indexOf(pc) >= 0))) { location.hash = '#' + firstPage(); todayShow(); return; } }   // v91: their project only
       var vmod = VIEWMOD[(location.hash.slice(1) || 'programs').split('/')[0]];   // v108: null = any signed-in user (My leave)
       if (vmod !== null && !allowed(vmod || 'crm', 'view')) { var fp = firstPage(); if (location.hash.slice(1) !== fp) { location.hash = '#' + fp; todayShow(); return; } }
       if (me.role === 'CEO' || me.role === 'CFO') { var land = me.role === 'CEO' ? 'ceo' : 'finance', h0 = location.hash.slice(1); if (!h0 || h0 === 'programs' || h0 === 'portfolio') { location.hash = '#' + land; return; } route(); return; }   // 👔 the CEO lands on the CEO view, 💵 the CFO on Finance (no task list)   // 👔 the CEO lands on the CEO view (no task list)

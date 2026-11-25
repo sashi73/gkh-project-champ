@@ -8,6 +8,7 @@
 //   esgdoc:<id>:<kind>  the last narrative written: { at, by, kind, ver, lang, tokens, cap, sections }   kind: statement | report
 // The design, the scoring rules, the standards list and the iteration log are kept in docs/ESG-REGISTRY.md.
 import * as kv from './kv.mjs';
+import { EF_LIBRARY } from './esg-factors.mjs';
 import { llmJson, usage, checkLimit, llmSetup } from './ai.mjs';
 
 export const METHOD = 'GKH ESG method v1 (2026-11)';   // bump when the scoring or the factor defaults change (see docs/ESG-REGISTRY.md)
@@ -98,14 +99,56 @@ const FIELDS = {}; SECTIONS.forEach((s) => s.fields.forEach((f) => { FIELDS[s.id
 const PILLAR_OF = { org: 'org', carbon: 'env', scope3: 'env', resources: 'env', climate: 'env', workforce: 'soc', rights: 'soc', community: 'soc', board: 'gov', ethics: 'gov', certs: 'gov' };
 
 // 🧭 materiality: the usual topics; each is rated for its impact on people and planet and its financial effect on the organisation (double materiality)
-export const TOPICS = [['ghg', 'Climate change and GHG emissions', 'E'], ['energy', 'Energy', 'E'], ['water', 'Water', 'E'], ['waste', 'Waste and circularity', 'E'], ['biodiv', 'Biodiversity and land', 'E'], ['pollution', 'Pollution', 'E'],
-  ['safety', 'Health and safety', 'S'], ['people', 'Attracting, developing and keeping people', 'S'], ['dei', 'Diversity, equity and inclusion', 'S'], ['rights', 'Human rights and modern slavery', 'S'], ['community', 'Communities and Indigenous peoples', 'S'], ['supply', 'Responsible supply chain', 'S'], ['customers', 'Customers, product quality and data', 'S'],
-  ['ethics', 'Business ethics and anti-corruption', 'G'], ['governance', 'Board governance and oversight', 'G'], ['risk', 'Risk management and resilience', 'G'], ['cyber', 'Cyber security and privacy', 'G'], ['tax', 'Tax transparency', 'G']];
+// 🎯 material topics: [key, label, pillar, what it covers, GRI, ESRS, other references]
+export const TOPICS_FULL = [
+  ['ghg', 'Climate change and GHG emissions', 'E', 'Scope 1, 2 and 3 emissions, reduction targets and the transition plan.', 'GRI 305', 'ESRS E1', 'IFRS S2 · AASB S2 · TCFD · CDP climate'],
+  ['adapt', 'Physical climate risk and adaptation', 'E', 'Heat, flood, fire and storm exposure of sites, supply chains and people, and the plans to adapt.', 'GRI 201-2', 'ESRS E1', 'IFRS S2 · TCFD'],
+  ['energy', 'Energy', 'E', 'Energy use, efficiency and the shift to renewable energy.', 'GRI 302', 'ESRS E1', 'SASB energy metrics'],
+  ['water', 'Water and marine resources', 'E', 'Water withdrawal, discharge and quality, water stress, oceans.', 'GRI 303', 'ESRS E3', 'CDP water'],
+  ['waste', 'Waste and circularity', 'E', 'Waste generated and diverted, product design for reuse and recycling.', 'GRI 306', 'ESRS E5', ''],
+  ['materials', 'Materials, packaging and resource use', 'E', 'Raw materials, recycled content, packaging and resource efficiency.', 'GRI 301', 'ESRS E5', ''],
+  ['biodiv', 'Biodiversity, land and ecosystems', 'E', 'Impacts on nature, land use, deforestation and sensitive areas.', 'GRI 101 / 304', 'ESRS E4', 'TNFD · CDP forests'],
+  ['pollution', 'Pollution of air, water and soil', 'E', 'Emissions to air (NOx, SOx, particulates), spills, contamination.', 'GRI 305-7', 'ESRS E2', ''],
+  ['chemicals', 'Hazardous substances and chemicals', 'E', 'Use, storage and disposal of hazardous materials and substances of concern.', 'GRI 306', 'ESRS E2', ''],
+  ['safety', 'Occupational health and safety', 'S', 'Injuries, fatalities, critical risks, contractor safety and safety culture.', 'GRI 403', 'ESRS S1', 'ISO 45001'],
+  ['wellbeing', 'Wellbeing and psychosocial safety', 'S', 'Mental health, fatigue, workload, bullying and harassment.', 'GRI 403-6', 'ESRS S1', 'ISO 45003'],
+  ['people', 'Attracting, developing and keeping people', 'S', 'Hiring, turnover, training, careers and engagement.', 'GRI 401 / 404', 'ESRS S1', ''],
+  ['labour', 'Fair work, pay and labour practices', 'S', 'Living wage, working hours, collective bargaining, secure work.', 'GRI 402 / 407', 'ESRS S1', ''],
+  ['dei', 'Diversity, equity and inclusion', 'S', 'Gender and diversity at every level, equal pay, inclusion.', 'GRI 405 / 406', 'ESRS S1', 'WGEA (Australia)'],
+  ['rights', 'Human rights and modern slavery', 'S', 'Forced and child labour, due diligence and remedy across operations and suppliers.', 'GRI 408 / 409 / 414', 'ESRS S1 / S2', 'Modern Slavery Acts · UNGPs'],
+  ['supply', 'Responsible supply chain', 'S', 'Supplier ESG screening, audits, local and diverse suppliers.', 'GRI 204 / 308 / 414', 'ESRS S2 / G1', ''],
+  ['community', 'Communities and social licence', 'S', 'Local impacts, community investment, engagement and grievances.', 'GRI 413', 'ESRS S3', ''],
+  ['indigenous', 'Indigenous peoples and cultural heritage', 'S', 'Indigenous rights, participation, procurement and cultural heritage.', 'GRI 411', 'ESRS S3', 'RAP (Australia)'],
+  ['customers', 'Customers, product quality and safety', 'S', 'Product and service safety, quality, responsible marketing and complaints.', 'GRI 416 / 417', 'ESRS S4', ''],
+  ['access', 'Access, affordability and inclusion of customers', 'S', 'Fair access to products and services, vulnerable customers, financial inclusion.', '', 'ESRS S4', 'SASB access metrics'],
+  ['ethics', 'Business ethics and anti-corruption', 'G', 'Bribery, fraud, conflicts of interest, whistleblowing and culture.', 'GRI 205', 'ESRS G1', 'UN Global Compact'],
+  ['competition', 'Fair competition and lawful conduct', 'G', 'Anti-competitive behaviour, regulatory compliance and legal proceedings.', 'GRI 206 / 2-27', 'ESRS G1', ''],
+  ['governance', 'Board governance and oversight', 'G', 'Board make-up and independence, oversight of sustainability, executive pay.', 'GRI 2-9 to 2-21', 'ESRS 2 / G1', 'ASX Corporate Governance Principles · MCCG'],
+  ['risk', 'Risk management and resilience', 'G', 'Enterprise risk, business continuity and crisis response.', 'GRI 2-12 / 2-25', 'ESRS 2', 'ISO 31000'],
+  ['cyber', 'Cyber security and data privacy', 'G', 'Information security, privacy, data breaches and resilience.', 'GRI 418', 'ESRS S4', 'ISO 27001 · SASB'],
+  ['ai', 'Responsible technology and AI', 'G', 'Safe, fair and transparent use of AI and automation.', '', 'ESRS S4 (entity-specific)', 'ISO 42001'],
+  ['tax', 'Tax transparency', 'G', 'Tax strategy, country-by-country reporting and contributions.', 'GRI 207', '', 'Voluntary Tax Transparency Code'],
+  ['policy', 'Public policy and political engagement', 'G', 'Lobbying, political contributions and industry association alignment.', 'GRI 415', 'ESRS G1', ''],
+  ['economic', 'Economic performance and value distributed', 'G', 'Revenue, wages, taxes, local economic contribution.', 'GRI 201 / 203', '', '']];
+export const TOPICS = TOPICS_FULL.map((t) => t.slice(0, 3));
+export const IRO_KINDS = ['Negative, actual', 'Negative, potential', 'Positive, actual', 'Positive, potential', 'Financial risk', 'Financial opportunity'];
+export const HORIZONS = ['Short (under 1 year)', 'Medium (1 to 5 years)', 'Long (over 5 years)'];
+// topics usually material by sector (a starting point to check, not a rating)
+const SECT = { heavy: ['ghg', 'energy', 'water', 'pollution', 'chemicals', 'biodiv', 'safety', 'wellbeing', 'community', 'indigenous', 'adapt', 'ethics'], transport: ['ghg', 'energy', 'pollution', 'safety', 'wellbeing', 'labour', 'people', 'supply', 'adapt', 'customers'],
+  build: ['ghg', 'safety', 'wellbeing', 'materials', 'waste', 'biodiv', 'community', 'indigenous', 'rights', 'supply', 'labour'], make: ['ghg', 'energy', 'materials', 'waste', 'pollution', 'chemicals', 'water', 'safety', 'rights', 'supply', 'customers'],
+  services: ['people', 'dei', 'wellbeing', 'ethics', 'cyber', 'ai', 'ghg', 'governance', 'community'], tech: ['energy', 'ghg', 'cyber', 'ai', 'customers', 'people', 'dei', 'supply', 'waste', 'access'] };
+export const SECTOR_TOPICS = { 'Mining & Metals': SECT.heavy, 'Steel Manufacturing': SECT.heavy.concat(['materials']), 'Petrochemicals': SECT.heavy.concat(['policy']), 'Aviation & Aerospace': ['ghg', 'energy', 'pollution', 'safety', 'customers', 'people', 'adapt', 'policy', 'supply'],
+  'Energy & Utilities': ['ghg', 'energy', 'adapt', 'water', 'biodiv', 'safety', 'access', 'community', 'cyber', 'policy'], 'Manufacturing': SECT.make, 'Agriculture & Farming': ['ghg', 'water', 'biodiv', 'pollution', 'chemicals', 'rights', 'labour', 'supply', 'customers', 'adapt'],
+  'Logistics & Warehousing': SECT.transport, 'Transportation Services': SECT.transport, 'Construction & Engineering': SECT.build, 'Real Estate & Facilities': ['ghg', 'energy', 'adapt', 'water', 'materials', 'community', 'customers', 'safety', 'governance'],
+  'Sustainability Consulting': SECT.services, 'Management Consulting': SECT.services, 'IT & Software Services': SECT.tech, 'Hospitality & Tourism': ['ghg', 'energy', 'water', 'waste', 'labour', 'wellbeing', 'community', 'customers', 'supply', 'rights'],
+  'Retail & Wholesale': ['supply', 'rights', 'materials', 'waste', 'ghg', 'customers', 'people', 'labour', 'access'], 'Healthcare Services': ['customers', 'access', 'safety', 'wellbeing', 'cyber', 'waste', 'chemicals', 'ethics', 'people'],
+  'Education & Training': ['people', 'wellbeing', 'dei', 'access', 'cyber', 'community', 'ghg', 'governance'], 'Financial Services': ['ghg', 'access', 'customers', 'cyber', 'ethics', 'governance', 'risk', 'dei', 'ai', 'policy'],
+  'Government & Public Sector': ['ghg', 'adapt', 'access', 'community', 'indigenous', 'ethics', 'cyber', 'ai', 'people', 'economic'] };
 
 /* ---------------- 🧮 emission factor sets (indicative defaults: check them against the current official set before you report) ---------------- */
 export const FACTOR_SETS = {
   NGA_AU: { label: 'Australia: NGA Factors (DCCEEW)', diesel: 2.71, petrol: 2.33, jet: 2.56, lpg: 1.56, gas: 51.53, elec: 0.66 },
-  MY_EC: { label: 'Malaysia: Energy Commission grid (Peninsular), IPCC fuels', diesel: 2.68, petrol: 2.31, jet: 2.55, lpg: 1.61, gas: 56.1, elec: 0.758 },
+  MY_EC: { label: 'Malaysia: Energy Commission grid (Peninsular 2024), IPCC fuels', diesel: 2.68, petrol: 2.31, jet: 2.55, lpg: 1.61, gas: 56.1, elec: 0.740 },
   SG_EMA: { label: 'Singapore: EMA grid, IPCC fuels', diesel: 2.68, petrol: 2.31, jet: 2.55, lpg: 1.61, gas: 56.1, elec: 0.412 },
   TH_TGO: { label: 'Thailand: TGO', diesel: 2.71, petrol: 2.24, jet: 2.53, lpg: 1.68, gas: 56.1, elec: 0.4999 },
   UK_DESNZ: { label: 'UK: DESNZ / DEFRA conversion factors', diesel: 2.51, petrol: 2.08, jet: 2.54, lpg: 1.56, gas: 50.8, elec: 0.207 },
@@ -114,6 +157,13 @@ export const FACTOR_SETS = {
   EU: { label: 'European Union: average grid, IPCC fuels', diesel: 2.68, petrol: 2.31, jet: 2.55, lpg: 1.61, gas: 56.1, elec: 0.25 },
   IPCC: { label: 'IPCC 2006 defaults (fuels); enter your grid factor', diesel: 2.68, petrol: 2.31, jet: 2.55, lpg: 1.61, gas: 56.1, elec: 0.5 }
 };
+// 📚 one more set for every grid factor in the library (each country, state and edition), with that country's own fuel factors where the
+// library has them and the IPCC defaults otherwise: so the list covers every country in the library, not only the presets above
+Object.values(FACTOR_SETS).forEach((x) => { x.group = 'Presets'; });
+{ const fuelBy = {}; EF_LIBRARY.filter((x) => x.cat === 'Fuel').forEach((x) => { const f = (fuelBy[x.country] = fuelBy[x.country] || { std: x.std, year: x.year }); f[x.field.split('.')[1]] = x.value; });
+  const ip = fuelBy.Global;
+  EF_LIBRARY.filter((x) => x.field === 'carbon.fElec').forEach((x) => { const fu = fuelBy[x.country] || ip;
+    FACTOR_SETS['LIB_' + x.id] = { label: x.country + (x.region ? ', ' + x.region : '') + ': grid ' + x.std + ' ' + x.year + '; fuels ' + fu.std + (fu === ip ? ' defaults' : ''), group: x.country, diesel: fu.fDiesel, petrol: fu.fPetrol, jet: fu.fJet, lpg: fu.fLpg, gas: fu.fGas, elec: x.value, lib: x.id }; }); }
 export const S3_DEFAULTS = { fPurch: 0.35, fFreight: 0.11, fLandfill: 0.46, fRecycled: 0.021, fAir: 0.15, fCar: 0.17, fHotel: 15, fCommute: 0.12, fWater: 0.34 };
 // indicative sector intensity (tCO2e of Scope 1 and 2 per million of revenue), for a rough position only
 const INTENSITY = { 'Mining & Metals': 600, 'Steel Manufacturing': 1500, Petrochemicals: 900, 'Aviation & Aerospace': 800, 'Energy & Utilities': 2000, Manufacturing: 150, 'Agriculture & Farming': 400, 'Logistics & Warehousing': 250, 'Construction & Engineering': 60,
@@ -194,7 +244,8 @@ function cleanSection(sec, v) {
   return o;
 }
 const RATE = ['', 'Low', 'Medium', 'High', 'Very high'];
-function cleanMat(m) { const o = {}; TOPICS.forEach(([k]) => { const x = (m || {})[k]; if (!x) return; const imp = Math.max(0, Math.min(4, Math.round(Number(x.imp) || 0))), fin = Math.max(0, Math.min(4, Math.round(Number(x.fin) || 0))); if (imp || fin) o[k] = { imp, fin, note: str(x.note, 300) }; }); return o; }
+function cleanMat(m) { const o = {}; TOPICS.forEach(([k]) => { const x = (m || {})[k]; if (!x) return; const imp = Math.max(0, Math.min(4, Math.round(Number(x.imp) || 0))), fin = Math.max(0, Math.min(4, Math.round(Number(x.fin) || 0)));
+  if (imp || fin) o[k] = { imp, fin, note: str(x.note, 300), kind: arr(x.kind, 6).map(String).filter((v) => IRO_KINDS.includes(v)), horizon: HORIZONS.includes(x.horizon) ? x.horizon : '', who: str(x.who, 200), action: str(x.action, 300) }; }); return o; }
 /* ---------------- 💱 carbon pricing, border adjustments and the carbon credit framework (status checked November 2026; see docs/ESG-REGISTRY.md §7a) ---------------- */
 // kind: Carbon price (a tax or an ETS on your own emissions) · Border adjustment (a charge on embedded emissions of imports) · Crediting (who issues credits) · Integrity (how to judge and claim credits)
 export const CARBON_SCHEMES = [
@@ -460,7 +511,7 @@ const BASE = 'You are a senior ESG and sustainability reporting adviser (ISSB IF
   'Use **bold** for key points and "- " for bullets inside text values. No emoji. Numbers with thousands separators; emissions in tCO2e. Reply JSON only, with exactly the keys asked for.';
 function facts(e) {
   const c = compute(e), o = e.org || {}, std = (e.std || []).map((s) => (STANDARDS.find((x) => x.id === s) || {}).name).filter(Boolean);
-  const mat = Object.entries(e.mat || {}).map(([k, v]) => { const t = TOPICS.find((x) => x[0] === k) || []; return { topic: t[1], pillar: t[2], impact: RATE[v.imp], financial: RATE[v.fin], note: v.note || undefined }; }).sort((a, b) => RATE.indexOf(b.impact) + RATE.indexOf(b.financial) - RATE.indexOf(a.impact) - RATE.indexOf(a.financial));
+  const mat = Object.entries(e.mat || {}).map(([k, v]) => { const t = TOPICS_FULL.find((x) => x[0] === k) || []; return { topic: t[1], pillar: t[2], impact: RATE[v.imp], financial: RATE[v.fin], kinds: v.kind, horizon: v.horizon, stakeholders: v.who, actions: v.action, gri: t[4], esrs: t[5], note: v.note || undefined }; }).sort((a, b) => RATE.indexOf(b.impact) + RATE.indexOf(b.financial) - RATE.indexOf(a.impact) - RATE.indexOf(a.financial));
   const data = {}; SECTIONS.forEach((s) => { const v = e[s.id] || {}; if (Object.keys(v).length) data[s.title] = Object.fromEntries(s.fields.filter((f) => has(v[f[0]])).map((f) => [f[1] + (typeof f[3] === 'string' && f[3] ? ' (' + f[3] + ')' : ''), v[f[0]]])); });
   return { organisation: o, standards_chosen: std, data, results: { emissions_tCO2e: { scope1: c.em.s1t, scope1_by_source: c.em.s1, scope2_location: c.em.s2loc, scope2_market: c.em.s2mkt, scope3: c.em.s3t, scope3_by_category: c.em.s3, total: c.em.total,
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
@@ -490,7 +541,7 @@ const STATEMENT = [
 const REPORT = [
   { ask: 'Write PART A (introduction and strategy) of a full ESG Report of about 60 pages. Keys: "ceo_message" (420-520 words), "about_report" (320-420 words: period, boundary, consolidation, standards applied with how each is used, content index, restatements, assurance, contact), "organisation_profile" (320-400 words), ' +
     '"strategy" (450-550 words: sustainability strategy, its pillars and how it links to the business), "stakeholder_engagement" (300-380 words), "stakeholders" (6-8 items {"group":"","concerns":"","how_engaged":"","frequency":""}), "materiality" (380-460 words: the assessment method, double materiality for ESRS, impact and financial ratings, validation), ' +
-    '"material_topics" (8-14 items {"topic":"","pillar":"E|S|G","impact":"High|Medium|Low","financial":"High|Medium|Low","why":"one sentence"}), "sdg_overview" (150-220 words: how the organisation contributes to the UN Sustainable Development Goals, the goals it affects most, positively and negatively, and how it tracks them), "sdgs" (ALL 17 UN Sustainable Development Goals, in order, one item each: {"sdg":"SDG 1 No poverty","relevance":"High|Medium|Low|Not material","contribution":"one or two sentences grounded in the facts given; for a goal that is not material say why in a few words","metric":"the reported figure that tracks it, or empty"}).' },
+    '"material_topics" (8-16 items, the rated material topics first {"topic":"","pillar":"E|S|G","impact":"High|Medium|Low","financial":"High|Medium|Low","why":"one or two sentences: the impact, risk or opportunity, and the response"}), "sdg_overview" (150-220 words: how the organisation contributes to the UN Sustainable Development Goals, the goals it affects most, positively and negatively, and how it tracks them), "sdgs" (ALL 17 UN Sustainable Development Goals, in order, one item each: {"sdg":"SDG 1 No poverty","relevance":"High|Medium|Low|Not material","contribution":"one or two sentences grounded in the facts given; for a goal that is not material say why in a few words","metric":"the reported figure that tracks it, or empty"}).' },
   { ask: 'Write PART B (governance of sustainability) of a full ESG Report of about 60 pages. Keys: "governance_structure" (420-500 words), "board_oversight" (320-400 words), "sustainability_committee" (260-340 words), "roles" (5-8 items {"role":"","responsibilities":""}), "policies" (6-10 items {"policy":"","covers":"","status":"In place|In progress|Planned"}), ' +
     '"ethics_conduct" (320-400 words), "anti_corruption" (260-340 words), "whistleblowing" (220-300 words), "risk_management" (420-500 words: ERM and how sustainability and climate risks are integrated), "cyber_privacy" (260-340 words), "tax_transparency" (160-240 words), "remuneration" (220-300 words).' },
   { ask: 'Write PART C (climate, under IFRS S2 / AASB S2 / TCFD) of a full ESG Report of about 60 pages. Keys: "climate_governance" (320-400 words), "climate_strategy" (460-550 words), "climate_risks" (6-10 items {"risk":"","type":"Physical acute|Physical chronic|Transition policy|Transition market|Transition technology|Transition reputation","horizon":"Short|Medium|Long","likelihood":"High|Medium|Low","impact":"High|Medium|Low","financial_effect":"","response":""}), ' +

@@ -167,7 +167,9 @@
   function field(sec, f) {
     var k = f[0], label = f[1], t = f[2], opts = f[3], hint = f[4], v = (V.e[sec] || {})[k], unit = typeof opts === 'string' ? opts : t === 'p' ? '%' : '', id = 'ef-' + sec + '-' + k, ctl;
     var val = v == null ? '' : String(v);
-    if (k === 'fset') ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose a factor set…</option>' + Object.keys(SC.factorSets).map(function (x) { return '<option value="' + x + '"' + (x === v ? ' selected' : '') + '>' + esc(SC.factorSets[x].label) + '</option>'; }).join('') + '</select>';
+    if (k === 'fset') { var grp = {}, order = []; Object.keys(SC.factorSets).forEach(function (x) { var g0 = SC.factorSets[x].group || 'Presets'; if (!grp[g0]) { grp[g0] = []; order.push(g0); } grp[g0].push(x); });
+      order = ['Presets'].concat(order.filter(function (g0) { return g0 !== 'Presets'; }).sort());
+      ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose a factor set (' + Object.keys(SC.factorSets).length + ' sets, ' + (order.length - 1) + ' countries)…</option>' + order.map(function (g0) { return '<optgroup label="' + esc(g0 === 'Presets' ? 'Quick presets' : g0) + '">' + grp[g0].map(function (x) { var lb = SC.factorSets[x].label; if (g0 !== 'Presets') lb = lb.replace(new RegExp('^' + g0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ',? ?:?'), '').replace(/^\s*:?\s*/, '') || lb; return '<option value="' + x + '"' + (x === v ? ' selected' : '') + '>' + esc(lb) + '</option>'; }).join('') + '</optgroup>'; }).join('') + '</select>'; }
     else if (t === 's' || t === 'y') ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">–</option>' + opts.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
     else if (t === 'l') ctl = '<textarea id="' + id + '" rows="4" data-s="' + sec + '" data-k="' + k + '">' + esc(val) + '</textarea>';
     else ctl = '<span class="esg-in"><input id="' + id + '" data-s="' + sec + '" data-k="' + k + '" ' + (t === 'n' || t === 'p' ? 'type="number" step="any" inputmode="decimal"' + (t === 'p' ? ' min="0" max="100"' : '') : t === 'd' ? 'type="date"' : 'type="text" maxlength="200"') +
@@ -445,12 +447,22 @@
       '<div class="card"><h3 style="margin-top:0">Disclosure index</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Each disclosure, and whether your data covers it. This becomes the content index at the back of the report.</p>' +
       (rows.length ? '<div class="tbl-wrap"><table class="tbl esg-tbl"><thead><tr><th>Standard</th><th>Reference</th><th>Disclosure</th><th>Status</th><th></th></tr></thead><tbody>' + rows.join('') + '</tbody></table></div>' : '<p class="muted">Choose a standard above.</p>') + '</div>';
   }
+  // 🎯 material topics: 29 topics with their GRI and ESRS references, by pillar; each rated for impact and financial effect (double materiality),
+  // with the kind of impact, the time horizon, who raised it and the response
   function materialTab() {
-    var mat = V.e.mat || {}, R = ['–', 'Low', 'Medium', 'High', 'Very high'], sel = function (k, f, v) { return '<select data-mat="' + k + '" data-mf="' + f + '">' + R.map(function (x, i) { return '<option value="' + i + '"' + (i === (v || 0) ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>'; };
-    return '<div class="esg-split"><div class="card"><h3 style="margin-top:0">Material topics</h3><p class="muted" style="font-size:13px;margin:0 0 10px"><b>Impact</b>: how much the organisation affects people and the planet on this topic (GRI). <b>Financial</b>: how much the topic can affect the organisation\'s cash flows, cost of capital or value (IFRS S1). Rating both is double materiality (ESRS).</p>' +
-      '<div class="tbl-wrap"><table class="tbl esg-tbl esg-mat"><thead><tr><th>Topic</th><th>Pillar</th><th>Impact</th><th>Financial</th><th>Why (optional)</th></tr></thead><tbody>' + SC.topics.map(function (t) { var m = mat[t[0]] || {};
-        return '<tr><td><b>' + esc(t[1]) + '</b></td><td><span class="pill md-' + t[2] + '">' + t[2] + '</span></td><td>' + sel(t[0], 'imp', m.imp) + '</td><td>' + sel(t[0], 'fin', m.fin) + '</td><td><input data-mat="' + t[0] + '" data-mf="note" maxlength="300" value="' + esc(m.note || '') + '"></td></tr>'; }).join('') + '</tbody></table></div></div>' +
-      '<div><div class="card" id="esgLive">' + live('material') + '</div></div></div>';
+    var mat = V.e.mat || {}, R = ['–', 'Low', 'Medium', 'High', 'Very high'], sub = (V.subs || {}).material || 'E', sect = (SC.sectorTopics || {})[(V.e.org || {}).industry] || [];
+    var sel = function (k, f, v) { return '<select data-mat="' + k + '" data-mf="' + f + '" aria-label="' + (f === 'imp' ? 'Impact' : 'Financial') + '">' + R.map(function (x, i) { return '<option value="' + i + '"' + (i === (v || 0) ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>'; };
+    var L = SC.topicsFull.filter(function (t) { return t[2] === sub; }), rated = function (p) { return SC.topicsFull.filter(function (t) { return t[2] === p && mat[t[0]]; }).length; };
+    var rows = L.map(function (t) { var m = mat[t[0]] || {}, on = V.open.mat === t[0], star = sect.indexOf(t[0]) >= 0;
+      return '<div class="esg-li esg-mt' + (on ? ' on' : '') + '"><div class="esg-mtr"><button type="button" class="esg-mtn" data-open="mat" data-id="' + t[0] + '" aria-expanded="' + on + '"><b>' + esc(t[1]) + '</b>' + (star ? ' <span class="pill t-amber" title="Usually material for ' + esc((V.e.org || {}).industry) + '">⭐ sector</span>' : '') + '<small class="muted">' + esc([t[4], t[5], t[6]].filter(Boolean).join(' · ')) + '</small></button>' +
+        '<label class="esg-mts">Impact' + sel(t[0], 'imp', m.imp) + '</label><label class="esg-mts">Financial' + sel(t[0], 'fin', m.fin) + '</label><i class="esg-chev" aria-hidden="true">›</i></div>' +
+        (on ? '<div class="esg-ed"><p class="muted" style="font-size:13px;margin:0 0 10px">' + esc(t[3]) + '</p>' + (m.imp || m.fin ? '<div class="esg-form"><fieldset class="full esg-iro"><legend>Kind of impact, risk or opportunity</legend>' + SC.iroKinds.map(function (k0) { return '<label><input type="checkbox" data-matk="' + t[0] + '" value="' + esc(k0) + '"' + ((m.kind || []).indexOf(k0) >= 0 ? ' checked' : '') + '> ' + esc(k0) + '</label>'; }).join('') + '</fieldset>' +
+          '<label>Time horizon<select data-mat="' + t[0] + '" data-mf="horizon"><option value="">–</option>' + SC.horizons.map(function (h) { return '<option' + (h === m.horizon ? ' selected' : '') + '>' + esc(h) + '</option>'; }).join('') + '</select></label><label>Raised by (stakeholders)<input data-mat="' + t[0] + '" data-mf="who" maxlength="200" value="' + esc(m.who || '') + '" placeholder="e.g. employees, investors, regulators"></label>' +
+          '<label class="full">Why it matters<input data-mat="' + t[0] + '" data-mf="note" maxlength="300" value="' + esc(m.note || '') + '"></label><label class="full">Our response (policy, action, target)<input data-mat="' + t[0] + '" data-mf="action" maxlength="300" value="' + esc(m.action || '') + '"></label></div>' : '<p class="muted" style="font-size:12.5px;margin:0">Rate the impact or the financial effect to add the details.</p>') + '</div>' : '') + '</div>'; }).join('');
+    return subBar([['E', 'Environment (' + rated('E') + ' rated)'], ['S', 'Social (' + rated('S') + ' rated)'], ['G', 'Governance (' + rated('G') + ' rated)']], sub, 'Material topics') +
+      '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Material topics</h3><span class="sp"></span>' + (sect.length ? '<span class="muted" style="font-size:12.5px">⭐ usually material for ' + esc((V.e.org || {}).industry) + '</span>' : '<span class="muted" style="font-size:12.5px">Set the industry (Organisation) to see the usual topics</span>') + '</div>' +
+      '<p class="muted" style="font-size:13px;margin:6px 0 0"><b>Impact</b>: how much the organisation affects people and the planet (GRI 3, ESRS impact materiality). <b>Financial</b>: how much the topic can affect cash flows, cost of capital or value (IFRS S1, ESRS financial materiality). Rating both is double materiality. Press a topic for its references, the kind of impact, horizon, stakeholders and response.</p></div>' +
+      '<div class="card esg-list">' + rows + '</div></div><div><div class="card" id="esgLive">' + live('material') + '</div></div></div>';
   }
   function live(t) { if (t === 'material') return '<h3>Matrix</h3>' + matrix() + '<p class="muted" style="font-size:12.5px">Topics in the shaded corner are material on both counts and lead the report.</p>'; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); if (t === 'pricing') return pricingSummary() + (((V.subs || {}).pricing || 'cbam') === 'cbam' ? CBAM_DATES : ''); return ''; }
   var CBAM_DATES = '<div class="esg-gaps esg-rule"><b>Key dates</b><ul><li><b>EU</b>: definitive regime from 1 Jan 2026; importers over 50 t a year need authorisation; certificate sales open 1 Feb 2027; first declaration and surrender for 2026 imports by 30 Sep 2027.</li><li>Default values carry a mark-up (10% in 2026, rising); verified actual data from the producer usually costs less.</li><li><b>UK</b>: starts 1 Jan 2027; return and payment for 2027 due 31 May 2028, then quarterly.</li></ul>';
@@ -588,15 +600,142 @@
     flush().then(function () { bg({ mode: 'esgDoc', esg: id, kind: kind, lang: lang }, function (r) { V.ai[key] = false; DOCS[id] = DOCS[id] || {}; DOCS[id][kind] = r;
       mergeMeta(ent).catch(function () {}).then(function () { DOCS[id][kind] = r; if (V.e === ent) { V.docs = DOCS[id]; if (V.tab === kind) body(); } toast((kind === 'report' ? 'ESG report' : 'Statement') + ' narrative written (' + nf(r.tokens) + ' tokens). Download the PDF or Word.'); }); }, stop); }, stop);
   }
+  /* ---------- 📊 charts for both documents: studio charts (bar, donut) and drawn pictures (lines, matrix, radar) in the document's colours ---------- */
+  var TREND = {};   // org key → the vault's year-on-year analysis (fetched when a document is made)
+  var orgKey = function (n) { return String(n || '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60); };
+  function themeOf() { return ((M.studio && M.studio.themes && M.studio.themes()) || []).filter(function (t) { return t.id === THEME; })[0] || { ink: '#0C3A2C', accent: '#4CA860', light: '#A8DC7C', second: '#2563EB', paper: '#F0F7F1' }; }
+  var bar = function (title, L, unit, maxH) { L = L.filter(function (x) { return x[1] != null && x[1] !== 0; }); return L.length ? { t: 'chart', kind: 'bar', title: title, data: { items: L.map(function (x) { return { l: x[0], v: Math.max(0, x[1]), t: nf(x[1], x[1] < 10 ? 1 : 0) + (unit || '') }; }) }, maxH: maxH || 50 } : null; };
+  var donut = function (title, L, center, label, maxH) { L = L.filter(function (x) { return x[1] > 0; }); return L.length > 1 ? { t: 'chart', kind: 'donut', title: title, data: { items: L.map(function (x) { return { l: x[0], v: x[1], t: nf(x[1], x[1] < 10 ? 1 : 0) }; }), center: center, centerLabel: label }, maxH: maxH || 58 } : null; };
+  function canvas(w, h) { var cv = document.createElement('canvas'); cv.width = w; cv.height = h; var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); return { cv: cv, g: g }; }
+  var font = function (g, px, wt) { g.font = (wt || 500) + ' ' + px + 'px Poppins, Arial, sans-serif'; };
+  // a line chart with labelled points; series: [{ name, pts: [[label, value]], color, dash }]
+  function lineImg(title, series, opts) {
+    opts = opts || {}; var T0 = themeOf(), W = 1600, H = 620, l = 110, r = 60, t = 50, b = 80, C = canvas(W, H), g = C.g, labels = [];
+    series.forEach(function (s0) { s0.pts.forEach(function (p) { if (labels.indexOf(p[0]) < 0) labels.push(p[0]); }); });
+    var vals = []; series.forEach(function (s0) { s0.pts.forEach(function (p) { if (p[1] != null) vals.push(p[1]); }); }); if (opts.ref != null) vals.push(opts.ref); if (!vals.length || labels.length < 2) return null;
+    var lo = opts.zero ? 0 : Math.min.apply(null, vals), hi = Math.max.apply(null, vals), pad = (hi - lo) * 0.12 || 5; lo = opts.zero ? 0 : lo - pad; hi += pad;
+    var x = function (i) { return l + i * (W - l - r) / (labels.length - 1); }, y = function (v) { return t + (hi - v) / (hi - lo) * (H - t - b); };
+    font(g, 22); g.fillStyle = '#64748B'; g.strokeStyle = '#E2E8F0'; g.lineWidth = 2;
+    for (var k = 0; k <= 4; k++) { var v = lo + (hi - lo) * k / 4; g.beginPath(); g.moveTo(l, y(v)); g.lineTo(W - r, y(v)); g.stroke(); g.textAlign = 'right'; g.fillText(nf(v, hi < 20 ? 1 : 0), l - 14, y(v) + 7); }
+    g.textAlign = 'center'; labels.forEach(function (lb, i) { g.fillText(lb, x(i), H - 30); });
+    if (opts.ref != null) { g.setLineDash([12, 10]); g.strokeStyle = '#94A3B8'; g.beginPath(); g.moveTo(l, y(opts.ref)); g.lineTo(W - r, y(opts.ref)); g.stroke(); g.setLineDash([]); }
+    series.forEach(function (s0, si) { var col = s0.color || [T0.accent, T0.second, T0.ink][si % 3]; g.strokeStyle = col; g.lineWidth = 6; if (s0.dash) g.setLineDash([16, 12]); g.beginPath(); var first = true;
+      s0.pts.forEach(function (p) { if (p[1] == null) return; var i = labels.indexOf(p[0]); if (first) g.moveTo(x(i), y(p[1])); else g.lineTo(x(i), y(p[1])); first = false; }); g.stroke(); g.setLineDash([]);
+      if (!s0.dash) s0.pts.forEach(function (p) { if (p[1] == null) return; var i = labels.indexOf(p[0]); g.fillStyle = '#fff'; g.beginPath(); g.arc(x(i), y(p[1]), 12, 0, 7); g.fill(); g.fillStyle = col; g.beginPath(); g.arc(x(i), y(p[1]), 8, 0, 7); g.fill(); font(g, 24, 700); g.fillStyle = T0.ink; g.fillText(nf(p[1], p[1] < 20 ? 1 : 0), x(i), y(p[1]) - 24); }); });
+    if (series.length > 1) { font(g, 22, 600); var lx = l; series.forEach(function (s0, si) { var col = s0.color || [T0.accent, T0.second, T0.ink][si % 3]; g.fillStyle = col; g.fillRect(lx, 12, 30, 8); g.fillStyle = '#334155'; g.textAlign = 'left'; g.fillText(s0.name, lx + 40, 22); lx += 60 + g.measureText(s0.name).width + 30; }); }
+    return { t: 'image', title: title, url: C.cv.toDataURL('image/jpeg', 0.92), iw: W, ih: H };
+  }
+  // the double materiality matrix, as a picture
+  function matrixImg(X) {
+    if (X.mat.length < 2) return null; var T0 = themeOf(), W = 1400, H = 900, l = 120, r = 380, t = 40, b = 100, C = canvas(W, H), g = C.g, PC = { E: T0.accent, S: T0.second, G: '#D9822B' };
+    var x = function (v) { return l + (v - 0.5) / 4 * (W - l - r); }, y = function (v) { return t + (4.5 - v) / 4 * (H - t - b); };
+    g.fillStyle = T0.paper; g.fillRect(x(2.5), y(4.5), x(4.5) - x(2.5), y(2.5) - y(4.5)); g.strokeStyle = '#94A3B8'; g.lineWidth = 3; g.beginPath(); g.moveTo(l, t); g.lineTo(l, H - b); g.lineTo(W - r, H - b); g.stroke();
+    font(g, 24, 600); g.fillStyle = '#475569'; g.textAlign = 'center'; g.fillText('Financial materiality →', (l + W - r) / 2, H - 30); g.save(); g.translate(40, (t + H - b) / 2); g.rotate(-Math.PI / 2); g.fillText('Impact materiality →', 0, 0); g.restore();
+    font(g, 20); ['Low', 'Medium', 'High', 'Very high'].forEach(function (lb, i) { g.fillText(lb, x(i + 1), H - b + 34); g.textAlign = 'right'; g.fillText(lb, l - 12, y(i + 1) + 7); g.textAlign = 'center'; });
+    var pos = {}; X.mat.forEach(function (m, i) { var k = m.m.fin + 'x' + m.m.imp, n = pos[k] = (pos[k] || 0) + 1, px = x(m.m.fin) + ((n - 1) % 3) * 34 - 34, py = y(m.m.imp) + Math.floor((n - 1) / 3) * 34 - 10;
+      g.fillStyle = PC[m.tp[2]] || '#64748B'; g.beginPath(); g.arc(px, py, 15, 0, 7); g.fill(); font(g, 16, 700); g.fillStyle = '#fff'; g.fillText(String(i + 1), px, py + 6); });
+    font(g, 19); g.textAlign = 'left'; X.mat.slice(0, 26).forEach(function (m, i) { var yy = t + 10 + i * 31; g.fillStyle = PC[m.tp[2]] || '#64748B'; g.beginPath(); g.arc(W - r + 40, yy, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; font(g, 13, 700); g.textAlign = 'center'; g.fillText(String(i + 1), W - r + 40, yy + 5); g.textAlign = 'left'; font(g, 19); g.fillStyle = '#334155'; var lb = m.tp[1]; while (g.measureText(lb).width > r - 70 && lb.length > 4) lb = lb.slice(0, -2); g.fillText(lb + (lb !== m.tp[1] ? '…' : ''), W - r + 60, yy + 7); });
+    return { t: 'image', title: 'Double materiality matrix', url: C.cv.toDataURL('image/jpeg', 0.92), iw: W, ih: H };
+  }
+  // the governance maturity radar, as a picture
+  function radarImg(R) {
+    if (!R || !R.length) return null; var T0 = themeOf(), W = 1200, H = 760, cx = 600, cy = 390, rr = 290, C = canvas(W, H), g = C.g, n = R.length, pt = function (i, v) { var a = -Math.PI / 2 + i * 2 * Math.PI / n; return [cx + Math.cos(a) * rr * v / 100, cy + Math.sin(a) * rr * v / 100]; };
+    g.strokeStyle = '#E2E8F0'; g.lineWidth = 2; [25, 50, 75, 100].forEach(function (v) { g.beginPath(); R.forEach(function (x0, i) { var p = pt(i, v); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.closePath(); g.stroke(); });
+    R.forEach(function (x0, i) { var p = pt(i, 100), q = pt(i, 118); g.beginPath(); g.moveTo(cx, cy); g.lineTo(p[0], p[1]); g.stroke(); font(g, 24, 600); g.fillStyle = '#334155'; g.textAlign = Math.abs(q[0] - cx) < 20 ? 'center' : q[0] > cx ? 'left' : 'right'; g.fillText(x0[0] + ' ' + x0[1], q[0], q[1] + 8); });
+    g.globalAlpha = 0.25; g.fillStyle = T0.accent; g.beginPath(); R.forEach(function (x0, i) { var p = pt(i, x0[1]); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.closePath(); g.fill(); g.globalAlpha = 1; g.strokeStyle = T0.ink; g.lineWidth = 5; g.stroke();
+    return { t: 'image', title: 'Governance maturity (out of 100)', url: C.cv.toDataURL('image/jpeg', 0.92), iw: W, ih: H };
+  }
+  // a year-on-year chapter from the Sustainability vault (when the organisation has two or more years)
+  function trendBlocks(A, short) {
+    if (!A || !A.rows || A.rows.length < 2) return null;
+    var full = A.index.filter(function (x) { return x.value != null; }), T = A.target, tr = T.track.filter(function (x) { return !x.partial; }), last = full[full.length - 1];
+    var B = [{ t: 'stats', items: [{ v: last ? nf(last.value, 1) : '–', l: 'ESG Progress Index (' + (last ? last.label : '') + ', base ' + A.base + ' = 100)' }, { v: last && last.yoy != null ? (last.yoy >= 0 ? '+' : '') + last.yoy + '%' : '–', l: 'on the year before' }, { v: tr.length ? nf(tr[tr.length - 1].actual) : '–', l: 'tCO2e, Scope ' + T.scope }, { v: T.needPct != null ? '−' + T.needPct + '%' : '–', l: 'yearly cut needed for the target' }] },
+      full.length > 1 ? lineImg('GKH ESG Progress Index (base ' + A.base + ' = 100)', [{ name: 'Index', pts: full.map(function (x) { return [x.label, x.value]; }) }], { ref: 100 }) : null,
+      lineImg('Emissions against the target path (tCO2e, Scope ' + T.scope + ')', [{ name: 'Actual', pts: tr.map(function (x) { return [x.label, x.actual]; }) }, { name: 'Target path', pts: tr.map(function (x) { return [x.label, x.path]; }), dash: true }].filter(function (s0) { return s0.pts.some(function (p) { return p[1] != null; }); }), { zero: true })];
+    if (!short) B.push(lineImg('Renewable electricity share (%)', [{ name: 'Renewable share (%)', pts: A.rows.filter(function (r) { return !r.partial; }).map(function (r) { return [r.label, r.m.renew]; }) }]), lineImg('Scope 1, 2 and 3 by year (tCO2e)', [{ name: 'Scope 1', pts: A.rows.filter(function (r) { return !r.partial; }).map(function (r) { return [r.label, r.m.s1]; }) }, { name: 'Scope 2', pts: A.rows.filter(function (r) { return !r.partial; }).map(function (r) { return [r.label, r.m.s2]; }) }, { name: 'Scope 3', pts: A.rows.filter(function (r) { return !r.partial; }).map(function (r) { return [r.label, r.m.s3]; }) }], { zero: true }),
+      { t: 'table', title: 'Year by year', head: ['Year', 'Scope 1', 'Scope 2', 'Scope 3', 'Total tCO2e', 'Renewable', 'LTIFR', 'Index', 'Target'], rows: A.rows.map(function (r, i) { var x = A.index[i] || {}, t2 = T.track[i] || {}; return [{ t: r.label + (r.partial ? ' (so far)' : ''), b: true }, { t: nf(r.m.s1), right: true }, { t: nf(r.m.s2), right: true }, { t: nf(r.m.s3), right: true }, { t: nf(r.m.total), right: true }, r.m.renew != null ? nf(r.m.renew, 1) + '%' : '–', nf(r.m.ltifr, 2), { t: x.value != null ? nf(x.value, 1) : '–', right: true }, { t: t2.status || '–', rag: t2.status === 'On track' ? 'G' : t2.status === 'Close' ? 'A' : t2.status ? 'R' : undefined, center: true }]; }), widths: [0.9, 0.8, 0.8, 0.8, 0.9, 0.8, 0.6, 0.6, 0.9], size: 7.4,
+        note: A.method + '. Base year = 100; ten measures weighted (emissions intensity 30%, Scope 3 10%, renewables 10%, energy, water and waste 5% each, LTIFR 10%, women in management 7.5%, training 7.5%, governance 10%).' });
+    return B.filter(Boolean);
+  }
+  function enrich(D, kind) {
+    var X = F(), c = X.c, em = X.em, e = X.e, w = e.workforce || {}, rs = e.resources || {}, cb = e.carbon || {}, s3 = e.scope3 || {}, P = c.price, rep = kind === 'report', small = !rep;
+    var find = function (re) { return D.chapters.filter(function (x) { return !x.divider && re.test(x.title); })[0]; };
+    var add = function (re, blocks, at) { var ch0 = find(re); if (!ch0) return; blocks = blocks.filter(Boolean); if (!blocks.length) return; if (at === 'top') ch0.blocks.splice(ch0.blocks[0] && ch0.blocks[0].t === 'stats' ? 1 : 0, 0, blocks[0]), blocks.slice(1).forEach(function (b0, i) { ch0.blocks.splice((ch0.blocks[0] && ch0.blocks[0].t === 'stats' ? 2 : 1) + i, 0, b0); }); else ch0.blocks = ch0.blocks.concat(blocks); };
+    var scopes = donut('Footprint by scope (tCO2e)', [['Scope 1', em.s1t], ['Scope 2', em.s2loc], ['Scope 3', em.s3t]], nf(em.total), 'tCO2e', small ? 48 : 60);
+    var s1 = donut('Scope 1 by source (tCO2e)', [['Diesel', em.s1.diesel], ['Petrol', em.s1.petrol], ['Jet fuel', em.s1.jet], ['LPG', em.s1.lpg], ['Natural gas', em.s1.gas], ['Refrigerants', em.s1.refrig]], nf(em.s1t), 'tCO2e');
+    var vsSector = em.intensity != null && em.bench ? bar('Emissions intensity against the sector (tCO2e per $M revenue)', [['Us', em.intensity], ['Sector (indicative)', em.bench]], '', 30) : null;
+    var s2 = bar('Scope 2: location and market based (tCO2e)', [['Location based', em.s2loc], ['Market based', em.s2mkt]], '', 30);
+    var renew = cb.elec > 0 ? donut('Electricity bought (MWh)', [['Renewable', cb.green || 0], ['Grid', cb.elec - (cb.green || 0)]], (rs.renewPct != null ? rs.renewPct : nf((cb.green || 0) / cb.elec * 100, 0)) + '%', 'renewable', 50) : null;
+    var waste = s3.landfill != null || s3.recycled != null ? donut('Waste (tonnes)', [['Recycled or recovered', s3.recycled], ['Landfill', s3.landfill]], rs.divertPct != null ? rs.divertPct + '%' : '', rs.divertPct != null ? 'diverted' : '', 50) : null;
+    var gender = w.fte && w.women != null ? donut('Workforce by gender', [['Women', w.women], ['Men and other', w.fte - w.women]], (c.soc.womenPct || 0) + '%', 'women', 50) : null;
+    var mgmt = bar('Women at each level (%)', [['Workforce', c.soc.womenPct], ['Management', c.soc.womenMgmtPct], ['Board', c.gov.boardWomenPct]], '%', 34);
+    var safety = bar('Safety this year', [['Recordable injuries', w.injuries], ['LTIFR', w.ltifr], ['Fatalities', w.deaths]], '', 30);
+    var pillars = bar('ESG scores (out of 100)', [['Environment', c.env.score], ['Social', c.soc.score], ['Governance', c.gov.score], ['Overall ESG', c.esg]], '', 40);
+    var cover = (e.std || []).length ? bar('Disclosure coverage by standard (%)', (e.std || []).map(function (s0) { return [stdShort(s0), c.coverage[s0] || 0]; }), '%', 44) : null;
+    var avCat = Object.keys(c.avoid.byCat || {}).length > 1 ? donut('Avoided emissions by kind (tCO2e)', Object.keys(c.avoid.byCat).map(function (k) { return [k, c.avoid.byCat[k]]; }), nf(c.avoid.total), 'tCO2e avoided') : bar('Avoided emissions by kind (tCO2e)', Object.keys(c.avoid.byCat || {}).map(function (k) { return [k, c.avoid.byCat[k]]; }), '', 30);
+    var avFoot = c.avoid.total ? bar('Our footprint and what our solutions avoid (tCO2e)', [['Our footprint (Scope 1-3)', em.total], ['Avoided by our solutions', c.avoid.total]], '', 30) : null;
+    var cbam = (P.cbam || []).length ? bar('Embedded emissions in CBAM goods (tCO2e)', P.cbam.map(function (x) { return [x.market + ' ' + x.good, x.emb]; }), '', 34) : null;
+    var credUse = Object.keys(P.byUse || {}).length > 1 ? donut('Carbon credits by use (tCO2e)', Object.keys(P.byUse).map(function (k) { return [k, P.byUse[k]]; }), nf(P.creditT), 'tCO2e') : null;
+    var s3bar = bar('Scope 3 by category (tCO2e)', Object.keys(em.s3 || {}).map(function (k) { return [({ purch: 'Purchased goods', freight: 'Freight', landfill: 'Landfill', recycled: 'Recycling', air: 'Flights', car: 'Car travel', hotel: 'Hotels', commute: 'Commuting', water: 'Water' })[k] || k, em.s3[k]]; }).sort(function (a, z) { return (z[1] || 0) - (a[1] || 0); }), '', 50);
+    var trend = TREND[orgKey((e.org || {}).name)];
+    var strip = function (re, goals) { var ch0 = find(re); if (ch0 && SDGI) ch0.blocks.splice(0, 0, sdgStrip(goals)); };
+    if (rep) {
+      var SR0 = sdgRows(X, (V.docs.report || {}).sections || {}), top = SR0.filter(function (x) { return /high/i.test(x.rel); }).map(function (x) { return x.n; }); if (!top.length) top = SR0.filter(function (x) { return x.metric; }).map(function (x) { return x.n; }).slice(0, 6);
+      [[/^Sustainability strategy/, top.slice(0, 6)], [/^Stakeholder engagement/, [17]], [/^Governance of sustainability/, [16, 17]], [/^Ethics and integrity/, [16]], [/^Risk management/, [16]], [/^Cyber, privacy/, [9, 16]], [/^Climate governance/, [13]], [/^Risks and opportunities/, [13]], [/^Scenario analysis/, [11, 13]],
+        [/^Metrics, targets/, [7, 13]], [/^Greenhouse gas/, [13]], [/^Energy$/, [7, 13]], [/^Water and waste/, [6, 12, 14]], [/^Biodiversity/, [14, 15]], [/^Avoided emissions/, [7, 9, 13]], [/^Carbon pricing/, [13, 17]], [/^Our people/, [4, 8]], [/^Health and safety/, [3, 8]],
+        [/^Diversity, equity/, [5, 10]], [/^Human rights/, [8, 10, 16]], [/^Communities, suppliers/, [1, 11, 17]], [/^Governance performance/, [16]]].forEach(function (x) { strip(x[0], x[1]); });
+      add(/^Message from the CEO/, [scopes, pillars]);
+      add(/^Materiality$/, [matrixImg(X)]);
+      add(/^Greenhouse gas emissions/, [s1, s2, vsSector, s3bar]);
+      add(/^Energy$/, [renew]);
+      add(/^Water and waste/, [waste]);
+      add(/^Avoided emissions and carbon credits/, [avFoot, avCat], 'top');
+      add(/^Carbon pricing, CBAM/, [cbam, credUse]);
+      add(/^Our people/, [gender]);
+      add(/^Health and safety/, [safety]);
+      add(/^Diversity, equity/, [mgmt]);
+      add(/^Governance performance/, [radarImg(c.gov.radar)]);
+      add(/^ESG scorecard/, [cover]);
+      var tb = trendBlocks(trend, false);
+      if (tb) { var at = D.chapters.indexOf(find(/^Targets and roadmap/)); if (at > 0) D.chapters.splice(at, 0, { no: 0, title: 'Progress year on year', kicker: 'Trend', blurb: 'The GKH ESG Progress Index and the path to our emissions target', blocks: [{ t: 'p', text: 'These figures come from the Sustainability vault: the ESG reports of each year and the data gathered month by month. The index starts at 100 in the base year and rises as the organisation improves; the emissions are set against the straight path to the reduction target.' }].concat(tb) }); }
+      var n0 = 0; D.chapters.forEach(function (x) { if (!x.divider) x.no = ++n0; }); var cur = null; D.chapters.forEach(function (x) { if (x.divider) { cur = x; x.list = []; } else if (cur) cur.list.push([('0' + x.no).slice(-2), x.title]); });
+    } else if (!D._lim) {   // the statement keeps to 10 pages: a few charts, only at full size
+      [[/^Environment and climate/, [6, 7, 12, 13]], [/^Social$/, [3, 5, 8, 10]], [/^Governance performance/, [16, 17]], [/^Avoided emissions/, [7, 9, 13]]].forEach(function (x) { strip(x[0], x[1]); });
+      add(/^Environment and climate/, [scopes, renew]);
+      add(/^Social$/, [gender, safety], 'top');
+      add(/^Governance performance/, [pillars], 'top');
+      add(/^Material topics/, [matrixImg(X)]);
+      var tb2 = trendBlocks(trend, true); if (tb2) add(/^Targets and outlook/, tb2, 'top');
+    }
+    return D;
+  }
+  // 📘 every statement or report made is filed in the organisation's Sustainability vault, tagged with the company and the year (a new copy replaces the earlier one of the same name)
+  function toVault(kind, r) {
+    var o = V.e.org || {}, ent = V.e, name = r.name || ((o.name || 'Report') + (kind === 'report' ? ' ESG report' : ' Sustainability statement')), blob = r.blob, today = new Date().toISOString().slice(0, 7);
+    var yr = String(o.year || '').trim() || (o.to ? 'FY' + o.to.slice(0, 4) : ''), tags = [o.name || '', yr, kind === 'report' ? 'ESG report' : 'Sustainability statement', 'Published ' + new Date().getFullYear()].filter(Boolean);
+    var key = orgKey(o.name);
+    if (!key || !blob) return Promise.resolve(null);
+    return api('esgVaultOpen', { key: key, name: o.name }).then(function () { return api('esgVaultUrl', { key: key, name: name }); }).then(function (u) {
+      if (u && u.r2) return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob }).then(function (x) { if (!x.ok) throw new Error('upload ' + x.status); return { r2Key: u.key }; });
+      if (blob.size > 3.5 * 1024 * 1024) throw new Error('the file is over 3.5 MB and file storage (R2) is not set up');
+      return new Promise(function (res) { var rd = new FileReader(); rd.onload = function () { res({ file: String(rd.result).replace(/^data:[^,]*,/, '') }); }; rd.readAsDataURL(blob); });
+    }).then(function (st) { return api('esgVaultAdd', { key: key, period: today, folder: 'reports', name: name, type: blob.type, size: blob.size, r2Key: st.r2Key || '', file: st.file || '', tags: tags, auto: true, replace: true, reportId: ent.id,
+      note: (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' for ' + (yr || 'the year') + ((V.docs[kind] || {}).ver ? ', narrative v' + V.docs[kind].ver : ', no narrative yet') }); }).then(function (x) { return x.doc; });
+  }
   function makeDoc(kind, fmt) {
     var lang = $('#dLang').value, msg = $('#dMsg'), say = function (t) { if (msg) msg.innerHTML = t ? '<span class="ask-think">' + esc(t) + '</span>' : ''; };
     if (!M.studio) return fail(new Error('The document designer did not load. Reload the page.'));
     THEME = $('#dTheme').value || 'forest';
-    var D = (kind === 'report' ? reportDoc : statementDoc)(V.docs[kind], lang, 0); D.theme = THEME;
+    var k0 = orgKey((V.e.org || {}).name), build = function (lim) { var D0 = (kind === 'report' ? reportDoc : statementDoc)(V.docs[kind], lang, lim); D0.theme = THEME; D0._lim = lim; return enrich(D0, kind); };
+    say('Gathering the figures…');
+    return Promise.all([api('esgVaultGet', { key: k0 }).then(function (a) { TREND[k0] = a; }, function () { TREND[k0] = null; }), loadSdg()]).then(function () { makeDoc2(kind, fmt, lang, build, say); });
+  }
+  function makeDoc2(kind, fmt, lang, build, say) {
+    var D = build(0);
     if (fmt === 'pdf' && M.studio.needsPrint(D)) { var win = window.open('', '_blank'); say('Laying out…'); return M.studio.print(D, win).then(function () { say(''); toast('Print view open: choose “Save as PDF”'); }).catch(function (e) { say(''); fail(e); }); }
     say(fmt === 'pdf' ? 'Designing the PDF…' : 'Designing the Word file…');
-    var run = function (lim, D1) { return M.studio[fmt](D1).then(function (r) { if (fmt === 'pdf' && kind === 'statement' && r.pages > 10 && lim < 2) { var D2 = statementDoc(V.docs[kind], lang, lim + 1); D2.theme = THEME; return run(lim + 1, D2); } return r; }); };   // the statement stays under 10 pages
-    run(0, D).then(function (r) { M.report.save(r.blob, r.name); say(''); toast((fmt === 'pdf' ? 'PDF' : 'Word') + ' ready' + (r.pages ? ': ' + r.pages + ' pages' : '')); }).catch(function (e) { say(''); fail(e); });
+    var run = function (lim, D1) { return M.studio[fmt](D1).then(function (r) { if (fmt === 'pdf' && kind === 'statement' && r.pages > 10 && lim < 2) { return run(lim + 1, build(lim + 1)); } return r; }); };   // the statement stays under 10 pages
+    run(0, D).then(function (r) { M.report.save(r.blob, r.name); say(''); toast((fmt === 'pdf' ? 'PDF' : 'Word') + ' ready' + (r.pages ? ': ' + r.pages + ' pages' : '') + '. Filing a copy in the Sustainability vault…'); return toVault(kind, r).then(function (f) { if (f) toast('Filed in the Sustainability vault: ' + f.tags.join(' · ')); }, function (e) { toast('Not filed in the vault: ' + e.message); }); }).catch(function (e) { say(''); fail(e); });
   }
   // shared pieces for both documents
   function F() {
@@ -619,6 +758,7 @@
   var stale = function (N) { return N && N.rev != null && V.e && N.rev < V.e.rev ? ' · DRAFT: narrative older than the data' : ''; };
   var dt = function (s) { try { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''; } catch (x) { return s; } };
   var RT = ['–', 'Low', 'Medium', 'High', 'Very high'];
+  var refsOf = function (k) { var t = (SC.topicsFull || []).filter(function (x) { return x[0] === k; })[0]; return t ? [t[4], t[5]].filter(Boolean).join(' · ') : ''; };
   function list(L) { return (L || []).map(function (x) { return '- ' + (typeof x === 'string' ? x : Object.values(x).join(': ')); }).join('\n'); }
   // 🇺🇳 the 17 SDGs: the AI's view where it wrote one, and always the reported figure that tracks each goal
   function sdgRows(X, S) {
@@ -639,7 +779,31 @@
     'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5', 'M4 20V14M10 20V10M16 20V6M3 9l6-4 5 3 7-5', 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
     'M5 9h14M5 15h14M8 6l-3 3 3 3M16 12l3 3-3 3', 'M3 21V11l5-3v13M8 21V5l8 4v12M16 21V12l5 2v7M11 10h2M11 14h2', 'M7 8a4 4 0 1 0 0 8c3 0 7-8 10-8a4 4 0 1 1 0 8c-3 0-7-8-10-8z', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',
     'M2 9c3-2 5-2 8 0s5 2 8 0M2 15c3-2 5-2 8 0s5 2 8 0M18 12c2-2 4-2 4 0s-2 2-4 0z', 'M12 2 5 12h4l-3 5h12l-3-5h4zM12 17v5', 'M12 4v16M6 20h12M4 8h16M4 8l-2 6h6zM20 8l-2 6h6M12 4l1-1', 'M8 8a5 5 0 1 0 0 8M16 8a5 5 0 1 1 0 8M8 12h8'];
+  // 🇺🇳 the UN SDG icons (assets/sdg/sdg-01.png … sdg-17.png), loaded once before a document is made
+  var SDGI = null, SDGJ = {};
+  // one goal's icon as a small JPEG, for a table cell (none until the icons have loaded)
+  function sdgIcon(n) { if (!SDGI) return undefined; if (SDGJ[n]) return SDGJ[n]; var cv = document.createElement('canvas'); cv.width = cv.height = 128; cv.getContext('2d').drawImage(SDGI[n - 1], 0, 0, 128, 128); return (SDGJ[n] = cv.toDataURL('image/jpeg', 0.9)); }
+  function loadSdg() { if (SDGI) return Promise.resolve(SDGI); return Promise.all(Array.from({ length: 17 }, function (x, i) { return new Promise(function (res) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { res(null); }; im.src = '/assets/sdg/sdg-' + ('0' + (i + 1)).slice(-2) + '.png'; }); }))
+    .then(function (L) { if (L.every(Boolean)) SDGI = L; return SDGI; }); }
+  // the icons of the goals a chapter contributes to, in a row
+  function sdgStrip(goals, title) {
+    if (!SDGI || !goals || !goals.length) return null; var n = goals.length, s0 = 256, gap = 22, W = n * s0 + (n - 1) * gap, H = s0, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    goals.forEach(function (k, i) { g.drawImage(SDGI[k - 1], i * (s0 + gap), 0, s0, s0); });
+    return { t: 'image', title: title || 'Sustainable Development Goals this section contributes to', url: cv.toDataURL('image/jpeg', 0.92), iw: W, ih: H, maxH: 20 };
+  }
+  // the official icons, shaded by relevance (a goal not material or not assessed is shown pale)
+  function sdgMapIcons(rows, small) {
+    var cols = 6, s0 = 256, band = small ? 46 : 56, gap = 20, W = cols * s0 + (cols - 1) * gap, H = 3 * (s0 + band) + 2 * gap, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var g = cv.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+    var lvl = function (r) { return /high/i.test(r.rel) ? 3 : /med/i.test(r.rel) ? 2 : /low/i.test(r.rel) ? 1 : /not/i.test(r.rel) ? 0 : r.metric ? 2 : -1; }, LB = { 3: 'High', 2: 'Medium', 1: 'Low', 0: 'Not material', '-1': 'Not assessed yet' };
+    rows.forEach(function (r, i) { var x = (i % cols) * (s0 + gap), y = Math.floor(i / cols) * (s0 + band + gap), L = lvl(r), on = L >= 2 || (L === -1 && false);
+      g.drawImage(SDGI[r.n - 1], x, y, s0, s0); if (L < 2) { g.fillStyle = 'rgba(255,255,255,' + (L === 1 ? 0.45 : 0.72) + ')'; g.fillRect(x, y, s0, s0); }
+      g.fillStyle = L >= 2 ? '#0F172A' : '#94A3B8'; g.font = '600 ' + (small ? 24 : 28) + 'px Poppins, Arial, sans-serif'; g.textAlign = 'center'; g.fillText(L === 2 && !r.rel ? 'Measured' : LB[L], x + s0 / 2, y + s0 + band - 16); });
+    var lx = 5 * (s0 + gap), ly = 2 * (s0 + band + gap); g.textAlign = 'left'; g.fillStyle = '#334155'; g.font = '600 24px Poppins, Arial, sans-serif'; g.fillText('How to read it', lx, ly + 40);
+    g.font = '20px Poppins, Arial, sans-serif'; ['Full colour: High or', 'Medium relevance, or', 'measured in our data', 'Pale: Low, not', 'material or not', 'assessed yet'].forEach(function (t2, j) { g.fillText(t2, lx, ly + 76 + j * 29); });
+    return { t: 'image', title: 'The 17 Sustainable Development Goals: how they relate to us', url: cv.toDataURL('image/jpeg', 0.92), iw: W, ih: H };
+  }
   function sdgMap(rows, theme, small) {
+    if (SDGI) return sdgMapIcons(rows, small);
     var T0 = ((M.studio && M.studio.themes && M.studio.themes()) || []).filter(function (t) { return t.id === theme; })[0] || { ink: '#0C3A2C', accent: '#4CA860', light: '#A8DC7C', paper: '#F0F7F1' };
     var cols = 6, tw = 300, th = small ? 150 : 200, gap = 14, W = cols * tw + (cols - 1) * gap, H = 3 * th + 2 * gap, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var g = cv.getContext('2d');
     g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
@@ -655,12 +819,12 @@
       g.font = '600 ' + (small ? 21 : 23) + 'px Poppins, Arial, sans-serif'; var words = (SC.sdgs[r.n - 1] || '').split(' '), line = '', ly = y + (small ? 104 : 124);
       words.forEach(function (w0) { var t2 = line ? line + ' ' + w0 : w0; if (g.measureText(t2).width > tw - 32) { g.fillText(line, x + 16, ly); ly += small ? 25 : 28; line = w0; } else line = t2; }); g.fillText(line, x + 16, ly);
     });
-    return { t: 'image', title: 'The 17 Sustainable Development Goals: how they relate to us', url: cv.toDataURL('image/png'), iw: W, ih: H };
+    return { t: 'image', title: 'The 17 Sustainable Development Goals: how they relate to us', url: cv.toDataURL('image/jpeg', 0.92), iw: W, ih: H };
   }
   function sdgTable(rows, nl, small) {
     var rg = function (v) { return /high/i.test(v) ? 'G' : /med/i.test(v) ? 'A' : undefined; };
     return { t: 'table', title: small ? null : 'The 17 Sustainable Development Goals', head: small ? ['Goal', 'Our contribution', 'Measure'] : ['Goal', 'Relevance', 'Our contribution', 'Measure'],
-      rows: rows.map(function (x) { return small ? [{ t: x.goal, b: true }, x.text || '', x.metric || ''] : [{ t: x.goal, b: true }, { t: x.rel || '–', center: true, rag: rg(x.rel) }, x.text || '', x.metric || '']; }), widths: small ? [1.6, 3.2, 1.6] : [1.6, 0.8, 3.2, 1.5], size: 7.2, noTr: nl,
+      rows: rows.map(function (x) { var g0 = { t: x.goal, b: true, img: sdgIcon(x.n), imgH: small ? 11 : 13 }; return small ? [g0, x.text || '', x.metric || ''] : [g0, { t: x.rel || '–', center: true, rag: rg(x.rel) }, x.text || '', x.metric || '']; }), widths: small ? [1.9, 3.1, 1.6] : [1.9, 0.8, 3.1, 1.5], size: 7.2, noTr: nl,
       note: 'The UN Sustainable Development Goals (2030 Agenda). Relevance and contribution are the organisation\'s own assessment; measures are the figures reported in this document.' };
   }
   function statementDoc(N, lang, lim) {
@@ -712,7 +876,8 @@
     var SR = sdgRows(X, S), hi = SR.filter(function (x) { return /high/i.test(x.rel); });
     C.push(ch('UN Sustainable Development Goals', 'SDGs', [T(S.sdg_overview, miss), sdgMap(SR, THEME, false), hi.length ? { t: 'cards', cols: 3, items: hi.slice(0, 6).map(function (x) { return { title: x.goal, text: x.text, tag: 'High relevance' }; }), noTr: nl } : null, sdgTable(SR, nl, false)], 'How we contribute to the 17 goals of the 2030 Agenda'));
     C.push(ch('Stakeholder engagement', 'Stakeholders', [T(S.stakeholder_engagement, miss), tbl('stakeholders', ['Stakeholder group', 'What they care about', 'How we engage', 'How often'], ['group', 'concerns', 'how_engaged', 'frequency'], [1.4, 2.4, 2.2, 1])], 'Who we listen to'));
-    C.push(ch('Materiality', 'What matters', [T(S.materiality, miss), tbl('material_topics', ['Topic', 'Pillar', 'Impact', 'Financial', 'Why it matters'], ['topic', 'pillar', 'impact', 'financial', 'why'], [2, 0.6, 0.8, 0.8, 3.4]) || (X.mat.length ? { t: 'table', head: ['Topic', 'Pillar', 'Impact', 'Financial'], rows: X.mat.map(function (m) { return [{ t: m.tp[1], b: true }, m.tp[2], RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 0.6, 1, 1] } : null)], 'Double materiality: impact and financial'));
+    C.push(ch('Materiality', 'What matters', [T(S.materiality, miss), tbl('material_topics', ['Topic', 'Pillar', 'Impact', 'Financial', 'Why it matters'], ['topic', 'pillar', 'impact', 'financial', 'why'], [2, 0.6, 0.8, 0.8, 3.4]) || (X.mat.length ? { t: 'table', head: ['Topic', 'Pillar', 'Impact', 'Financial', 'GRI · ESRS'], rows: X.mat.map(function (m) { return [{ t: m.tp[1], b: true }, m.tp[2], RT[m.m.imp], RT[m.m.fin], refsOf(m.tp[0])]; }), widths: [2.6, 0.6, 0.9, 0.9, 1.6] } : null)], 'Double materiality: impact and financial'));
+    if (X.mat.length) C[C.length - 1].blocks.push({ t: 'table', title: 'Material topics: impacts, risks and opportunities', head: ['Topic', 'Kind', 'Horizon', 'Raised by', 'Our response', 'GRI · ESRS'], rows: X.mat.map(function (m) { return [{ t: m.tp[1], b: true }, (m.m.kind || []).join('; '), (m.m.horizon || '').replace(/ \(.*\)$/, ''), m.m.who || '', m.m.action || m.m.note || '', refsOf(m.tp[0])]; }), widths: [1.6, 1.3, 0.8, 1.2, 2.4, 1.1], size: 7.2 });
     C.push(part(2, 'Governance', 'How the organisation is directed and controlled, and how sustainability is overseen.', [['07', 'Governance of sustainability'], ['08', 'Ethics and integrity'], ['09', 'Risk management'], ['10', 'Cyber, privacy, tax and remuneration']]));
     C.push(ch('Governance of sustainability', 'Oversight', [T(S.governance_structure, miss), T(S.board_oversight), T(S.sustainability_committee), tbl('roles', ['Role', 'Responsibilities'], ['role', 'responsibilities'], [1.4, 4], 'Roles and responsibilities'), { t: 'table', title: 'Board and governance measures', head: ['Measure', 'This year'], rows: X.gov.slice(0, 5), widths: [3, 2] }], 'Board, committees and roles'));
     C.push(ch('Ethics and integrity', 'Conduct', [T(S.ethics_conduct, miss), T(S.anti_corruption), T(S.whistleblowing), tbl('policies', ['Policy', 'What it covers', 'Status'], ['policy', 'covers', 'status'], [1.8, 3.6, 1], 'Policies')], 'Code of conduct, anti-corruption and speaking up'));
@@ -783,7 +948,8 @@
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', h);
     });
     b.querySelectorAll('[data-std]').forEach(function (cb) { cb.onchange = function () { var s = cb.getAttribute('data-std'), L = (V.e.std || []).filter(function (x) { return x !== s; }); if (cb.checked) L.push(s); V.e.std = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('std'); }; });
-    b.querySelectorAll('[data-mat]').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { var k = el.getAttribute('data-mat'), f = el.getAttribute('data-mf'); V.e.mat = V.e.mat || {}; var m = V.e.mat[k] = V.e.mat[k] || { imp: 0, fin: 0 }; m[f] = f === 'note' ? el.value : Number(el.value); touch('mat'); var lv = $('#esgLive'); if (lv) lv.innerHTML = live('material'); }); });
+    b.querySelectorAll('[data-matk]').forEach(function (cb) { cb.onchange = function () { var k = cb.getAttribute('data-matk'), m = V.e.mat[k]; if (!m) return; var L = (m.kind || []).filter(function (x) { return x !== cb.value; }); if (cb.checked) L.push(cb.value); m.kind = L; touch('mat'); }; });
+    b.querySelectorAll('[data-mat]').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { var k = el.getAttribute('data-mat'), f = el.getAttribute('data-mf'); V.e.mat = V.e.mat || {}; var m = V.e.mat[k] = V.e.mat[k] || { imp: 0, fin: 0 }, was = !!(m.imp || m.fin); m[f] = f === 'imp' || f === 'fin' ? Number(el.value) : el.value; touch('mat'); var lv = $('#esgLive'); if (lv) lv.innerHTML = live('material'); if (V.tab === 'material' && (f === 'imp' || f === 'fin') && was !== !!(m.imp || m.fin)) { V.open.mat = k; body(); } }); });
     b.querySelectorAll('[data-ins]').forEach(function (x) { x.onclick = function () { askInsight(x.getAttribute('data-ins')); }; });
     // 🌱 avoided emissions, 🎫 credits, 💱 pricing: lists that open one line at a time
     b.querySelectorAll('[data-open]').forEach(function (x) { x.onclick = function () { var k = x.getAttribute('data-open'), id = x.getAttribute('data-id'); V.open[k] = V.open[k] === id ? '' : id; body(); }; });
@@ -874,5 +1040,6 @@
   M.addView('cso', 'CSO view', function () { return csoPage(); }, 'cso');
 
   M.addView('esg', 'ESG & Sustainability', function (parts) { return parts[0] ? entityPage(parts[0], parts[1]) : listPage(); }, 'esg');
-  M.esg = { reportDoc: reportDoc, statementDoc: statementDoc, state: function () { return V; } };   // for tests
+  M.esgReadSheet = readSheet;   // the CSV and Excel reader, also used by the Sustainability vault
+  M.esg = { enrich: enrich, trend: TREND, loadSdg: loadSdg, reportDoc: reportDoc, statementDoc: statementDoc, state: function () { return V; } };   // for tests
 })();
