@@ -345,4 +345,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 334 | 1.0.334| 2026-11-25 19:37| sdg-map| `5ee2b7f` | 🧭 SDG map in the ESG report and statement: all 17 goals as tiles with our own pictograms, shaded by relevance |
 | 335 | 1.0.335| 2026-11-25 19:45| sdg-map| `375a874` | 🧭 SDG map: all 17 goals as tiles in the ESG report and statement (#163) |
 | 336 | 1.0.336| 2026-11-25 19:51| sdg-fix| `8fb5d14` | SDG map: only delivered, measured avoided-emissions projects count as a goal's measure |
-| 337 | 1.0.337 | 2026-11-25 19:57 | sdg-fix | _this commit_ | _see git log_ |
+| 337 | 1.0.337| 2026-11-25 19:57| sdg-fix| `45b0e75` | ESG: ids stay unique in every list (avoided emissions, credits, CBAM, carbon prices) |
+| 338 | 1.0.338 | 2026-11-25 20:03 | sdg-fix | _this commit_ | _see git log_ |
