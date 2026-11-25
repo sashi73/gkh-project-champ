@@ -1121,6 +1121,7 @@ export function stripMoney(plan) {
   for (const t of p.tasks || []) { t.rate = 0; t.actual = 0; delete t.bomx; t.basis = ''; t.mats = []; for (const x of t.subs || []) { delete x.rate; delete x.cost; } }
   delete p.budgetCfg; delete p.bom; delete p.bomLoose; delete p.bomBase; delete p.bomRevs; p.moneyHidden = true;
   if (p.charter) p.charter.budget = 0;
+  if (p.esg && p.esg.soc) delete p.esg.soc.invest;   // 🌿 community investment is money
   if (p.baseline) delete p.baseline.BAC; (p.baselineHist || []).forEach((b) => { delete b.BAC; });
   p.changes = (p.changes || []).map((c) => { const x = { ...c }; delete x.items; delete x.bom; if (x.eval) x.eval = { ...x.eval, cost: '' }; delete x.extra; delete x.cost; return x; });
   return p;
@@ -1131,6 +1132,7 @@ export function keepMoney(before, inc) {
   for (const t of Array.isArray(inc.tasks) ? inc.tasks : []) { const o = old[t && t.id]; if (!o) { if (t) { t.rate = 0; t.actual = 0; } continue; } t.rate = o.rate; t.actual = o.actual; t.basis = o.basis; t.mats = o.mats; t.unit = o.unit; t.qty = o.qty; t.crew = o.crew; t.crewSet = o.crewSet; t.est = o.est; }
   for (const k of ['budgetCfg', 'bom', 'bomLoose', 'baseline', 'baselineHist']) inc[k] = before[k];
   inc.charter = Object.assign({}, inc.charter || {}, { budget: (before.charter || {}).budget });
+  { const inv = ((before.esg || {}).soc || {}).invest; if (inc.esg && typeof inc.esg === 'object') { inc.esg.soc = Object.assign({}, inc.esg.soc || {}); if (inv != null) inc.esg.soc.invest = inv; else delete inc.esg.soc.invest; } }
   const oc = Object.fromEntries((before.changes || []).map((c) => [c.id, c]));
   inc.changes = (Array.isArray(inc.changes) ? inc.changes : []).map((c) => (c && oc[c.id] ? oc[c.id] : c)).concat((before.changes || []).filter((c) => !(inc.changes || []).some((x) => x && x.id === c.id)));
   delete inc.moneyHidden;

@@ -47,7 +47,7 @@
     return '<div class="pe-tiles">' +
       tile('Total emissions', nf(x.total) + ' <i>tCO2e</i>', esc(x.method), x.measured ? '' : 'amber') +
       tile('Scope 1 · 2 · 3', nf(x.s1t) + ' · ' + nf(x.s2loc) + ' · ' + nf(x.s3t), x.measured ? 'tCO2e; Scope 1 and 2 are ' + nf(x.s12Share, 0) + '% of it' : 'Add activity data under Carbon') +
-      tile('Carbon budget', cap ? nf(cap) + ' <i>tCO2e</i>' : 'Not set', cap ? (x.overBudget ? 'Over budget by ' + nf(x.total - cap) + ' t' : 'Within budget') : 'Set it under Carbon', cap ? (x.overBudget ? 'red' : 'green') : '') +
+      tile('Carbon budget', cap ? nf(cap) + ' <i>tCO2e</i>' : 'Not set', cap ? (x.overBudget == null ? 'No measured emissions to compare yet' : x.overBudget ? 'Over budget by ' + nf(x.total - cap) + ' t' : 'Within budget') : 'Set it under Carbon', cap && x.overBudget != null ? (x.overBudget ? 'red' : 'green') : '') +
       tile('Against business as usual', red == null ? '–' : (red >= 0 ? '−' : '+') + nf(Math.abs(red)) + '%', x.baseT ? 'Baseline ' + nf(x.baseT) + ' tCO2e' : 'Set the baseline under Carbon', red == null ? '' : red >= 0 ? 'green' : 'red') +
       tile('P5 impact', x.p5avg == null ? '–' : nf(x.p5avg) + ' <i>/ 5</i>', x.p5scored + ' of ' + x.p5.length + ' elements scored' + (x.p5flags.length ? ' · ' + x.p5flags.length + ' to escalate' : ''), x.p5flags.length ? 'red' : x.p5avg >= 3.5 ? 'green' : '') +
       tile('Climate-related risks', String(x.climateRisks.length), 'From the risk register (TCFD / IFRS S2)') + '</div>';

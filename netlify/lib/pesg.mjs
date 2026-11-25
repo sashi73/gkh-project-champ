@@ -10,7 +10,7 @@
 import * as kv from './kv.mjs';
 import { FACTOR_SETS, S3_DEFAULTS } from './esg.mjs';
 
-const num = (v, max = 1e12) => { if (v == null || v === '') return undefined; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : undefined; };
+const num = (v, max = 1e12) => { if (v == null || String(v).trim() === '') return undefined; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : undefined; };
 const str = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
 const r2 = (v, d = 2) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 
