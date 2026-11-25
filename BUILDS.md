@@ -340,4 +340,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 329 | 1.0.329| 2026-11-25 10:08| esg| `ae61dd4` | 🌿 ESG & Sustainability reporting module and the 🌱 CSO view (#160) |
 | 330 | 1.0.330| 2026-11-25 17:59| efs| `5d157ae` | 📚 ESG emission factor library: search by country, kind, source; one press fills the factor |
 | 331 | 1.0.331| 2026-11-25 18:05| efs| `0155367` | 🇺🇳 The 17 UN SDGs covered by default in the Sustainability Statement and the ESG Report |
-| 332 | 1.0.332 | 2026-11-25 18:23 | efs | _this commit_ | _see git log_ |
+| 332 | 1.0.332| 2026-11-25 18:23| efs| `6d073d1` | 📚 ESG emission factor library: search by country, kind and source (#161) |
+| 333 | 1.0.333 | 2026-11-25 19:25 | esg-cache | _this commit_ | _see git log_ |
