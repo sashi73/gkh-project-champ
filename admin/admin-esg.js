@@ -78,7 +78,7 @@
   function newEntity() {
     M.modal('<h2>🌿 New ESG report</h2><p class="muted" style="margin:4px 0 12px">One report is one organisation for one reporting year. You can change everything later.</p><div class="form">' +
       '<label class="full">Organisation name<input id="enName" maxlength="120" placeholder="e.g. GKH Consultancy Sdn Bhd"></label><label>Reporting year<input id="enYear" maxlength="20" placeholder="e.g. FY2026"></label>' +
-      '<label>Industry sector<select id="enInd"><option value="">Choose…</option>' + SC.sections[0].fields.filter(function (f) { return f[0] === 'industry'; })[0][3].map(function (x) { return '<option>' + esc(x) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Industry sector<select id="enInd"><option value="">Choose…</option>' + indOpts('') + '</select></label>' +
       '<label>Main country<select id="enCty">' + ['Australia', 'Malaysia', 'Singapore', 'New Zealand', 'Thailand', 'Indonesia', 'United Kingdom', 'United States', 'European Union', 'Other'].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></label>' +
       '<label>Currency<select id="enCur">' + ['AUD', 'MYR', 'SGD', 'NZD', 'USD', 'EUR', 'GBP', 'THB', 'IDR'].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></label></div>' +
       '<div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="enGo" type="button">Create</button></div>');
@@ -164,12 +164,16 @@
     var set = SC.factorSets[(V.e.carbon || {}).fset] || SC.factorSets.IPCC, m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' };
     return m[k] ? set[m[k]] : k === 'refGwp' ? 1924 : '';
   }
+  // the industry list, grouped by sector (131 industries in 14 groups)
+  function indOpts(v) { var G0 = SC.industryGroups || [['Industries', (SC.sections[0].fields.filter(function (f) { return f[0] === 'industry'; })[0] || [])[3] || []]];
+    return G0.map(function (g0) { return '<optgroup label="' + esc(g0[0]) + '">' + g0[1].map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</optgroup>'; }).join(''); }
   function field(sec, f) {
     var k = f[0], label = f[1], t = f[2], opts = f[3], hint = f[4], v = (V.e[sec] || {})[k], unit = typeof opts === 'string' ? opts : t === 'p' ? '%' : '', id = 'ef-' + sec + '-' + k, ctl;
     var val = v == null ? '' : String(v);
     if (k === 'fset') { var grp = {}, order = []; Object.keys(SC.factorSets).forEach(function (x) { var g0 = SC.factorSets[x].group || 'Presets'; if (!grp[g0]) { grp[g0] = []; order.push(g0); } grp[g0].push(x); });
       order = ['Presets'].concat(order.filter(function (g0) { return g0 !== 'Presets'; }).sort());
       ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose a factor set (' + Object.keys(SC.factorSets).length + ' sets, ' + (order.length - 1) + ' countries)…</option>' + order.map(function (g0) { return '<optgroup label="' + esc(g0 === 'Presets' ? 'Quick presets' : g0) + '">' + grp[g0].map(function (x) { var lb = SC.factorSets[x].label; if (g0 !== 'Presets') lb = lb.replace(new RegExp('^' + g0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ',? ?:?'), '').replace(/^\s*:?\s*/, '') || lb; return '<option value="' + x + '"' + (x === v ? ' selected' : '') + '>' + esc(lb) + '</option>'; }).join('') + '</optgroup>'; }).join('') + '</select>'; }
+    else if (k === 'industry') ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose an industry (' + (SC.industryGroups || []).reduce(function (n, g0) { return n + g0[1].length; }, 0) + ')…</option>' + indOpts(v) + '</select>';
     else if (t === 's' || t === 'y') ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">–</option>' + opts.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
     else if (t === 'l') ctl = '<textarea id="' + id + '" rows="4" data-s="' + sec + '" data-k="' + k + '">' + esc(val) + '</textarea>';
     else ctl = '<span class="esg-in"><input id="' + id + '" data-s="' + sec + '" data-k="' + k + '" ' + (t === 'n' || t === 'p' ? 'type="number" step="any" inputmode="decimal"' + (t === 'p' ? ' min="0" max="100"' : '') : t === 'd' ? 'type="date"' : 'type="text" maxlength="200"') +
@@ -429,13 +433,26 @@
         (!(V.docs.statement || V.docs.report) ? '<li>When the data is in, let Champ write the <a href="#esg/' + esc(V.id) + '/statement">Sustainability Statement</a> or the <a href="#esg/' + esc(V.id) + '/report">ESG Report</a>.</li>' : '') + '</ul>' +
         '<h4 style="margin:14px 0 8px">Data completeness</h4><div class="esg-fill">' + c.filled.map(function (f) { var s = SC.sec[f.id]; return '<a href="#esg/' + esc(V.id) + '/' + f.id + '" class="esg-fill-' + f.pillar + '"><span>' + esc(s.title) + '</span><i><b style="width:' + Math.round(f.n / f.of * 100) + '%"></b></i><em>' + f.n + '/' + f.of + '</em></a>'; }).join('') + '</div></div></div>';
   }
-  function matrix() {   // impact (up) against financial (across), each topic a dot in its pillar's colour
-    var mat = V.e.mat || {}, pts = SC.topics.filter(function (t) { return mat[t[0]] && (mat[t[0]].imp || mat[t[0]].fin); }), pos = {};
-    var dots = pts.map(function (t) { var m = mat[t[0]], key = m.fin + 'x' + m.imp, k = pos[key] = (pos[key] || 0) + 1, x = 30 + m.fin / 4 * 200 + (k - 1) * 9, y = 210 - m.imp / 4 * 190 + (k - 1) * 5;
-      return '<circle cx="' + x + '" cy="' + y + '" r="6" class="md md-' + t[2] + '"><title>' + esc(t[1] + ': impact ' + ['–', 'low', 'medium', 'high', 'very high'][m.imp] + ', financial ' + ['–', 'low', 'medium', 'high', 'very high'][m.fin]) + '</title></circle>'; }).join('');
-    return '<svg class="esg-mx" viewBox="0 0 250 240" role="img" aria-label="Double materiality matrix"><rect x="130" y="20" width="100" height="95" class="mx-hot"/><path d="M30 20v190h200" class="mx-ax"/><text x="130" y="232" text-anchor="middle">Financial materiality →</text><text x="12" y="115" transform="rotate(-90 12 115)" text-anchor="middle">Impact materiality →</text>' + dots + '</svg>' +
-      '<div class="esg-leg"><span class="md-E">Environment</span><span class="md-S">Social</span><span class="md-G">Governance</span></div>' + (pts.length ? '' : '<p class="muted" style="font-size:12.5px">No topics rated yet.</p>');
+  var MXR = ['Not rated', 'Low', 'Medium', 'High', 'Very high'];
+  function matPts() { var mat = V.e.mat || {}; return SC.topics.filter(function (t) { return mat[t[0]] && (mat[t[0]].imp || mat[t[0]].fin); }).map(function (t, i) { var m = mat[t[0]]; return { n: i + 1, t: t, imp: m.imp || 0, fin: m.fin || 0, both: m.imp >= 3 && m.fin >= 3 }; }); }
+  function matrix(full) {   // impact (up) against financial (across): each rated topic a numbered dot in its pillar's colour, keyed below
+    var pts = matPts(), pos = {}, X = function (v) { return 52 + (v + 0.5) * 54; }, Y = function (v) { return 262 - (v + 0.5) * 48; };
+    var ticks = MXR.map(function (l, i) { return '<text class="mx-t" x="' + X(i) + '" y="276" text-anchor="middle">' + l + '</text><text class="mx-t" x="48" y="' + (Y(i) + 3) + '" text-anchor="end">' + l + '</text>'; }).join('');
+    var grid = [1.5, 2.5, 3.5].map(function (v) { return '<path class="mx-g" d="M' + X(v) + ' 22V262M52 ' + Y(v) + 'H322"/>'; }).join('');
+    var quad = '<text class="mx-q" x="318" y="32" text-anchor="end">Double material: leads the report</text><text class="mx-q" x="58" y="32">Impact material</text><text class="mx-q" x="318" y="254" text-anchor="end">Financially material</text><text class="mx-q" x="58" y="254">Monitor</text>';
+    var dots = pts.map(function (p) { var key = p.fin + 'x' + p.imp, k = pos[key] = (pos[key] || 0) + 1, x = X(p.fin) + ((k - 1) % 3 - 1) * 15, y = Y(p.imp) + Math.floor((k - 1) / 3) * 15 - 4;
+      return '<g><title>' + esc(p.n + '. ' + p.t[1] + ': impact ' + MXR[p.imp].toLowerCase() + ', financial ' + MXR[p.fin].toLowerCase()) + '</title><circle cx="' + x + '" cy="' + y + '" r="7" class="md md-' + p.t[2] + '"/><text class="mx-n" x="' + x + '" y="' + (y + 2.6) + '" text-anchor="middle">' + p.n + '</text></g>'; }).join('');
+    var svg = '<svg class="esg-mx" viewBox="0 0 330 300" role="img" aria-label="Double materiality matrix"><rect x="' + X(2.5) + '" y="22" width="' + (322 - X(2.5)) + '" height="' + (Y(2.5) - 22) + '" class="mx-hot"/>' + grid + '<path d="M52 22v240h270" class="mx-ax"/>' + quad + ticks +
+      '<text x="187" y="294" text-anchor="middle">Financial materiality (outside-in) →</text><text x="11" y="142" transform="rotate(-90 11 142)" text-anchor="middle">Impact materiality (inside-out) →</text>' + dots + '</svg>';
+    var leg = '<div class="esg-leg"><span class="md-E">Environment</span><span class="md-S">Social</span><span class="md-G">Governance</span></div>';
+    if (!pts.length) return svg + leg + '<p class="muted" style="font-size:12.5px">No topics rated yet. Rate each topic for impact and financial materiality to place it on the matrix.</p>';
+    var key = !full ? '' : '<ol class="mx-key">' + pts.slice().sort(function (a, b) { return (b.both - a.both) || (b.imp + b.fin) - (a.imp + a.fin) || a.n - b.n; }).map(function (p) {
+      return '<li><b class="md-' + p.t[2] + '">' + p.n + '</b><span>' + esc(p.t[1]) + (p.both ? ' <span class="pill md-' + p.t[2] + '">Double material</span>' : '') + '<small class="muted">Impact ' + MXR[p.imp].toLowerCase() + ' · financial ' + MXR[p.fin].toLowerCase() + '</small></span></li>'; }).join('') + '</ol>';
+    return svg + leg + key;
   }
+  // why double materiality sits at the centre of the work
+  var MX_WHY = '<div class="esg-why"><b>Why double materiality matters</b><p>Every topic is judged two ways. <b>Impact materiality</b> (inside-out) asks how the organisation affects people and the planet. <b>Financial materiality</b> (outside-in) asks how a sustainability issue affects its cash flows, cost of capital and value. A topic that is significant either way is material. One that is significant both ways (the shaded corner) leads the report.</p>' +
+    '<p>It is the core of what we do because it decides everything downstream: which data we gather, which targets and actions we set, and what the statement and report disclose. One assessment serves every framework. ESRS (CSRD) requires the double view, GRI covers the impact side, and IFRS S1/S2 and AASB S2 cover the financial side. It also gives the board a documented, evidence-based reason for what is in the report and what is left out, which is what assurers and investors look for.</p></div>';
 
   /* ---------- 📚 standards and the disclosure index ---------- */
   var WHERE = function (f) { if (f === 'mat') return 'material'; return f.split('.')[0]; };
@@ -464,7 +481,7 @@
       '<p class="muted" style="font-size:13px;margin:6px 0 0"><b>Impact</b>: how much the organisation affects people and the planet (GRI 3, ESRS impact materiality). <b>Financial</b>: how much the topic can affect cash flows, cost of capital or value (IFRS S1, ESRS financial materiality). Rating both is double materiality. Press a topic for its references, the kind of impact, horizon, stakeholders and response.</p></div>' +
       '<div class="card esg-list">' + rows + '</div></div><div><div class="card" id="esgLive">' + live('material') + '</div></div></div>';
   }
-  function live(t) { if (t === 'material') return '<h3>Matrix</h3>' + matrix() + '<p class="muted" style="font-size:12.5px">Topics in the shaded corner are material on both counts and lead the report.</p>'; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); if (t === 'pricing') return pricingSummary() + (((V.subs || {}).pricing || 'cbam') === 'cbam' ? CBAM_DATES : ''); return ''; }
+  function live(t) { if (t === 'material') return '<h3>Double materiality matrix</h3>' + matrix(true) + MX_WHY; if (t === 'avoid') return avoidSummary(); if (t === 'credits') return creditsSummary(); if (t === 'pricing') return pricingSummary() + (((V.subs || {}).pricing || 'cbam') === 'cbam' ? CBAM_DATES : ''); return ''; }
   var CBAM_DATES = '<div class="esg-gaps esg-rule"><b>Key dates</b><ul><li><b>EU</b>: definitive regime from 1 Jan 2026; importers over 50 t a year need authorisation; certificate sales open 1 Feb 2027; first declaration and surrender for 2026 imports by 30 Sep 2027.</li><li>Default values carry a mark-up (10% in 2026, rising); verified actual data from the producer usually costs less.</li><li><b>UK</b>: starts 1 Jan 2027; return and payment for 2027 due 31 May 2028, then quarterly.</li></ul>';
 
   /* ---------- 🌱 carbon avoidance ---------- */
