@@ -608,18 +608,23 @@ export async function writeDoc(id, kind, lang, by) {
   const L = LANG[lang] ? lang : 'en', sys = BASE + (L !== 'en' ? ` Write every value in ${LANG[L]} (natural, professional ${LANG[L]}; JSON keys stay in English; keep standard names such as IFRS S2, GRI 305, ESRS E1 and units as they are).` : '');
   // every part is asked for; a part that fails or comes back empty is asked again (up to twice, while there is time), so the whole document gets written
   const t0 = Date.now(), keysOf = (p) => [...new Set([...p.ask.matchAll(/"([a-z][a-z0-9_]{2,})"\s*\(/g)].map((m) => m[1]))], textKeys = (p) => [...new Set([...p.ask.matchAll(/"([a-z][a-z0-9_]{2,})"\s*\(\d+-\d+ words/g)].map((m) => m[1]))];
-  const usable = (v) => (typeof v === 'string' ? v.trim().length > 20 : Array.isArray(v) ? v.some((x) => (x && typeof x === 'object' ? Object.values(x).join('').trim() : String(x || '').trim())) : v != null && typeof v === 'object' && Object.keys(v).length > 0);
-  const one = (p, tries, ms) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ task: p.ask + (tries ? ' Keep each text at the lower end of its word range, and return complete, valid JSON.' : ''), organisation_data: F }) }], { maxTokens: perOut, timeoutMs: ms, temperature: 0.35 })
-    .then((r) => { const d = r.data && typeof r.data === 'object' ? r.data : {}; const want = textKeys(p), miss = want.filter((k) => !usable(d[k]));   // a part counts only when the narrative it was asked for is there
-      if (!Object.keys(d).filter((k) => k !== '_cutOff' && usable(d[k])).length || (want.length && miss.length * 2 > want.length)) throw new Error('the AI left out ' + (miss.length ? miss.length + ' of ' + want.length + ' sections' : 'every section'));
-      Object.keys(d).forEach((k) => { if (!usable(d[k])) delete d[k]; }); return { data: d, used: r.used || 0, cut: !!(r.cutOff || d._cutOff) }; })
-    .catch((err) => ({ data: {}, used: 0, error: err.message }));
+  const asText = (v) => (typeof v === 'string' ? v : v && typeof v === 'object' && !Array.isArray(v) && typeof (v.text || v.content || v.body) === 'string' ? (v.text || v.content || v.body) : v);   // {"text":"…"} is read as text
+  const usable = (v) => (typeof v === 'string' ? v.trim().length > 20 : Array.isArray(v) ? v.some((x) => (x && typeof x === 'object' ? Object.values(x).join('').trim() : String(x || '').trim())) : false);
+  // a part's answer: what it gave (usable values only) and which narrative sections it left out
+  const one = (p, tries, ms) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ task: p.ask + (tries ? ' Keep each text at the lower end of its word range, include every key asked for, and return complete, valid JSON.' : ''), organisation_data: F }) }], { maxTokens: perOut, timeoutMs: ms, temperature: 0.35 })
+    .then((r) => { const d0 = r.data && typeof r.data === 'object' ? r.data : {}, d = {}; Object.keys(d0).forEach((k) => { if (k === '_cutOff') return; const v = textKeys(p).includes(k) ? asText(d0[k]) : d0[k]; if (usable(v)) d[k] = v; });
+      const miss = textKeys(p).filter((k) => typeof d[k] !== 'string');
+      if (!Object.keys(d).length) throw new Error('the AI returned no usable text');
+      return { data: d, miss, used: r.used || 0, cut: !!(r.cutOff || d0._cutOff) }; })
+    .catch((err) => ({ data: {}, miss: textKeys(p), used: 0, error: err.message }));
   const res = await Promise.all(PARTS.map((p) => one(p, 0, 420000)));
+  // a part that failed, or left out any narrative section, is asked again (up to twice, while there is time); the better answers are merged
   for (let round = 1; round <= 2; round++) {
-    const left = 840000 - (Date.now() - t0), todo = res.map((r, i) => (r.error ? i : -1)).filter((i) => i >= 0);
+    const left = 840000 - (Date.now() - t0), todo = res.map((r, i) => (r.error || r.miss.length ? i : -1)).filter((i) => i >= 0);
     if (!todo.length || left < 150000) break;
     const again = await Promise.all(todo.map((i) => one(PARTS[i], round, Math.min(360000, left - 45000))));
-    todo.forEach((i, j) => { const used = (res[i].used || 0) + (again[j].used || 0); res[i] = again[j].error ? { ...res[i], used, error: again[j].error } : { ...again[j], used, retried: round }; });
+    todo.forEach((i, j) => { const a = again[j], b = res[i], used = (b.used || 0) + (a.used || 0); if (a.error) { res[i] = { ...b, used, error: b.error && a.error }; return; }
+      const data = { ...b.data, ...a.data }; res[i] = { data, used, cut: a.cut, retried: round, miss: textKeys(PARTS[i]).filter((k) => typeof data[k] !== 'string') }; });
   }
   const failed = res.filter((r) => r.error); if (failed.length === res.length) return { error: 'The AI could not write the ' + (kind === 'report' ? 'ESG report' : 'sustainability statement') + ': ' + failed[0].error };
   const raw = Object.assign({}, ...res.map((r) => r.data)), tokens = res.reduce((a, r) => a + (r.used || 0), 0);
@@ -632,9 +637,9 @@ export async function writeDoc(id, kind, lang, by) {
   const prev0 = await kv.get('esgdoc:' + e.id + ':' + kind).catch(() => null), prevDoc = prev0 && prev0.lang === L ? prev0 : null, kept = [], lost = [];   // only text in the same language is reused
   let keptRev = null;
   res.forEach((r, i) => { const miss = keysOf(PARTS[i]).filter((k) => sections[k] == null); if (!r.error && !miss.length) return; const name = (PARTS[i].ask.match(/PART ([A-Z]) \(([^)]+)\)/) || [])[0] || ('part ' + (i + 1)), ks = keysOf(PARTS[i]).filter((k) => prevDoc && prevDoc.sections && prevDoc.sections[k] != null && sections[k] == null);
-    if (ks.length) { ks.forEach((k) => { sections[k] = prevDoc.sections[k]; }); keptRev = keptRev == null ? prevDoc.rev : Math.min(keptRev, prevDoc.rev); kept.push((r.error ? name : ks.length + ' section' + (ks.length === 1 ? '' : 's') + ' of ' + name) + ' kept from v' + prevDoc.ver); } else if (r.error) lost.push(name + ' (' + str(r.error, 90) + ')'); });
+    if (ks.length) { ks.forEach((k) => { sections[k] = prevDoc.sections[k]; }); keptRev = keptRev == null ? prevDoc.rev : Math.min(keptRev, prevDoc.rev); kept.push((r.error ? name : ks.length + ' section' + (ks.length === 1 ? '' : 's') + ' of ' + name) + ' kept from v' + prevDoc.ver); } else if (r.error) lost.push(name + ' (' + str(r.error, 90) + ')'); else if (miss.some((k) => textKeys(PARTS[i]).includes(k))) lost.push(name + ' (left out: ' + miss.filter((k) => textKeys(PARTS[i]).includes(k)).join(', ') + ')'); });
   const cut = res.filter((r) => r.cut).length;
-  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [lost.length ? lost.length + ' of ' + PARTS.length + ' parts could not be written: ' + lost.join('; ') : '', kept.length ? 'the AI could not rewrite ' + kept.join(', ') : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: keptRev != null && keptRev < e.rev ? keptRev : e.rev, sections };   // text kept from an older version keeps the older data version, so the out-of-date warning shows
+  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [lost.length ? lost.length + ' of ' + PARTS.length + ' parts could not be written in full: ' + lost.join('; ') : '', kept.length ? 'the AI could not rewrite ' + kept.join(', ') : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: keptRev != null && keptRev < e.rev ? keptRev : e.rev, sections };   // text kept from an older version keeps the older data version, so the out-of-date warning shows
   // the version is given out atomically, so two people writing at once get v2 and v3, not two v2s
   const saved = await kv.update('esgdoc:' + e.id + ':' + kind, (prev) => ({ ...rec, ver: ((prev && prev.ver) || 0) + 1 }), () => null), ver = saved.ver; rec.ver = ver;
   await kv.update('esg:' + e.id, (x) => { if (!x) return x; x.docs = [{ kind, ver, at: rec.at, by: rec.by, lang: L, tokens, std: rec.std, partial: rec.partial, rev: rec.rev }].concat(x.docs || []).sort((a, b) => (b.kind === a.kind ? b.ver - a.ver : b.at - a.at)).slice(0, 40); logIt(x, by, (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' narrative v' + ver + ' written by AI (' + tokens.toLocaleString('en-AU') + ' tokens)'); return x; }, () => null).catch(() => {});

@@ -353,4 +353,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 342 | 1.0.342| 2026-11-26 08:48| esg-sectors| `0376fd7` | ESG: 131 industries in 14 sector groups, and a labelled double materiality matrix with a numbered key and a note on why it matters |
 | 343 | 1.0.343| 2026-11-26 08:57| esg-sectors| `05a326b` | ESG matrix: every dot stays inside its rating cell, however many share it |
 | 344 | 1.0.344| 2026-11-26 09:05| esg-sectors| `ecdcbb1` | ESG documents: a part that fails or comes back empty is asked again (up to twice), a part that still fails keeps its text from the last vers |
-| 345 | 1.0.345 | 2026-11-26 09:20 | esg-sectors | _this commit_ | _see git log_ |
+| 345 | 1.0.345| 2026-11-26 09:20| esg-sectors| `6caea98` | ESG documents: a part counts only when its narrative sections are there; reused text must be in the same language and keeps its older data v |
+| 346 | 1.0.346 | 2026-11-26 09:29 | esg-sectors | _this commit_ | _see git log_ |
