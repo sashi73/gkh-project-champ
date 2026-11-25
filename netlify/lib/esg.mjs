@@ -274,9 +274,11 @@ export function billsSum(e) {
 // where each emission factor came from: { 'carbon.fElec': { id: 'EF12', label: 'NGA 2025-26 · New South Wales', value: 0.64 } } (only for the factor fields)
 const EF_FIELDS = new Set(['carbon.fDiesel', 'carbon.fPetrol', 'carbon.fJet', 'carbon.fLpg', 'carbon.fGas', 'carbon.fElec', 'carbon.refGwp', 'scope3.fPurch', 'scope3.fFreight', 'scope3.fLandfill', 'scope3.fRecycled', 'scope3.fAir', 'scope3.fCar', 'scope3.fHotel', 'scope3.fCommute', 'scope3.fWater']);
 function cleanEfSrc(o) { const out = {}; if (o && typeof o === 'object') Object.keys(o).slice(0, 30).forEach((k) => { const x = o[k]; if (EF_FIELDS.has(k) && x && typeof x === 'object') out[k] = { id: str(x.id, 12), label: str(x.label, 200), value: num(x.value) }; }); return out; }
+// ids must be unique in a list (lists are edited by id): a repeated id gets a new one
+const uniqIds = (L) => { const seen = new Set(L.map((x) => x.id).filter(Boolean)), done = new Set(); L.forEach((x) => { if (!x.id || done.has(x.id)) { let n; do n = uid(); while (seen.has(n)); x.id = n; seen.add(n); } done.add(x.id); }); return L; };
 export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
-  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills), efsrc: cleanEfSrc(e.efsrc) };
+  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: uniqIds(cleanAvoid(e.avoid)), credits: uniqIds(cleanCredits(e.credits)), pricing: (() => { const P = cleanPricing(e.pricing); uniqIds(P.cbam); uniqIds(P.exp); return P; })(), bills: cleanBills(e.bills), efsrc: cleanEfSrc(e.efsrc) };
   SECTIONS.forEach((s) => { out[s.id] = cleanSection(s.id, e[s.id]); });
   // a source record only stands while the field still holds its value (an import or a typed value replaces it)
   Object.keys(out.efsrc).forEach((fk) => { const [sec, key] = fk.split('.'), cur = (out[sec] || {})[key], src = out.efsrc[fk]; if (!(cur == null ? src.value == null : Number(cur) === Number(src.value))) delete out.efsrc[fk]; });
