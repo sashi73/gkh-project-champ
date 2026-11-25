@@ -628,7 +628,8 @@
       10: [w.payGap != null && w.payGap + '% pay gap'], 11: [f(cm.invest) && 'community investment ' + f(cm.invest)], 12: [r.divertPct != null && r.divertPct + '% waste diverted', f(r.wasteT) && f(r.wasteT) + ' t waste'],
       13: [em.total != null && nf(em.total) + ' tCO2e footprint', c.avoid.total && nf(c.avoid.total) + ' tCO2e avoided'], 16: [t.corruptCases != null && pl(t.corruptCases, 'corruption incident'), t.code && 'code of conduct: ' + t.code], 17: [c.price.creditT && nf(c.price.creditT) + ' tCO2e of credits retired'] };
     var ai = {}; (S.sdgs || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) ai[n] = x; });
-    (e.avoid || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) (M[n] = M[n] || []).push(x.name); });
+    var AT = {}; (c.avoid.items || []).forEach(function (x) { AT[x.id] = x.t; });
+    (e.avoid || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17 && x.status === 'Delivered' && AT[x.id] != null) (M[n] = M[n] || []).push(nf(AT[x.id]) + ' tCO2e avoided (' + x.name + ')'); });   // only delivered, measured projects count as a measure
     return (SC.sdgs || []).map(function (g, i) { var n = i + 1, a = ai[n] || {}, met = (M[n] || []).filter(Boolean).join('; ') || a.metric || '';   // today's reported figures first; the AI's only where the data has none
       return { n: n, goal: 'SDG ' + n + ' ' + g, rel: a.relevance || '', text: a.contribution || '', metric: met }; });
   }

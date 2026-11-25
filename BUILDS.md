@@ -343,4 +343,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 332 | 1.0.332| 2026-11-25 18:23| efs| `6d073d1` | 📚 ESG emission factor library: search by country, kind and source (#161) |
 | 333 | 1.0.333| 2026-11-25 19:25| esg-cache| `6cd9b13` | ESG: bump admin-esg.js?v= so browsers load the emission factor library, SDGs, bills and import (the old cached copy hid them) (#162) |
 | 334 | 1.0.334| 2026-11-25 19:37| sdg-map| `5ee2b7f` | 🧭 SDG map in the ESG report and statement: all 17 goals as tiles with our own pictograms, shaded by relevance |
-| 335 | 1.0.335 | 2026-11-25 19:45 | sdg-map | _this commit_ | _see git log_ |
+| 335 | 1.0.335| 2026-11-25 19:45| sdg-map| `375a874` | 🧭 SDG map: all 17 goals as tiles in the ESG report and statement (#163) |
+| 336 | 1.0.336 | 2026-11-25 19:51 | sdg-fix | _this commit_ | _see git log_ |
