@@ -354,8 +354,9 @@ async function handle(req, context) {
       case 'planEsgAnalyse': {   // one project's ESG figures, from its saved plan with the ESG data being edited
         const core = String(body.core || '').slice(0, 40); if (ctx.scope && !ctx.scope.includes(core)) return bad('Not your project.', 403);
         const P = await import('../lib/plan.mjs'), PE = await import('../lib/pesg.mjs'), plan = await P.get(core).catch(() => null); if (!plan) return bad('Project not found', 404);
-        const x = PE.calc({ ...plan, esg: body.esg !== undefined ? body.esg : plan.esg }, { BAC: Number(body.BAC) || 0, AC: Number(body.AC) || 0 });
-        if (!U.seesMoney(ctx)) { delete x.intensity; if (x.est) delete x.est.f; }
+        const K = await import('../lib/kv.mjs'), sw = await K.get('swms:' + core).catch(() => null);
+        const x = PE.calc({ ...plan, esg: body.esg !== undefined ? body.esg : plan.esg }, { BAC: Number(body.BAC) || 0, AC: Number(body.AC) || 0 }, { swms: !!sw });
+        if (!U.seesMoney(ctx)) { delete x.intensity; delete x.soc.invest; if (!x.measured) { x.est = null; x.total = null; x.method = 'No activity data yet'; } }   // no money: no budget-based estimate either
         return out(200, { esg: x, schema: { act: PE.ACT, matEf: PE.MAT_EF, matNote: PE.MAT_NOTE, p5: PE.P5, scale: PE.P5_SCALE, pillars: PE.P5_PILLARS, fw: PE.PFW, spendF: PE.SPEND_F, factorSets: PE.SETS() } });
       }
       case 'planEsgPortfolioGet': {   // every project this login can see, by program (CEO, CSO, CFO, PMO and program views)
@@ -363,7 +364,7 @@ async function handle(req, context) {
       }
       case 'planEsgSettingsSave': {   // the internal carbon price for the carbon cost: the CEO, the CFO and the super user
         if (ctx.scope || !(ctx.owner || ['CEO', 'CFO'].includes(ctx.role))) return bad('The internal carbon price is set by the CEO or the CFO.', 403);
-        const PE = await import('../lib/pesg.mjs'), v = await PE.saveSettings(body, by); await A.audit(who, 'ESG: internal carbon price for projects set to ' + (v.price == null ? 'none' : v.cur + ' ' + v.price + ' per tCO2e')); return out(200, { settings: v });
+        const PE = await import('../lib/pesg.mjs'), v = await PE.saveSettings(body, by); if (v.error) return bad(v.error, 409); await A.audit(who, 'ESG: internal carbon price for projects set to ' + (v.price == null ? 'none' : v.cur + ' ' + v.price + ' per tCO2e')); return out(200, { settings: v });
       }
       case 'planPmoGet': {   // 🧭 the PMO view: the PMO Director, the CEO and the super user
         if (ctx.scope || !(ctx.owner || ['CEO', 'PMO Director'].includes(ctx.role))) return bad('The PMO view is for the PMO Director and the CEO.', 403);

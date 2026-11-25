@@ -9,13 +9,13 @@
   var C, X = { core: '', sub: 'overview', calc: null, schema: null, t: 0, seq: 0 };
   var nf = function (v, d) { return v == null ? '–' : Number(v).toLocaleString('en-AU', { maximumFractionDigits: d == null ? 1 : d }); };
   var plan = function () { return C.S.plan; };
-  var data = function () { var p = plan(); p.esg = p.esg || {}; var e = p.esg; e.act = e.act || {}; e.ef = e.ef || {}; e.p5 = e.p5 || {}; e.soc = e.soc || {}; e.fw = e.fw || []; return e; };
+  var data = function () { var p = plan(); p.esg = p.esg || {}; var e = p.esg; e.act = e.act || {}; e.ef = e.ef || {}; e.p5 = e.p5 || {}; e.soc = e.soc || {}; return e; };   // fw stays unset until someone chooses: unset means the usual three, [] means none
   var money = function () { return !(M.me && M.me.money === false); };
   var SUBS = [['overview', 'Overview'], ['carbon', 'Carbon (GHG)'], ['p5', 'P5 impact analysis'], ['social', 'Social and governance'], ['frameworks', 'Frameworks']];
 
   function tab(ctx) {
     C = ctx; var core = C.S.core;
-    if (X.core !== core) { X = { core: core, sub: 'overview', calc: null, schema: null, t: 0, seq: 0 }; }
+    if (X.core !== core) { X = { core: core, sub: 'overview', calc: null, schema: null, t: 0, seq: X.seq }; }   // the request counter carries on, so an old answer is never taken for a new one
     $('#planBody').innerHTML = '<div class="empty">Working out the project\'s ESG figures…</div>';
     recalc(true);
   }
@@ -26,7 +26,7 @@
       if (n !== X.seq || C.S.core !== core || C.S.tab !== 'esg') return;
       X.calc = r.esg; X.schema = r.schema;
       if (full) draw(); else { var s = $('#peStrip'); if (s) s.innerHTML = strip(); if (X.sub === 'overview' || X.sub === 'frameworks') { var b = $('#peSub'); if (b) b.innerHTML = body(); wire(b); } else { var o = $('#peOut'); if (o) o.innerHTML = outBox(); } }
-    }).catch(function (e) { if (full) $('#planBody').innerHTML = '<div class="empty">' + esc(e.message || 'Could not work out the ESG figures') + '</div>'; else fail(e); });
+    })  .catch(function (e) { if (n !== X.seq || C.S.core !== core || C.S.tab !== 'esg' || !$('#planBody')) return; if (full) $('#planBody').innerHTML = '<div class="empty">' + esc(e.message || 'Could not work out the ESG figures') + '</div>'; else fail(e); });
   }
   function changed(note) { C.dirty(note || 'ESG data'); clearTimeout(X.t); X.t = setTimeout(function () { recalc(false); }, 450); }
 
@@ -104,7 +104,7 @@
       '<label class="full" style="display:block;margin-top:12px">Notes for the ESG report<textarea rows="4" maxlength="1500" data-pe-note>' + esc(e.note || '') + '</textarea></label></div></div>';
   }
   function frameworks() {
-    var e = data(), sc = X.schema, on = e.fw.length ? e.fw : ['IFRS_S2', 'GHGP', 'P5'];
+    var e = data(), sc = X.schema, on = Array.isArray(e.fw) ? e.fw : ['IFRS_S2', 'GHGP', 'P5'];
     return '<div class="pe-grid"><div class="card"><h3>Which frameworks this project reports into</h3><p class="muted" style="font-size:13px;margin:0 0 10px">Most projects feed the organisation\'s climate disclosures (IFRS S2 / AASB S2, built on TCFD) and its SBTi target, and use the P5 Standard for the project itself. Buildings and infrastructure often add PAS 2080, IS Rating or Green Star; lender-funded projects add the IFC Performance Standards.</p>' +
       sc.fw.map(function (f) { var c = on.indexOf(f[0]) >= 0; return '<label class="esg-stdc' + (c ? ' on' : '') + '"><input type="checkbox" data-pefw="' + f[0] + '"' + (c ? ' checked' : '') + '><div><b>' + esc(f[1]) + '</b><small class="muted">' + esc(f[2]) + '</small></div></label>'; }).join('') + '</div>' +
       '<div class="card"><h3>How ready the data is</h3>' + fwRows() + '<p class="muted" style="font-size:12px;margin:10px 0 0">SBTi reference: the cross-sector 1.5°C pathway cuts Scope 1 and 2 by at least 4.2% a year in absolute terms. SBTi validates the organisation\'s target, not a project; the project shows its contribution through its reduction against business as usual.</p></div></div>';
@@ -117,15 +117,18 @@
       var k = i.getAttribute('data-p5s') || i.getAttribute('data-p5n') || i.getAttribute('data-p5a'), e = data(), o = e.p5[k] = e.p5[k] || {};
       if (i.hasAttribute('data-p5s')) { o.s = Number(i.value) || 0; i.closest('.pe-p5').classList.toggle('bad', o.s > 0 && o.s <= 2); } else if (i.hasAttribute('data-p5n')) o.note = i.value; else o.action = i.value;
       changed('P5 impact analysis'); }; });
-    b.querySelectorAll('[data-pefw]').forEach(function (cb) { cb.onchange = function () { var e = data(), cur = e.fw.length ? e.fw.slice() : ['IFRS_S2', 'GHGP', 'P5'], id = cb.getAttribute('data-pefw'); cur = cur.filter(function (x) { return x !== id; }); if (cb.checked) cur.push(id); e.fw = cur; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); changed('ESG frameworks'); }; });
+    b.querySelectorAll('[data-pefw]').forEach(function (cb) { cb.onchange = function () { var e = data(), cur = Array.isArray(e.fw) ? e.fw.slice() : ['IFRS_S2', 'GHGP', 'P5'], id = cb.getAttribute('data-pefw'); cur = cur.filter(function (x) { return x !== id; }); if (cb.checked) cur.push(id); e.fw = cur; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); changed('ESG frameworks'); }; });
     var nt = b.querySelector('[data-pe-note]'); if (nt) nt.oninput = function () { data().note = nt.value; C.dirty('ESG notes'); };
   }
   M.pesgTab = tab;
 
   /* ---------- 🗂 the portfolio card: CEO, CSO, Finance (CFO), PMO, Program and Programs views ---------- */
-  var PV = { at: 0, d: null, p: null };
+  var PV = { at: 0, d: null, p: null, who: '' };
+  var whoAmI = function () { var m = M.me || {}; return [m.user || m.username || m.name || '', m.role || '', m.money === false ? 0 : 1].join('|'); };
   var KIND = { ceo: 'ceo', cso: 'cso', finance: 'cfo', pmo: 'pmo', pgm: 'pgm', programs: 'programs' };
-  function getPortfolio(force) { if (!force && PV.d && Date.now() - PV.at < 60000) return Promise.resolve(PV.d); if (PV.p) return PV.p; PV.p = api('planEsgPortfolioGet', {}).then(function (d) { PV = { at: Date.now(), d: d, p: null }; return d; }, function (e) { PV.p = null; throw e; }); return PV.p; }
+  function getPortfolio(force) { var me = whoAmI(); if (PV.who !== me) PV = { at: 0, d: null, p: null, who: me };   // kept per signed-in login, never shown to the next one
+    if (!force && PV.d && Date.now() - PV.at < 60000) return Promise.resolve(PV.d); if (PV.p) return PV.p;
+    var p = PV.p = api('planEsgPortfolioGet', {}).then(function (d) { if (whoAmI() !== me) throw new Error('Signed in as someone else: reload the page.'); if (PV.p === p) PV = { at: Date.now(), d: d, p: null, who: me }; return d; }, function (e) { if (PV.p === p) PV.p = null; throw e; }); return p; }
   function card(kind, d) {
     var T = d.totals, cfo = kind === 'cfo', cso = kind === 'cso', cur = d.cur || 'AUD', cost = T.carbonCost != null;
     var head = { ceo: 'How the projects are doing on ESG and carbon', cso: 'Projects and programs: emissions and P5 impact', cfo: 'Carbon in the projects: emissions and carbon cost', pmo: 'ESG across the programs', pgm: 'ESG in your programs', programs: 'ESG by program' }[kind] || 'ESG & Sustainability of the projects';
@@ -149,7 +152,7 @@
     if (!kind || !v || h[1] || document.getElementById('peCard') || v.querySelector('.empty:only-child')) return;
     var host = document.createElement('div'); host.id = 'peCard'; host.className = 'card pe-card'; host.innerHTML = '<p class="muted" style="margin:0">🌿 Gathering the projects\' ESG figures…</p>'; v.appendChild(host);
     getPortfolio().then(function (d) { if (!host.isConnected) return; host.outerHTML = card(kind, d); var go = document.getElementById('pePriceGo');
-      if (go) go.onclick = function () { go.disabled = true; api('planEsgSettingsSave', { price: $('#pePrice').value, cur: $('#peCur').value.toUpperCase() }).then(function () { M.toast('Carbon price saved'); var c = document.getElementById('peCard'); if (c) c.remove(); return getPortfolio(true).then(mount); }).catch(fail).then(function () { go.disabled = false; }); }; })
+      if (go) go.onclick = function () { go.disabled = true; api('planEsgSettingsSave', { price: $('#pePrice').value, cur: $('#peCur').value.toUpperCase(), rev: (PV.d || {}).rev || 0 }).then(function () { M.toast('Carbon price saved'); var c = document.getElementById('peCard'); if (c) c.remove(); return getPortfolio(true).then(mount); }).catch(fail).then(function () { go.disabled = false; }); }; })
       .catch(function (e) { if (host.isConnected) host.innerHTML = '<p class="muted" style="margin:0">🌿 ' + esc(e.message || 'The projects\' ESG figures could not be loaded.') + '</p>'; });
   }
   var mt = 0; function soon() { clearTimeout(mt); mt = setTimeout(mount, 250); }

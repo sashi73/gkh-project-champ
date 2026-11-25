@@ -73,21 +73,21 @@ export function clean(x) {
   const ef = {}; Object.keys(MAT_EF).forEach((k) => { const v = num((x.ef || {})[k], 1000); if (v != null) ef[k] = v; });
   const p5 = {}; P5.forEach(([k]) => { const s = (x.p5 || {})[k]; if (!s || typeof s !== 'object') return; const sc = Math.round(Number(s.s)); const o = { s: sc >= 1 && sc <= 5 ? sc : 0, note: str(s.note, 600), action: str(s.action, 400) }; if (o.s || o.note || o.action) p5[k] = o; });
   const soc = {}; ['workers', 'localPct', 'apprentices', 'hours', 'injuries', 'lti', 'invest', 'localSpendPct'].forEach((k) => { const v = num((x.soc || {})[k], /Pct$/.test(k) ? 100 : 1e10); if (v != null) soc[k] = v; });
-  const out = { fset: FACTOR_SETS[x.fset] ? x.fset : undefined, act, ef, p5, soc, fw: (Array.isArray(x.fw) ? x.fw : []).map(String).filter((f) => PFW_IDS.has(f)).slice(0, 20),
+  const out = { fset: FACTOR_SETS[x.fset] ? x.fset : undefined, act, ef, p5, soc, fw: Array.isArray(x.fw) ? x.fw.map(String).filter((f) => PFW_IDS.has(f)).slice(0, 20) : undefined,   // unset = the usual three; [] = none chosen
     baseT: num(x.baseT, 1e9), capT: num(x.capT, 1e9), note: str(x.note, 1500), at: Number(x.at) || undefined };
-  return Object.keys(act).length || Object.keys(p5).length || Object.keys(soc).length || out.fw.length || out.baseT != null || out.capT != null || out.fset || out.note ? out : undefined;
+  return Object.keys(act).length || Object.keys(ef).length || Object.keys(p5).length || Object.keys(soc).length || Array.isArray(out.fw) || out.baseT != null || out.capT != null || out.fset || out.note ? out : undefined;
 }
 
 // the project's ESG figures. money: { BAC, AC } from the project's costing
-export function calc(plan, money = {}) {
-  const e = clean((plan || {}).esg) || { act: {}, ef: {}, p5: {}, soc: {}, fw: [] }, a = e.act, fset = e.fset || 'NGA_AU', F = FACTOR_SETS[fset] || FACTOR_SETS.NGA_AU, S3 = S3_DEFAULTS;
+export function calc(plan, money = {}, extra = {}) {
+  const e = clean((plan || {}).esg) || { act: {}, ef: {}, p5: {}, soc: {} }, a = e.act, fset = e.fset || 'NGA_AU', F = FACTOR_SETS[fset] || FACTOR_SETS.NGA_AU, S3 = S3_DEFAULTS;
   const t = (v, f) => (v || 0) * f / 1000;   // kg to tonnes
   const s1 = { diesel: t(a.diesel, F.diesel), petrol: t(a.petrol, F.petrol), lpg: t(a.lpg, F.lpg), gas: t(a.gas, F.gas) };
   const s2loc = t(a.elec, F.elec), s2mkt = s2loc * (1 - (a.greenPct || 0) / 100);
   const s3 = { travel: t(a.air, S3.fAir) + t(a.car, S3.fCar) + t(a.hotel, S3.fHotel), freight: t(a.freight, S3.fFreight), waste: (a.landfill || 0) * S3.fLandfill + (a.recycled || 0) * S3.fRecycled, water: t(a.water, S3.fWater), materials: 0 };
   const mats = Object.keys(MAT_EF).map((k) => { const f = e.ef[k] != null ? e.ef[k] : MAT_EF[k]; return { key: k, qty: a[k] || 0, f, epd: e.ef[k] != null, t: (a[k] || 0) * f }; }).filter((m) => m.qty);
   s3.materials = mats.reduce((x, m) => x + m.t, 0);
-  const S1 = Object.values(s1).reduce((x, v) => x + v, 0), S3t = Object.values(s3).reduce((x, v) => x + v, 0), measured = ACT.some(([k, , u]) => u !== '%' && a[k] > 0);
+  const S1 = Object.values(s1).reduce((x, v) => x + v, 0), S3t = Object.values(s3).reduce((x, v) => x + v, 0), measured = ACT.some(([k, , u]) => u !== '%' && a[k] != null);   // a recorded zero is data too: only a project with no activity values gets the spend estimate
   const BAC = Number(money.BAC) || 0, AC = Number(money.AC) || 0;
   // no activity data yet: a spend-based estimate from the costs (the actual cost so far, and the whole budget), shown as Scope 3 purchased goods and services
   const est = !measured && (BAC || AC) ? { toDate: r2(AC * SPEND_F / 1000, 1), whole: r2(BAC * SPEND_F / 1000, 1), f: SPEND_F } : null;
@@ -101,11 +101,11 @@ export function calc(plan, money = {}) {
   const risks = (plan.risks || []).filter((k) => k.status !== 'Closed'), climRisks = risks.filter((k) => CLIMATE_RISK.test([k.title, k.category, k.cause, k.desc].join(' ')));
   const ch = plan.charter || {};
   const gov = { charter: ch.docStatus === 'Approved', baseline: !!plan.baseline, risksOwnedPct: risks.length ? Math.round(risks.filter((k) => k.owner).length / risks.length * 100) : null, changes: (plan.changes || []).length, stakeholders: (plan.stakeholders || []).length, lessons: (plan.lessons || []).length };
-  const soc = { ...e.soc, swms: (plan.swms || []).length || (plan.swmsList || []).length || 0, ltifr: e.soc.lti != null && e.soc.hours > 0 ? r2(e.soc.lti / e.soc.hours * 1e6, 2) : null };
+  const soc = { ...e.soc, swms: extra.swms ? 1 : 0, ltifr: e.soc.lti != null && e.soc.hours > 0 ? r2(e.soc.lti / e.soc.hours * 1e6, 2) : null };
   // how ready the project's data is for each framework it reports into
   const has = { ghg: measured, s3: S3t > 0, risk: climRisks.length > 0, target: base > 0 || e.capT > 0, p5: scored.length >= 8, mat: mats.length > 0, epd: mats.some((m) => m.epd), soc: e.soc.workers != null || e.soc.hours != null, gov: gov.charter && gov.baseline };
   const need = { IFRS_S2: ['ghg', 's3', 'risk', 'target'], TCFD: ['risk', 'target'], SBTI: ['ghg', 'target'], GHGP: ['ghg', 's3'], ISO14064_2: ['ghg', 'target'], PAS2080: ['mat', 'epd', 'target'], P5: ['p5', 'soc', 'gov'], ISC_IS: ['ghg', 'mat', 'soc', 'p5'], GREENSTAR: ['ghg', 'mat'], IFC_PS: ['risk', 'soc', 'gov'] };
-  const fw = (e.fw.length ? e.fw : ['IFRS_S2', 'GHGP', 'P5']).map((id) => { const L = need[id] || [], ok = L.filter((k) => has[k]); return { id, name: (PFW.find((x) => x[0] === id) || [])[1] || id, pct: L.length ? Math.round(ok.length / L.length * 100) : 0, missing: L.filter((k) => !has[k]) }; });
+  const fw = (Array.isArray(e.fw) ? e.fw : ['IFRS_S2', 'GHGP', 'P5']).map((id) => { const L = need[id] || [], ok = L.filter((k) => has[k]); return { id, name: (PFW.find((x) => x[0] === id) || [])[1] || id, pct: L.length ? Math.round(ok.length / L.length * 100) : 0, missing: L.filter((k) => !has[k]) }; });
   return { fset, factorSet: F.label, measured, method: measured ? 'Measured activity data' : est ? 'Spend-based estimate (indicative)' : 'No data yet',
     s1: Object.fromEntries(Object.entries(s1).map(([k, v]) => [k, r2(v, 2)])), s1t: r2(S1, 2), s2loc: r2(s2loc, 2), s2mkt: r2(s2mkt, 2), s3: Object.fromEntries(Object.entries(s3).map(([k, v]) => [k, r2(v, 2)])), s3t: r2(S3t, 2),
     mats: mats.map((m) => ({ ...m, t: r2(m.t, 2) })), est, total: r2(total, 1), s12Share: measured && total ? r2((S1 + s2loc) / total * 100, 0) : null,
@@ -120,11 +120,14 @@ export async function portfolio(day, cores, money) {
   const P = await import('./plan.mjs'), PG = await import('./programs.mjs');
   const [cards, plans, reg, cfg] = await Promise.all([P.portfolio(day), P.list(), PG.keyed().catch(() => []), settings()]);
   PG.tagCards(cards, reg);
-  const byCore = Object.fromEntries(plans.map((p) => [p.core, p]));
-  const rows = cards.filter((c) => (!cores || cores.has(c.core)) && byCore[c.core]).map((c) => { const x = calc(byCore[c.core], { BAC: c.BAC, AC: c.AC });
+  const byCore = Object.fromEntries(plans.map((p) => [p.core, p])), mine = cards.filter((c) => (!cores || cores.has(c.core)) && byCore[c.core]);
+  const sw = new Set((await Promise.all(mine.map((c) => kv.get('swms:' + c.core).then((d) => (d ? c.core : null), () => null)))).filter(Boolean));   // a saved SWMS document
+  const rows = mine.map((c) => { const x = calc(byCore[c.core], { BAC: c.BAC, AC: c.AC }, { swms: sw.has(c.core) });
     return { core: c.core, ref: c.ref || '', name: c.name, program: c.program || 'General program', pct: c.pct || 0, BAC: c.BAC || 0, method: x.method, measured: x.measured, total: x.total, s1: x.s1t, s2: x.s2loc, s3: x.measured ? x.s3t : x.est ? x.est.whole : 0,   // a spend-based estimate counts as Scope 3 (purchased goods and services), so the scopes add up to the total
      
       materials: x.s3.materials, intensity: x.intensity, capT: x.capT, overBudget: x.overBudget, reductionPct: x.reductionPct, p5avg: x.p5avg, p5flags: x.p5flags.length, climateRisks: x.climateRisks.length, fw: x.fw.map((f) => ({ id: f.id, pct: f.pct })) }; });
+  // a login that does not see money does not get the spend-based estimates either (they are the budget times a published factor)
+  if (!money) rows.forEach((r) => { if (!r.measured) { r.total = null; r.s3 = 0; } });
   const sum = (L, k) => r2(L.reduce((a, r) => a + (r[k] || 0), 0), 1);
   const progs = {}; rows.forEach((r) => { (progs[r.program] = progs[r.program] || []).push(r); });
   const programs = Object.entries(progs).map(([name, L]) => { const p5 = L.filter((r) => r.p5avg != null);
@@ -139,14 +142,15 @@ export async function portfolio(day, cores, money) {
   if (price != null) { T.carbonCost = r2(T.total * price, 0); programs.forEach((p) => { p.carbonCost = r2(p.total * price, 0); }); rows.forEach((r) => { r.carbonCost = r.total != null ? r2(r.total * price, 0) : null; }); }
   if (!money) rows.forEach((r) => { delete r.BAC; delete r.intensity; }), programs.forEach((p) => { delete p.BAC; }), delete T.BAC, delete T.intensity;
   rows.sort((a, b) => (b.total || 0) - (a.total || 0));
-  return { day, totals: T, programs, projects: rows, price: money ? cfg.price ?? null : undefined, cur: money ? cfg.cur || 'AUD' : undefined, priceNote: money ? cfg.note || '' : undefined,
-    note: 'Measured projects use their activity data and the emission factor set chosen on the project; the rest are spend-based estimates from the project costs (' + SPEND_F + ' kg CO2e per dollar), to be replaced by measured data.' };
+  return { day, totals: T, programs, projects: rows, price: money ? cfg.price ?? null : undefined, cur: money ? cfg.cur || 'AUD' : undefined, priceNote: money ? cfg.note || '' : undefined, rev: money ? cfg.rev || 0 : undefined,
+    note: money ? 'Measured projects use their activity data and the emission factor set chosen on the project; the rest are spend-based estimates from the project costs (' + SPEND_F + ' kg CO2e per dollar), to be replaced by measured data.' : 'Totals cover the projects with measured activity data; projects without it show no figure yet.' };
 }
 
 // the internal carbon price used for the CFO's carbon cost
 export async function settings() { return (await kv.get('pesg-settings').catch(() => null)) || {}; }
-export async function saveSettings(b, by) {
-  const price = b.price === '' || b.price == null ? null : num(b.price, 100000);
-  const v = { price: price ?? null, cur: /^[A-Z]{3}$/.test(b.cur || '') ? b.cur : 'AUD', note: str(b.note, 300), by: str(by, 80), at: Date.now() };
-  await kv.set('pesg-settings', v); return v;
+export async function saveSettings(b, by) {   // compare-and-set: a save made on an older copy is refused, so one person cannot undo another's price
+  const price = b.price === '' || b.price == null ? null : num(b.price, 100000), rev = Number(b.rev) || 0; let stale = false;
+  const v = await kv.update('pesg-settings', (cur) => { cur = cur || {}; if ((cur.rev || 0) !== rev) { stale = true; return cur; }
+    return { price: price ?? null, cur: /^[A-Z]{3}$/.test(b.cur || '') ? b.cur : 'AUD', note: str(b.note, 300), by: str(by, 80), at: Date.now(), rev: rev + 1 }; }, () => null);
+  return stale ? { error: 'Someone else changed the carbon price (' + ((v && v.by) || 'another user') + '). Reload the page and try again.' } : v;
 }
