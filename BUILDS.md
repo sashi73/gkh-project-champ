@@ -341,4 +341,6 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 330 | 1.0.330| 2026-11-25 17:59| efs| `5d157ae` | 📚 ESG emission factor library: search by country, kind, source; one press fills the factor |
 | 331 | 1.0.331| 2026-11-25 18:05| efs| `0155367` | 🇺🇳 The 17 UN SDGs covered by default in the Sustainability Statement and the ESG Report |
 | 332 | 1.0.332| 2026-11-25 18:23| efs| `6d073d1` | 📚 ESG emission factor library: search by country, kind and source (#161) |
-| 333 | 1.0.333 | 2026-11-25 19:25 | esg-cache | _this commit_ | _see git log_ |
+| 333 | 1.0.333| 2026-11-25 19:25| esg-cache| `6cd9b13` | ESG: bump admin-esg.js?v= so browsers load the emission factor library, SDGs, bills and import (the old cached copy hid them) (#162) |
+| 334 | 1.0.334| 2026-11-25 19:37| sdg-map| `5ee2b7f` | 🧭 SDG map in the ESG report and statement: all 17 goals as tiles with our own pictograms, shaded by relevance |
+| 335 | 1.0.335 | 2026-11-25 19:45 | sdg-map | _this commit_ | _see git log_ |
