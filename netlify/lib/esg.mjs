@@ -624,7 +624,7 @@ export async function writeDoc(id, kind, lang, by) {
     if (!todo.length || left < 150000) break;
     const again = await Promise.all(todo.map((i) => one(PARTS[i], round, Math.min(360000, left - 45000))));
     todo.forEach((i, j) => { const a = again[j], b = res[i], used = (b.used || 0) + (a.used || 0); if (a.error) { res[i] = { ...b, used, error: b.error && a.error }; return; }
-      const data = { ...b.data, ...a.data }; res[i] = { data, used, cut: a.cut, retried: round, miss: textKeys(PARTS[i]).filter((k) => typeof data[k] !== 'string') }; });
+      const data = { ...b.data, ...a.data }; res[i] = { data, used, cut: a.cut || (b.cut && Object.keys(b.data).some((k) => !(k in a.data))), retried: round, miss: textKeys(PARTS[i]).filter((k) => typeof data[k] !== 'string') }; });
   }
   const failed = res.filter((r) => r.error); if (failed.length === res.length) return { error: 'The AI could not write the ' + (kind === 'report' ? 'ESG report' : 'sustainability statement') + ': ' + failed[0].error };
   const raw = Object.assign({}, ...res.map((r) => r.data)), tokens = res.reduce((a, r) => a + (r.used || 0), 0);
@@ -637,7 +637,9 @@ export async function writeDoc(id, kind, lang, by) {
   const prev0 = await kv.get('esgdoc:' + e.id + ':' + kind).catch(() => null), prevDoc = prev0 && prev0.lang === L ? prev0 : null, kept = [], lost = [];   // only text in the same language is reused
   let keptRev = null;
   res.forEach((r, i) => { const miss = keysOf(PARTS[i]).filter((k) => sections[k] == null); if (!r.error && !miss.length) return; const name = (PARTS[i].ask.match(/PART ([A-Z]) \(([^)]+)\)/) || [])[0] || ('part ' + (i + 1)), ks = keysOf(PARTS[i]).filter((k) => prevDoc && prevDoc.sections && prevDoc.sections[k] != null && sections[k] == null);
-    if (ks.length) { ks.forEach((k) => { sections[k] = prevDoc.sections[k]; }); keptRev = keptRev == null ? prevDoc.rev : Math.min(keptRev, prevDoc.rev); kept.push((r.error ? name : ks.length + ' section' + (ks.length === 1 ? '' : 's') + ' of ' + name) + ' kept from v' + prevDoc.ver); } else if (r.error) lost.push(name + ' (' + str(r.error, 90) + ')'); else if (miss.some((k) => textKeys(PARTS[i]).includes(k))) lost.push(name + ' (left out: ' + miss.filter((k) => textKeys(PARTS[i]).includes(k)).join(', ') + ')'); });
+    if (ks.length) { ks.forEach((k) => { sections[k] = prevDoc.sections[k]; }); keptRev = keptRev == null ? prevDoc.rev : Math.min(keptRev, prevDoc.rev); kept.push((r.error ? name : ks.length + ' section' + (ks.length === 1 ? '' : 's') + ' of ' + name) + ' kept from v' + prevDoc.ver); }
+    const still = textKeys(PARTS[i]).filter((k) => sections[k] == null);   // checked again after any text was restored, so every missing section is named
+    if (still.length) lost.push(name + (r.error && !ks.length ? ' (' + str(r.error, 90) + ')' : ' (left out: ' + still.join(', ') + ')')); });
   const cut = res.filter((r) => r.cut).length;
   const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [lost.length ? lost.length + ' of ' + PARTS.length + ' parts could not be written in full: ' + lost.join('; ') : '', kept.length ? 'the AI could not rewrite ' + kept.join(', ') : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: keptRev != null && keptRev < e.rev ? keptRev : e.rev, sections };   // text kept from an older version keeps the older data version, so the out-of-date warning shows
   // the version is given out atomically, so two people writing at once get v2 and v3, not two v2s
