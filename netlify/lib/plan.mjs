@@ -13,6 +13,7 @@ import * as ACC from './accounts.mjs';
 const FMT_C = ['red', 'amber', 'green', 'blue', 'purple'], FMT_BG = ['yellow', 'green', 'blue', 'pink', 'grey'];
 const fmtOf = (f) => { if (!f || typeof f !== 'object') return undefined; const o = {}; if (f.b) o.b = true; if (f.i) o.i = true; if (f.u) o.u = true; if (FMT_C.includes(f.c)) o.c = f.c; if (FMT_BG.includes(f.bg)) o.bg = f.bg; return Object.keys(o).length ? o : undefined; };
 import { cleanBom } from './bom.mjs';
+import { clean as cleanEsg } from './pesg.mjs';
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const str = (s, max = 300) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim().slice(0, max);
@@ -304,6 +305,7 @@ function clean(p, core) {
     lessons: (Array.isArray(p.lessons) ? p.lessons : []).slice(0, 200).map((l) => (l && typeof l === 'object' ? { id: uid(l.id, 'l'), title: str(l.title, 200), category: str(l.category, 40), phase: str(l.phase, 80),
       impact: l.impact === 'positive' ? 'positive' : 'negative', what: str(l.what, 1500), cause: str(l.cause, 800), rec: str(l.rec, 800), status: ['Draft', 'Agreed'].includes(l.status) ? l.status : 'Draft',
       reuse: l.reuse !== false, source: l.source === 'ai' ? 'ai' : l.source === 'library' ? 'library' : 'manual', from: str(l.from, 120), by: str(l.by, 80), at: Number(l.at) || Date.now() } : null)).filter((l) => l && (l.title || l.what)),
+    esg: cleanEsg(p.esg),   // 🌿 the project's ESG & Sustainability data (pesg.mjs)
     lessonsUsed: (Array.isArray(p.lessonsUsed) ? p.lessonsUsed : []).slice(0, 300).map((x) => str(x, 60)).filter(Boolean),   // library lessons already applied or dismissed here
     dataLang: /^[a-z]{2}$/.test(p.dataLang || '') ? p.dataLang : undefined,
     dataSrcLang: /^[a-z]{2}$/.test(p.dataSrcLang || '') ? p.dataSrcLang : undefined,   // the language the data was first written in

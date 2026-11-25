@@ -316,7 +316,7 @@ async function handle(req, context) {
         const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
       }
       // 🌿 ESG & Sustainability: reporting entities (an organisation and its reporting year), their E, S and G data, scores, standards and the AI-written documents (netlify/lib/esg.mjs). Open to every signed-in user.
-      case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, industryGroups: E.INDUSTRY_GROUPS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES, fields: E.fieldList(), sdgs: E.SDGS, topicsFull: E.TOPICS_FULL, iroKinds: E.IRO_KINDS, horizons: E.HORIZONS, sectorTopics: E.SECTOR_TOPICS }); }
+      case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, industryGroups: E.INDUSTRY_GROUPS, stdGroups: E.STD_GROUPS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES, fields: E.fieldList(), sdgs: E.SDGS, topicsFull: E.TOPICS_FULL, iroKinds: E.IRO_KINDS, horizons: E.HORIZONS, sectorTopics: E.SECTOR_TOPICS }); }
       case 'esgAiStatus': { const id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40), r = id.length >= 12 ? await kv.get('aiplan:' + id) : null; return out(200, r && (r.esg || r.status !== 'done') ? r : { status: 'waiting' }); }   // the ESG AI job's progress (not other AI results)
         // 🗄 the Sustainability vault: data month by month, evidence by year and month, year-on-year progress and the target path (netlify/lib/esg-vault.mjs)
       case 'esgVaultOrgs': case 'esgVaultOpen': case 'esgVaultGet': case 'esgVaultSave': case 'esgVaultBills': case 'esgVaultUrl': case 'esgVaultAdd': case 'esgVaultFile': case 'esgVaultDelete': {
@@ -349,6 +349,21 @@ async function handle(req, context) {
       case 'planPgmGet': {   // 🗺 the Program view: a Program manager's programs (the PMO view, cut to their projects, without money)
         if (!ctx.pgm || ctx.pgm.kind !== 'program') return bad('The Program view is for program managers.', 403);
         const PMO = await import('../lib/pmo.mjs'); return out(200, await PMO.pmoView(String(body.today || '').match(/^\d{4}-\d{2}-\d{2}$/) ? body.today : new Date().toISOString().slice(0, 10), { pgm: ctx.pgm }));
+      }
+      // 🌿 ESG & Sustainability for projects and programs (pesg.mjs)
+      case 'planEsgAnalyse': {   // one project's ESG figures, from its saved plan with the ESG data being edited
+        const core = String(body.core || '').slice(0, 40); if (ctx.scope && !ctx.scope.includes(core)) return bad('Not your project.', 403);
+        const P = await import('../lib/plan.mjs'), PE = await import('../lib/pesg.mjs'), plan = await P.get(core).catch(() => null); if (!plan) return bad('Project not found', 404);
+        const x = PE.calc({ ...plan, esg: body.esg !== undefined ? body.esg : plan.esg }, { BAC: Number(body.BAC) || 0, AC: Number(body.AC) || 0 });
+        if (!U.seesMoney(ctx)) { delete x.intensity; if (x.est) delete x.est.f; }
+        return out(200, { esg: x, schema: { act: PE.ACT, matEf: PE.MAT_EF, matNote: PE.MAT_NOTE, p5: PE.P5, scale: PE.P5_SCALE, pillars: PE.P5_PILLARS, fw: PE.PFW, spendF: PE.SPEND_F, factorSets: PE.SETS() } });
+      }
+      case 'planEsgPortfolioGet': {   // every project this login can see, by program (CEO, CSO, CFO, PMO and program views)
+        const PE = await import('../lib/pesg.mjs'); return out(200, await PE.portfolio(/^\d{4}-\d{2}-\d{2}$/.test(body.today || '') ? body.today : new Date().toISOString().slice(0, 10), ctx.scope ? new Set(ctx.scope) : null, U.seesMoney(ctx)));
+      }
+      case 'planEsgSettingsSave': {   // the internal carbon price for the carbon cost: the CEO, the CFO and the super user
+        if (ctx.scope || !(ctx.owner || ['CEO', 'CFO'].includes(ctx.role))) return bad('The internal carbon price is set by the CEO or the CFO.', 403);
+        const PE = await import('../lib/pesg.mjs'), v = await PE.saveSettings(body, by); await A.audit(who, 'ESG: internal carbon price for projects set to ' + (v.price == null ? 'none' : v.cur + ' ' + v.price + ' per tCO2e')); return out(200, { settings: v });
       }
       case 'planPmoGet': {   // 🧭 the PMO view: the PMO Director, the CEO and the super user
         if (ctx.scope || !(ctx.owner || ['CEO', 'PMO Director'].includes(ctx.role))) return bad('The PMO view is for the PMO Director and the CEO.', 403);
