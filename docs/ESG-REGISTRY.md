@@ -135,6 +135,28 @@ Choosing a set fills the factors, and any factor can be overwritten. Refrigerant
 
 Before publishing, check every factor against the current official release. Then record the release here when the defaults change.
 
+### Emission factor library (`netlify/lib/esg-factors.mjs`, action `esgFactors`)
+
+The library holds 156 factors from 13 sources, covering 58 countries and regions. It opens from the *Factor library* sub-tab on Scope 1 & 2 and Scope 3, or from 🔎 next to any factor field (filtered to that field and the report's country).
+
+**Search and filters:** free text, country, kind, source or standard, and field.
+
+**Using a factor:** *Use* fills the field and records the source in `entity.efsrc` (factor id, label with edition, value). The report prints an *Emission factors used* table. Typing your own value records *Entered by you*; choosing a factor set records *Factor set: …*.
+
+**What it contains:**
+
+- **Grid electricity**
+  - Australia: NGA / NGER state factors for 2025-26 and 2024-25.
+  - Malaysia: Energy Commission grid emission factors for Peninsular, Sabah and Sarawak, 2024 and 2023 (provisional).
+  - UK: DESNZ 2024.
+  - Singapore: EMA. Thailand: TGO. US: EPA eGRID. New Zealand: MfE.
+  - IEA 2025 national averages for 57 countries, as published by ABB. These are CO2 only and per kWh generated; use them only where there is no national factor.
+- **Fuels:** NGA, DESNZ, EPA, MfE, TGO and the IPCC 2006 defaults.
+- **Gases:** global warming potentials (AR4, AR5 and AR6) for common refrigerants, SF6, methane and N2O.
+- **Scope 3:** GKH indicative defaults.
+
+When a source publishes a new edition, add it as new rows (keep the old edition for earlier years) and log it below.
+
 ## 7. Carbon avoidance
 
 This follows the WBCSD *Guidance on Avoided Emissions* (2023) and the GHG Protocol.
@@ -212,6 +234,8 @@ The report has a chapter, *Carbon pricing, CBAM and carbon credits* (AI key `car
 | v1 | 2026-11-25 | First draft. One menu item; Setup, E, S, G, Carbon avoidance and Reporting tabs; 17 standards with an 82-entry disclosure index; scoring method v1; Sustainability Statement (under 10 pages) and ESG Report (about 60 pages, up to 100k tokens) in the charter and plan format; Champ answers ESG questions; Records (registry, documents, change log); 🌱 CSO view in Management & leadership. |
 | v1.1 | 2026-11-25 | Carbon pricing, CBAM (EU and UK) and the carbon credit framework (Pricing & CBAM tab with sub-tabs; credit integrity checks; report chapter; CSO exposure). Long registers became compact lists that open one item at a time. |
 | v1.2 | 2026-11-25 | Own menu section "ESG & Sustainability"; electricity bills read by AI for Scope 2; CSV and Excel import (template, by name, or matched by Champ); data tabs split into sub-tabs (data, bills, factors). |
+| v1.4 | 2026-11-25 | The 17 UN SDGs are covered by default: SDG ticked on every new report; the ESG report has a chapter with all 17 goals (relevance, contribution, the reported measure); the statement has a short SDG table; the measures come from the data even before the AI writes. |
+| v1.3 | 2026-11-25 | Emission factor library (156 factors, 58 countries and regions, 13 sources), searchable by country, kind, source and field; 🔎 on each factor; source recorded per factor and printed in the report. |
 
 ## 10. Next iterations (backlog)
 

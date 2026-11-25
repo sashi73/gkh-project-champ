@@ -145,7 +145,7 @@
     var src = S.source; S.source = '';
     S.saving = api('esgSave', { id: id, rev: ent.rev, patch: patch, source: src || undefined }).then(function (d) {
       keys.forEach(function (k) { if (!S.parts[k]) ent[k] = d.entity[k]; });   // keep anything typed while it saved
-      ent.rev = d.entity.rev; ent.log = d.entity.log; if (!S.parts.bills) ent.bills = d.entity.bills; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
+      ent.rev = d.entity.rev; ent.log = d.entity.log; if (!S.parts.bills) ent.bills = d.entity.bills; if (!S.parts.efsrc) ent.efsrc = d.entity.efsrc; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
       if (V.e === ent) { V.calc = d.calc; if (d.cover) V.cover = d.cover; say('✓ Saved'); refresh(); }
       S.saving = null; return Object.keys(S.parts).length ? saveNow(id) : null;
     }, function (e) {
@@ -172,7 +172,9 @@
     else if (t === 'l') ctl = '<textarea id="' + id + '" rows="4" data-s="' + sec + '" data-k="' + k + '">' + esc(val) + '</textarea>';
     else ctl = '<span class="esg-in"><input id="' + id + '" data-s="' + sec + '" data-k="' + k + '" ' + (t === 'n' || t === 'p' ? 'type="number" step="any" inputmode="decimal"' + (t === 'p' ? ' min="0" max="100"' : '') : t === 'd' ? 'type="date"' : 'type="text" maxlength="200"') +
       ' value="' + esc(val) + '"' + (isF(k) || k === 'refGwp' ? ' placeholder="' + esc(nf(defOf(sec, k), 4).replace(/,/g, '')) + '"' : '') + '>' + (unit ? '<i>' + esc(unit) + '</i>' : '') + '</span>';
-    return '<label class="esg-f' + (t === 'l' ? ' full' : '') + '" for="' + id + '"><span>' + esc(label) + '</span>' + ctl + (hint ? '<small class="muted">' + esc(hint) + '</small>' : '') + '</label>';
+    var fk = sec + '.' + k, isEf = isF(k) || k === 'refGwp', src = isEf && (V.e.efsrc || {})[fk];
+    if (isEf) ctl = '<span class="esg-efrow">' + ctl + '<button type="button" class="btn btn-sm esg-find" data-find="' + fk + '" title="Find a factor in the library" aria-label="Find ' + esc(label) + ' in the emission factor library">🔎</button></span>';
+    return '<label class="esg-f' + (t === 'l' ? ' full' : '') + '" for="' + id + '"><span>' + esc(label) + '</span>' + ctl + (src ? '<small class="esg-efsrc">📚 ' + esc(src.label) + '</small>' : hint ? '<small class="muted">' + esc(hint) + '</small>' : '') + '</label>';
   }
   var INTRO = { org: 'Who is reporting, for what period, and how. This becomes the basis of preparation in the statement and the report.',
     carbon: 'Scope 1 (fuels you burn and refrigerant leaks) and Scope 2 (electricity you buy). The factor set fills the emission factors; leave a factor blank to use the set\'s value, or type your own.',
@@ -187,11 +189,55 @@
     var SUB = [['data', sec === 'carbon' ? 'Fuels & electricity' : sec === 'scope3' ? 'Activity data' : 'Data']];
     if (sec === 'carbon') SUB.push(['bills', 'Electricity bills' + ((V.e.bills || []).length ? ' (' + V.e.bills.length + ')' : '')]);
     if (facs.length) SUB.push(['factors', 'Emission factors']);
+    if (facs.length) SUB.push(['library', 'Factor library']);
     var sub = (V.subs || {})[sec] || 'data'; if (!SUB.some(function (x) { return x[0] === sub; })) sub = 'data';
+    if (sub === 'library') return subBar(SUB, sub, s.title) + libraryCard(sec);
     var left = sub === 'bills' ? billsCard() : sub === 'factors' ? '<div class="card"><h3 style="margin:0 0 4px">Emission factors</h3><p class="muted" style="margin:0 0 12px;font-size:13px">Indicative defaults are shown in grey: leave a factor blank to use the set\'s value, or type your own. Check them against the current official set before you report.</p><div class="esg-form">' + facs.map(function (f) { return field(sec, f); }).join('') + '</div></div>'
       : '<div class="card"><div class="row" style="margin-bottom:6px"><h3 style="margin:0">' + esc(s.title) + '</h3><span class="sp"></span><button class="btn btn-sm" type="button" data-import="1">📥 Import from a spreadsheet</button></div><p class="muted" style="margin:0 0 12px;font-size:13px">' + esc(INTRO[sec] || '') + '</p><div class="esg-form">' + acts.map(function (f) { return field(sec, f); }).join('') + '</div></div>';
     return (SUB.length > 1 ? subBar(SUB, sub, s.title) : '') + '<div class="esg-split"><div>' + left + '</div><div><div class="card esg-res" id="esgRes">' + results(sec) + '</div>' + (p ? insightCard(p) : '') + '</div></div>';
   }
+  /* ---------- 📚 the emission factor library: every published factor, searchable by country, kind and source; one press fills the field ---------- */
+  var EF = null, LF = { q: '', country: '', cat: '', std: '', field: '', n: 40 };
+  var efLoad = function () { return EF ? Promise.resolve(EF) : api('esgFactors', {}).then(function (d) { EF = d.factors; return EF; }); };
+  var FIELDN = { 'carbon.fElec': 'Grid electricity', 'carbon.fDiesel': 'Diesel', 'carbon.fPetrol': 'Petrol', 'carbon.fJet': 'Jet fuel', 'carbon.fLpg': 'LPG', 'carbon.fGas': 'Natural gas', 'carbon.refGwp': 'Refrigerant GWP' };
+  function efLabel(x) { return x.std + ' ' + x.year + ' · ' + [x.name, x.region, x.country === 'Global' ? '' : x.country].filter(Boolean).join(', '); }
+  function libraryCard(sec) {
+    if (!EF) { efLoad().then(function () { if (V.tab === sec) body(); }).catch(fail); return '<div class="card empty">Loading the emission factor library…</div>'; }
+    var uniq = function (k) { return EF.map(function (x) { return x[k]; }).filter(function (v, i, a) { return v && a.indexOf(v) === i; }).sort(); };
+    var sel = function (id, k, all, L) { return '<label>' + all + '<select id="' + id + '"><option value="">All</option>' + L.map(function (v) { return '<option' + (v === LF[k] ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('') + '</select></label>'; };
+    var fields = EF.map(function (x) { return x.field; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    return '<div class="card"><div class="row"><h3 style="margin:0">Emission factor library</h3><span class="muted" style="font-size:13px">' + EF.length + ' factors from ' + uniq('std').length + ' sources, ' + uniq('country').length + ' countries and regions</span></div>' +
+      '<p class="muted" style="font-size:13px;margin:6px 0 12px">Search by country, state, fuel, gas or source, then press <b>Use</b> to put the factor in your report. The report records which factor and edition you used. Values are copied from the published sources: check them against the current release before you report.</p>' +
+      '<div class="esg-form esg-form-4 esg-lf"><label class="esg-span-2">Search<input id="lfQ" type="search" value="' + esc(LF.q) + '" placeholder="e.g. New South Wales, Sabah, diesel, R-410A, DESNZ, IEA"></label>' + sel('lfCountry', 'country', 'Country', uniq('country')) + sel('lfCat', 'cat', 'Kind', uniq('cat')) +
+        sel('lfStd', 'std', 'Source or standard', uniq('std')) + '<label>For the field<select id="lfField"><option value="">Any</option>' + fields.map(function (f) { var nm = FIELDN[f] || ((SC.fields.filter(function (y) { return y.id === f; })[0] || {}).label || f).replace(/^Factor: /, ''); return '<option value="' + f + '"' + (f === LF.field ? ' selected' : '') + '>' + esc(nm) + '</option>'; }).join('') + '</select></label>' +
+        '<label class="esg-span-2" style="align-self:end"><button class="btn btn-sm" type="button" id="lfClear">Clear the filters</button></label></div><div id="lfRes">' + libRows() + '</div></div>';
+  }
+  function libRows() {
+    var q = LF.q.toLowerCase().split(/\s+/).filter(Boolean), used = {}; Object.keys(V.e.efsrc || {}).forEach(function (k) { used[V.e.efsrc[k].id] = k; });
+    var L = EF.filter(function (x) { if (LF.country && x.country !== LF.country) return false; if (LF.cat && x.cat !== LF.cat) return false; if (LF.std && x.std !== LF.std) return false; if (LF.field && x.field !== LF.field) return false;
+      var hay = [x.cat, x.name, x.region, x.country, x.std, x.source, x.year, x.unit, FIELDN[x.field] || ''].join(' ').toLowerCase(); return q.every(function (w) { return hay.indexOf(w) >= 0; }); });
+    var home = ((V.e.org || {}).country || '').toLowerCase(); L.sort(function (a, b) { return (b.country.toLowerCase() === home) - (a.country.toLowerCase() === home); });
+    if (!L.length) return '<p class="muted" style="margin:12px 0">No factor matches. Try fewer words, or clear the filters. For a country not listed, the IEA national average or the IPCC defaults apply.</p>';
+    return '<p class="muted" style="font-size:12.5px;margin:10px 0 6px">' + pl(L.length, 'factor') + (L.length > LF.n ? ', showing the first ' + LF.n : '') + '</p><div class="tbl-wrap"><table class="tbl esg-tbl esg-eflib"><thead><tr><th>Kind</th><th>Factor</th><th>Country · region</th><th class="r">Value</th><th>Source</th><th></th></tr></thead><tbody>' +
+      L.slice(0, LF.n).map(function (x) { var u = used[x.id]; return '<tr' + (u ? ' class="on"' : '') + '><td>' + esc(x.cat) + '</td><td><b>' + esc(x.name || FIELDN[x.field] || '') + '</b></td><td>' + esc(x.country) + (x.region ? '<div class="muted" style="font-size:11.5px">' + esc(x.region) + '</div>' : '') + '</td>' +
+        '<td class="r"><b>' + esc(String(x.value)) + '</b><div class="muted" style="font-size:11.5px">' + esc(x.unit) + '</div></td><td>' + esc(x.std) + ' · ' + esc(x.year) + '<div class="muted" style="font-size:11.5px" title="' + esc(x.source + (x.note ? '. ' + x.note : '')) + '">' + esc(x.source) + (x.note ? ' · ' + esc(x.note) : '') + '</div></td>' +
+        '<td>' + (u ? '<span class="pill t-green">✓ In use</span>' : '<button class="btn btn-sm btn-gold" type="button" data-efuse="' + x.id + '">Use</button>') + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+      (L.length > LF.n ? '<div class="row" style="justify-content:center;margin-top:10px"><button class="btn btn-sm" type="button" id="lfMore">Show ' + Math.min(40, L.length - LF.n) + ' more</button></div>' : '');
+  }
+  function useFactor(id) {
+    var x = EF.filter(function (y) { return y.id === id; })[0]; if (!x) return;
+    var sec = x.field.split('.')[0], k = x.field.split('.')[1], prev = (V.e[sec] || {})[k];
+    V.e[sec] = V.e[sec] || {}; V.e[sec][k] = x.value; V.e.efsrc = Object.assign({}, V.e.efsrc); V.e.efsrc[x.field] = { id: x.id, label: efLabel(x), value: x.value };
+    touch(sec); touch('efsrc');
+    toast((FIELDN[x.field] || 'Factor') + ' set to ' + x.value + ' ' + x.unit + ' (' + x.std + ' ' + x.year + ')' + (prev != null && String(prev) !== String(x.value) ? ', was ' + prev : ''));
+    var r = $('#lfRes'); if (r) { r.innerHTML = libRows(); wireLib(); }
+  }
+  function wireLib() {
+    var r = $('#lfRes'); if (!r) return;
+    r.querySelectorAll('[data-efuse]').forEach(function (b) { b.onclick = function () { useFactor(b.getAttribute('data-efuse')); }; });
+    var m = $('#lfMore'); if (m) m.onclick = function () { LF.n += 40; r.innerHTML = libRows(); wireLib(); };
+  }
+
   /* ---------- 🧾 electricity bills: upload them, Champ reads the kWh, you check, Scope 2 uses the total ---------- */
   function billSum() {
     var B = V.calc.bills || {}, c = V.e.carbon || {}, differs = B.n && (Math.abs((c.elec || 0) - B.mwh) > 0.001 || Math.abs((c.green || 0) - B.greenMwh) > 0.001);
@@ -530,8 +576,8 @@
       (N && N.rev != null && N.rev < V.e.rev ? '<div class="esg-stale" role="status">⚠ The data has changed since this narrative was written (data version ' + N.rev + ', now ' + V.e.rev + '). The figures, tables and charts use today\'s data, so the text may quote older numbers: <b>write it again</b> before you publish. The documents are marked until you do.</div>' : '') + '<div class="esg-dstate">' + (N ? '✓ Narrative v' + N.ver + ' written ' + esc(when(N.at)) + ' by ' + esc(N.by || '') + ' · ' + nf(N.tokens) + ' tokens' + (N.partial ? ' · <span class="t-amber">' + esc(N.partial) + '</span>' : '') + '. Write it again after you change the data.' : 'No narrative yet: the PDF and Word still work, with the data, charts and tables, and a note where the narrative goes.') + '</div></div>' +
       '<div class="card"><h3 style="margin-top:0">Inside</h3><ol class="esg-toc">' + (rep ? REPORT_TOC : STATEMENT_TOC).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div></div>';
   }
-  var STATEMENT_TOC = ['Message from leadership', 'About this statement', 'Governance and strategy', 'Material topics', 'Environment and climate', 'Social', 'Governance performance', 'Avoided emissions', 'Targets and outlook', 'Content index'];
-  var REPORT_TOC = ['Part 1 Introduction and strategy: message from the CEO, about this report, our organisation, strategy, stakeholders, materiality, SDGs', 'Part 2 Governance: structure and oversight, ethics and integrity, risk management, cyber, privacy and tax',
+  var STATEMENT_TOC = ['Message from leadership', 'About this statement', 'Governance and strategy', 'Material topics', 'Contribution to the UN SDGs', 'Environment and climate', 'Social', 'Governance performance', 'Avoided emissions', 'Targets and outlook', 'Content index'];
+  var REPORT_TOC = ['Part 1 Introduction and strategy: message from the CEO, about this report, our organisation, strategy, the 17 UN SDGs, stakeholders, materiality', 'Part 2 Governance: structure and oversight, ethics and integrity, risk management, cyber, privacy and tax',
     'Part 3 Climate: governance and strategy, risks and opportunities, scenarios and resilience, metrics, targets and transition plan', 'Part 4 Environment: GHG emissions, energy, water and waste, biodiversity and compliance, avoided emissions, carbon pricing, CBAM and carbon credits',
     'Part 5 Social: our people, health and safety, diversity and inclusion, human rights and Indigenous peoples, communities, suppliers and customers', 'Part 6 Performance and roadmap: governance performance, ESG scorecard, targets and roadmap, reporting standards, data quality and assurance',
     'Appendices: performance data, content index, glossary, forward-looking statements, approval'];
@@ -574,6 +620,24 @@
   var dt = function (s) { try { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''; } catch (x) { return s; } };
   var RT = ['–', 'Low', 'Medium', 'High', 'Very high'];
   function list(L) { return (L || []).map(function (x) { return '- ' + (typeof x === 'string' ? x : Object.values(x).join(': ')); }).join('\n'); }
+  // 🇺🇳 the 17 SDGs: the AI's view where it wrote one, and always the reported figure that tracks each goal
+  function sdgRows(X, S) {
+    var e = X.e, c = X.c, em = X.em, w = e.workforce || {}, r = e.resources || {}, t = e.ethics || {}, cm = e.community || {}, f = function (v, u) { return v == null || v === '' ? '' : nf(v, v < 100 ? 1 : 0) + (u || ''); };
+    var M = { 3: [f(w.ltifr) && 'LTIFR ' + f(w.ltifr), w.deaths != null && (nf(w.deaths) + (Number(w.deaths) === 1 ? ' fatality' : ' fatalities'))], 4: [f(w.trainHrs) && f(w.trainHrs) + ' training hours per employee'], 5: [c.soc.womenPct != null && c.soc.womenPct + '% women', c.soc.womenMgmtPct != null && c.soc.womenMgmtPct + '% women in management', w.payGap != null && w.payGap + '% gender pay gap'],
+      6: [f(r.waterWd) && f(r.waterWd) + ' m3 water withdrawn'], 7: [r.renewPct != null && r.renewPct + '% renewable energy', em.energy != null && nf(em.energy) + ' MWh energy'], 8: [f(w.fte) && f(w.fte) + ' FTE', w.fte && w.leavers != null && nf(w.leavers / w.fte * 100, 1) + '% turnover'],
+      10: [w.payGap != null && w.payGap + '% pay gap'], 11: [f(cm.invest) && 'community investment ' + f(cm.invest)], 12: [r.divertPct != null && r.divertPct + '% waste diverted', f(r.wasteT) && f(r.wasteT) + ' t waste'],
+      13: [em.total != null && nf(em.total) + ' tCO2e footprint', c.avoid.total && nf(c.avoid.total) + ' tCO2e avoided'], 16: [t.corruptCases != null && pl(t.corruptCases, 'corruption incident'), t.code && 'code of conduct: ' + t.code], 17: [c.price.creditT && nf(c.price.creditT) + ' tCO2e of credits retired'] };
+    var ai = {}; (S.sdgs || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) ai[n] = x; });
+    (e.avoid || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) (M[n] = M[n] || []).push(x.name); });
+    return (SC.sdgs || []).map(function (g, i) { var n = i + 1, a = ai[n] || {}, met = (M[n] || []).filter(Boolean).join('; ') || a.metric || '';   // today's reported figures first; the AI's only where the data has none
+      return { n: n, goal: 'SDG ' + n + ' ' + g, rel: a.relevance || '', text: a.contribution || '', metric: met }; });
+  }
+  function sdgTable(rows, nl, small) {
+    var rg = function (v) { return /high/i.test(v) ? 'G' : /med/i.test(v) ? 'A' : undefined; };
+    return { t: 'table', title: small ? null : 'The 17 Sustainable Development Goals', head: small ? ['Goal', 'Our contribution', 'Measure'] : ['Goal', 'Relevance', 'Our contribution', 'Measure'],
+      rows: rows.map(function (x) { return small ? [{ t: x.goal, b: true }, x.text || '', x.metric || ''] : [{ t: x.goal, b: true }, { t: x.rel || '–', center: true, rag: rg(x.rel) }, x.text || '', x.metric || '']; }), widths: small ? [1.6, 3.2, 1.6] : [1.6, 0.8, 3.2, 1.5], size: 7.2, noTr: nl,
+      note: 'The UN Sustainable Development Goals (2030 Agenda). Relevance and contribution are the organisation\'s own assessment; measures are the figures reported in this document.' };
+  }
   function statementDoc(N, lang, lim) {
     var X = F(), S = (N && N.sections) || {}, nl = N && N.lang === lang, n = 0, today = new Date().toISOString().slice(0, 10);
     var T = function (text, fb) { var v = text || fb; return v ? { t: 'p', text: v, noTr: !!text && nl } : null; };
@@ -585,6 +649,8 @@
       ch('Governance and strategy', 'How we manage sustainability', [T(S.governance), T(S.strategy)]),
       ch('Material topics', 'What matters most', [T(S.materiality), (S.material_topics || []).length ? { t: 'table', head: ['Topic', 'Pillar', 'Why it matters'], rows: S.material_topics.map(function (x) { return [{ t: x.topic, b: true }, { t: x.pillar, center: true }, x.why]; }), widths: [2, 0.6, 4], noTr: nl }
         : X.mat.length ? { t: 'table', head: ['Topic', 'Impact', 'Financial'], rows: X.mat.slice(0, 10).map(function (m) { return [{ t: m.tp[1], b: true }, RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 1, 1] } : null]),
+      (function () { var R0 = sdgRows(X, S), top = (S.sdgs || []).length ? R0.filter(function (x) { return x.text; }) : R0.filter(function (x) { return x.metric; }).slice(0, 6);
+        return ch('Contribution to the UN Sustainable Development Goals', 'SDGs', [top.length ? sdgTable(top, nl, true) : T(null, 'No goal is linked to the data yet: write the narrative with ✨ AI, or add data.')]); })(),
       ch('Environment and climate', 'Planet', [{ t: 'stats', items: [{ v: nf(X.em.total), l: 'tCO2e total footprint' }, { v: nf(X.em.s1t), l: 'Scope 1' }, { v: nf(X.em.s2loc), l: 'Scope 2 (location)' }, { v: nf(X.em.s3t), l: 'Scope 3' }] }, T(S.environment),
         lim < 1 ? { t: 'chart', kind: 'bar', title: 'Emissions by scope (tCO2e)', data: { items: [['Scope 1', X.em.s1t], ['Scope 2', X.em.s2loc], ['Scope 3', X.em.s3t]].filter(function (x) { return x[1] != null; }).map(function (x) { return { l: x[0], v: x[1], t: nf(x[1]) }; }) }, maxH: 42 } : null, T(S.climate)]),
       ch('Social', 'People', [T(S.social), { t: 'table', head: ['Measure', 'This year'], rows: X.people.slice(0, lim < 2 ? 12 : 7), widths: [3, 2] }]),
@@ -617,7 +683,9 @@
     C.push(ch('Message from the CEO', 'Leadership', [{ t: 'stats', items: D.stats }, T(S.ceo_message, miss)], 'Our year in sustainability'));
     C.push(ch('About this report', 'Basis of preparation', [T(S.about_report, miss), { t: 'kv', title: 'Reporting basis', rows: D.meta.concat([['Factor set', em.setLabel], ['Scoring method', c.method], ['Contact', X.o.contact || '']]) }], 'Period, boundary, standards and assurance'));
     C.push(ch('Our organisation', 'Profile', [T(S.organisation_profile, X.o.about || miss)], 'What we do and where'));
-    C.push(ch('Sustainability strategy', 'Strategy', [T(S.strategy, miss), (S.sdgs || []).length ? { t: 'cards', cols: 2, items: S.sdgs.map(function (x) { return { title: x.sdg, text: x.contribution }; }), noTr: nl } : null], 'Our pillars and the goals we contribute to'));
+    C.push(ch('Sustainability strategy', 'Strategy', [T(S.strategy, miss)], 'Our pillars and priorities'));
+    var SR = sdgRows(X, S), hi = SR.filter(function (x) { return /high/i.test(x.rel); });
+    C.push(ch('UN Sustainable Development Goals', 'SDGs', [T(S.sdg_overview, miss), hi.length ? { t: 'cards', cols: 3, items: hi.slice(0, 6).map(function (x) { return { title: x.goal, text: x.text, tag: 'High relevance' }; }), noTr: nl } : null, sdgTable(SR, nl, false)], 'How we contribute to the 17 goals of the 2030 Agenda'));
     C.push(ch('Stakeholder engagement', 'Stakeholders', [T(S.stakeholder_engagement, miss), tbl('stakeholders', ['Stakeholder group', 'What they care about', 'How we engage', 'How often'], ['group', 'concerns', 'how_engaged', 'frequency'], [1.4, 2.4, 2.2, 1])], 'Who we listen to'));
     C.push(ch('Materiality', 'What matters', [T(S.materiality, miss), tbl('material_topics', ['Topic', 'Pillar', 'Impact', 'Financial', 'Why it matters'], ['topic', 'pillar', 'impact', 'financial', 'why'], [2, 0.6, 0.8, 0.8, 3.4]) || (X.mat.length ? { t: 'table', head: ['Topic', 'Pillar', 'Impact', 'Financial'], rows: X.mat.map(function (m) { return [{ t: m.tp[1], b: true }, m.tp[2], RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 0.6, 1, 1] } : null)], 'Double materiality: impact and financial'));
     C.push(part(2, 'Governance', 'How the organisation is directed and controlled, and how sustainability is overseen.', [['07', 'Governance of sustainability'], ['08', 'Ethics and integrity'], ['09', 'Risk management'], ['10', 'Cyber, privacy, tax and remuneration']]));
@@ -668,7 +736,11 @@
       { t: 'table', title: 'What would raise the scores', head: ['Pillar', 'Next step'], rows: [['Environment', c.env.why], ['Social', c.soc.why], ['Governance', c.gov.why]].reduce(function (a, p) { return a.concat((p[1] || []).map(function (x) { return [{ t: p[0], b: true }, x]; })); }, []), widths: [1, 4], empty: 'No gaps flagged.' }], 'Environment, social and governance scores'));
     C.push(ch('Targets and roadmap', 'Roadmap', [tbl('targets', ['Pillar', 'Target', 'Baseline', 'Year', 'Status'], ['pillar', 'target', 'baseline', 'target_year', 'status'], [0.6, 3, 1.6, 0.7, 1]) || T(null, miss), tbl('roadmap', ['Year', 'Focus', 'Actions'], ['year', 'focus', 'actions'], [0.8, 1.6, 4], 'Three-year roadmap')], 'Where we are heading'));
     C.push(ch('Reporting standards', 'Standards', [T(S.standards_overview, miss), tbl('alignment', ['Standard', 'How we apply it', 'Gaps', 'Next steps'], ['standard', 'how_applied', 'gaps', 'next_steps'], [1.2, 3.4, 1.6, 1.6]), tbl('sasb_metrics', ['Industry metric', 'Value', 'Unit', 'Note'], ['metric', 'value', 'unit', 'note'], [2.4, 1, 0.8, 2.4], 'Industry (SASB) metrics')], 'How this report meets each framework'));
-    C.push(ch('Data quality and assurance', 'Assurance', [T(S.data_quality, miss), T(S.assurance_readiness), { t: 'callout', title: 'Emission factors', text: 'Emissions are calculated with the ' + em.setLabel + ' factor set and any factors we entered ourselves. Default factors are indicative and are checked against the current official set before publication.' }], 'Data sources, controls and assurance'));
+    C.push(ch('Data quality and assurance', 'Assurance', [T(S.data_quality, miss), T(S.assurance_readiness), { t: 'callout', title: 'Emission factors', text: 'Emissions are calculated with the ' + em.setLabel + ' factor set and any factors we entered ourselves. Default factors are indicative and are checked against the current official set before publication.' }, (function () { var src = X.e.efsrc || {}, rows = SC.fields.filter(function (f) { return /^(carbon\.f[A-Z]|carbon\.refGwp|scope3\.f[A-Z])/.test(f.id); }).map(function (f) { var sec = f.id.split('.')[0], k = f.id.split('.')[1], v = (X.e[sec] || {})[k], d = src[f.id];
+      // the value the calculation uses (an override, else the set's or the default), and where it came from
+        var eff = v != null ? v : defOf(sec, k), same = d && Number(d.value) === Number(eff), setL = sec === 'carbon' && k !== 'refGwp' ? 'Factor set: ' + ((SC.factorSets[(X.e.carbon || {}).fset] || SC.factorSets.IPCC).label) : 'GKH indicative default';
+        if (eff == null || eff === '') return null; return [{ t: f.label.replace(/^Factor: /, ''), b: true }, { t: String(eff), right: true }, f.unit, same ? d.label : v != null ? 'Entered by the organisation' : setL]; }).filter(Boolean);
+      return rows.length ? { t: 'table', title: 'Emission factors used', head: ['Factor', 'Value', 'Unit', 'Source'], rows: rows, widths: [1.4, 0.8, 1, 3], size: 7.4 } : null; })()], 'Data sources, controls and assurance'));
     C.push(ch('Appendix: content index', 'Appendix', [X.idx.length ? { t: 'table', head: ['Standard', 'Reference', 'Disclosure', 'Status'], rows: X.idx, widths: [0.9, 1.1, 3.4, 0.9], size: 7.2 } : T('Choose the standards in the Standards tab to build the content index.')], 'Where each disclosure is answered'));
     C.push(ch('Appendix: glossary and forward-looking statements', 'Appendix', [tbl('glossary', ['Term', 'Meaning'], ['term', 'meaning'], [1.3, 4]), T(S.forward_looking),
       { t: 'sign', title: 'Approval', intro: 'This ESG report was approved by the board on the date below.', rows: [{ role: 'Chair of the board', name: '' }, { role: 'Chief executive officer', name: '' }] }], 'Terms used, and approval'));
@@ -680,7 +752,8 @@
   function wire(b) {
     b.querySelectorAll('[data-s][data-k]').forEach(function (el) {
       var h = function () { var s = el.getAttribute('data-s'), k = el.getAttribute('data-k'); V.e[s] = V.e[s] || {}; var v = el.value; if (v === '') delete V.e[s][k]; else V.e[s][k] = v;
-        if (k === 'fset' && SC.factorSets[v]) { var set = SC.factorSets[v], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; Object.keys(m).forEach(function (fk) { V.e.carbon[fk] = set[m[fk]]; var i = $('#ef-carbon-' + fk); if (i) { i.value = set[m[fk]]; i.placeholder = set[m[fk]]; } }); }
+        if (k === 'fset' && SC.factorSets[v]) { var set = SC.factorSets[v], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; V.e.efsrc = Object.assign({}, V.e.efsrc); Object.keys(m).forEach(function (fk) { V.e.carbon[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; var i = $('#ef-carbon-' + fk); if (i) { i.value = set[m[fk]]; i.placeholder = set[m[fk]]; } }); touch('efsrc'); }
+        var fk = s + '.' + k; if (V.e.efsrc && V.e.efsrc[fk] && String(V.e.efsrc[fk].value) !== String(v)) { V.e.efsrc = Object.assign({}, V.e.efsrc); V.e.efsrc[fk] = { id: '', label: 'Entered by you', value: v === '' ? null : Number(v) }; touch('efsrc'); var sm = el.closest('label') && el.closest('label').querySelector('.esg-efsrc'); if (sm) sm.textContent = '📚 Entered by you'; }
         touch(s); };
       el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', h);
     });
@@ -712,6 +785,13 @@
     if ($('#blAdd')) $('#blAdd').onclick = function () { V.e.bills = V.e.bills || []; add('bills', V.e.bills, { supplier: 'New bill', cur: (V.e.org || {}).currency || '' }); };
     wireUse();
     b.querySelectorAll('[data-import]').forEach(function (x) { x.onclick = function () { flush().catch(function () {}); importModal(); }; });
+    if ($('#lfQ')) { var rerun = function () { LF.n = 40; var r = $('#lfRes'); if (r) { r.innerHTML = libRows(); wireLib(); } };
+      $('#lfQ').oninput = function () { LF.q = this.value; rerun(); };
+      [['#lfCountry', 'country'], ['#lfCat', 'cat'], ['#lfStd', 'std'], ['#lfField', 'field']].forEach(function (p0) { $(p0[0]).onchange = function () { LF[p0[1]] = this.value; rerun(); }; });
+      $('#lfClear').onclick = function () { LF = { q: '', country: '', cat: '', std: '', field: '', n: 40 }; body(); };
+      wireLib(); }
+    b.querySelectorAll('[data-find]').forEach(function (x) { x.onclick = function (ev) { ev.preventDefault(); var f = x.getAttribute('data-find'), cty = (V.e.org || {}).country || '';
+      LF = { q: '', country: '', cat: '', std: '', field: f, n: 40 }; efLoad().then(function () { if (EF.some(function (y) { return y.field === f && y.country === cty; })) LF.country = cty; V.subs = V.subs || {}; V.subs[V.tab] = 'library'; body(); var y = $('#esgBody'); if (y && y.scrollIntoView) y.scrollIntoView({ block: 'start' }); }).catch(fail); }; });
     b.querySelectorAll('[data-sub]').forEach(function (x) { x.onclick = function () { V.subs = V.subs || {}; V.subs[V.tab] = x.getAttribute('data-sub'); body(); }; });
     // 📄 documents
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };
@@ -734,7 +814,7 @@
       if (!R.length) { v.innerHTML = head + '<div class="card empty" style="padding:36px">No ESG reports yet. Open <a href="#esg">🌿 ESG &amp; Sustainability</a> and start one (or a sample) to see them here.</div>'; return; }
       var flags = [], RY = R.filter(function (x) { return !d.year || x.year === d.year; });
       RY.forEach(function (x) { var L = function (t, c) { flags.push('<li><span class="dot dot-' + c + '"></span> <a href="#esg/' + esc(x.id) + '/overview"><b>' + esc(x.name) + '</b></a> ' + t + '</li>'); };
-        if (x.deaths) L('reported ' + pl(x.deaths, 'fatality') + ': the board needs the investigation and the actions', 'red');
+        if (x.deaths) L('reported ' + nf(x.deaths) + (Number(x.deaths) === 1 ? ' fatality' : ' fatalities') + ': the board needs the investigation and the actions', 'red');
         if (!x.tgt) L('has no emissions reduction target (IFRS S2 §33)', 'amber');
         if (x.readiness < 50) L('is ' + x.readiness + '% ready against its chosen standards', x.readiness < 30 ? 'red' : 'amber');
         if (!x.statement && !x.report) L('has no statement or report written yet', 'grey');

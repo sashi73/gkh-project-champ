@@ -271,10 +271,15 @@ export function billsSum(e) {
   const days = L.reduce((a, x) => a + (x.from && x.to ? Math.max(0, (Date.parse(x.to) - Date.parse(x.from)) / 864e5 + 1) : 0), 0);
   return { n: L.length, mwh: r2(kwh / 1000, 3), greenMwh: r2(green / 1000, 3), cost, days: Math.round(days), sites: [...new Set(L.map((x) => x.site).filter(Boolean))].length };
 }
+// where each emission factor came from: { 'carbon.fElec': { id: 'EF12', label: 'NGA 2025-26 · New South Wales', value: 0.64 } } (only for the factor fields)
+const EF_FIELDS = new Set(['carbon.fDiesel', 'carbon.fPetrol', 'carbon.fJet', 'carbon.fLpg', 'carbon.fGas', 'carbon.fElec', 'carbon.refGwp', 'scope3.fPurch', 'scope3.fFreight', 'scope3.fLandfill', 'scope3.fRecycled', 'scope3.fAir', 'scope3.fCar', 'scope3.fHotel', 'scope3.fCommute', 'scope3.fWater']);
+function cleanEfSrc(o) { const out = {}; if (o && typeof o === 'object') Object.keys(o).slice(0, 30).forEach((k) => { const x = o[k]; if (EF_FIELDS.has(k) && x && typeof x === 'object') out[k] = { id: str(x.id, 12), label: str(x.label, 200), value: num(x.value) }; }); return out; }
 export function clean(e) {
   e = e && typeof e === 'object' ? e : {};
-  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills) };
+  const out = { std: arr(e.std, 20).map(String).filter((s) => STD_IDS.has(s)), mat: cleanMat(e.mat), avoid: cleanAvoid(e.avoid), credits: cleanCredits(e.credits), pricing: cleanPricing(e.pricing), bills: cleanBills(e.bills), efsrc: cleanEfSrc(e.efsrc) };
   SECTIONS.forEach((s) => { out[s.id] = cleanSection(s.id, e[s.id]); });
+  // a source record only stands while the field still holds its value (an import or a typed value replaces it)
+  Object.keys(out.efsrc).forEach((fk) => { const [sec, key] = fk.split('.'), cur = (out[sec] || {})[key], src = out.efsrc[fk]; if (!(cur == null ? src.value == null : Number(cur) === Number(src.value))) delete out.efsrc[fk]; });
   return out;
 }
 
@@ -374,7 +379,7 @@ const logIt = (e, by, what) => { e.log = [{ at: Date.now(), by: str(by, 60), wha
 export async function create(body, by) {
   const org = cleanSection('org', { name: body.name, year: body.year, industry: body.industry, country: body.country, currency: body.currency || 'AUD' });
   if (!org.name) return { error: 'Give the organisation a name' };
-  const e = { id: uid(), rev: 1, created: Date.now(), updated: Date.now(), by: str(by, 60), std: ['IFRS_S2', 'GRI'], mat: {}, avoid: [], credits: [], insights: {}, docs: [], log: [] };
+  const e = { id: uid(), rev: 1, created: Date.now(), updated: Date.now(), by: str(by, 60), std: ['IFRS_S2', 'GRI', 'SDG'], mat: {}, avoid: [], credits: [], insights: {}, docs: [], log: [] };
   SECTIONS.forEach((s) => { e[s.id] = s.id === 'org' ? org : {}; });
   e.carbon.fset = { Australia: 'NGA_AU', Malaysia: 'MY_EC', Singapore: 'SG_EMA', Thailand: 'TH_TGO', 'United Kingdom': 'UK_DESNZ', 'New Zealand': 'NZ_MFE', 'United States': 'US_EPA' }[org.country] || 'IPCC';
   logIt(e, by, 'Reporting entity created: ' + org.name + (org.year ? ' ' + org.year : ''));
@@ -395,6 +400,7 @@ export async function save(id, body, by) {
     if (JSON.stringify(x.credits || []) !== JSON.stringify(nx.credits)) changed.push('Carbon credits register'); x.credits = nx.credits;
     if (JSON.stringify(x.pricing || {}) !== JSON.stringify(nx.pricing)) changed.push('Carbon pricing and CBAM'); x.pricing = nx.pricing;
     if (JSON.stringify(x.bills || []) !== JSON.stringify(nx.bills)) changed.push('Electricity bills: ' + nx.bills.length); x.bills = nx.bills;
+    if (JSON.stringify(x.efsrc || {}) !== JSON.stringify(nx.efsrc)) changed.push('Emission factor sources: ' + Object.keys(nx.efsrc).filter((k) => JSON.stringify((x.efsrc || {})[k]) !== JSON.stringify(nx.efsrc[k])).map((k) => (nx.efsrc[k] || {}).label || k + ' cleared').join('; ')); x.efsrc = nx.efsrc;
     if (body.source) changed.push('(imported from ' + str(body.source, 80) + ')');
     if (!changed.length) { res = { same: true }; return cur; }
     x.rev = (x.rev || 0) + 1; x.updated = Date.now();
@@ -428,7 +434,7 @@ export async function sample(by) {
     board: { boardSize: 7, boardWomen: 2, indepPct: 43, chairSep: 'Yes', susCommittee: 'Yes', indepSus: 'Yes', boardTrain: 'Yes', execEsg: 'No' },
     ethics: { code: 'Yes', gWhistle: 'Yes', antiCorrupt: 'Yes', corruptCases: 0, abcTrain: 88, erm: 'Partly', audit: 'Yes', cyber: 'Yes', privacy: 'Formal', breaches: 0, tax: 'No', political: 'Yes', stakeGriev: 'Yes' },
     certs: { iso45001: 'Yes', iso27001: 'No', iso9001: 'Yes', grc: 'Manual', susReport: 'No', ethicsAuditPct: 45 },
-    std: ['AASB_S2', 'IFRS_S1', 'GRI', 'TCFD', 'GHGP', 'NGER'],
+    std: ['AASB_S2', 'IFRS_S1', 'GRI', 'TCFD', 'GHGP', 'NGER', 'SDG'],
     avoid: [{ name: 'Rooftop solar on four warehouses', cat: 'Renewable energy', baseline: 'Grid electricity (NGA national factor)', unit: 'MWh', qty: 900, base: 660, sol: 0, attr: 100, status: 'Delivered', verify: 'Internal review', sdg: 'SDG 7' },
       { name: 'Electric vans for Sydney and Melbourne deliveries', cat: 'Fleet electrification and low-emission transport', baseline: 'Diesel van per km', unit: 'km', qty: 640000, base: 0.32, sol: 0.12, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 11' },
       { name: 'Pallet and packaging recycling', cat: 'Circularity and recycling', baseline: 'Waste to landfill', unit: 't', qty: 820, base: 460, sol: 21, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 12' },
@@ -458,6 +464,7 @@ function facts(e) {
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
     scores_out_of_100: { environment: c.env.score, social: c.soc.score, governance: c.gov.score, overall: c.esg, gri2_alignment: c.gov.gri }, women_pct: c.soc.womenPct, women_in_management_pct: c.soc.womenMgmtPct, women_on_board_pct: c.gov.boardWomenPct,
     gaps: [...c.env.why, ...c.soc.why, ...c.gov.why], standards_coverage_pct: c.coverage,
+    emission_factor_sources: Object.keys(e.efsrc || {}).length ? Object.fromEntries(Object.entries(e.efsrc).map(([k, v]) => [k, v.label])) : undefined,
     electricity_bills: (() => { const B = c.bills; const el = (e.carbon || {}).elec, o = e.org || {}, L = e.bills || [], close = B.mwh > 0 && el > 0 && Math.abs(B.mwh - el) / el <= 0.05;
       // the bills support the year only if every bill sits inside the reporting period (a month's grace each side for billing cycles)
       const lo = o.from ? Date.parse(o.from) - 31 * 864e5 : null, hi = o.to ? Date.parse(o.to) + 31 * 864e5 : null, inYear = !!(lo && hi) && L.length > 0 && L.every((x) => x.from && x.to && Date.parse(x.from) >= lo && Date.parse(x.to) <= hi);
@@ -469,16 +476,19 @@ function facts(e) {
       credits: P.credits.map((x) => ({ project: x.project, type: x.type, standard: x.std, vintage: x.vintage, tCO2e: x.t, use: x.use, ccp_label: x.ccp, corresponding_adjustment: x.ca, integrity_flags: x.flags })), high_quality_share_pct: P.highQualityPct }; })(),
     avoided_emissions_tCO2e: { total: c.avoid.total, delivered: c.avoid.delivered, planned_or_under_way: c.avoid.planned, by_category: c.avoid.byCat, third_party_verified: c.avoid.verified, items: c.avoid.items.map((x) => ({ name: x.name, category: x.cat, baseline: x.baseline, tCO2e: x.t, attribution_pct: x.attr, status: x.status, verification: x.verify })), carbon_credits_retired: c.avoid.credits, of_which_removals: c.avoid.removals } }, material_topics: mat, insights: e.insights || {}, today: new Date().toISOString().slice(0, 10) };
 }
+// 🇺🇳 the 17 UN Sustainable Development Goals: covered by default in every statement and report
+export const SDGS = ['No poverty', 'Zero hunger', 'Good health and well-being', 'Quality education', 'Gender equality', 'Clean water and sanitation', 'Affordable and clean energy', 'Decent work and economic growth',
+  'Industry, innovation and infrastructure', 'Reduced inequalities', 'Sustainable cities and communities', 'Responsible consumption and production', 'Climate action', 'Life below water', 'Life on land', 'Peace, justice and strong institutions', 'Partnerships for the goals'];
 const STATEMENT = [
   { ask: 'Write the first half of a concise Sustainability Statement (the whole statement must stay under 10 pages). Keys: "leadership_message" (220-280 words, from the board chair or CEO), "basis_of_preparation" (160-220 words: reporting period, entities and boundary, consolidation approach, the standards applied and how, assurance, restatements), ' +
-    '"governance" (180-240 words: how the board and management oversee sustainability and climate), "materiality" (140-200 words: how material topics were chosen, double materiality where ESRS is chosen), "material_topics" (6-10 items {"topic":"","pillar":"E|S|G","why":"one sentence"}), "strategy" (160-220 words).' },
+    '"governance" (180-240 words: how the board and management oversee sustainability and climate), "materiality" (140-200 words: how material topics were chosen, double materiality where ESRS is chosen), "material_topics" (6-10 items {"topic":"","pillar":"E|S|G","why":"one sentence"}), "strategy" (160-220 words), "sdgs" (the 3 to 6 UN Sustainable Development Goals the organisation contributes to most, from its data and activities: {"sdg":"SDG 13 Climate action","contribution":"one sentence with a number where there is one"}).' },
   { ask: 'Write the second half of a concise Sustainability Statement (the whole statement must stay under 10 pages). Keys: "environment" (220-280 words: emissions, energy, water, waste, with the numbers), "climate" (240-300 words: IFRS S2 / AASB S2 summary of governance, strategy and resilience, risk management, metrics and targets), ' +
     '"social" (220-280 words: people, safety, diversity, human rights, community, with the numbers), "governance_performance" (160-220 words: board, ethics, risk, certifications), "avoided" (110-160 words: emissions avoided by its solutions, reported separately from Scope 1-3 and not netted, per the WBCSD guidance; say if none yet), "targets" (5-8 items {"target":"","baseline":"","status":"On track|Watch|Not started|Achieved"}), "outlook" (120-170 words: priorities for next year).' }
 ];
 const REPORT = [
   { ask: 'Write PART A (introduction and strategy) of a full ESG Report of about 60 pages. Keys: "ceo_message" (420-520 words), "about_report" (320-420 words: period, boundary, consolidation, standards applied with how each is used, content index, restatements, assurance, contact), "organisation_profile" (320-400 words), ' +
     '"strategy" (450-550 words: sustainability strategy, its pillars and how it links to the business), "stakeholder_engagement" (300-380 words), "stakeholders" (6-8 items {"group":"","concerns":"","how_engaged":"","frequency":""}), "materiality" (380-460 words: the assessment method, double materiality for ESRS, impact and financial ratings, validation), ' +
-    '"material_topics" (8-14 items {"topic":"","pillar":"E|S|G","impact":"High|Medium|Low","financial":"High|Medium|Low","why":"one sentence"}), "sdgs" (4-8 items {"sdg":"e.g. SDG 13 Climate action","contribution":"one or two sentences"}).' },
+    '"material_topics" (8-14 items {"topic":"","pillar":"E|S|G","impact":"High|Medium|Low","financial":"High|Medium|Low","why":"one sentence"}), "sdg_overview" (150-220 words: how the organisation contributes to the UN Sustainable Development Goals, the goals it affects most, positively and negatively, and how it tracks them), "sdgs" (ALL 17 UN Sustainable Development Goals, in order, one item each: {"sdg":"SDG 1 No poverty","relevance":"High|Medium|Low|Not material","contribution":"one or two sentences grounded in the facts given; for a goal that is not material say why in a few words","metric":"the reported figure that tracks it, or empty"}).' },
   { ask: 'Write PART B (governance of sustainability) of a full ESG Report of about 60 pages. Keys: "governance_structure" (420-500 words), "board_oversight" (320-400 words), "sustainability_committee" (260-340 words), "roles" (5-8 items {"role":"","responsibilities":""}), "policies" (6-10 items {"policy":"","covers":"","status":"In place|In progress|Planned"}), ' +
     '"ethics_conduct" (320-400 words), "anti_corruption" (260-340 words), "whistleblowing" (220-300 words), "risk_management" (420-500 words: ERM and how sustainability and climate risks are integrated), "cyber_privacy" (260-340 words), "tax_transparency" (160-240 words), "remuneration" (220-300 words).' },
   { ask: 'Write PART C (climate, under IFRS S2 / AASB S2 / TCFD) of a full ESG Report of about 60 pages. Keys: "climate_governance" (320-400 words), "climate_strategy" (460-550 words), "climate_risks" (6-10 items {"risk":"","type":"Physical acute|Physical chronic|Transition policy|Transition market|Transition technology|Transition reputation","horizon":"Short|Medium|Long","likelihood":"High|Medium|Low","impact":"High|Medium|Low","financial_effect":"","response":""}), ' +

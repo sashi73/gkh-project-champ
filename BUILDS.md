@@ -337,4 +337,7 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 326 | 1.0.326| 2026-11-25 09:24| esg| `5d2cc74` | 💱 Carbon pricing, CBAM and the carbon credit framework; compact lists; review fixes |
 | 327 | 1.0.327| 2026-11-25 09:47| esg| `1c44be5` | 🧾 Electricity bills read by AI, 📥 CSV/Excel import, own ESG menu section; review fixes |
 | 328 | 1.0.328| 2026-11-25 10:01| esg| `a4f976d` | ESG review fixes: bills pending at once, numbers parsed before unit factors, keyboard file pickers, escaped import notes, bill costs per cur |
-| 329 | 1.0.329 | 2026-11-25 10:08 | esg | _this commit_ | _see git log_ |
+| 329 | 1.0.329| 2026-11-25 10:08| esg| `ae61dd4` | 🌿 ESG & Sustainability reporting module and the 🌱 CSO view (#160) |
+| 330 | 1.0.330| 2026-11-25 17:59| efs| `5d157ae` | 📚 ESG emission factor library: search by country, kind, source; one press fills the factor |
+| 331 | 1.0.331| 2026-11-25 18:05| efs| `0155367` | 🇺🇳 The 17 UN SDGs covered by default in the Sustainability Statement and the ESG Report |
+| 332 | 1.0.332 | 2026-11-25 18:23 | efs | _this commit_ | _see git log_ |
