@@ -39,7 +39,7 @@ reviews:
     - path: "netlify/lib/**"
       instructions: |
         Server libraries. Check Netlify Blobs writes use kv.update (compare-and-set) when two people could save at once,
-        Cloudflare R2 keys stay under the project's own prefix (projects/<core>/ or kb/), signed links are short-lived,
+        Cloudflare R2 keys stay under the project's own prefix (projects/<core>/ or kb/), the Finance vault's vault/<core>/ or the Sustainability vault's svault/<organisation key>/, signed links are short-lived,
         and plan.mjs clean() keeps every field the console saves (a field missing there is silently lost).
     - path: "admin/**/*.js"
       instructions: |

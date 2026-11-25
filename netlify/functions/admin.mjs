@@ -316,9 +316,21 @@ async function handle(req, context) {
         const CEO = await import('../lib/ceo.mjs'), r = await CEO.briefPdf(); return r.error ? bad(r.error, 404) : out(200, r);
       }
       // 🌿 ESG & Sustainability: reporting entities (an organisation and its reporting year), their E, S and G data, scores, standards and the AI-written documents (netlify/lib/esg.mjs). Open to every signed-in user.
-      case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES, fields: E.fieldList(), sdgs: E.SDGS }); }
+      case 'esgSchema': { const E = await import('../lib/esg.mjs'); return out(200, { sections: E.SECTIONS, standards: E.STANDARDS, topics: E.TOPICS, factorSets: E.FACTOR_SETS, s3: E.S3_DEFAULTS, disclosures: E.DISCLOSURES, method: E.METHOD, avoidCats: E.AVOID_CATS, avoidStatus: E.AVOID_STATUS, avoidVerify: E.AVOID_VERIFY, creditTypes: E.CREDIT_TYPES, avoidTemplates: E.AVOID_TEMPLATES, schemes: E.CARBON_SCHEMES, cbamGoods: E.CBAM_GOODS, cbamFactor: E.CBAM_FACTOR, creditStds: E.CREDIT_STANDARDS, creditUses: E.CREDIT_USES, fields: E.fieldList(), sdgs: E.SDGS, topicsFull: E.TOPICS_FULL, iroKinds: E.IRO_KINDS, horizons: E.HORIZONS, sectorTopics: E.SECTOR_TOPICS }); }
       case 'esgAiStatus': { const id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40), r = id.length >= 12 ? await kv.get('aiplan:' + id) : null; return out(200, r && (r.esg || r.status !== 'done') ? r : { status: 'waiting' }); }   // the ESG AI job's progress (not other AI results)
-        case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
+        // 🗄 the Sustainability vault: data month by month, evidence by year and month, year-on-year progress and the target path (netlify/lib/esg-vault.mjs)
+      case 'esgVaultOrgs': case 'esgVaultOpen': case 'esgVaultGet': case 'esgVaultSave': case 'esgVaultBills': case 'esgVaultUrl': case 'esgVaultAdd': case 'esgVaultFile': case 'esgVaultDelete': {
+        const SV = await import('../lib/esg-vault.mjs'), key = String(body.key || '').slice(0, 80);
+        const r = action === 'esgVaultOrgs' ? { orgs: await SV.orgs() } : action === 'esgVaultOpen' ? await SV.open(key, clean(body.name, 120), by) : action === 'esgVaultGet' ? await SV.analyse(key)
+          : action === 'esgVaultSave' ? await SV.saveData(key, body, by) : action === 'esgVaultBills' ? await SV.billsToMonths(key, by) : action === 'esgVaultUrl' ? await SV.uploadUrl(body)
+          : action === 'esgVaultAdd' ? await SV.addDoc(ctx, body, by) : action === 'esgVaultFile' ? await SV.file(key, String(body.id || '').slice(0, 30)) : await SV.removeDoc(ctx, key, String(body.id || '').slice(0, 30));
+        if (r.error) return out(r.code || 400, { error: r.error });
+        if (action === 'esgVaultAdd') await A.audit(who, `Sustainability vault: ${r.doc.name} filed for ${r.doc.period} (${key})`);
+        if (action === 'esgVaultDelete') await A.audit(who, `Sustainability vault: a file deleted (${key})`);
+        if (action === 'esgVaultSave' && (body.set || []).length) await A.audit(who, `Sustainability vault: ${(body.set || []).length} monthly value(s) saved (${key})`);
+        return out(200, r);
+      }
+      case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
       case 'esgFactors': { const F = await import('../lib/esg-factors.mjs'); return out(200, { factors: F.EF_LIBRARY }); }
       case 'esgList': { const E = await import('../lib/esg.mjs'); return out(200, { ents: await E.list() }); }
       case 'esgGet': { const E = await import('../lib/esg.mjs'), e = await E.get(body.id); if (!e) return bad('This reporting entity was not found', 404);
@@ -609,7 +621,9 @@ async function handle(req, context) {
         if (!U.seesMoney(ctx)) { if (portfolio) portfolio = scrubMoney(portfolio); if (project) project = scrubMoney(project); }
         // 🌿 ESG and sustainability questions (or asked from the ESG page): the ESG reports' facts, so Champ answers with the organisation's own numbers
         let esg = null; const pg0 = clean(body.page, 60);
-        if (/^(esg|cso)/.test(pg0) || /\b(esg|sustainab\w*|carbon|emission\w*|scope [123]|ghg|greenhouse|net[ -]zero|ifrs s[12]|aasb s[12]|issb|esrs|csrd|gri|tcfd|sasb|cdp|bursa|nsrf|nger|materiality|climate|avoided|decarboni\w*|offsets?|credits?|cbam|ets|safeguard|accus?|carbon tax|icvcm|vcmi|article 6|corsia|j-credits?)\b/i.test(q)) {
+        if (ctx.scope) { /* contractor and program logins get no ESG facts */ }
+        else if (/^svault\//.test(pg0)) { try { const SV = await import('../lib/esg-vault.mjs'); esg = { vault: await SV.champFacts(pg0.split('/')[1]) }; } catch (e) { console.error('Ask Champ vault facts: ' + e.message); } }
+        else if (/^(esg|cso|svault)/.test(pg0) || /\b(esg|sustainab\w*|carbon|emission\w*|scope [123]|ghg|greenhouse|net[ -]zero|ifrs s[12]|aasb s[12]|issb|esrs|csrd|gri|tcfd|sasb|cdp|bursa|nsrf|nger|materiality|climate|avoided|decarboni\w*|offsets?|credits?|cbam|ets|safeguard|accus?|carbon tax|icvcm|vcmi|article 6|corsia|j-credits?)\b/i.test(q)) {
           try { const E = await import('../lib/esg.mjs'), m = pg0.match(/^esg\/([A-Z0-9]+)/i); esg = await E.champFacts(m ? m[1] : ''); } catch (e) { console.error('Ask Champ ESG facts: ' + e.message); }
         }
         const kbHits = await KB.search(q, 2500).catch(() => []), course_notes = kbHits.length ? KB.forPrompt(kbHits) : undefined;
