@@ -632,6 +632,30 @@
     return (SC.sdgs || []).map(function (g, i) { var n = i + 1, a = ai[n] || {}, met = (M[n] || []).filter(Boolean).join('; ') || a.metric || '';   // today's reported figures first; the AI's only where the data has none
       return { n: n, goal: 'SDG ' + n + ' ' + g, rel: a.relevance || '', text: a.contribution || '', metric: met }; });
   }
+  // 🧭 the SDG map: 17 tiles in the document's own colours, each with our own pictogram, shaded by how relevant the goal is to the organisation
+  var SDG_ICON = ['M12 3a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM5 21v-3a7 7 0 0 1 14 0v3M9 14h6', 'M12 21V8M12 8c-3 0-5-2-5-5 3 0 5 2 5 5zM12 8c3 0 5-2 5-5-3 0-5 2-5 5zM12 13c-3 0-5-2-5-4 3 0 5 1 5 4zM12 13c3 0 5-2 5-4-3 0-5 1-5 4z',
+    'M3 12h4l2-5 3 10 2-5h7', 'M4 5h7v14H4zM13 5h7v14h-7M7 9h1M16 9h1', 'M7 9a2.5 2.5 0 1 0 0-.1M17 9a2.5 2.5 0 1 0 0-.1M3 20c0-3 2-6 4-6s4 3 4 6M13 20c0-3 2-6 4-6s4 3 4 6', 'M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z',
+    'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10zM12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5 19 19M5 19l1.5-1.5M17.5 6.5 19 5', 'M4 20V14M10 20V10M16 20V6M3 9l6-4 5 3 7-5', 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zM12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2',
+    'M5 9h14M5 15h14M8 6l-3 3 3 3M16 12l3 3-3 3', 'M3 21V11l5-3v13M8 21V5l8 4v12M16 21V12l5 2v7M11 10h2M11 14h2', 'M7 8a4 4 0 1 0 0 8c3 0 7-8 10-8a4 4 0 1 1 0 8c-3 0-7-8-10-8z', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',
+    'M2 9c3-2 5-2 8 0s5 2 8 0M2 15c3-2 5-2 8 0s5 2 8 0M18 12c2-2 4-2 4 0s-2 2-4 0z', 'M12 2 5 12h4l-3 5h12l-3-5h4zM12 17v5', 'M12 4v16M6 20h12M4 8h16M4 8l-2 6h6zM20 8l-2 6h6M12 4l1-1', 'M8 8a5 5 0 1 0 0 8M16 8a5 5 0 1 1 0 8M8 12h8'];
+  function sdgMap(rows, theme, small) {
+    var T0 = ((M.studio && M.studio.themes && M.studio.themes()) || []).filter(function (t) { return t.id === theme; })[0] || { ink: '#0C3A2C', accent: '#4CA860', light: '#A8DC7C', paper: '#F0F7F1' };
+    var cols = 6, tw = 300, th = small ? 150 : 200, gap = 14, W = cols * tw + (cols - 1) * gap, H = 3 * th + 2 * gap, cv = document.createElement('canvas'); cv.width = W; cv.height = H; var g = cv.getContext('2d');
+    g.fillStyle = '#ffffff'; g.fillRect(0, 0, W, H);
+    var lvl = function (r) { return /high/i.test(r.rel) ? 3 : /med/i.test(r.rel) ? 2 : /low/i.test(r.rel) ? 1 : /not/i.test(r.rel) ? 0 : r.metric ? 2 : 0; };
+    var bgc = [T0.paper, T0.light, T0.accent, T0.ink], fgc = [T0.ink, T0.ink, '#ffffff', '#ffffff'];
+    var rr = function (x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); };
+    rows.concat([{ legend: true }]).forEach(function (r, i) {
+      var x = (i % cols) * (tw + gap), y = Math.floor(i / cols) * (th + gap);
+      if (r.legend) { g.fillStyle = T0.ink; g.font = '600 26px Poppins, Arial, sans-serif'; g.fillText('How relevant', x + 16, y + 40); [['High', 3], ['Medium, or measured', 2], ['Low', 1], ['Not material', 0]].forEach(function (k, j) { rr(x + 16, y + 58 + j * (small ? 22 : 32), 22, 22, 5); g.fillStyle = bgc[k[1]]; g.fill(); g.strokeStyle = T0.ink; g.lineWidth = 1; g.stroke(); g.fillStyle = T0.ink; g.font = '20px Poppins, Arial, sans-serif'; g.fillText(k[0], x + 48, y + 76 + j * (small ? 22 : 32)); }); return; }
+      var L = lvl(r); rr(x, y, tw, th, 14); g.fillStyle = bgc[L]; g.fill(); if (L === 0) { g.strokeStyle = T0.light; g.lineWidth = 2; g.stroke(); }
+      g.fillStyle = fgc[L]; g.font = '700 54px Poppins, Arial, sans-serif'; g.fillText(String(r.n), x + 16, y + 60);
+      g.save(); g.translate(x + tw - 16 - (small ? 64 : 84), y + 14); g.scale(small ? 64 / 24 : 84 / 24, small ? 64 / 24 : 84 / 24); g.strokeStyle = fgc[L]; g.lineWidth = 1.6; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(new Path2D(SDG_ICON[r.n - 1])); g.restore();
+      g.font = '600 ' + (small ? 21 : 23) + 'px Poppins, Arial, sans-serif'; var words = (SC.sdgs[r.n - 1] || '').split(' '), line = '', ly = y + (small ? 104 : 124);
+      words.forEach(function (w0) { var t2 = line ? line + ' ' + w0 : w0; if (g.measureText(t2).width > tw - 32) { g.fillText(line, x + 16, ly); ly += small ? 25 : 28; line = w0; } else line = t2; }); g.fillText(line, x + 16, ly);
+    });
+    return { t: 'image', title: 'The 17 Sustainable Development Goals: how they relate to us', url: cv.toDataURL('image/png'), iw: W, ih: H };
+  }
   function sdgTable(rows, nl, small) {
     var rg = function (v) { return /high/i.test(v) ? 'G' : /med/i.test(v) ? 'A' : undefined; };
     return { t: 'table', title: small ? null : 'The 17 Sustainable Development Goals', head: small ? ['Goal', 'Our contribution', 'Measure'] : ['Goal', 'Relevance', 'Our contribution', 'Measure'],
@@ -650,7 +674,7 @@
       ch('Material topics', 'What matters most', [T(S.materiality), (S.material_topics || []).length ? { t: 'table', head: ['Topic', 'Pillar', 'Why it matters'], rows: S.material_topics.map(function (x) { return [{ t: x.topic, b: true }, { t: x.pillar, center: true }, x.why]; }), widths: [2, 0.6, 4], noTr: nl }
         : X.mat.length ? { t: 'table', head: ['Topic', 'Impact', 'Financial'], rows: X.mat.slice(0, 10).map(function (m) { return [{ t: m.tp[1], b: true }, RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 1, 1] } : null]),
       (function () { var R0 = sdgRows(X, S), top = (S.sdgs || []).length ? R0.filter(function (x) { return x.text; }) : R0.filter(function (x) { return x.metric; }).slice(0, 6);
-        return ch('Contribution to the UN Sustainable Development Goals', 'SDGs', [top.length ? sdgTable(top, nl, true) : T(null, 'No goal is linked to the data yet: write the narrative with ✨ AI, or add data.')]); })(),
+        return ch('Contribution to the UN Sustainable Development Goals', 'SDGs', [lim < 1 ? sdgMap(R0, THEME, true) : null, top.length ? sdgTable(top, nl, true) : T(null, 'No goal is linked to the data yet: write the narrative with ✨ AI, or add data.')]); })(),
       ch('Environment and climate', 'Planet', [{ t: 'stats', items: [{ v: nf(X.em.total), l: 'tCO2e total footprint' }, { v: nf(X.em.s1t), l: 'Scope 1' }, { v: nf(X.em.s2loc), l: 'Scope 2 (location)' }, { v: nf(X.em.s3t), l: 'Scope 3' }] }, T(S.environment),
         lim < 1 ? { t: 'chart', kind: 'bar', title: 'Emissions by scope (tCO2e)', data: { items: [['Scope 1', X.em.s1t], ['Scope 2', X.em.s2loc], ['Scope 3', X.em.s3t]].filter(function (x) { return x[1] != null; }).map(function (x) { return { l: x[0], v: x[1], t: nf(x[1]) }; }) }, maxH: 42 } : null, T(S.climate)]),
       ch('Social', 'People', [T(S.social), { t: 'table', head: ['Measure', 'This year'], rows: X.people.slice(0, lim < 2 ? 12 : 7), widths: [3, 2] }]),
@@ -685,7 +709,7 @@
     C.push(ch('Our organisation', 'Profile', [T(S.organisation_profile, X.o.about || miss)], 'What we do and where'));
     C.push(ch('Sustainability strategy', 'Strategy', [T(S.strategy, miss)], 'Our pillars and priorities'));
     var SR = sdgRows(X, S), hi = SR.filter(function (x) { return /high/i.test(x.rel); });
-    C.push(ch('UN Sustainable Development Goals', 'SDGs', [T(S.sdg_overview, miss), hi.length ? { t: 'cards', cols: 3, items: hi.slice(0, 6).map(function (x) { return { title: x.goal, text: x.text, tag: 'High relevance' }; }), noTr: nl } : null, sdgTable(SR, nl, false)], 'How we contribute to the 17 goals of the 2030 Agenda'));
+    C.push(ch('UN Sustainable Development Goals', 'SDGs', [T(S.sdg_overview, miss), sdgMap(SR, THEME, false), hi.length ? { t: 'cards', cols: 3, items: hi.slice(0, 6).map(function (x) { return { title: x.goal, text: x.text, tag: 'High relevance' }; }), noTr: nl } : null, sdgTable(SR, nl, false)], 'How we contribute to the 17 goals of the 2030 Agenda'));
     C.push(ch('Stakeholder engagement', 'Stakeholders', [T(S.stakeholder_engagement, miss), tbl('stakeholders', ['Stakeholder group', 'What they care about', 'How we engage', 'How often'], ['group', 'concerns', 'how_engaged', 'frequency'], [1.4, 2.4, 2.2, 1])], 'Who we listen to'));
     C.push(ch('Materiality', 'What matters', [T(S.materiality, miss), tbl('material_topics', ['Topic', 'Pillar', 'Impact', 'Financial', 'Why it matters'], ['topic', 'pillar', 'impact', 'financial', 'why'], [2, 0.6, 0.8, 0.8, 3.4]) || (X.mat.length ? { t: 'table', head: ['Topic', 'Pillar', 'Impact', 'Financial'], rows: X.mat.map(function (m) { return [{ t: m.tp[1], b: true }, m.tp[2], RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 0.6, 1, 1] } : null)], 'Double materiality: impact and financial'));
     C.push(part(2, 'Governance', 'How the organisation is directed and controlled, and how sustainability is overseen.', [['07', 'Governance of sustainability'], ['08', 'Ethics and integrity'], ['09', 'Risk management'], ['10', 'Cyber, privacy, tax and remuneration']]));
