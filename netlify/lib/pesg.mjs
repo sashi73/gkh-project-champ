@@ -10,7 +10,7 @@
 import * as kv from './kv.mjs';
 import { FACTOR_SETS, S3_DEFAULTS } from './esg.mjs';
 
-const num = (v, max = 1e12) => { const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : undefined; };
+const num = (v, max = 1e12) => { if (v == null || v === '') return undefined; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(n, max) : undefined; };
 const str = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
 const r2 = (v, d = 2) => (v == null || !Number.isFinite(v) ? null : Math.round(v * 10 ** d) / 10 ** d);
 
@@ -127,7 +127,7 @@ export async function portfolio(day, cores, money) {
      
       materials: x.s3.materials, intensity: x.intensity, capT: x.capT, overBudget: x.overBudget, reductionPct: x.reductionPct, p5avg: x.p5avg, p5flags: x.p5flags.length, climateRisks: x.climateRisks.length, fw: x.fw.map((f) => ({ id: f.id, pct: f.pct })) }; });
   // a login that does not see money does not get the spend-based estimates either (they are the budget times a published factor)
-  if (!money) rows.forEach((r) => { if (!r.measured) { r.total = null; r.s3 = 0; } });
+  if (!money) rows.forEach((r) => { if (!r.measured) { r.total = null; r.s3 = 0; r.overBudget = null; r.reductionPct = null; } });
   const sum = (L, k) => r2(L.reduce((a, r) => a + (r[k] || 0), 0), 1);
   const progs = {}; rows.forEach((r) => { (progs[r.program] = progs[r.program] || []).push(r); });
   const programs = Object.entries(progs).map(([name, L]) => { const p5 = L.filter((r) => r.p5avg != null);

@@ -356,7 +356,7 @@ async function handle(req, context) {
         const P = await import('../lib/plan.mjs'), PE = await import('../lib/pesg.mjs'), plan = await P.get(core).catch(() => null); if (!plan) return bad('Project not found', 404);
         const K = await import('../lib/kv.mjs'), sw = await K.get('swms:' + core).catch(() => null);
         const x = PE.calc({ ...plan, esg: body.esg !== undefined ? body.esg : plan.esg }, { BAC: Number(body.BAC) || 0, AC: Number(body.AC) || 0 }, { swms: !!sw });
-        if (!U.seesMoney(ctx)) { delete x.intensity; delete x.soc.invest; if (!x.measured) { x.est = null; x.total = null; x.method = 'No activity data yet'; } }   // no money: no budget-based estimate either
+        if (!U.seesMoney(ctx)) { delete x.intensity; delete x.soc.invest; if (!x.measured) { x.est = null; x.total = null; x.overBudget = null; x.reductionPct = null; x.method = 'No activity data yet'; } }   // no money: no budget-based estimate either
         return out(200, { esg: x, schema: { act: PE.ACT, matEf: PE.MAT_EF, matNote: PE.MAT_NOTE, p5: PE.P5, scale: PE.P5_SCALE, pillars: PE.P5_PILLARS, fw: PE.PFW, spendF: PE.SPEND_F, factorSets: PE.SETS() } });
       }
       case 'planEsgPortfolioGet': {   // every project this login can see, by program (CEO, CSO, CFO, PMO and program views)

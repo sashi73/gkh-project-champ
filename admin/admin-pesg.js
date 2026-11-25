@@ -14,7 +14,7 @@
   var SUBS = [['overview', 'Overview'], ['carbon', 'Carbon (GHG)'], ['p5', 'P5 impact analysis'], ['social', 'Social and governance'], ['frameworks', 'Frameworks']];
 
   function tab(ctx) {
-    C = ctx; var core = C.S.core;
+    C = ctx; var core = C.S.core; clearTimeout(X.t);   // a recalculation still waiting from another project is dropped
     if (X.core !== core) { X = { core: core, sub: 'overview', calc: null, schema: null, t: 0, seq: X.seq }; }   // the request counter carries on, so an old answer is never taken for a new one
     $('#planBody').innerHTML = '<div class="empty">Working out the project\'s ESG figures…</div>';
     recalc(true);

@@ -359,4 +359,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 348 | 1.0.348| 2026-11-26 09:50| esg-sectors| `71f3d23` | ESG documents: tables left out are named too; the quick check answers every key a part asks for |
 | 349 | 1.0.349| 2026-11-26 09:56| esg-sectors| `191f920` | ESG: wider industry sectors, labelled materiality matrix, every report part written (#166) |
 | 350 | 1.0.350| 2026-11-26 10:13| esg-projects| `02327fd` | ESG: 59 reporting standards in 10 groups with a search (SBTi and less common ones), and ESG & Sustainability for projects and programs: GHG  |
-| 351 | 1.0.351 | 2026-11-26 10:36 | esg-projects | _this commit_ | _see git log_ |
+| 351 | 1.0.351| 2026-11-26 10:36| esg-projects| `e059c8d` | ESG review fixes: standards can be ticked again (search uses its own attribute), PCAF needs a financed-emissions inventory, logins without m |
+| 352 | 1.0.352 | 2026-11-26 10:48 | esg-projects | _this commit_ | _see git log_ |
