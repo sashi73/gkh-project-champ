@@ -245,7 +245,8 @@ function cleanSection(sec, v) {
 }
 const RATE = ['', 'Low', 'Medium', 'High', 'Very high'];
 function cleanMat(m) { const o = {}; TOPICS.forEach(([k]) => { const x = (m || {})[k]; if (!x) return; const imp = Math.max(0, Math.min(4, Math.round(Number(x.imp) || 0))), fin = Math.max(0, Math.min(4, Math.round(Number(x.fin) || 0)));
-  if (imp || fin) o[k] = { imp, fin, note: str(x.note, 300), kind: arr(x.kind, 6).map(String).filter((v) => IRO_KINDS.includes(v)), horizon: HORIZONS.includes(x.horizon) ? x.horizon : '', who: str(x.who, 200), action: str(x.action, 300) }; }); return o; }
+  const d = { imp, fin, note: str(x.note, 300), kind: arr(x.kind, 6).map(String).filter((v) => IRO_KINDS.includes(v)), horizon: HORIZONS.includes(x.horizon) ? x.horizon : '', who: str(x.who, 200), action: str(x.action, 300) };
+  if (imp || fin || d.note || d.kind.length || d.horizon || d.who || d.action) o[k] = d; }); return o; }   // a topic with details is kept when its ratings are cleared
 /* ---------------- 💱 carbon pricing, border adjustments and the carbon credit framework (status checked November 2026; see docs/ESG-REGISTRY.md §7a) ---------------- */
 // kind: Carbon price (a tax or an ETS on your own emissions) · Border adjustment (a charge on embedded emissions of imports) · Crediting (who issues credits) · Integrity (how to judge and claim credits)
 export const CARBON_SCHEMES = [
@@ -409,7 +410,7 @@ function govScore(e) {
   if (!yes(b.susCommittee)) why.push('No board sustainability committee yet.');
   return { score: Math.round(core + opt), core: Math.round(core), opt: Math.round(opt), gri: Math.round(gri), boardWomenPct: r2(bw, 1), radar, why };
 }
-function fieldHas(e, f) { if (f === 'mat') return Object.keys(e.mat || {}).length >= 3; if (f === 'credits' || f === 'avoid') return (e[f] || []).length > 0; if (f === 'pricing') return !!((e.pricing || {}).cbam || []).length || !!((e.pricing || {}).exp || []).length; const [s, k] = f.split('.'); return has((e[s] || {})[k]); }
+function fieldHas(e, f) { if (f === 'mat') return Object.values(e.mat || {}).filter((v) => v.imp || v.fin).length >= 3; if (f === 'credits' || f === 'avoid') return (e[f] || []).length > 0; if (f === 'pricing') return !!((e.pricing || {}).cbam || []).length || !!((e.pricing || {}).exp || []).length; const [s, k] = f.split('.'); return has((e[s] || {})[k]); }
 export function coverage(e) {
   const by = {};
   DISCLOSURES.forEach((d) => { const n = d.fields.filter((f) => fieldHas(e, f)).length, st = n === d.fields.length ? 'Reported' : n ? 'Partly' : 'Not yet'; (by[d.std] = by[d.std] || []).push({ ...d, status: st }); });
@@ -511,7 +512,7 @@ const BASE = 'You are a senior ESG and sustainability reporting adviser (ISSB IF
   'Use **bold** for key points and "- " for bullets inside text values. No emoji. Numbers with thousands separators; emissions in tCO2e. Reply JSON only, with exactly the keys asked for.';
 function facts(e) {
   const c = compute(e), o = e.org || {}, std = (e.std || []).map((s) => (STANDARDS.find((x) => x.id === s) || {}).name).filter(Boolean);
-  const mat = Object.entries(e.mat || {}).map(([k, v]) => { const t = TOPICS_FULL.find((x) => x[0] === k) || []; return { topic: t[1], pillar: t[2], impact: RATE[v.imp], financial: RATE[v.fin], kinds: v.kind, horizon: v.horizon, stakeholders: v.who, actions: v.action, gri: t[4], esrs: t[5], note: v.note || undefined }; }).sort((a, b) => RATE.indexOf(b.impact) + RATE.indexOf(b.financial) - RATE.indexOf(a.impact) - RATE.indexOf(a.financial));
+  const mat = Object.entries(e.mat || {}).filter(([, v]) => v.imp || v.fin).map(([k, v]) => { const t = TOPICS_FULL.find((x) => x[0] === k) || []; return { topic: t[1], pillar: t[2], impact: RATE[v.imp], financial: RATE[v.fin], kinds: v.kind, horizon: v.horizon, stakeholders: v.who, actions: v.action, gri: t[4], esrs: t[5], note: v.note || undefined }; }).sort((a, b) => RATE.indexOf(b.impact) + RATE.indexOf(b.financial) - RATE.indexOf(a.impact) - RATE.indexOf(a.financial));
   const data = {}; SECTIONS.forEach((s) => { const v = e[s.id] || {}; if (Object.keys(v).length) data[s.title] = Object.fromEntries(s.fields.filter((f) => has(v[f[0]])).map((f) => [f[1] + (typeof f[3] === 'string' && f[3] ? ' (' + f[3] + ')' : ''), v[f[0]]])); });
   return { organisation: o, standards_chosen: std, data, results: { emissions_tCO2e: { scope1: c.em.s1t, scope1_by_source: c.em.s1, scope2_location: c.em.s2loc, scope2_market: c.em.s2mkt, scope3: c.em.s3t, scope3_by_category: c.em.s3, total: c.em.total,
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },

@@ -87,7 +87,7 @@ export function need(action) {
   if (a === 'planArchiveList' || a === 'planProjectArchive' || a === 'planProjectRestore') return null;   // 🗄 the project archive: admin.mjs checks (super user, CEO, site administrator)
   if (a === 'acctFinanceGet' || a === 'acctBillGet' || a === 'acctBillAlerts' || a === 'acctVoRaise' || a === 'acctVoDecide' || a === 'acctBillRaise') return null;   // 💵 billing: billing.mjs checks (CEO, CFO, the program's director, the project's manager)   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
   if (['me', 'logout', 'login', 'userPassword', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk'].includes(a)) return null;
-  if (/^esg[A-Z]/.test(a)) return null;   // 🌿 ESG & Sustainability: a module open to every signed-in user (for now)   // My profile: anyone signed in, their own record
+  if (/^esg[A-Z]/.test(a)) return null;   // 🌿 ESG & Sustainability: open to every signed-in staff login (scopeCheck keeps contractor and program logins out)   // My profile: anyone signed in, their own record
   let mod;
   if (a === 'quoteStart' || a === 'planQuote') mod = 'accounts';
   else if (/^(dashboard|jobs|job|stage|note|create|reminders|remind|unremind|report|pipelineBoard)$/.test(a) || /^(cust|promo)[A-Z]/.test(a)) mod = 'crm';
@@ -183,6 +183,7 @@ export function scopeCheck(ctx, action, body) {
   const a = String(action || ''), no = { ok: false, error: ctx.pgm && ctx.pgm.kind === 'program' ? 'This login can only work on the programs it was given.' : 'This login can only work on the projects it was given.' };
   if (ctx.pgm && PGM_OK.has(a)) { const core = body && (body.core || (body.plan && body.plan.core)); return !core || ctx.scope.includes(String(core)) ? { ok: true } : no; }
   if (SCOPE_DENY.has(a)) return no;
+  if (/^esg[A-Z]/.test(a)) return { ok: false, error: 'ESG & Sustainability is for staff logins: this login can only work on the projects it was given.' };   // 🌿 contractor and program logins do not reach the ESG reports or the Sustainability vault
   const core = body && (body.core || (body.plan && body.plan.core));
   if (core) return ctx.scope.includes(String(core)) ? { ok: true } : no;
   return SCOPE_FREE.has(a) ? { ok: true } : no;

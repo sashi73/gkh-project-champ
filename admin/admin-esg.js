@@ -430,7 +430,7 @@
         '<h4 style="margin:14px 0 8px">Data completeness</h4><div class="esg-fill">' + c.filled.map(function (f) { var s = SC.sec[f.id]; return '<a href="#esg/' + esc(V.id) + '/' + f.id + '" class="esg-fill-' + f.pillar + '"><span>' + esc(s.title) + '</span><i><b style="width:' + Math.round(f.n / f.of * 100) + '%"></b></i><em>' + f.n + '/' + f.of + '</em></a>'; }).join('') + '</div></div></div>';
   }
   function matrix() {   // impact (up) against financial (across), each topic a dot in its pillar's colour
-    var mat = V.e.mat || {}, pts = SC.topics.filter(function (t) { return mat[t[0]]; }), pos = {};
+    var mat = V.e.mat || {}, pts = SC.topics.filter(function (t) { return mat[t[0]] && (mat[t[0]].imp || mat[t[0]].fin); }), pos = {};
     var dots = pts.map(function (t) { var m = mat[t[0]], key = m.fin + 'x' + m.imp, k = pos[key] = (pos[key] || 0) + 1, x = 30 + m.fin / 4 * 200 + (k - 1) * 9, y = 210 - m.imp / 4 * 190 + (k - 1) * 5;
       return '<circle cx="' + x + '" cy="' + y + '" r="6" class="md md-' + t[2] + '"><title>' + esc(t[1] + ': impact ' + ['–', 'low', 'medium', 'high', 'very high'][m.imp] + ', financial ' + ['–', 'low', 'medium', 'high', 'very high'][m.fin]) + '</title></circle>'; }).join('');
     return '<svg class="esg-mx" viewBox="0 0 250 240" role="img" aria-label="Double materiality matrix"><rect x="130" y="20" width="100" height="95" class="mx-hot"/><path d="M30 20v190h200" class="mx-ax"/><text x="130" y="232" text-anchor="middle">Financial materiality →</text><text x="12" y="115" transform="rotate(-90 12 115)" text-anchor="middle">Impact materiality →</text>' + dots + '</svg>' +
@@ -452,11 +452,11 @@
   function materialTab() {
     var mat = V.e.mat || {}, R = ['–', 'Low', 'Medium', 'High', 'Very high'], sub = (V.subs || {}).material || 'E', sect = (SC.sectorTopics || {})[(V.e.org || {}).industry] || [];
     var sel = function (k, f, v) { return '<select data-mat="' + k + '" data-mf="' + f + '" aria-label="' + (f === 'imp' ? 'Impact' : 'Financial') + '">' + R.map(function (x, i) { return '<option value="' + i + '"' + (i === (v || 0) ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>'; };
-    var L = SC.topicsFull.filter(function (t) { return t[2] === sub; }), rated = function (p) { return SC.topicsFull.filter(function (t) { return t[2] === p && mat[t[0]]; }).length; };
+    var L = SC.topicsFull.filter(function (t) { return t[2] === sub; }), rated = function (p) { return SC.topicsFull.filter(function (t) { return t[2] === p && mat[t[0]] && (mat[t[0]].imp || mat[t[0]].fin); }).length; };
     var rows = L.map(function (t) { var m = mat[t[0]] || {}, on = V.open.mat === t[0], star = sect.indexOf(t[0]) >= 0;
       return '<div class="esg-li esg-mt' + (on ? ' on' : '') + '"><div class="esg-mtr"><button type="button" class="esg-mtn" data-open="mat" data-id="' + t[0] + '" aria-expanded="' + on + '"><b>' + esc(t[1]) + '</b>' + (star ? ' <span class="pill t-amber" title="Usually material for ' + esc((V.e.org || {}).industry) + '">⭐ sector</span>' : '') + '<small class="muted">' + esc([t[4], t[5], t[6]].filter(Boolean).join(' · ')) + '</small></button>' +
         '<label class="esg-mts">Impact' + sel(t[0], 'imp', m.imp) + '</label><label class="esg-mts">Financial' + sel(t[0], 'fin', m.fin) + '</label><i class="esg-chev" aria-hidden="true">›</i></div>' +
-        (on ? '<div class="esg-ed"><p class="muted" style="font-size:13px;margin:0 0 10px">' + esc(t[3]) + '</p>' + (m.imp || m.fin ? '<div class="esg-form"><fieldset class="full esg-iro"><legend>Kind of impact, risk or opportunity</legend>' + SC.iroKinds.map(function (k0) { return '<label><input type="checkbox" data-matk="' + t[0] + '" value="' + esc(k0) + '"' + ((m.kind || []).indexOf(k0) >= 0 ? ' checked' : '') + '> ' + esc(k0) + '</label>'; }).join('') + '</fieldset>' +
+        (on ? '<div class="esg-ed"><p class="muted" style="font-size:13px;margin:0 0 10px">' + esc(t[3]) + '</p>' + (m.imp || m.fin || m.note || m.who || m.action || m.horizon || (m.kind || []).length ? (!(m.imp || m.fin) ? '<p class="muted" style="font-size:12.5px;margin:0 0 8px">Not rated now: the details below are kept, and the topic stays out of the matrix and the report until it is rated.</p>' : '') + '<div class="esg-form"><fieldset class="full esg-iro"><legend>Kind of impact, risk or opportunity</legend>' + SC.iroKinds.map(function (k0) { return '<label><input type="checkbox" data-matk="' + t[0] + '" value="' + esc(k0) + '"' + ((m.kind || []).indexOf(k0) >= 0 ? ' checked' : '') + '> ' + esc(k0) + '</label>'; }).join('') + '</fieldset>' +
           '<label>Time horizon<select data-mat="' + t[0] + '" data-mf="horizon"><option value="">–</option>' + SC.horizons.map(function (h) { return '<option' + (h === m.horizon ? ' selected' : '') + '>' + esc(h) + '</option>'; }).join('') + '</select></label><label>Raised by (stakeholders)<input data-mat="' + t[0] + '" data-mf="who" maxlength="200" value="' + esc(m.who || '') + '" placeholder="e.g. employees, investors, regulators"></label>' +
           '<label class="full">Why it matters<input data-mat="' + t[0] + '" data-mf="note" maxlength="300" value="' + esc(m.note || '') + '"></label><label class="full">Our response (policy, action, target)<input data-mat="' + t[0] + '" data-mf="action" maxlength="300" value="' + esc(m.action || '') + '"></label></div>' : '<p class="muted" style="font-size:12.5px;margin:0">Rate the impact or the financial effect to add the details.</p>') + '</div>' : '') + '</div>'; }).join('');
     return subBar([['E', 'Environment (' + rated('E') + ' rated)'], ['S', 'Social (' + rated('S') + ' rated)'], ['G', 'Governance (' + rated('G') + ' rated)']], sub, 'Material topics') +
@@ -665,7 +665,7 @@
     var s1 = donut('Scope 1 by source (tCO2e)', [['Diesel', em.s1.diesel], ['Petrol', em.s1.petrol], ['Jet fuel', em.s1.jet], ['LPG', em.s1.lpg], ['Natural gas', em.s1.gas], ['Refrigerants', em.s1.refrig]], nf(em.s1t), 'tCO2e');
     var vsSector = em.intensity != null && em.bench ? bar('Emissions intensity against the sector (tCO2e per $M revenue)', [['Us', em.intensity], ['Sector (indicative)', em.bench]], '', 30) : null;
     var s2 = bar('Scope 2: location and market based (tCO2e)', [['Location based', em.s2loc], ['Market based', em.s2mkt]], '', 30);
-    var renew = cb.elec > 0 ? donut('Electricity bought (MWh)', [['Renewable', cb.green || 0], ['Grid', cb.elec - (cb.green || 0)]], (rs.renewPct != null ? rs.renewPct : nf((cb.green || 0) / cb.elec * 100, 0)) + '%', 'renewable', 50) : null;
+    var renew = cb.elec > 0 ? donut('Electricity bought (MWh)', [['Renewable', cb.green || 0], ['Grid', cb.elec - (cb.green || 0)]], nf((cb.green || 0) / cb.elec * 100, 0) + '%', 'renewable electricity', 50) : null;
     var waste = s3.landfill != null || s3.recycled != null ? donut('Waste (tonnes)', [['Recycled or recovered', s3.recycled], ['Landfill', s3.landfill]], rs.divertPct != null ? rs.divertPct + '%' : '', rs.divertPct != null ? 'diverted' : '', 50) : null;
     var gender = w.fte && w.women != null ? donut('Workforce by gender', [['Women', w.women], ['Men and other', w.fte - w.women]], (c.soc.womenPct || 0) + '%', 'women', 50) : null;
     var mgmt = bar('Women at each level (%)', [['Workforce', c.soc.womenPct], ['Management', c.soc.womenMgmtPct], ['Board', c.gov.boardWomenPct]], '%', 34);
@@ -710,32 +710,37 @@
     return D;
   }
   // 📘 every statement or report made is filed in the organisation's Sustainability vault, tagged with the company and the year (a new copy replaces the earlier one of the same name)
-  function toVault(kind, r) {
-    var o = V.e.org || {}, ent = V.e, name = r.name || ((o.name || 'Report') + (kind === 'report' ? ' ESG report' : ' Sustainability statement')), blob = r.blob, today = new Date().toISOString().slice(0, 7);
+  function toVault(kind, r, snap) {
+    snap = snap || { e: V.e, N: V.docs[kind] }; var o = snap.e.org || {}, ent = snap.e, name = r.name || ((o.name || 'Report') + (kind === 'report' ? ' ESG report' : ' Sustainability statement')), blob = r.blob, today = new Date().toISOString().slice(0, 7);
     var yr = String(o.year || '').trim() || (o.to ? 'FY' + o.to.slice(0, 4) : ''), tags = [o.name || '', yr, kind === 'report' ? 'ESG report' : 'Sustainability statement', 'Published ' + new Date().getFullYear()].filter(Boolean);
     var key = orgKey(o.name);
     if (!key || !blob) return Promise.resolve(null);
     return api('esgVaultOpen', { key: key, name: o.name }).then(function () { return api('esgVaultUrl', { key: key, name: name }); }).then(function (u) {
       if (u && u.r2) return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob }).then(function (x) { if (!x.ok) throw new Error('upload ' + x.status); return { r2Key: u.key }; });
       if (blob.size > 3.5 * 1024 * 1024) throw new Error('the file is over 3.5 MB and file storage (R2) is not set up');
-      return new Promise(function (res) { var rd = new FileReader(); rd.onload = function () { res({ file: String(rd.result).replace(/^data:[^,]*,/, '') }); }; rd.readAsDataURL(blob); });
+      return new Promise(function (res, rej) { var rd = new FileReader(); rd.onload = function () { res({ file: String(rd.result).replace(/^data:[^,]*,/, '') }); }; rd.onerror = rd.onabort = function () { rej(new Error('the file could not be read')); }; rd.readAsDataURL(blob); });
     }).then(function (st) { return api('esgVaultAdd', { key: key, period: today, folder: 'reports', name: name, type: blob.type, size: blob.size, r2Key: st.r2Key || '', file: st.file || '', tags: tags, auto: true, replace: true, reportId: ent.id,
-      note: (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' for ' + (yr || 'the year') + ((V.docs[kind] || {}).ver ? ', narrative v' + V.docs[kind].ver : ', no narrative yet') }); }).then(function (x) { return x.doc; });
+      note: (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' for ' + (yr || 'the year') + ((snap.N || {}).ver ? ', narrative v' + snap.N.ver : ', no narrative yet') }); }).then(function (x) { return x.doc; });
   }
-  function makeDoc(kind, fmt) {
+  // the report a document is made from stays fixed from the press of the button to the filing in the vault
+  function makeDoc(kind, fmt, win) {
     var lang = $('#dLang').value, msg = $('#dMsg'), say = function (t) { if (msg) msg.innerHTML = t ? '<span class="ask-think">' + esc(t) + '</span>' : ''; };
-    if (!M.studio) return fail(new Error('The document designer did not load. Reload the page.'));
+    if (!M.studio) { if (win) win.close(); return fail(new Error('The document designer did not load. Reload the page.')); }
     THEME = $('#dTheme').value || 'forest';
-    var k0 = orgKey((V.e.org || {}).name), build = function (lim) { var D0 = (kind === 'report' ? reportDoc : statementDoc)(V.docs[kind], lang, lim); D0.theme = THEME; D0._lim = lim; return enrich(D0, kind); };
+    var snap = { e: V.e, docs: V.docs, N: V.docs[kind] }, same = function () { if (V.e !== snap.e) throw new Error('Another report was opened while this one was being prepared. Go back to it and make the document again.'); };
+    var k0 = orgKey((snap.e.org || {}).name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0._lim = lim; return enrich(D0, kind); };
     say('Gathering the figures…');
-    return Promise.all([api('esgVaultGet', { key: k0 }).then(function (a) { TREND[k0] = a; }, function () { TREND[k0] = null; }), loadSdg()]).then(function () { makeDoc2(kind, fmt, lang, build, say); });
+    return Promise.all([api('esgVaultGet', { key: k0 }).then(function (a) { TREND[k0] = a; }, function () { TREND[k0] = null; }), loadSdg()])
+      .then(function () { return makeDoc2(kind, fmt, lang, build, say, snap, win); }).catch(function (e) { say(''); if (win) win.close(); fail(e); });
   }
-  function makeDoc2(kind, fmt, lang, build, say) {
-    var D = build(0);
-    if (fmt === 'pdf' && M.studio.needsPrint(D)) { var win = window.open('', '_blank'); say('Laying out…'); return M.studio.print(D, win).then(function () { say(''); toast('Print view open: choose “Save as PDF”'); }).catch(function (e) { say(''); fail(e); }); }
+  function makeDoc2(kind, fmt, lang, build, say, snap, win) {
+    var D = build(0), file = function (r) { toast('Filing a copy in the Sustainability vault…'); return toVault(kind, r, snap).then(function (f) { if (f) toast('Filed in the Sustainability vault: ' + f.tags.join(' · ')); }, function (e) { toast('Not filed in the vault: ' + e.message); }); };
+    if (fmt === 'pdf' && M.studio.needsPrint(D)) {   // a script the PDF fonts do not cover: the browser prints it; the vault keeps the Word version
+      say('Laying out…'); return M.studio.print(D, win || window.open('', '_blank')).then(function () { say(''); toast('Print view open: choose “Save as PDF”'); return M.studio.docx(build(0)).then(file); });
+    }
     say(fmt === 'pdf' ? 'Designing the PDF…' : 'Designing the Word file…');
     var run = function (lim, D1) { return M.studio[fmt](D1).then(function (r) { if (fmt === 'pdf' && kind === 'statement' && r.pages > 10 && lim < 2) { return run(lim + 1, build(lim + 1)); } return r; }); };   // the statement stays under 10 pages
-    run(0, D).then(function (r) { M.report.save(r.blob, r.name); say(''); toast((fmt === 'pdf' ? 'PDF' : 'Word') + ' ready' + (r.pages ? ': ' + r.pages + ' pages' : '') + '. Filing a copy in the Sustainability vault…'); return toVault(kind, r).then(function (f) { if (f) toast('Filed in the Sustainability vault: ' + f.tags.join(' · ')); }, function (e) { toast('Not filed in the vault: ' + e.message); }); }).catch(function (e) { say(''); fail(e); });
+    return run(0, D).then(function (r) { M.report.save(r.blob, r.name); say(''); toast((fmt === 'pdf' ? 'PDF' : 'Word') + ' ready' + (r.pages ? ': ' + r.pages + ' pages' : '')); return file(r); });
   }
   // shared pieces for both documents
   function F() {
@@ -752,7 +757,7 @@
     var gov = [['Board size', nf(b.boardSize)], ['Women on the board', c.gov.boardWomenPct != null ? c.gov.boardWomenPct + '%' : '–'], ['Independent directors', b.indepPct != null ? b.indepPct + '%' : '–'], ['Sustainability committee', b.susCommittee || '–'], ['Independent director on it', b.indepSus || '–'], ['Code of conduct', t.code || '–'], ['Whistleblower policy', t.gWhistle || '–'], ['Anti-corruption policy', t.antiCorrupt || '–'], ['Confirmed corruption incidents', nf(t.corruptCases)], ['ESG in enterprise risk management', t.erm || '–'], ['Data breaches', nf(t.breaches)], ['GRI 2 alignment index', c.gov.gri + '%']];
     var idx = []; (e.std || []).forEach(function (s) { (V.cover[s] || []).forEach(function (d) { idx.push([stdShort(s), d.ref, d.title, { t: d.status, rag: d.status === 'Reported' ? 'G' : d.status === 'Partly' ? 'A' : 'R', center: true }]); }); });
     var av = c.avoid, avRows = (av.items || []).map(function (x) { return [{ t: x.name, b: true }, x.cat, x.baseline || '', x.attr + '%', x.status, x.verify, { t: x.t == null ? '–' : nf(x.t, 1), right: true }]; });
-    var mat = SC.topics.filter(function (tp) { return (e.mat || {})[tp[0]]; }).map(function (tp) { var m = e.mat[tp[0]], R = ['–', 'Low', 'Medium', 'High', 'Very high']; return { tp: tp, m: m, s: m.imp + m.fin }; }).sort(function (a, z) { return z.s - a.s; });
+    var rated0 = function (m) { return m && (m.imp || m.fin); }, mat = SC.topics.filter(function (tp) { return rated0((e.mat || {})[tp[0]]); }).map(function (tp) { var m = e.mat[tp[0]], R = ['–', 'Low', 'Medium', 'High', 'Very high']; return { tp: tp, m: m, s: m.imp + m.fin }; }).sort(function (a, z) { return z.s - a.s; });
     return { e: e, c: c, o: o, em: em, ghg: ghg, s3: s3, people: people, gov: gov, idx: idx, av: av, avRows: avRows, mat: mat, std: (e.std || []).map(function (s) { return (SC.std[s] || {}).name || s; }) };
   }
   var stale = function (N) { return N && N.rev != null && V.e && N.rev < V.e.rev ? ' · DRAFT: narrative older than the data' : ''; };
@@ -986,7 +991,7 @@
     b.querySelectorAll('[data-sub]').forEach(function (x) { x.onclick = function () { V.subs = V.subs || {}; V.subs[V.tab] = x.getAttribute('data-sub'); body(); }; });
     // 📄 documents
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };
-    if ($('#dPdf')) $('#dPdf').onclick = function () { flush().then(function () { makeDoc(V.tab, 'pdf'); }, function (e) { if (!e.shown) fail(e); }); };
+    if ($('#dPdf')) $('#dPdf').onclick = function () { var w0 = M.studio && M.studio.needsPrint({ lang: $('#dLang').value }) ? window.open('', '_blank') : null; flush().then(function () { makeDoc(V.tab, 'pdf', w0); }, function (e) { if (w0) w0.close(); if (!e.shown) fail(e); }); };   // the print window opens at the click, before the waiting
     if ($('#dDocx')) $('#dDocx').onclick = function () { flush().then(function () { makeDoc(V.tab, 'docx'); }, function (e) { if (!e.shown) fail(e); }); };
     if ($('#dTheme')) $('#dTheme').onchange = function () { THEME = this.value; };
   }

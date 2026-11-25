@@ -59,14 +59,16 @@ export async function open(key, name, by) {
     v = blank(key, str(name || o.name || key, 120)); v.fyStart = o.from ? Number(o.from.slice(5, 7)) || 1 : 1;
     v.target = cleanTarget({ baseYear: cb.baseYear, baseT: cb.baseT, tgtPct: c.tgtPct, tgtYear: c.tgtYear, nzYear: num(String(c.netZero || '').match(/\d{4}/)), scope: '1+2' });
     v.created = Date.now(); v.by = str(by, 80);
-    await kv.set('svault:' + key, v); await touchIndex(v);
+    const fresh = v; v = await kv.update('svault:' + key, (x) => x || fresh, () => null);   // created once: a vault another person opened at the same moment is kept
+    await touchIndex(v);
   }
   return { vault: v };
 }
 
 // ---------- 📅 the months: one value per metric per month (adding the same month again replaces it) ----------
 export async function saveData(key, body, by) {
-  key = keyOf(key); const set = Array.isArray(body.set) ? body.set.slice(0, 600) : [], del = new Set((Array.isArray(body.del) ? body.del : []).map(String));
+  key = keyOf(key); if (Array.isArray(body.set) && body.set.length > 600) return { error: 'Send at most 600 values at a time (this file has ' + body.set.length + '): the console sends them in batches.', code: 400 };
+  const set = Array.isArray(body.set) ? body.set : [], del = new Set((Array.isArray(body.del) ? body.del : []).map(String));
   let err = null;
   const v = await kv.update('svault:' + key, (x) => {
     if (!x) { err = { error: 'Open the vault first', code: 404 }; return x; }
@@ -95,7 +97,7 @@ export async function billsToMonths(key, by) {
     if (!b.from || !b.to || b.kwh == null) return; const a = Date.parse(b.from), z = Date.parse(b.to) + 864e5, days = (z - a) / 864e5; if (!(days > 0)) return; n++;
     for (let t = a; t < z; t += 864e5) { const d = new Date(t), p = d.toISOString().slice(0, 7); acc[p] = acc[p] || { kwh: 0, green: 0 }; acc[p].kwh += b.kwh / days; acc[p].green += (b.green || 0) / days; }
   }));
-  const set = []; Object.keys(acc).forEach((p) => { set.push({ period: p, metric: 'carbon.elec', value: r2(acc[p].kwh / 1000, 3), source: 'Bill', note: 'From the electricity bills in the ESG reports' }); if (acc[p].green) set.push({ period: p, metric: 'carbon.green', value: r2(acc[p].green / 1000, 3), source: 'Bill', note: 'From the electricity bills' }); });
+  const set = []; Object.keys(acc).forEach((p) => { set.push({ period: p, metric: 'carbon.elec', value: r2(acc[p].kwh / 1000, 3), source: 'Bill', note: 'From the electricity bills in the ESG reports' }); set.push({ period: p, metric: 'carbon.green', value: r2(acc[p].green / 1000, 3), source: 'Bill', note: 'From the electricity bills' }); });   // a month with no renewable kWh is 0, replacing any earlier value
   if (!set.length) return { error: 'No electricity bills with a billing period were found in this organisation\'s ESG reports.', code: 400 };
   const r = await saveData(key, { set }, by); return { ...r, bills: n, months: Object.keys(acc).length };
 }
@@ -169,7 +171,10 @@ export async function analyse(key) {
     let e = rep, from = 'report';
     if (!rep) {   // a year with no report: the vault's months, with the latest report's factors and settings
       e = structuredClone(latest || { org: {} }); from = 'months'; ['carbon', 'scope3', 'resources', 'workforce', 'community', 'org'].forEach((s) => { e[s] = { ...(e[s] || {}) }; });
-      METRICS.forEach(([f, , , how]) => { const [s, k] = f.split('.'), L = R.filter((r) => r.metric === f); if (s !== 'org') delete e[s][k]; if (!L.length) { if (s === 'org') delete e[s][k]; return; } const t = L.reduce((a, r) => a + r.value, 0); e[s][k] = how === 'avg' ? t / L.length : t; });
+      // keep the latest report's factors and settings (factor fields start with f + a capital, plus the factor set, GWP and base year); clear every other number, then fill what the months supply
+      const KEEP = /^(f[A-Z]|fset$|refGwp$|baseYear$|baseT$)/;
+      ['carbon', 'scope3', 'resources', 'workforce', 'community'].forEach((sec) => Object.keys(e[sec]).forEach((k) => { if (!KEEP.test(k) && typeof e[sec][k] === 'number') delete e[sec][k]; }));
+      METRICS.forEach(([f, , , how]) => { const [s, k] = f.split('.'), L = R.filter((r) => r.metric === f); if (s === 'org') delete e[s][k]; if (!L.length) return; const t = L.reduce((a, r) => a + r.value, 0); e[s][k] = how === 'avg' ? t / L.length : t; });
       ['renewPct', 'divertPct'].forEach((k) => delete e.resources[k]); ['ltifr', 'trainHrs'].forEach((k) => delete e.workforce[k]); e.bills = []; e.avoid = []; e.credits = [];
     }
     const c = E.compute(E.clean(e)), m = measures(e, c);
@@ -184,7 +189,8 @@ export async function analyse(key) {
     INDEX_PARTS.forEach(([k, label, dir, w, eps]) => {
       const key2 = k === 's3' ? 's3i' : k, b = base && base.m[key2], n = r.m[key2];
       if (b == null || n == null || (base.m.perRev !== r.m.perRev && ['ghg', 's3i', 'energy', 'water'].includes(key2))) { parts.push({ k, label, dir, w, base: b, now: n, ratio: null }); return; }
-      let ratio = dir === 'lower' ? (b + eps) / (n + eps) : (n + eps) / (b + eps); if (!Number.isFinite(ratio)) ratio = 1; ratio = Math.max(0.25, Math.min(4, ratio));
+      const num0 = dir === 'lower' ? b + eps : n + eps, den = dir === 'lower' ? n + eps : b + eps;   // 0 ÷ 0 is no change; something ÷ 0 is the most improvement (or the most decline) the index allows
+      let ratio = den === 0 ? (num0 === 0 ? 1 : 4) : num0 / den; if (!Number.isFinite(ratio)) ratio = 1; ratio = Math.max(0.25, Math.min(4, ratio));
       sw += w; sv += w * ratio; parts.push({ k, label, dir, w, base: r2(b, 3), now: r2(n, 3), ratio: r2(ratio, 3) });
     });
     idx.push({ fy: r.fy, label: r.label, value: sw && !r.partial ? r2((sv / sw) * 100, 1) : null, weight: sw, parts, partial: r.partial, months: r.months });   // a year still being gathered gets no index until its 12 months are in
@@ -197,7 +203,7 @@ export async function analyse(key) {
   const path = (y) => { if (baseT == null || !baseYear) return null; if (T.tgtYear && tgtT != null && y <= T.tgtYear) return y <= baseYear ? baseT : baseT + ((tgtT - baseT) * (y - baseYear)) / (T.tgtYear - baseYear);
     if (T.nzYear && T.tgtYear && tgtT != null && y > T.tgtYear) return y >= T.nzYear ? 0 : tgtT - (tgtT * (y - T.tgtYear)) / (T.nzYear - T.tgtYear); if (T.nzYear && !T.tgtYear) return y >= T.nzYear ? 0 : baseT - (baseT * (y - baseYear)) / (T.nzYear - baseYear); return null; };
   // a year still being gathered is compared at its annual rate (the months so far × 12 ÷ months), and marked as such
-  const track = rows.map((r) => { const a0 = actual(r), a = a0 != null && r.partial && r.months ? (a0 * 12) / r.months : a0, p = path(r.fy), gap = a != null && p ? r2((a / p - 1) * 100, 1) : null;
+  const track = rows.map((r) => { const a0 = actual(r), a = a0 != null && r.partial && r.months ? (a0 * 12) / r.months : a0, p = path(r.fy), gap = a == null || p == null ? null : p === 0 ? (a <= 0 ? 0 : 100) : r2((a / p - 1) * 100, 1);   // a path at zero: on track only at zero
     return { fy: r.fy, label: r.label, actual: r2(a, 1), toDate: r.partial ? r2(a0, 1) : null, annualised: !!(r.partial && r.months), months: r.months, path: r2(p, 1), gap, partial: r.partial, status: gap == null ? '' : gap <= 0 ? 'On track' : gap <= 5 ? 'Close' : 'Off track' }; });
   const lastFull = [...track].reverse().find((t) => t.actual != null && !t.partial);
   const need = lastFull && tgtT != null && T.tgtYear > lastFull.fy && lastFull.actual > 0 ? r2((1 - Math.pow(tgtT / lastFull.actual, 1 / (T.tgtYear - lastFull.fy))) * 100, 1) : null;

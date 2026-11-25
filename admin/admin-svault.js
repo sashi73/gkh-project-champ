@@ -124,13 +124,23 @@
         return '<tr><th scope="row"><b>' + esc(m[1]) + '</b><small class="muted">' + esc(m[2]) + ' · ' + n + '/12</small></th>' + cells + '<td class="r"><b>' + (n ? nf(m[3] === 'avg' ? tot / n : tot, 1) : '–') + '</b></td></tr>'; }).join('') + '</tbody></table></div>' +
       '<div class="esg-leg" style="justify-content:flex-start;margin-top:8px"><span class="sv-src manual">Typed in</span><span class="sv-src bill">From a bill</span><span class="sv-src import">Imported</span></div></div>';
   }
-  var pend = {}, timer = 0;
-  function queue(m, p, v) { pend[m + '|' + p] = { metric: m, period: p, value: v === '' ? null : v, source: 'Manual' }; say('Editing…'); clearTimeout(timer); timer = setTimeout(flush, 700); }
-  function flush() { var set = Object.keys(pend).map(function (k) { return pend[k]; }); if (!set.length) return Promise.resolve(); pend = {}; say('Saving…');
-    return api('esgVaultSave', { key: V.key, set: set }).then(function (r) { V.A.vault = r.vault; say('✓ Saved'); return load(); }).then(function () { var y = scrollY; if (V.tab === 'data') { var f = document.activeElement && document.activeElement.getAttribute && [document.activeElement.getAttribute('data-m'), document.activeElement.getAttribute('data-p')]; var T0 = $('.pkpis'); if (T0) T0.innerHTML = tiles(); var grid = $('#svBody'); grid.innerHTML = dataTab(); wire(grid); scrollTo(0, y); if (f && f[0]) { var el = document.querySelector('[data-m="' + f[0] + '"][data-p="' + f[1] + '"]'); if (el) el.focus(); } } })
-      .catch(function (e) { say('⚠ Not saved'); set.forEach(function (x) { pend[x.metric + '|' + x.period] = x; }); fail(e); }); }
+  // edits wait a moment, then save: each edit carries its own vault, so nothing typed in one organisation can be saved into another
+  var pend = {}, timer = 0, seq = 0;
+  function queue(m, p, v) { var k = V.key + '|' + m + '|' + p; pend[k] = { key: V.key, metric: m, period: p, value: v === '' ? null : v, source: 'Manual', n: ++seq }; say('Editing…'); clearTimeout(timer); timer = setTimeout(flush, 700); }
+  function flush() {
+    clearTimeout(timer); var keys = Object.keys(pend); if (!keys.length) return Promise.resolve();
+    var by = {}; keys.forEach(function (k) { var x = pend[k]; (by[x.key] = by[x.key] || []).push(x); }); pend = {}; say('Saving…');
+    return Promise.all(Object.keys(by).map(function (vk) { var set = by[vk];
+      return api('esgVaultSave', { key: vk, set: set.map(function (x) { return { metric: x.metric, period: x.period, value: x.value, source: x.source }; }) }).catch(function (e) {
+        set.forEach(function (x) { var k = vk + '|' + x.metric + '|' + x.period; if (!pend[k]) pend[k] = x; });   // keep a failed edit only if nothing newer was typed in that cell
+        throw e; }); }))
+      .then(function () { say('✓ Saved'); return load(); }).then(function () { var y = scrollY; if (V.tab === 'data') { var a0 = document.activeElement, f = a0 && a0.getAttribute && [a0.getAttribute('data-m'), a0.getAttribute('data-p')]; var T0 = $('.pkpis'); if (T0) T0.innerHTML = tiles(); var grid = $('#svBody'); grid.innerHTML = dataTab(); wire(grid); scrollTo(0, y); if (f && f[0]) { var el = document.querySelector('[data-m="' + f[0] + '"][data-p="' + f[1] + '"]'); if (el) el.focus(); } } })
+      .catch(function (e) { say('⚠ Not saved'); fail(e); });
+  }
   window.addEventListener('hashchange', function () { if (Object.keys(pend).length) flush(); });
 
+  // a number from a cell, or null for a blank, N/A, - or any text without a number (never a false zero)
+  var numOf = function (v) { var t = String(v == null ? '' : v).trim().replace(/[,\s$€£%]/g, ''); return /^-?(\d+\.?\d*|\.\d+)(e-?\d+)?$/i.test(t) ? Number(t) : null; };
   // 📥 a long sheet: Month · Measure · Value (the month as 2026-03, Mar 2026 or a date)
   function importSheet() {
     M.modal('<h2>📥 Import monthly data</h2><p class="muted" style="margin:4px 0 12px">A CSV or Excel sheet with one row per value: <b>Month</b> (2026-03, Mar 2026 or a date), <b>Measure</b> (the name or id shown in the grid) and <b>Value</b>. Or a wide sheet: a Month column and one column per measure.</p>' +
@@ -144,11 +154,12 @@
         var per = function (v) { var s0 = String(v == null ? '' : v).trim(), m1 = s0.match(/^(\d{4})-(\d{1,2})/); if (m1) return m1[1] + '-' + ('0' + m1[2]).slice(-2); var d = new Date(/^\w{3,9}\s+\d{4}$/.test(s0) ? '1 ' + s0 : s0); return isNaN(d) ? null : d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2); };
         var head = (rows[0] || []).map(norm), mc = head.findIndex(function (h) { return /^(month|period|date)/.test(h); }), nc = head.findIndex(function (h) { return /^(measure|metric|item|name)/.test(h); }), vc = head.findIndex(function (h) { return /^(value|amount|quantity)/.test(h); });
         found = []; if (mc < 0) throw new Error('No Month column found.');
-        rows.slice(1).forEach(function (r) { var p = per(r[mc]); if (!p) return; if (nc >= 0 && vc >= 0) { var m = byN[norm(r[nc])], n = Number(String(r[vc]).replace(/[^0-9.\-eE]/g, '')); if (m && String(r[vc]).trim() !== '' && isFinite(n)) found.push({ period: p, metric: m[0], value: n, label: m[1] }); }
-          else head.forEach(function (h, c) { var m = byN[h]; if (!m || c === mc) return; var n = Number(String(r[c]).replace(/[^0-9.\-eE]/g, '')); if (String(r[c]).trim() !== '' && isFinite(n)) found.push({ period: p, metric: m[0], value: n, label: m[1] }); }); });
+        rows.slice(1).forEach(function (r) { var p = per(r[mc]); if (!p) return; if (nc >= 0 && vc >= 0) { var m = byN[norm(r[nc])], n = numOf(r[vc]); if (m && n != null) found.push({ period: p, metric: m[0], value: n, label: m[1] }); }
+          else head.forEach(function (h, c) { var m = byN[h]; if (!m || c === mc) return; var n = numOf(r[c]); if (n != null) found.push({ period: p, metric: m[0], value: n, label: m[1] }); }); });
         $('#siBody').innerHTML = found.length ? '<p style="margin:12px 0 6px"><b>' + found.length + ' values</b> found, ' + found.map(function (x) { return x.period; }).filter(function (v, i, a) { return a.indexOf(v) === i; }).length + ' months. Values already in the vault for the same month are replaced.</p><div class="tbl-wrap" style="max-height:40vh;overflow:auto"><table class="tbl esg-tbl"><thead><tr><th>Month</th><th>Measure</th><th class="r">Value</th></tr></thead><tbody>' + found.slice(0, 300).map(function (x) { return '<tr><td>' + esc(x.period) + '</td><td>' + esc(x.label) + '</td><td class="r">' + nf(x.value, 3) + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<div class="esg-gaps" style="margin:12px 0">No measure matched. Use the names shown in the grid.</div>';
         $('#siGo').hidden = !found.length; }).catch(function (e) { $('#siBody').innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + esc(e.message) + '</div>'; }); };
-    $('#siGo').onclick = function () { var b = this; b.disabled = true; api('esgVaultSave', { key: V.key, set: found.map(function (x) { return { period: x.period, metric: x.metric, value: x.value, source: 'Import', file: fname }; }) }).then(function () { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); toast('Imported ' + found.length + ' values from ' + fname); return load(); }).then(draw).catch(function (e) { b.disabled = false; fail(e); }); };
+    $('#siGo').onclick = function () { var b = this, vk = V.key, L = found.map(function (x) { return { period: x.period, metric: x.metric, value: x.value, source: 'Import', file: fname }; }), parts = []; for (var i = 0; i < L.length; i += 500) parts.push(L.slice(i, i + 500)); b.disabled = true;
+      parts.reduce(function (pr, set) { return pr.then(function () { return api('esgVaultSave', { key: vk, set: set }); }); }, Promise.resolve()).then(function () { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); toast('Imported ' + found.length + ' values from ' + fname); return load(); }).then(draw).catch(function (e) { b.disabled = false; fail(e); }); };
   }
 
   /* ---------- 📎 evidence by year and month ---------- */
@@ -169,7 +180,7 @@
       '<label class="full">Note (optional)<input id="suN" maxlength="300" placeholder="e.g. Warehouse 1, Q3 bill"></label><label class="full">Files<input type="file" id="suFiles" multiple></label></div><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="suGo" type="button">File</button></div>');
     $('#suGo').onclick = function () { var b = this, files = Array.prototype.slice.call($('#suFiles').files || []), period = $('#suP').value, folder = $('#suF').value, note = $('#suN').value; if (!files.length) return toast('Choose a file'); if (!/^\d{4}-\d{2}$/.test(period)) return toast('Choose the month'); b.disabled = true; b.textContent = 'Filing…';
       files.reduce(function (p, f) { return p.then(function () {
-        var b64 = function () { return new Promise(function (res) { var rd = new FileReader(); rd.onload = function () { res(String(rd.result).replace(/^data:[^,]*,/, '')); }; rd.readAsDataURL(f); }); };
+        var b64 = function () { return new Promise(function (res, rej) { var rd = new FileReader(); rd.onload = function () { res(String(rd.result).replace(/^data:[^,]*,/, '')); }; rd.onerror = rd.onabort = function () { rej(new Error('Could not read ' + f.name)); }; rd.readAsDataURL(f); }); };
         return api('esgVaultUrl', { key: V.key, name: f.name }).then(function (u) {
           if (u && u.r2) return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': f.type || 'application/octet-stream' }, body: f }).then(function (r) { if (!r.ok) throw new Error('Upload failed (' + r.status + ')'); return { r2Key: u.key }; });
           if (f.size > 3.5 * 1024 * 1024) throw new Error(f.name + ' is over 3.5 MB: file storage (R2) is needed for large files.'); return b64().then(function (x) { return { file: x }; });

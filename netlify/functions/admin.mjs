@@ -621,7 +621,8 @@ async function handle(req, context) {
         if (!U.seesMoney(ctx)) { if (portfolio) portfolio = scrubMoney(portfolio); if (project) project = scrubMoney(project); }
         // 🌿 ESG and sustainability questions (or asked from the ESG page): the ESG reports' facts, so Champ answers with the organisation's own numbers
         let esg = null; const pg0 = clean(body.page, 60);
-        if (/^svault\//.test(pg0)) { try { const SV = await import('../lib/esg-vault.mjs'); esg = { vault: await SV.champFacts(pg0.split('/')[1]) }; } catch (e) { console.error('Ask Champ vault facts: ' + e.message); } }
+        if (ctx.scope) { /* contractor and program logins get no ESG facts */ }
+        else if (/^svault\//.test(pg0)) { try { const SV = await import('../lib/esg-vault.mjs'); esg = { vault: await SV.champFacts(pg0.split('/')[1]) }; } catch (e) { console.error('Ask Champ vault facts: ' + e.message); } }
         else if (/^(esg|cso|svault)/.test(pg0) || /\b(esg|sustainab\w*|carbon|emission\w*|scope [123]|ghg|greenhouse|net[ -]zero|ifrs s[12]|aasb s[12]|issb|esrs|csrd|gri|tcfd|sasb|cdp|bursa|nsrf|nger|materiality|climate|avoided|decarboni\w*|offsets?|credits?|cbam|ets|safeguard|accus?|carbon tax|icvcm|vcmi|article 6|corsia|j-credits?)\b/i.test(q)) {
           try { const E = await import('../lib/esg.mjs'), m = pg0.match(/^esg\/([A-Z0-9]+)/i); esg = await E.champFacts(m ? m[1] : ''); } catch (e) { console.error('Ask Champ ESG facts: ' + e.message); }
         }
