@@ -628,10 +628,10 @@
   // the double materiality matrix, as a picture
   function matrixImg(X) {
     if (X.mat.length < 2) return null; var T0 = themeOf(), W = 1400, H = 900, l = 120, r = 380, t = 40, b = 100, C = canvas(W, H), g = C.g, PC = { E: T0.accent, S: T0.second, G: '#D9822B' };
-    var x = function (v) { return l + (v - 0.5) / 4 * (W - l - r); }, y = function (v) { return t + (4.5 - v) / 4 * (H - t - b); };
+    var x = function (v) { return l + (v + 0.5) / 5 * (W - l - r); }, y = function (v) { return t + (4.5 - v) / 5 * (H - t - b); };   // 0 = not rated, kept inside the plot
     g.fillStyle = T0.paper; g.fillRect(x(2.5), y(4.5), x(4.5) - x(2.5), y(2.5) - y(4.5)); g.strokeStyle = '#94A3B8'; g.lineWidth = 3; g.beginPath(); g.moveTo(l, t); g.lineTo(l, H - b); g.lineTo(W - r, H - b); g.stroke();
     font(g, 24, 600); g.fillStyle = '#475569'; g.textAlign = 'center'; g.fillText('Financial materiality →', (l + W - r) / 2, H - 30); g.save(); g.translate(40, (t + H - b) / 2); g.rotate(-Math.PI / 2); g.fillText('Impact materiality →', 0, 0); g.restore();
-    font(g, 20); ['Low', 'Medium', 'High', 'Very high'].forEach(function (lb, i) { g.fillText(lb, x(i + 1), H - b + 34); g.textAlign = 'right'; g.fillText(lb, l - 12, y(i + 1) + 7); g.textAlign = 'center'; });
+    font(g, 20); ['Not rated', 'Low', 'Medium', 'High', 'Very high'].forEach(function (lb, i) { g.fillStyle = i ? '#475569' : '#94A3B8'; g.fillText(lb, x(i), H - b + 34); g.textAlign = 'right'; g.fillText(lb, l - 12, y(i) + 7); g.textAlign = 'center'; }); g.fillStyle = '#475569';
     var pos = {}; X.mat.forEach(function (m, i) { var k = m.m.fin + 'x' + m.m.imp, n = pos[k] = (pos[k] || 0) + 1, px = x(m.m.fin) + ((n - 1) % 3) * 34 - 34, py = y(m.m.imp) + Math.floor((n - 1) / 3) * 34 - 10;
       g.fillStyle = PC[m.tp[2]] || '#64748B'; g.beginPath(); g.arc(px, py, 15, 0, 7); g.fill(); font(g, 16, 700); g.fillStyle = '#fff'; g.fillText(String(i + 1), px, py + 6); });
     font(g, 19); g.textAlign = 'left'; X.mat.slice(0, 26).forEach(function (m, i) { var yy = t + 10 + i * 31; g.fillStyle = PC[m.tp[2]] || '#64748B'; g.beginPath(); g.arc(W - r + 40, yy, 11, 0, 7); g.fill(); g.fillStyle = '#fff'; font(g, 13, 700); g.textAlign = 'center'; g.fillText(String(i + 1), W - r + 40, yy + 5); g.textAlign = 'left'; font(g, 19); g.fillStyle = '#334155'; var lb = m.tp[1]; while (g.measureText(lb).width > r - 70 && lb.length > 4) lb = lb.slice(0, -2); g.fillText(lb + (lb !== m.tp[1] ? '…' : ''), W - r + 60, yy + 7); });
@@ -678,7 +678,7 @@
     var credUse = Object.keys(P.byUse || {}).length > 1 ? donut('Carbon credits by use (tCO2e)', Object.keys(P.byUse).map(function (k) { return [k, P.byUse[k]]; }), nf(P.creditT), 'tCO2e') : null;
     var s3bar = bar('Scope 3 by category (tCO2e)', Object.keys(em.s3 || {}).map(function (k) { return [({ purch: 'Purchased goods', freight: 'Freight', landfill: 'Landfill', recycled: 'Recycling', air: 'Flights', car: 'Car travel', hotel: 'Hotels', commute: 'Commuting', water: 'Water' })[k] || k, em.s3[k]]; }).sort(function (a, z) { return (z[1] || 0) - (a[1] || 0); }), '', 50);
     var trend = TREND[orgKey((e.org || {}).name)];
-    var strip = function (re, goals) { var ch0 = find(re); if (ch0 && SDGI) ch0.blocks.splice(0, 0, sdgStrip(goals)); };
+    var strip = function (re, goals) { var ch0 = find(re), img = ch0 && SDGI ? sdgStrip(goals) : null; if (img) ch0.blocks.splice(0, 0, img); };
     if (rep) {
       var SR0 = sdgRows(X, (V.docs.report || {}).sections || {}), top = SR0.filter(function (x) { return /high/i.test(x.rel); }).map(function (x) { return x.n; }); if (!top.length) top = SR0.filter(function (x) { return x.metric; }).map(function (x) { return x.n; }).slice(0, 6);
       [[/^Sustainability strategy/, top.slice(0, 6)], [/^Stakeholder engagement/, [17]], [/^Governance of sustainability/, [16, 17]], [/^Ethics and integrity/, [16]], [/^Risk management/, [16]], [/^Cyber, privacy/, [9, 16]], [/^Climate governance/, [13]], [/^Risks and opportunities/, [13]], [/^Scenario analysis/, [11, 13]],
@@ -711,7 +711,7 @@
   }
   // 📘 every statement or report made is filed in the organisation's Sustainability vault, tagged with the company and the year (a new copy replaces the earlier one of the same name)
   function toVault(kind, r, snap) {
-    snap = snap || { e: V.e, N: V.docs[kind] }; var o = snap.e.org || {}, ent = snap.e, name = r.name || ((o.name || 'Report') + (kind === 'report' ? ' ESG report' : ' Sustainability statement')), blob = r.blob, today = new Date().toISOString().slice(0, 7);
+    snap = snap || { e: V.e, N: V.docs[kind], org: JSON.parse(JSON.stringify(V.e.org || {})), id: V.e.id }; var o = snap.org || {}, ent = { id: snap.id }, name = r.name || ((o.name || 'Report') + (kind === 'report' ? ' ESG report' : ' Sustainability statement')), blob = r.blob, today = new Date().toISOString().slice(0, 7);
     var yr = String(o.year || '').trim() || (o.to ? 'FY' + o.to.slice(0, 4) : ''), tags = [o.name || '', yr, kind === 'report' ? 'ESG report' : 'Sustainability statement', 'Published ' + new Date().getFullYear()].filter(Boolean);
     var key = orgKey(o.name);
     if (!key || !blob) return Promise.resolve(null);
@@ -727,8 +727,9 @@
     var lang = $('#dLang').value, msg = $('#dMsg'), say = function (t) { if (msg) msg.innerHTML = t ? '<span class="ask-think">' + esc(t) + '</span>' : ''; };
     if (!M.studio) { if (win) win.close(); return fail(new Error('The document designer did not load. Reload the page.')); }
     THEME = $('#dTheme').value || 'forest';
-    var snap = { e: V.e, docs: V.docs, N: V.docs[kind] }, same = function () { if (V.e !== snap.e) throw new Error('Another report was opened while this one was being prepared. Go back to it and make the document again.'); };
-    var k0 = orgKey((snap.e.org || {}).name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0._lim = lim; return enrich(D0, kind); };
+    var snap = { e: V.e, docs: V.docs, N: V.docs[kind], org: JSON.parse(JSON.stringify(V.e.org || {})), id: V.e.id },   // the organisation as it was when the document started: filing never reads a later edit
+      same = function () { if (V.e !== snap.e) throw new Error('Another report was opened while this one was being prepared. Go back to it and make the document again.'); };
+    var k0 = orgKey(snap.org.name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0._lim = lim; return enrich(D0, kind); };
     say('Gathering the figures…');
     return Promise.all([api('esgVaultGet', { key: k0 }).then(function (a) { TREND[k0] = a; }, function () { TREND[k0] = null; }), loadSdg()])
       .then(function () { return makeDoc2(kind, fmt, lang, build, say, snap, win); }).catch(function (e) { say(''); if (win) win.close(); fail(e); });

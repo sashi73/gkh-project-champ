@@ -125,22 +125,23 @@
       '<div class="esg-leg" style="justify-content:flex-start;margin-top:8px"><span class="sv-src manual">Typed in</span><span class="sv-src bill">From a bill</span><span class="sv-src import">Imported</span></div></div>';
   }
   // edits wait a moment, then save: each edit carries its own vault, so nothing typed in one organisation can be saved into another
-  var pend = {}, timer = 0, seq = 0;
+  var pend = {}, timer = 0, seq = 0, chain = Promise.resolve();   // saves go one after another, so the newest edit is always the one stored
   function queue(m, p, v) { var k = V.key + '|' + m + '|' + p; pend[k] = { key: V.key, metric: m, period: p, value: v === '' ? null : v, source: 'Manual', n: ++seq }; say('Editing…'); clearTimeout(timer); timer = setTimeout(flush, 700); }
   function flush() {
     clearTimeout(timer); var keys = Object.keys(pend); if (!keys.length) return Promise.resolve();
     var by = {}; keys.forEach(function (k) { var x = pend[k]; (by[x.key] = by[x.key] || []).push(x); }); pend = {}; say('Saving…');
-    return Promise.all(Object.keys(by).map(function (vk) { var set = by[vk];
+    var job = chain.then(function () { return Promise.all(Object.keys(by).map(function (vk) { var set = by[vk];
       return api('esgVaultSave', { key: vk, set: set.map(function (x) { return { metric: x.metric, period: x.period, value: x.value, source: x.source }; }) }).catch(function (e) {
         set.forEach(function (x) { var k = vk + '|' + x.metric + '|' + x.period; if (!pend[k]) pend[k] = x; });   // keep a failed edit only if nothing newer was typed in that cell
-        throw e; }); }))
+        throw e; }); })); }); chain = job.catch(function () {});
+    return job
       .then(function () { say('✓ Saved'); return load(); }).then(function () { var y = scrollY; if (V.tab === 'data') { var a0 = document.activeElement, f = a0 && a0.getAttribute && [a0.getAttribute('data-m'), a0.getAttribute('data-p')]; var T0 = $('.pkpis'); if (T0) T0.innerHTML = tiles(); var grid = $('#svBody'); grid.innerHTML = dataTab(); wire(grid); scrollTo(0, y); if (f && f[0]) { var el = document.querySelector('[data-m="' + f[0] + '"][data-p="' + f[1] + '"]'); if (el) el.focus(); } } })
       .catch(function (e) { say('⚠ Not saved'); fail(e); });
   }
   window.addEventListener('hashchange', function () { if (Object.keys(pend).length) flush(); });
 
   // a number from a cell, or null for a blank, N/A, - or any text without a number (never a false zero)
-  var numOf = function (v) { var t = String(v == null ? '' : v).trim().replace(/[,\s$€£%]/g, ''); return /^-?(\d+\.?\d*|\.\d+)(e-?\d+)?$/i.test(t) ? Number(t) : null; };
+  var numOf = function (v) { var t = String(v == null ? '' : v).trim().replace(/[,\s$€£%]/g, ''); return /^-?(\d+\.?\d*|\.\d+)(e-?\d+)?$/i.test(t) && isFinite(Number(t)) ? Number(t) : null; };
   // 📥 a long sheet: Month · Measure · Value (the month as 2026-03, Mar 2026 or a date)
   function importSheet() {
     M.modal('<h2>📥 Import monthly data</h2><p class="muted" style="margin:4px 0 12px">A CSV or Excel sheet with one row per value: <b>Month</b> (2026-03, Mar 2026 or a date), <b>Measure</b> (the name or id shown in the grid) and <b>Value</b>. Or a wide sheet: a Month column and one column per measure.</p>' +
