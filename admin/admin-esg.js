@@ -576,8 +576,8 @@
       (N && N.rev != null && N.rev < V.e.rev ? '<div class="esg-stale" role="status">⚠ The data has changed since this narrative was written (data version ' + N.rev + ', now ' + V.e.rev + '). The figures, tables and charts use today\'s data, so the text may quote older numbers: <b>write it again</b> before you publish. The documents are marked until you do.</div>' : '') + '<div class="esg-dstate">' + (N ? '✓ Narrative v' + N.ver + ' written ' + esc(when(N.at)) + ' by ' + esc(N.by || '') + ' · ' + nf(N.tokens) + ' tokens' + (N.partial ? ' · <span class="t-amber">' + esc(N.partial) + '</span>' : '') + '. Write it again after you change the data.' : 'No narrative yet: the PDF and Word still work, with the data, charts and tables, and a note where the narrative goes.') + '</div></div>' +
       '<div class="card"><h3 style="margin-top:0">Inside</h3><ol class="esg-toc">' + (rep ? REPORT_TOC : STATEMENT_TOC).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div></div>';
   }
-  var STATEMENT_TOC = ['Message from leadership', 'About this statement', 'Governance and strategy', 'Material topics', 'Environment and climate', 'Social', 'Governance performance', 'Avoided emissions', 'Targets and outlook', 'Content index'];
-  var REPORT_TOC = ['Part 1 Introduction and strategy: message from the CEO, about this report, our organisation, strategy, stakeholders, materiality, SDGs', 'Part 2 Governance: structure and oversight, ethics and integrity, risk management, cyber, privacy and tax',
+  var STATEMENT_TOC = ['Message from leadership', 'About this statement', 'Governance and strategy', 'Material topics', 'Contribution to the UN SDGs', 'Environment and climate', 'Social', 'Governance performance', 'Avoided emissions', 'Targets and outlook', 'Content index'];
+  var REPORT_TOC = ['Part 1 Introduction and strategy: message from the CEO, about this report, our organisation, strategy, the 17 UN SDGs, stakeholders, materiality', 'Part 2 Governance: structure and oversight, ethics and integrity, risk management, cyber, privacy and tax',
     'Part 3 Climate: governance and strategy, risks and opportunities, scenarios and resilience, metrics, targets and transition plan', 'Part 4 Environment: GHG emissions, energy, water and waste, biodiversity and compliance, avoided emissions, carbon pricing, CBAM and carbon credits',
     'Part 5 Social: our people, health and safety, diversity and inclusion, human rights and Indigenous peoples, communities, suppliers and customers', 'Part 6 Performance and roadmap: governance performance, ESG scorecard, targets and roadmap, reporting standards, data quality and assurance',
     'Appendices: performance data, content index, glossary, forward-looking statements, approval'];
@@ -620,6 +620,24 @@
   var dt = function (s) { try { return s ? new Date(s + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''; } catch (x) { return s; } };
   var RT = ['–', 'Low', 'Medium', 'High', 'Very high'];
   function list(L) { return (L || []).map(function (x) { return '- ' + (typeof x === 'string' ? x : Object.values(x).join(': ')); }).join('\n'); }
+  // 🇺🇳 the 17 SDGs: the AI's view where it wrote one, and always the reported figure that tracks each goal
+  function sdgRows(X, S) {
+    var e = X.e, c = X.c, em = X.em, w = e.workforce || {}, r = e.resources || {}, t = e.ethics || {}, cm = e.community || {}, f = function (v, u) { return v == null || v === '' ? '' : nf(v, v < 100 ? 1 : 0) + (u || ''); };
+    var M = { 3: [f(w.ltifr) && 'LTIFR ' + f(w.ltifr), w.deaths != null && (nf(w.deaths) + (Number(w.deaths) === 1 ? ' fatality' : ' fatalities'))], 4: [f(w.trainHrs) && f(w.trainHrs) + ' training hours per employee'], 5: [c.soc.womenPct != null && c.soc.womenPct + '% women', c.soc.womenMgmtPct != null && c.soc.womenMgmtPct + '% women in management', w.payGap != null && w.payGap + '% gender pay gap'],
+      6: [f(r.waterWd) && f(r.waterWd) + ' m3 water withdrawn'], 7: [r.renewPct != null && r.renewPct + '% renewable energy', em.energy != null && nf(em.energy) + ' MWh energy'], 8: [f(w.fte) && f(w.fte) + ' FTE', w.fte && w.leavers != null && nf(w.leavers / w.fte * 100, 1) + '% turnover'],
+      10: [w.payGap != null && w.payGap + '% pay gap'], 11: [f(cm.invest) && 'community investment ' + f(cm.invest)], 12: [r.divertPct != null && r.divertPct + '% waste diverted', f(r.wasteT) && f(r.wasteT) + ' t waste'],
+      13: [em.total != null && nf(em.total) + ' tCO2e footprint', c.avoid.total && nf(c.avoid.total) + ' tCO2e avoided'], 16: [t.corruptCases != null && pl(t.corruptCases, 'corruption incident'), t.code && 'code of conduct: ' + t.code], 17: [c.price.creditT && nf(c.price.creditT) + ' tCO2e of credits retired'] };
+    var ai = {}; (S.sdgs || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) ai[n] = x; });
+    (e.avoid || []).forEach(function (x) { var n = Number(String(x.sdg || '').replace(/^\D*(\d+).*$/, '$1')); if (n >= 1 && n <= 17) (M[n] = M[n] || []).push(x.name); });
+    return (SC.sdgs || []).map(function (g, i) { var n = i + 1, a = ai[n] || {}, met = a.metric || (M[n] || []).filter(Boolean).join('; ');
+      return { n: n, goal: 'SDG ' + n + ' ' + g, rel: a.relevance || '', text: a.contribution || '', metric: met }; });
+  }
+  function sdgTable(rows, nl, small) {
+    var rg = function (v) { return /high/i.test(v) ? 'G' : /med/i.test(v) ? 'A' : undefined; };
+    return { t: 'table', title: small ? null : 'The 17 Sustainable Development Goals', head: small ? ['Goal', 'Our contribution', 'Measure'] : ['Goal', 'Relevance', 'Our contribution', 'Measure'],
+      rows: rows.map(function (x) { return small ? [{ t: x.goal, b: true }, x.text || '', x.metric || ''] : [{ t: x.goal, b: true }, { t: x.rel || '–', center: true, rag: rg(x.rel) }, x.text || '', x.metric || '']; }), widths: small ? [1.6, 3.2, 1.6] : [1.6, 0.8, 3.2, 1.5], size: 7.2, noTr: nl,
+      note: 'The UN Sustainable Development Goals (2030 Agenda). Relevance and contribution are the organisation\'s own assessment; measures are the figures reported in this document.' };
+  }
   function statementDoc(N, lang, lim) {
     var X = F(), S = (N && N.sections) || {}, nl = N && N.lang === lang, n = 0, today = new Date().toISOString().slice(0, 10);
     var T = function (text, fb) { var v = text || fb; return v ? { t: 'p', text: v, noTr: !!text && nl } : null; };
@@ -631,6 +649,8 @@
       ch('Governance and strategy', 'How we manage sustainability', [T(S.governance), T(S.strategy)]),
       ch('Material topics', 'What matters most', [T(S.materiality), (S.material_topics || []).length ? { t: 'table', head: ['Topic', 'Pillar', 'Why it matters'], rows: S.material_topics.map(function (x) { return [{ t: x.topic, b: true }, { t: x.pillar, center: true }, x.why]; }), widths: [2, 0.6, 4], noTr: nl }
         : X.mat.length ? { t: 'table', head: ['Topic', 'Impact', 'Financial'], rows: X.mat.slice(0, 10).map(function (m) { return [{ t: m.tp[1], b: true }, RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 1, 1] } : null]),
+      (function () { var R0 = sdgRows(X, S), top = (S.sdgs || []).length ? R0.filter(function (x) { return x.text; }) : R0.filter(function (x) { return x.metric; }).slice(0, 6);
+        return ch('Contribution to the UN Sustainable Development Goals', 'SDGs', [top.length ? sdgTable(top, nl, true) : T(null, 'No goal is linked to the data yet: write the narrative with ✨ AI, or add data.')]); })(),
       ch('Environment and climate', 'Planet', [{ t: 'stats', items: [{ v: nf(X.em.total), l: 'tCO2e total footprint' }, { v: nf(X.em.s1t), l: 'Scope 1' }, { v: nf(X.em.s2loc), l: 'Scope 2 (location)' }, { v: nf(X.em.s3t), l: 'Scope 3' }] }, T(S.environment),
         lim < 1 ? { t: 'chart', kind: 'bar', title: 'Emissions by scope (tCO2e)', data: { items: [['Scope 1', X.em.s1t], ['Scope 2', X.em.s2loc], ['Scope 3', X.em.s3t]].filter(function (x) { return x[1] != null; }).map(function (x) { return { l: x[0], v: x[1], t: nf(x[1]) }; }) }, maxH: 42 } : null, T(S.climate)]),
       ch('Social', 'People', [T(S.social), { t: 'table', head: ['Measure', 'This year'], rows: X.people.slice(0, lim < 2 ? 12 : 7), widths: [3, 2] }]),
@@ -663,7 +683,9 @@
     C.push(ch('Message from the CEO', 'Leadership', [{ t: 'stats', items: D.stats }, T(S.ceo_message, miss)], 'Our year in sustainability'));
     C.push(ch('About this report', 'Basis of preparation', [T(S.about_report, miss), { t: 'kv', title: 'Reporting basis', rows: D.meta.concat([['Factor set', em.setLabel], ['Scoring method', c.method], ['Contact', X.o.contact || '']]) }], 'Period, boundary, standards and assurance'));
     C.push(ch('Our organisation', 'Profile', [T(S.organisation_profile, X.o.about || miss)], 'What we do and where'));
-    C.push(ch('Sustainability strategy', 'Strategy', [T(S.strategy, miss), (S.sdgs || []).length ? { t: 'cards', cols: 2, items: S.sdgs.map(function (x) { return { title: x.sdg, text: x.contribution }; }), noTr: nl } : null], 'Our pillars and the goals we contribute to'));
+    C.push(ch('Sustainability strategy', 'Strategy', [T(S.strategy, miss)], 'Our pillars and priorities'));
+    var SR = sdgRows(X, S), hi = SR.filter(function (x) { return /high/i.test(x.rel); });
+    C.push(ch('UN Sustainable Development Goals', 'SDGs', [T(S.sdg_overview, miss), hi.length ? { t: 'cards', cols: 3, items: hi.slice(0, 6).map(function (x) { return { title: x.goal, text: x.text, tag: 'High relevance' }; }), noTr: nl } : null, sdgTable(SR, nl, false)], 'How we contribute to the 17 goals of the 2030 Agenda'));
     C.push(ch('Stakeholder engagement', 'Stakeholders', [T(S.stakeholder_engagement, miss), tbl('stakeholders', ['Stakeholder group', 'What they care about', 'How we engage', 'How often'], ['group', 'concerns', 'how_engaged', 'frequency'], [1.4, 2.4, 2.2, 1])], 'Who we listen to'));
     C.push(ch('Materiality', 'What matters', [T(S.materiality, miss), tbl('material_topics', ['Topic', 'Pillar', 'Impact', 'Financial', 'Why it matters'], ['topic', 'pillar', 'impact', 'financial', 'why'], [2, 0.6, 0.8, 0.8, 3.4]) || (X.mat.length ? { t: 'table', head: ['Topic', 'Pillar', 'Impact', 'Financial'], rows: X.mat.map(function (m) { return [{ t: m.tp[1], b: true }, m.tp[2], RT[m.m.imp], RT[m.m.fin]]; }), widths: [3, 0.6, 1, 1] } : null)], 'Double materiality: impact and financial'));
     C.push(part(2, 'Governance', 'How the organisation is directed and controlled, and how sustainability is overseen.', [['07', 'Governance of sustainability'], ['08', 'Ethics and integrity'], ['09', 'Risk management'], ['10', 'Cyber, privacy, tax and remuneration']]));
@@ -790,7 +812,7 @@
       if (!R.length) { v.innerHTML = head + '<div class="card empty" style="padding:36px">No ESG reports yet. Open <a href="#esg">🌿 ESG &amp; Sustainability</a> and start one (or a sample) to see them here.</div>'; return; }
       var flags = [], RY = R.filter(function (x) { return !d.year || x.year === d.year; });
       RY.forEach(function (x) { var L = function (t, c) { flags.push('<li><span class="dot dot-' + c + '"></span> <a href="#esg/' + esc(x.id) + '/overview"><b>' + esc(x.name) + '</b></a> ' + t + '</li>'); };
-        if (x.deaths) L('reported ' + pl(x.deaths, 'fatality') + ': the board needs the investigation and the actions', 'red');
+        if (x.deaths) L('reported ' + nf(x.deaths) + (Number(x.deaths) === 1 ? ' fatality' : ' fatalities') + ': the board needs the investigation and the actions', 'red');
         if (!x.tgt) L('has no emissions reduction target (IFRS S2 §33)', 'amber');
         if (x.readiness < 50) L('is ' + x.readiness + '% ready against its chosen standards', x.readiness < 30 ? 'red' : 'amber');
         if (!x.statement && !x.report) L('has no statement or report written yet', 'grey');
