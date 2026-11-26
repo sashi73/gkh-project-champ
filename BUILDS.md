@@ -366,4 +366,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 355 | 1.0.355| 2026-11-26 18:08| login-eye| `a1a3b55` | Sign-in: a failed attempt no longer turns the password eye into 'Sign in' (the form picked the first button, which became the eye when it wa |
 | 356 | 1.0.356| 2026-11-26 18:15| login-eye-wait| `dcbafe7` | Quick check: wait for the failed sign-in to finish before checking the eye (#169) |
 | 357 | 1.0.357| 2026-11-26 18:57| esg-progress| `e67630c` | ESG documents lead with what was done: an Achievements register by pillar with sector measures (airlines included), progress against the pre |
-| 358 | 1.0.358 | 2026-11-26 19:11 | esg-progress | _this commit_ | _see git log_ |
+| 358 | 1.0.358| 2026-11-26 19:11| esg-progress| `e19d11f` | ESG progress review: progress follows every save, a failed lookup is never called a first year, compact statements keep the year in review a |
+| 359 | 1.0.359 | 2026-11-26 19:26 | esg-progress | _this commit_ | _see git log_ |

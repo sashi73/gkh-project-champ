@@ -519,7 +519,7 @@
   function progSummary() {
     var P = (PROG[V.e.id] || {}).progress;
     if (!PROG[V.e.id]) return '<h3>Progress against last year</h3><p class="muted">Working it out…</p>';
-    if (PROG[V.e.id].failed) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">The comparison could not be loaded just now. Open this tab again to retry.</p>';
+    if (PROG[V.e.id].failed) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">The comparison could not be loaded just now.</p><button class="btn btn-sm" type="button" id="progRetry">↻ Try again</button>';
     if (!P) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">Name the organisation and the reporting year (Organisation tab) and save, so this year can be matched with the previous one.</p>';
     if (!P.prev && !P.items.length) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">' + esc(P.note || 'No previous year yet.') + '</p>';
     var by = function (k) { return P.items.filter(function (x) { return x.pillar === k; }); };
@@ -798,7 +798,7 @@
       D_LIM = D._lim || 0;
       { var iL = D.chapters.indexOf(find(/^Message from leadership/)); if (iL >= 0) D.chapters.splice(iL + 1, 0, { no: 0, title: 'The year in review', kicker: 'Progress', blocks: yearReview('statement') }); }
       [[/^Environment and climate/, ['C', 'E']], [/^Social$/, ['S']], [/^Governance performance/, ['G']]].forEach(function (x) { first(x[0], highlights(x[1], true, D._lim)); });
-      D_LIM = 0;
+      D_LIM = 0; var n1 = 0; D.chapters.forEach(function (x) { if (!x.divider) x.no = ++n1; });   // number the chapters again after the insert
     }
     return D;
   }
@@ -1065,6 +1065,7 @@
     del('data-avdel', function () { return V.e.avoid; }, 'avoid'); del('data-ahdel', function () { return V.e.achieve; }, 'achieve'); del('data-crdel', function () { return V.e.credits; }, 'credits'); del('data-cbdel', function () { return P0().cbam; }, 'pricing'); del('data-exdel', function () { return P0().exp; }, 'pricing');
     var nid = function () { return 'N' + rid().slice(0, 10).toUpperCase(); };
     var add = function (key, L, item) { item.id = nid(); L.push(item); V.open[key] = item.id; touch(key === 'cbam' || key === 'exp' ? 'pricing' : key); body(); };
+    if ($('#progRetry')) $('#progRetry').onclick = function () { var id = V.e.id; delete PROG[id]; this.disabled = true; loadProg(id).then(function () { if (V.tab === 'achieve' && V.e.id === id) { var y = scrollY; body(); scrollTo(0, y); } }); };
     if ($('#ahAdd')) $('#ahAdd').onclick = function () { V.e.achieve = V.e.achieve || []; add('achieve', V.e.achieve, { what: 'New achievement', pillar: 'C', status: 'Done', better: 'lower' }); };
     if ($('#ahKpi')) $('#ahKpi').onchange = function () { var k = ((PROG[V.e.id] || {}).kpis || [])[+this.value]; if (!k) return; V.e.achieve = V.e.achieve || []; add('achieve', V.e.achieve, { what: k[0], metric: k[0], unit: k[1], better: k[2], pillar: k[3], status: 'Done' }); };
     if ($('#avAdd')) $('#avAdd').onclick = function () { V.e.avoid = V.e.avoid || []; add('avoid', V.e.avoid, { name: 'New project or solution', cat: 'Other', attr: 100, status: 'Planned', verify: 'Estimate' }); };

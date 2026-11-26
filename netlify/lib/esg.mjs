@@ -682,8 +682,9 @@ export async function progress(e) {
   (e.achieve || []).filter((x) => x.metric && x.prev != null && x.now != null).forEach((x) => { const ch = x.unit && /%/.test(x.unit) ? x.now - x.prev : x.prev === 0 ? null : (x.now / x.prev - 1) * 100;
     items.push({ k: 'a:' + x.id, label: x.metric, unit: x.unit, pillar: x.pillar, dir: x.better, prev: x.prev, now: x.now, change: ch == null ? null : Math.round(ch * 10) / 10, kind: x.unit && /%/.test(x.unit) ? 'points' : 'pct', better: judge(x.prev, x.now, ch, x.better), own: true }); });
   const idx = (A.index || []).find((x) => x.fy === now.fy) || {}, tr = ((A.target || {}).track || []).find((x) => x.fy === now.fy) || {};
-  if (!prev) return { now: now.label, prev: null, items, note: 'No earlier full year for this organisation yet: the history-based measures show from next year (or add last year\'s months in the Sustainability vault). Measures with last year\'s figure in the Achievements register are compared already.' };
-  return { now: now.label, prev: prev.label, items, improved: items.filter((x) => x.better === 'better').length, worse: items.filter((x) => x.better === 'worse').length, index: idx.value ?? null, indexYoy: idx.yoy ?? null, target: tr.status || '', targetGap: tr.gap ?? null };
+  const improved = items.filter((x) => x.better === 'better').length, worse = items.filter((x) => x.better === 'worse').length;
+  if (!prev) return { now: now.label, prev: null, items, improved, worse, note: 'No earlier full year for this organisation yet: the history-based measures show from next year (or add last year\'s months in the Sustainability vault). Measures with last year\'s figure in the Achievements register are compared already.' };
+  return { now: now.label, prev: prev.label, items, improved, worse, index: idx.value ?? null, indexYoy: idx.yoy ?? null, target: tr.status || '', targetGap: tr.gap ?? null };
 }
 // 🇺🇳 the 17 UN Sustainable Development Goals: covered by default in every statement and report
 export const SDGS = ['No poverty', 'Zero hunger', 'Good health and well-being', 'Quality education', 'Gender equality', 'Clean water and sanitation', 'Affordable and clean energy', 'Decent work and economic growth',
