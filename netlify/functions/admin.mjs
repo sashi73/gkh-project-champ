@@ -334,6 +334,7 @@ async function handle(req, context) {
       }
       // 🤝 supplier ESG data (Scope 3): private links to a form based on Malaysia's SEDG, mapped to every framework (netlify/lib/suppliers.mjs)
       case 'esgSupList': case 'esgSupCreate': case 'esgSupRelink': case 'esgSupDelete': case 'esgSupAccept': case 'esgSupReturn': {
+        if (action !== 'esgSupList' && !ctx.owner && (ctx.mods || {}).projects !== 'edit') return bad('Sending, accepting or deleting supplier requests needs edit access to Projects.', 403);   // reading the list is open to staff, as the rest of ESG
         const SP = await import('../lib/suppliers.mjs'), key = String(body.key || '').slice(0, 80), id = String(body.id || '').slice(0, 30);
         const r = action === 'esgSupList' ? await SP.list(key) : action === 'esgSupCreate' ? await SP.create(key, body, by) : action === 'esgSupRelink' ? await SP.relink(key, id)
           : action === 'esgSupDelete' ? await SP.remove(key, id) : action === 'esgSupAccept' ? await SP.accept(key, id, by) : await SP.sendBack(key, id, body.msg, by);
