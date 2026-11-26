@@ -154,3 +154,29 @@ export async function saveSettings(b, by) {   // compare-and-set: a save made on
     return { price: price ?? null, cur: /^[A-Z]{3}$/.test(b.cur || '') ? b.cur : 'AUD', note: str(b.note, 300), by: str(by, 80), at: Date.now(), rev: rev + 1 }; }, () => null);
   return stale ? { error: 'Someone else changed the carbon price (' + ((v && v.by) || 'another user') + '). Reload the page and try again.' } : v;
 }
+
+// ✨ the P5 impact analysis: the AI writes "why this score" and "what we will do" from the project's own data, for the blanks only
+// (an element not scored yet also gets a suggested score). Nothing is saved here: the browser puts the answers in and the user edits them.
+export async function p5Fill(core, esgIn, lang) {
+  const P = await import('./plan.mjs'), { llmJson } = await import('./ai.mjs');
+  const plan = await P.get(core); if (!plan) return { error: 'Project not found' };
+  const e = clean(esgIn !== undefined ? esgIn : plan.esg) || { act: {}, ef: {}, p5: {}, soc: {} }, x = calc({ ...plan, esg: e });
+  const todo = P5.filter(([k]) => { const v = e.p5[k] || {}; return !v.note || !v.action || !v.s; }).map(([k, pil, label, hint]) => { const v = e.p5[k] || {}; return { key: k, pillar: pil, element: label, covers: hint, score: v.s || null, why_now: v.note || '', action_now: v.action || '' }; });
+  if (!todo.length) return { fill: {}, note: 'Every element already has a score, a reason and an action.' };
+  const ch = plan.charter || {}, R = P.rollup(plan, new Date().toISOString().slice(0, 10));
+  const facts = { project: plan.name || core, objective: ch.objective || '', in_scope: ch.inScope || '', client: ch.customer || '', percent_complete: R.pct,
+    phases: (plan.phases || []).map((p) => p.name), tasks: (plan.tasks || []).slice(0, 40).map((t) => t.name),
+    open_risks: (plan.risks || []).filter((r) => r.status !== 'Closed').slice(0, 10).map((r) => r.title), climate_risks: x.climateRisks.map((r) => r.title),
+    emissions_tCO2e: { method: x.method, total: x.total, scope1: x.s1t, scope2: x.s2loc, scope3: x.s3t, materials: x.s3.materials, reduction_vs_business_as_usual_pct: x.reductionPct, carbon_budget: x.capT, over_budget: x.overBudget },
+    activity: e.act, social: { ...x.soc, invest: undefined }, governance: x.gov, project_notes: e.note || '' };
+  const sys = 'You are a project sustainability adviser using the PMI GPM P5 Standard (People, Planet, Prosperity, Process, Product). Impact scores run 1 (high negative) to 5 (high positive), 3 is neutral. ' +
+    'For each element listed, write "why" (the reason for the score, 12 to 25 words, grounded in this project\'s facts) and "action" (what the project will do next: concrete, 10 to 22 words, with who or when where it helps). ' +
+    'Where an element has no score, also give "score" (1 to 5) that fits the facts; when the facts say little, score 3 and say what to measure. Use only the facts given: never invent figures, suppliers or certifications. Plain English, no jargon, no marketing. ' +
+    'Answer only with JSON: {"elements":{"<key>":{"why":"…","action":"…","score":n}}}.' + (lang && lang !== 'en' ? ' Write the text in the language with code ' + lang + '.' : '');
+  const r = await llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ project_facts: facts, elements: todo }) }], { maxTokens: 2600, temperature: 0.3 });
+  const got = (r.data && r.data.elements) || {}, fill = {};
+  todo.forEach((t) => { const a = got[t.key]; if (!a || typeof a !== 'object') return; const o = {};
+    if (!t.why_now && a.why) o.note = str(a.why, 600); if (!t.action_now && a.action) o.action = str(a.action, 400); const sc = Math.round(Number(a.score)); if (!t.score && sc >= 1 && sc <= 5) o.s = sc;
+    if (Object.keys(o).length) fill[t.key] = o; });
+  return { fill, tokens: r.used || 0 };
+}
