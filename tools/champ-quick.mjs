@@ -633,6 +633,19 @@ try {
           sv.status === 200 && order.join('|') === '📈 PERT|🌿 Tree view|🌳 WBS' && tv.fs && tv.svg && tv.keys === 4 && tv.badges >= 5 && tv.crit > 0 && tv.water > 0 && shown.some((x) => /Under way · \d+%/.test(x)) &&
           pt.fs && pt.nodes === 4 && pt.crit === 3 && pt.stats === 5 && /estimates/.test(pt.note) && saved.estO === 2 && saved.estP === 6 && /%$/.test(odds[2] || '') && !errs.length, JSON.stringify([sv.status, order, tv, shown, pt, saved.estO, saved.estP, odds, errs]));
       }
+      // 🧪 sample data: two programs (about 80% and 50% done), five projects with full data and ESG data, three ESG companies without documents; loading again adds nothing
+      { const s1 = await api('sampleSeed', { today: '2026-11-26' }), s2 = await api('sampleSeed', { today: '2026-11-26' }), m1 = (s1.j || {}).made || {}, m2 = (s2.j || {}).made || {};
+        const pv = (await api('planEsgPortfolioGet', { today: '2026-11-26' })).j, ents = (await api('esgList', {})).j || {}, L = ents.list || ents.ents || ents.entities || [];
+        const cards = [], gets = await Promise.all((m1.projects || []).map((p) => api('planGet', { core: p.core }))); gets.forEach((g, i) => { const pl = g.j.plan || {}; cards.push({ n: m1.projects[i].name, prog: m1.projects[i].program, tasks: (pl.tasks || []).length, risks: (pl.risks || []).length, ch: (pl.charter || {}).docStatus, base: !!pl.baseline, esg: !!(pl.esg && pl.esg.act && pl.esg.p5) }); });
+        const byProg = {}; (pv.projects || []).filter((r) => (m1.projects || []).some((p) => p.core === r.core)).forEach((r) => { (byProg[r.program] = byProg[r.program] || []).push(r.pct); });
+        const avg = (L0) => (L0 || []).reduce((a, x) => a + x, 0) / ((L0 || []).length || 1), gfh = avg(byProg['Green Freight Hub']), cs = avg(byProg['Coral Sky Sustainable Operations']);
+        const coms = (m1.companies || []).map((c) => c.id), docs = await Promise.all(coms.map((id) => api('esgGet', { id }).then((r) => r.j.entity)));
+        ok('Sample', '🧪 sample data: two programs (Green Freight Hub about 80% done with two projects, Coral Sky Sustainable Operations about 50% with three), every project with tasks, costs, risks, an approved charter, a baseline and ESG data; three ESG companies with a full year of data and achievements but no Statement or report; loading again adds nothing',
+          s1.status === 200 && m1.programs.length === 2 && m1.projects.length === 5 && m1.companies.length === 3 && cards.every((c) => c.tasks >= 9 && c.risks === 4 && c.ch === 'Approved' && c.base && c.esg) &&
+          byProg['Green Freight Hub'] && byProg['Green Freight Hub'].length === 2 && gfh >= 76 && gfh <= 84 && byProg['Coral Sky Sustainable Operations'].length === 3 && cs >= 45 && cs <= 55 &&
+          docs.every((e) => e && (e.docs || []).length === 0 && (e.achieve || []).length >= 6 && e.org.revenue > 0 && (e.std || []).length === 9) &&
+          s2.status === 200 && m2.programs.length === 0 && m2.projects.length === 0 && m2.companies.length === 0 && (pv.projects || []).filter((r) => r.measured).length >= 5,
+          JSON.stringify([s1.status, s1.j && s1.j.error, m1, cards, byProg, docs.map((e) => e && [e.org.name, (e.docs || []).length, (e.achieve || []).length, (e.std || []).length]), m2]).slice(0, 2500)); }
       // 🌿 ESG & Sustainability in a project, its program and the CEO, CSO and CFO views (pesg.mjs)
       { const np = await api('planNewProject', { name: 'Carbon test', client: 'Northside Health', program: 'Green build' }), pc = np.j.core, g0 = (await api('planGet', { core: pc })).j;
         const esg = { fset: 'NGA_AU', act: { diesel: 10000, elec: 100000, greenPct: 20, concrete: 500, steel: 40, air: 20000 }, ef: { concrete: 0.25 }, baseT: 400, capT: 300, fw: ['IFRS_S2', 'SBTI', 'P5'], p5: { 'people.labour': { s: 4, note: 'Local hires' }, 'planet.energy': { s: 2, note: 'Diesel plant' } }, soc: { workers: 40, hours: 50000, lti: 1 }, junk: 1 };

@@ -228,7 +228,7 @@ function cleanSubs(list, t, uid) {
       priority: ['High', 'Medium', 'Low'].includes(x.priority) ? x.priority : '', points: [1, 2, 3, 5, 8, 13].includes(Number(x.points)) ? Number(x.points) : 0, steps };   // v65: user stories on the Board
   });
 }
-function clean(p, core) {
+export function clean(p, core) {
   const ids = new Set();
   const uid = (v, pre) => { let s = str(v, 20).replace(/[^\w-]/g, '') || pre + Math.random().toString(36).slice(2, 8); while (ids.has(s)) s += 'x'; ids.add(s); return s; };
   const phases = (Array.isArray(p.phases) ? p.phases : []).slice(0, 20).map((f) => ({ id: uid(f.id, 'ph'), name: str(f.name, 80) || 'Phase' }));
