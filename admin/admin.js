@@ -121,7 +121,7 @@
   }
   $('#loginForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var f = e.target, msg = $('#loginMsg'), btn = f.querySelector('button');
+    var f = e.target, msg = $('#loginMsg'), btn = f.querySelector('button[type="submit"], button:not(.pw-eye)');   // the sign-in button, never the password eye inside the box
     msg.textContent = ''; btn.disabled = true; btn.textContent = 'Signing in…';
     var pj = $('#loginProj');
     api('login', { username: f.username.value, password: f.password.value, project: pj.hidden ? '' : f.project.value.trim() })

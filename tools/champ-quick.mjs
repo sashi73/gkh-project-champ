@@ -589,6 +589,10 @@ try {
     const PW = await import('playwright').catch(() => import('/home/claude/.npm-global/lib/node_modules/playwright/index.mjs')).catch(() => null);
     if (!PW) console.log('SKIP  [Tree] [Inventory] browser checks: Playwright is not installed here');
     else { const { chromium } = PW; const br = await chromium.launch(); const u = new URL(BASE); try {
+      { const c0 = await br.newContext({ viewport: { width: 1000, height: 800 } }), p0 = await c0.newPage(); await p0.goto(BASE + '/admin/'); await p0.waitForSelector('#loginForm input[type="password"]');
+        await p0.fill('#loginForm input[name="username"], #loginForm input[type="text"]', 'nobody-eye-test'); await p0.fill('#loginForm input[type="password"]', 'wrong-pass'); await p0.click('#loginForm button[type="submit"]'); await p0.waitForTimeout(1500);
+        const lg = await p0.evaluate(() => ({ eye: !!document.querySelector('#loginForm .pw-eye svg'), eyeText: (document.querySelector('#loginForm .pw-eye') || {}).textContent || '', sub: document.querySelector('#loginForm button[type="submit"]').textContent.trim(), msg: (document.getElementById('loginMsg') || {}).textContent || '' }));
+        ok('SignInEye', 'a failed sign-in leaves the password eye as an eye and the Sign in button as it was', lg.eye && !lg.eyeText.trim() && lg.sub === 'Sign in' && !!lg.msg, JSON.stringify(lg)); await c0.close(); }
       const cx = await br.newContext({ viewport: { width: 1440, height: 900 } }); const [k, v] = cookie.split(';')[0].split('='); await cx.addCookies([{ name: k, value: v, domain: u.hostname, path: '/' }]);
       const pg = await cx.newPage(); const errs = []; pg.on('pageerror', (e) => errs.push(e.message)); await pg.addInitScript(() => { try { sessionStorage.setItem('champIntroSeen', '1'); sessionStorage.setItem('champToday', '1'); } catch (e) {} });
       await pg.goto(BASE + '/champ-tree.html?embed=1'); await pg.waitForTimeout(1500);
