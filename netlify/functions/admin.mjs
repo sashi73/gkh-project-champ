@@ -333,14 +333,14 @@ async function handle(req, context) {
         return out(200, r);
       }
       // 🤝 supplier ESG data (Scope 3): private links to a form based on Malaysia's SEDG, mapped to every framework (netlify/lib/suppliers.mjs)
-      case 'supList': case 'supCreate': case 'supRelink': case 'supDelete': case 'supAccept': case 'supReturn': {
+      case 'esgSupList': case 'esgSupCreate': case 'esgSupRelink': case 'esgSupDelete': case 'esgSupAccept': case 'esgSupReturn': {
         const SP = await import('../lib/suppliers.mjs'), key = String(body.key || '').slice(0, 80), id = String(body.id || '').slice(0, 30);
-        const r = action === 'supList' ? await SP.list(key) : action === 'supCreate' ? await SP.create(key, body, by) : action === 'supRelink' ? await SP.relink(key, id)
-          : action === 'supDelete' ? await SP.remove(key, id) : action === 'supAccept' ? await SP.accept(key, id, by) : await SP.sendBack(key, id, body.msg, by);
+        const r = action === 'esgSupList' ? await SP.list(key) : action === 'esgSupCreate' ? await SP.create(key, body, by) : action === 'esgSupRelink' ? await SP.relink(key, id)
+          : action === 'esgSupDelete' ? await SP.remove(key, id) : action === 'esgSupAccept' ? await SP.accept(key, id, by) : await SP.sendBack(key, id, body.msg, by);
         if (r.error) return out(r.code || 400, { error: r.error });
-        if (action === 'supCreate') await A.audit(who, `Supplier ESG data: a request to ${r.request.supplier} (${key})`);
-        if (action === 'supAccept') await A.audit(who, `Supplier ESG data: ${r.request && r.request.supplier} accepted, ${r.tCO2e} tCO2e into the vault (${key})`);
-        if (action === 'supDelete') await A.audit(who, `Supplier ESG data: a request deleted (${key})`);
+        if (action === 'esgSupCreate') await A.audit(who, `Supplier ESG data: a request to ${r.request.supplier} (${key})`);
+        if (action === 'esgSupAccept') await A.audit(who, `Supplier ESG data: ${r.request && r.request.supplier} accepted, ${r.tCO2e} tCO2e into the vault (${key})`);
+        if (action === 'esgSupDelete') await A.audit(who, `Supplier ESG data: a request deleted (${key})`);
         return out(200, r);
       }
       case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }

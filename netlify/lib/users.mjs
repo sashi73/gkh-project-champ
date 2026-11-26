@@ -87,7 +87,7 @@ export function need(action) {
   if (a === 'planArchiveList' || a === 'planProjectArchive' || a === 'planProjectRestore') return null;   // 🗄 the project archive: admin.mjs checks (super user, CEO, site administrator)
   if (a === 'acctFinanceGet' || a === 'acctBillGet' || a === 'acctBillAlerts' || a === 'acctVoRaise' || a === 'acctVoDecide' || a === 'acctBillRaise') return null;   // 💵 billing: billing.mjs checks (CEO, CFO, the program's director, the project's manager)   // 🔒 the Finance vault checks who may open and file itself (vault.mjs)
   if (['me', 'logout', 'login', 'userPassword', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk'].includes(a)) return null;
-  if (/^(esg|sup)[A-Z]/.test(a)) return null;   // 🌿 ESG & Sustainability: open to every signed-in staff login (scopeCheck keeps contractor and program logins out)   // My profile: anyone signed in, their own record
+  if (/^esg[A-Z]/.test(a)) return null;   // 🌿 ESG & Sustainability: open to every signed-in staff login (scopeCheck keeps contractor and program logins out)   // My profile: anyone signed in, their own record
   let mod;
   if (a === 'quoteStart' || a === 'planQuote') mod = 'accounts';
   else if (/^(dashboard|jobs|job|stage|note|create|reminders|remind|unremind|report|pipelineBoard)$/.test(a) || /^(cust|promo)[A-Z]/.test(a)) mod = 'crm';

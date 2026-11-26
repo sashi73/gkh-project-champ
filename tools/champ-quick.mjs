@@ -607,18 +607,18 @@ try {
     // 🤝 supplier ESG data (Scope 3): a private link, the SEDG form (mapped to every framework), the share of the supplier's emissions, accepted into the vault once
     const SUPT = {};
     { const vk = (await api('esgVaultOpen', { name: 'Supplier Test Berhad' })).j.vault.key; SUPT.vk = vk;
-      const sp1 = await api('supCreate', { key: vk, supplier: 'Kedai Besi Sdn Bhd', email: 'ops@example.com', country: 'Malaysia', from: '2026-01', to: '2026-06', level: 'basic', currency: 'MYR' }), tok = sp1.j.token, sid = sp1.j.request.id;
+      const sp1 = await api('esgSupCreate', { key: vk, supplier: 'Kedai Besi Sdn Bhd', email: 'ops@example.com', country: 'Malaysia', from: '2026-01', to: '2026-06', level: 'basic', currency: 'MYR' }), tok = sp1.j.token, sid = sp1.j.request.id;
       const spub = (b) => fetch(BASE + '/.netlify/functions/supplier', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(async (r) => ({ status: r.status, j: await r.json() }));
       const sAns = { e21el: 100000, e21di: 1000, revenue: 2000000, sales: 500000, g21: ['Whistleblowing', 'Bogus'], e52: 50, s41f: 0 };
       const sg1 = await spub({ t: tok, action: 'get' }), sgBad = await spub({ t: 'x'.repeat(32), action: 'get' }), ssv = await spub({ t: tok, action: 'save', answers: sAns });
       const sNo = await spub({ t: tok, action: 'save', submit: true, confirm: true, answers: sAns, contact: { name: 'Aminah' } });
       const sSub = await spub({ t: tok, action: 'save', submit: true, confirm: true, answers: sAns, contact: { name: 'Aminah', role: 'Finance', email: 'aminah@example.com' } }), sLate = await spub({ t: tok, action: 'save', answers: {} });
       const sReSub = await spub({ t: tok, action: 'save', submit: true, confirm: true, answers: { ...sAns, e21el: 1 }, contact: { name: 'Aminah', email: 'aminah@example.com' } });
-      const sScoped = await (async () => { const r = await fetch(`${BASE}/.netlify/functions/admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'supList', key: vk }) }); return r.status; })();
-      const sAc1 = await api('supAccept', { key: vk, id: sid }), sAc2 = await api('supAccept', { key: vk, id: sid }), sDel = await api('supDelete', { key: vk, id: sid }), sBack = await api('supReturn', { key: vk, id: sid, msg: 'x' });
+      const sScoped = await (async () => { const r = await fetch(`${BASE}/.netlify/functions/admin`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'esgSupList', key: vk }) }); return r.status; })();
+      const sAc1 = await api('esgSupAccept', { key: vk, id: sid }), sAc2 = await api('esgSupAccept', { key: vk, id: sid }), sDel = await api('esgSupDelete', { key: vk, id: sid }), sBack = await api('esgSupReturn', { key: vk, id: sid, msg: 'x' });
       const sRec = (await api('esgVaultGet', { key: vk })).j.vault.records.filter((r) => r.metric === 'scope3.supplierT'), sSum = sRec.reduce((a, r) => a + r.value, 0);
-      const sp2 = await api('supCreate', { key: vk, supplier: 'Syarikat Plastik', country: 'Malaysia', from: '2026-01', to: '2026-12', level: 'intermediate' }), sRl = await api('supRelink', { key: vk, id: sp2.j.request.id });
-      const sOld = await spub({ t: sp2.j.token, action: 'get' }), sNew = await spub({ t: sRl.j.token, action: 'get' }), sBadC = await api('supCreate', { key: vk, supplier: 'X', from: '2026-05', to: '2026-01' });
+      const sp2 = await api('esgSupCreate', { key: vk, supplier: 'Syarikat Plastik', country: 'Malaysia', from: '2026-01', to: '2026-12', level: 'intermediate' }), sRl = await api('esgSupRelink', { key: vk, id: sp2.j.request.id });
+      const sOld = await spub({ t: sp2.j.token, action: 'get' }), sNew = await spub({ t: sRl.j.token, action: 'get' }), sBadC = await api('esgSupCreate', { key: vk, supplier: 'X', from: '2026-05', to: '2026-01' });
       SUPT.tok = sRl.j.token; SUPT.n = sNew.j.questions ? sNew.j.questions.length : -1;
       const sr = sSub.j && sSub.j.result;
       ok('Suppliers', '🤝 supplier ESG data: a private link (only its hash is kept) opens a form that follows Malaysia\'s SEDG at the chosen level, each answer mapped to GRI, IFRS S1/S2, EU VSME, the GHG Protocol, CDP and Bursa; Scope 1 and 2 worked out from fuel and electricity with the country\'s factors, shared out by the buyer\'s part of the sales, locked once submitted, and accepted into the vault month by month as Scope 3 Category 1, never twice',

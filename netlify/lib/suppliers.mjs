@@ -169,7 +169,7 @@ export async function relink(key, id) {   // a new link; the old one stops worki
 }
 export async function remove(key, id) {
   key = SV.keyOf(key); let tok = null, err = null;
-  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === id); if (r && r.status === 'accepted') { err = { error: 'This supplier\'s figures are in the vault: they stay with the request. Remove the figures in Data by month first if you need to.', code: 409 }; return x; } if (r) tok = r.tok; x.list = x.list.filter((y) => y.id !== id); return x; }, { list: [] });
+  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === id); if (r && r.status === 'accepted') { err = { error: 'This supplier\'s figures are in the vault: they stay with the request. Remove the figures in Data by month first if you need to.', code: 409 }; return x; } if (r && r.status === 'accepting' && Date.now() - (r.claimAt || 0) < 120e3) { err = { error: 'This reply is being accepted right now. Wait a moment, then look again.', code: 409 }; return x; } if (r) tok = r.tok; x.list = x.list.filter((y) => y.id !== id); return x; }, { list: [] });
   if (err) return err; if (tok) await kv.del('suptok:' + tok).catch(() => {});
   return { ok: true };
 }
@@ -212,7 +212,8 @@ export async function accept(key, id, by) {
   let out = null;
   await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const q = x.list.find((y) => y.id === id); out = null;
     if (q && q.status === 'accepting') { q.answers = q.claimed || q.answers; delete q.claimed; delete q.claimAt; q.status = 'accepted'; q.accepted = Date.now(); q.acceptedBy = str(by, 80); q.addedT = c.alloc; q.months = months.length; out = q; } return x; }, { list: [] });
-  return { request: out ? pub(out) : null, added, tCO2e: c.alloc, months: months.length };
+  if (!out) return { error: 'The figures were added to the vault, but the request was changed or deleted meanwhile. Check Data by month.', code: 409 };
+  return { request: pub(out), added, tCO2e: c.alloc, months: months.length };
 }
 
 // ---------- the supplier's side (the public form, through the private link) ----------
