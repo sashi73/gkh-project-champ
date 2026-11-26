@@ -8,7 +8,7 @@
   var api = M.api, esc = M.esc, toast = M.toast, fail = M.fail, $ = M.$;
   var view = function () { return document.getElementById('view'); };
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var V = { key: '', tab: 'performance', A: null, fy: null, cat: 'Energy', q: '', folder: '' };
+  var V = { key: '', want: '', tab: 'performance', A: null, fy: null, cat: 'Energy', q: '', folder: '' };
   var nf = function (v, d) { return v == null || v === '' || isNaN(v) ? '–' : Number(v).toLocaleString('en-AU', { maximumFractionDigits: d == null ? 0 : d }); };
   var when = function (t) { return t ? new Date(t).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
   var size = function (b) { return !b ? '' : b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; };
@@ -21,6 +21,7 @@
 
   /* ---------- the vaults ---------- */
   function listPage() {
+    V.want = '';
     view().innerHTML = '<div class="empty">Opening the vaults…</div>';
     return api('esgVaultOrgs', {}).then(function (d) {
       var L = d.orgs || [];
@@ -41,15 +42,15 @@
   }
 
   /* ---------- one vault ---------- */
-  var TABS = [['performance', '📈 Performance'], ['data', '📅 Data by month'], ['evidence', '📎 Evidence'], ['target', '🎯 Target and settings']];
+  var TABS = [['performance', '📈 Performance'], ['data', '📅 Data by month'], ['evidence', '📎 Evidence'], ['suppliers', '🤝 Suppliers'], ['target', '🎯 Target and settings']];
   function vaultPage(key, tab) {
-    V.tab = TABS.some(function (t) { return t[0] === tab; }) ? tab : 'performance';
-    var go = function () { draw(); };
+    V.tab = TABS.some(function (t) { return t[0] === tab; }) ? tab : 'performance'; V.want = key;
+    var go = function () { if (V.want === key) draw(); };   // a vault left while it was loading is not drawn
     if (V.A && V.key === key) { go(); return Promise.resolve(); }
     view().innerHTML = '<div class="empty">Opening the vault…</div>';
     return api('esgVaultOpen', { key: key }).then(function () { return load(key); }).then(go);
   }
-  function load(key) { return api('esgVaultGet', { key: key || V.key }).then(function (a) { V.A = a; V.key = a.key; if (!V.fy) V.fy = curFy(a.fyStart); }); }
+  function load(key) { var want = V.want; return api('esgVaultGet', { key: key || V.key }).then(function (a) { if (V.want !== want) return; V.A = a; V.key = a.key; if (!V.fy) V.fy = curFy(a.fyStart); }); }   // a late answer for a vault no longer open changes nothing
   function draw() {
     var A = V.A; document.title = A.name + ' · Sustainability vault · GKH Project Champ';
     view().innerHTML = '<div class="row plan-head" style="margin-bottom:12px"><a class="btn btn-sm" href="#svault">← Vaults</a><h2 style="font-size:21px">🗄 ' + esc(A.name) + '</h2><span class="muted">' + A.reports.length + ' ESG report' + (A.reports.length === 1 ? '' : 's') + ' · ' + nf((A.vault && A.vault.records || []).length) + ' monthly values · ' + nf((A.vault && A.vault.docs || []).length) + ' evidence files</span><span class="sp"></span><span class="muted" id="svSaved" aria-live="polite"></span></div>' +
@@ -65,7 +66,7 @@
       tile('Target', lt && lt.status ? lt.status : T.tgtPct != null ? 'Set' : 'Not set', T.tgtPct != null ? '−' + T.tgtPct + '% by ' + (T.tgtYear || '?') + (T.needPct != null ? ' · needs −' + T.needPct + '% a year' : '') : 'Set it in Target and settings', lt ? rag(lt.status) : 'grey') +
       tile('Data gathered ' + fyLabel(fyNow), got + ' of 12 months', nf(R.filter(function (r) { return mNow.indexOf(r.period) >= 0; }).length) + ' values · ' + nf(((A.vault && A.vault.docs) || []).filter(function (d) { return mNow.indexOf(d.period) >= 0; }).length) + ' files', got >= 9 ? 'green' : got >= 4 ? 'amber' : 'grey');
   }
-  function body() { var b = $('#svBody'); b.innerHTML = V.tab === 'data' ? dataTab() : V.tab === 'evidence' ? evidenceTab() : V.tab === 'target' ? targetTab() : perfTab(); wire(b); }
+  function body() { var b = $('#svBody'); if (V.tab === 'suppliers') { b.innerHTML = '<div class="empty" id="supBox">Opening the suppliers…</div>'; if (M.supTab) M.supTab($('#supBox'), V.key); return; } b.innerHTML = V.tab === 'data' ? dataTab() : V.tab === 'evidence' ? evidenceTab() : V.tab === 'target' ? targetTab() : perfTab(); wire(b); }
   function say(t) { var s = $('#svSaved'); if (s) s.textContent = t; }
 
   /* ---------- 📈 performance ---------- */
@@ -274,5 +275,5 @@
   }
 
   M.addView('svault', 'Sustainability vault', function (parts) { if (parts[0] && parts[0] !== V.key) { V.A = null; V.fy = null; } return parts[0] ? vaultPage(parts[0], parts[1]) : listPage(); }, 'svault');
-  M.svault = { state: function () { return V; } };   // for tests
+  M.svault = { state: function () { return V; }, reload: function () { if (!V.key) return Promise.resolve(); var k = V.key; V.A = null; return load(k).catch(function () {}); } };   // V.A cleared first: a tab opened before the reload lands loads the vault afresh   // state for tests; reload after a supplier's figures are added   // for tests
 })();

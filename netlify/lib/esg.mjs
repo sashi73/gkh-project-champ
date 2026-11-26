@@ -118,7 +118,7 @@ export const SECTIONS = [
     ['fDiesel', 'Factor: diesel', 'n', 'kgCO2e/L'], ['fPetrol', 'Factor: petrol', 'n', 'kgCO2e/L'], ['fJet', 'Factor: jet fuel', 'n', 'kgCO2e/L'], ['fLpg', 'Factor: LPG', 'n', 'kgCO2e/L'], ['fGas', 'Factor: natural gas', 'n', 'kgCO2e/GJ'], ['fElec', 'Factor: grid electricity', 'n', 'kgCO2e/kWh'],
     ['baseYear', 'Base year', 't'], ['baseT', 'Base-year emissions (Scope 1 and 2)', 'n', 'tCO2e']] },
   { id: 'scope3', g: 'env', title: 'Scope 3 value chain', fields: [
-    ['purch', 'Cat 1 Purchased goods and services (spend)', 'n', 'k$'], ['freight', 'Cat 4 Freight', 'n', 'tonne-km'], ['landfill', 'Cat 5 Waste to landfill', 'n', 't'], ['recycled', 'Cat 5 Waste recycled', 'n', 't'],
+    ['purch', 'Cat 1 Purchased goods and services (spend)', 'n', 'k$'], ['supplierT', 'Cat 1 Purchased goods: suppliers\' own figures (your share)', 'n', 'tCO2e'], ['freight', 'Cat 4 Freight', 'n', 'tonne-km'], ['landfill', 'Cat 5 Waste to landfill', 'n', 't'], ['recycled', 'Cat 5 Waste recycled', 'n', 't'],
     ['air', 'Cat 6 Business travel: flights', 'n', 'passenger-km'], ['car', 'Cat 6 Business travel: car', 'n', 'km'], ['hotel', 'Cat 6 Business travel: hotel nights', 'n', 'nights'], ['commute', 'Cat 7 Employee commuting', 'n', 'km'], ['water', 'Water supplied and treated', 'n', 'm3'],
     ['fPurch', 'Factor: purchases', 'n', 'tCO2e/k$'], ['fFreight', 'Factor: freight', 'n', 'kgCO2e/t-km'], ['fLandfill', 'Factor: landfill', 'n', 'tCO2e/t'], ['fRecycled', 'Factor: recycling', 'n', 'tCO2e/t'], ['fAir', 'Factor: flights', 'n', 'kgCO2e/p-km'], ['fCar', 'Factor: car', 'n', 'kgCO2e/km'], ['fHotel', 'Factor: hotel night', 'n', 'kgCO2e/night'], ['fCommute', 'Factor: commuting', 'n', 'kgCO2e/km'], ['fWater', 'Factor: water', 'n', 'kgCO2e/m3']] },
   { id: 'resources', g: 'env', title: 'Energy, water and waste', fields: [
@@ -472,7 +472,7 @@ function emissions(e) {
   const kgT = (q, fac) => (has(q) ? (q * fac) / 1000 : null);
   const s1 = { diesel: kgT(c.diesel, f('fDiesel', set.diesel)), petrol: kgT(c.petrol, f('fPetrol', set.petrol)), jet: kgT(c.jet, f('fJet', set.jet)), lpg: kgT(c.lpg, f('fLpg', set.lpg)), gas: kgT(c.gas, f('fGas', set.gas)), refrig: kgT(c.refrig, has(c.refGwp) ? c.refGwp : 1924) };
   const elecF = f('fElec', set.elec), s2loc = has(c.elec) ? (c.elec * 1000 * elecF) / 1000 : null, s2mkt = has(c.elec) ? (Math.max(0, c.elec - (c.green || 0)) * 1000 * elecF) / 1000 : null;
-  const s3c = { purch: has(s3.purch) ? s3.purch * g('fPurch') : null, freight: kgT(s3.freight, g('fFreight')), landfill: has(s3.landfill) ? s3.landfill * g('fLandfill') : null, recycled: has(s3.recycled) ? s3.recycled * g('fRecycled') : null,
+  const s3c = { purch: has(s3.purch) ? s3.purch * g('fPurch') : null, supplier: has(s3.supplierT) ? s3.supplierT : null, freight: kgT(s3.freight, g('fFreight')), landfill: has(s3.landfill) ? s3.landfill * g('fLandfill') : null, recycled: has(s3.recycled) ? s3.recycled * g('fRecycled') : null,
     air: kgT(s3.air, g('fAir')), car: kgT(s3.car, g('fCar')), hotel: kgT(s3.hotel, g('fHotel')), commute: kgT(s3.commute, g('fCommute')), water: kgT(s3.water, g('fWater')) };
   const sum = (o) => Object.values(o).reduce((a, v) => a + (v || 0), 0), anyOf = (o) => Object.values(o).some((v) => v != null);
   const S1 = anyOf(s1) ? sum(s1) : null, S3 = anyOf(s3c) ? sum(s3c) : null, total = S1 == null && s2loc == null && S3 == null ? null : (S1 || 0) + (s2loc || 0) + (S3 || 0);   // nothing measured is not zero
