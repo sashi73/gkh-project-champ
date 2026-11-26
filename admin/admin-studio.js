@@ -427,7 +427,7 @@
     if (D._artTheme !== ak) { D._art = null; D._artTheme = ak; (D.chapters || []).forEach(function (ch) { (ch.blocks || []).forEach(function (b) { if (b.t === 'chart') b._img = null; }); }); }
     // your photos (up to 3: the cover, the part pages, the chapter bands), loaded before the artwork is drawn; a photo that will not load is left out
     var pics = (D.photos || []).slice(0, 3).map(function (src) { return new Promise(function (ok) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = src; }); });
-    var made = Promise.all(pics).then(function (P) { var p = function (i) { return P[i] || P[i - 1] || P[0] || null; };
+    var made = Promise.all(pics).then(function (P) { use(D); var p = function (i) { return P[i] || P[i - 1] || P[0] || null; };   // the theme again: another document may have been prepared while the photos loaded
       D._art = D._art || { cover: art('cover', 1240, 1754, 7, p(0)), divider: art('divider', 1240, 1754, 23, p(1)), band: art('band', 1600, 300, 41, p(2)) }; });
     var fonts = document.fonts && document.fonts.load ? Promise.all(['400 20px Poppins', '600 20px Poppins', '800 20px Poppins'].map(function (f) { return document.fonts.load(f).catch(function () {}); })) : Promise.resolve();
     return Promise.all([fonts, made]).then(function () { (D.chapters || []).forEach(function (ch) { (ch.blocks || []).forEach(function (b) { if (b.t === 'chart' && !b._img) b._img = chart(b); if (b.t === 'image' && !b._img && b.url) b._img = { url: b.url, w: b.iw, h: b.ih }; }); }); });
