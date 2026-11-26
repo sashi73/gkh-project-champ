@@ -375,4 +375,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 364 | 1.0.364| 2026-11-26 21:33| sample-auto| `49f8ad7` | Sample data loads itself into the database once (after the deploy, or within 15 minutes, or at the super user's next sign-in), with no one s |
 | 365 | 1.0.365| 2026-11-26 22:56| p5-ai| `b323131` | P5 impact analysis: ✨ Fill the blanks with AI writes the reason and the action for each element from the project's own data (and suggests a  |
 | 366 | 1.0.366| 2026-11-26 23:00| p5-ai| `f33634d` | Project management plan: a new chapter, ESG and carbon (emissions by scope, carbon budget and baseline, carbon actions, the P5 impact analys |
-| 367 | 1.0.367 | 2026-11-26 23:14 | p5-ai | _this commit_ | _see git log_ |
+| 367 | 1.0.367| 2026-11-26 23:14| p5-ai| `c6a0a1b` | P5: AI fills the reasons and actions; project plan gets an ESG and carbon chapter (#174) |
+| 368 | 1.0.368 | 2026-11-27 01:22 | esg-grounded | _this commit_ | _see git log_ |

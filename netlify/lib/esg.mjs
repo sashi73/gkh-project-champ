@@ -641,7 +641,10 @@ export async function sample(by) {
 
 /* ---------------- ✨ the AI: insights, the Sustainability Statement and the ESG Report ---------------- */
 const LANG = { ms: 'Bahasa Melayu (Malay)', id: 'Bahasa Indonesia', ta: 'Tamil', zh: 'Simplified Chinese', hi: 'Hindi', ar: 'Arabic', vi: 'Vietnamese', th: 'Thai', tl: 'Filipino', ja: 'Japanese', ko: 'Korean', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese' };
-const BASE = 'Lead with what was done, not what is planned. Readers want to see quickly what improved, what changed, what was reduced, which initiatives were delivered, and progress against the previous year. ' +
+const GROUND = 'Every factual claim must come from organisation_data. Do NOT state any of these unless the data says so: that the report is prepared "in accordance with" a standard (say "with reference to"); restatements or that prior-year figures are unchanged; ' +
+  'what is inside or outside the boundary beyond the listed entities (joint ventures, associates); that plans are funded, budgeted or approved; links to pay beyond the fields that say so; contact names, teams, addresses or emails; the names of plans, policies, programmes or committees not given in the data; dates, people or numbers not in the data. ' +
+  'Where a reader would expect such a statement and the data does not give it, write "[to confirm: what is needed]" instead of guessing. ';
+const BASE = GROUND + 'Lead with what was done, not what is planned. Readers want to see quickly what improved, what changed, what was reduced, which initiatives were delivered, and progress against the previous year. ' +
   'In every pillar (climate and emissions, environment, social, governance) open with the year\'s results and achievements, using results.progress_vs_previous_year (quote the previous and current figures and the change) and results.achievements_this_year (what was done and its measured result); then explain; then give plans, each with a date or horizon. ' +
   'Write achievements in the past tense ("we reduced", "we delivered", "we achieved"). Say plainly where a measure got worse and why. Never invent an achievement, initiative, partnership, certification or figure that is not in the data; where a pillar has none, say what was measured and what comes next. ' +
   'You are a senior ESG and sustainability reporting adviser (ISSB IFRS S1 and S2, AASB S1 and S2, ESRS/CSRD, GRI, TCFD, SASB, CDP, Bursa Malaysia, GHG Protocol) writing for GKH Project Champ. ' +
@@ -754,7 +757,7 @@ export async function writeDoc(id, kind, lang, by) {
       const data = { ...b.data, ...a.data }; res[i] = { data, used, cut: a.cut || (b.cut && Object.keys(b.data).some((k) => !(k in a.data))), retried: round, miss: textKeys(PARTS[i]).filter((k) => typeof data[k] !== 'string') }; });
   }
   const failed = res.filter((r) => r.error); if (failed.length === res.length) return { error: 'The AI could not write the ' + (kind === 'report' ? 'ESG report' : 'sustainability statement') + ': ' + failed[0].error };
-  const raw = Object.assign({}, ...res.map((r) => r.data)), tokens = res.reduce((a, r) => a + (r.used || 0), 0);
+  const raw = Object.assign({}, ...res.map((r) => r.data)); let tokens = res.reduce((a, r) => a + (r.used || 0), 0);
   const sections = {};   // text stays text (long), lists stay lists of small objects
   Object.entries(raw).forEach(([k, v]) => { const kk = str(k, 40).replace(/[^a-z0-9_]/gi, ''); if (!kk) return;
     if (typeof v === 'string') sections[kk] = str(v, 9000);
@@ -768,7 +771,10 @@ export async function writeDoc(id, kind, lang, by) {
     const still = keysOf(PARTS[i]).filter((k) => sections[k] == null);   // narratives and tables alike   // checked again after any text was restored, so every missing section is named
     if (still.length) lost.push(name + ' (' + (r.error && !ks.length ? str(r.error, 90) + '; ' : '') + 'left out: ' + still.join(', ') + ')'); });
   const cut = res.filter((r) => r.cut).length;
-  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, partial: [lost.length ? lost.length + ' of ' + PARTS.length + ' parts could not be written in full: ' + lost.join('; ') : '', kept.length ? 'the AI could not rewrite ' + kept.join(', ') : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: keptRev != null && keptRev < e.rev ? keptRev : e.rev, sections };   // text kept from an older version keeps the older data version, so the out-of-date warning shows
+  // 🔎 the sources check: statements the data does not back, found before anyone publishes (a rule pass, then the AI reading each part against the data)
+  const checks = await sourceCheck(sections, F, L, t0).catch(() => ({ items: [], used: 0 }));
+  tokens += checks.used || 0;
+  const rec = { at: Date.now(), by: str(by, 60), kind, ver: 0, lang: L, tokens, cap: budget, parts: PARTS.length, checks: checks.items, checkedBy: checks.by, partial: [lost.length ? lost.length + ' of ' + PARTS.length + ' parts could not be written in full: ' + lost.join('; ') : '', kept.length ? 'the AI could not rewrite ' + kept.join(', ') : '', cut ? cut + ' part' + (cut === 1 ? ' was' : 's were') + ' cut short by the token limit' : ''].filter(Boolean).join('; '), method: METHOD, std: e.std || [], rev: keptRev != null && keptRev < e.rev ? keptRev : e.rev, sections };   // text kept from an older version keeps the older data version, so the out-of-date warning shows
   // the version is given out atomically, so two people writing at once get v2 and v3, not two v2s
   const saved = await kv.update('esgdoc:' + e.id + ':' + kind, (prev) => ({ ...rec, ver: ((prev && prev.ver) || 0) + 1 }), () => null), ver = saved.ver; rec.ver = ver;
   await kv.update('esg:' + e.id, (x) => { if (!x) return x; x.docs = [{ kind, ver, at: rec.at, by: rec.by, lang: L, tokens, std: rec.std, partial: rec.partial, rev: rec.rev }].concat(x.docs || []).sort((a, b) => (b.kind === a.kind ? b.ver - a.ver : b.at - a.at)).slice(0, 40); logIt(x, by, (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' narrative v' + ver + ' written by AI (' + tokens.toLocaleString('en-AU') + ' tokens)'); return x; }, () => null).catch(() => {});
@@ -776,6 +782,29 @@ export async function writeDoc(id, kind, lang, by) {
   return rec;
 }
 const PILLAR = { env: 'Environment (emissions, energy, water, waste, climate risk and targets)', soc: 'Social (workforce, safety, diversity, human rights, Indigenous peoples, community, suppliers)', gov: 'Governance (board, ethics, anti-corruption, risk, cyber, certifications)' };
+// 🔎 statements with no data behind them: claims of compliance, restatements, boundaries, funding, pay, contacts and named plans the data does not give,
+// plus each [to confirm] gap. The rules find the usual suspects; the AI then reads every narrative section against the data (in parallel, while there is time).
+const RISKY = [[/in accordance with/i, 'A compliance claim ("in accordance with") needs the standard\'s full requirements to be met; the data only records that the standard was chosen.'],
+  [/restat/i, 'Restatements are not recorded in the data.'], [/joint ventures?|\bassociates\b/i, 'Joint ventures and associates are not recorded in the data.'], [/\bfunded\b|fully budgeted|budget (?:is )?approved/i, 'Funding is not recorded in the data.'],
+  [/\bcontact\b|@|\bemail\b/i, 'Contact details are not recorded in the data.'], [/reconciliation action plan|\bRAP\b/i, 'The data records an Indigenous peoples policy or plan, not a named Reconciliation Action Plan.']];
+async function sourceCheck(sections, F, L, t0) {
+  const items = [], seen = new Set(), add = (key, quote, why, by) => { const q = str(quote, 240), k = key + '|' + q.slice(0, 80); if (!q || seen.has(k)) return; seen.add(k); items.push({ key, quote: q, why: str(why, 240), by }); };
+  const sentences = (t) => String(t || '').split(/(?<=[.!?])\s+/).filter((x) => x.length > 12);
+  const texts = Object.entries(sections).filter(([, v]) => typeof v === 'string' && v.length > 40);
+  texts.forEach(([k, v]) => sentences(v).forEach((sn) => { if (/\[to confirm/i.test(sn)) add(k, sn, 'Marked by the AI: the data did not give this, so it needs confirming or removing.', 'gap');
+    RISKY.forEach(([re, why]) => { if (re.test(sn) && !(re.source.includes('accordance') && /with reference to/i.test(sn))) add(k, sn, why, 'rule'); }); }));
+  const left = 840000 - (Date.now() - t0); if (left < 120000 || !texts.length) return { items: items.slice(0, 60), used: 0, by: 'rules' };
+  // the AI check: the narrative in groups of about 8,000 characters, each against the same data
+  const groups = []; let cur = {}, n = 0; texts.forEach(([k, v]) => { if (n + v.length > 8000 && n) { groups.push(cur); cur = {}; n = 0; } cur[k] = v; n += v.length; }); if (n) groups.push(cur);
+  const sys = 'You check an ESG report against its source data. List each sentence that states a fact, figure, date, name, plan, policy, certification, partnership, compliance claim or commitment that is NOT supported by organisation_data. ' +
+    'Calculated figures that follow from the data (sums, percentages, differences) are supported. General method statements ("we use the GHG Protocol") are supported when the standard is in the chosen standards. Do not list opinions or plans already in the data. ' +
+    'Return JSON only: {"unsupported":[{"key":"<section key>","quote":"<the exact sentence>","why":"<what the data lacks, in under 20 words>"}]}. Return an empty list when everything is supported.' + (L !== 'en' ? ' The text may be in another language; write "why" in English.' : '');
+  let used = 0;
+  const rs = await Promise.all(groups.slice(0, 10).map((g) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ organisation_data: F, sections: g }) }], { maxTokens: 1800, timeoutMs: Math.min(150000, left - 30000), temperature: 0 })
+    .then((r) => { used += r.used || 0; return arr((r.data || {}).unsupported, 40); }).catch(() => [])));
+  rs.flat().forEach((x) => { if (x && sections[x.key] != null && String(sections[x.key]).includes(String(x.quote || '').slice(0, 40))) add(String(x.key), x.quote, x.why || 'Not found in the data.', 'ai'); });
+  return { items: items.slice(0, 60), used, by: 'rules and AI' };
+}
 /* ---------------- 📥 reading data in: electricity bills, and spreadsheets from other systems ---------------- */
 const BILL_SYS = 'You read electricity bills (utility invoices) for greenhouse gas reporting. Return JSON only. Never invent a number: leave a value null when the bill does not show it. Quantities are energy actually used in the billing period (not demand kW, not estimates of future use).';
 export async function readBill(text, file, by) {
