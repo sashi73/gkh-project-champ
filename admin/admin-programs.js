@@ -69,7 +69,7 @@
         tile('Dependencies', D.deps.length, probs.length ? '<a href="#deps">' + probs.length + ' need attention →</a>' : 'all clear', probs.length ? 'cs-amber' : '') + '</div>' +
         '<div id="pgWatch"></div>' +
         '<div class="pbtool"><input id="pgQ" type="search" placeholder="Find a program or project…" value="' + esc(Q.q) + '"><span class="sp"></span>' +
-        (canEdit() ? '<button class="btn btn-sm btn-gold" id="pgNew">＋ New program</button>' : '') + (M.me && M.me.owner ? '<button class="btn btn-sm" id="pgSample" title="Two sample programs with five projects, and three sample ESG companies">🧪 Load sample data</button>' : '') + '<a class="btn btn-sm" href="#deps">🔗 Dependency board</a></div>' +
+        (canEdit() ? '<button class="btn btn-sm btn-gold" id="pgNew">＋ New program</button>' : '') + '<a class="btn btn-sm" href="#deps">🔗 Dependency board</a></div>' +
         '<div class="pg-grid" id="pgGrid"></div>';
       var draw = function () {
         var q = Q.q.trim().toLowerCase();
@@ -81,11 +81,6 @@
       if (M.watchPanel) M.watchPanel(el.querySelector('#pgWatch'));
       el.querySelector('#pgQ').oninput = function () { Q.q = this.value; draw(); };
       var nb = el.querySelector('#pgNew'); if (nb) nb.onclick = function () { editProgram(null); };
-      var sb = el.querySelector('#pgSample'); if (sb) sb.onclick = function () {   // 🧪 the super user loads the sample programs, projects and ESG companies (once; names already there are skipped)
-        M.confirmBox('Load sample data?', 'This adds two programs (<b>Green Freight Hub</b>, about 80% done, two projects; <b>Coral Sky Sustainable Operations</b>, about 50% done, three projects), every project with its plan, costs, risks, charter, baseline and ESG data, and three ESG companies (<b>Coral Sky Airways</b>, <b>Kinabalu Palm Holdings</b>, <b>Harbourline Data Centres</b>) with a full year of data. Their Statement and ESG report are left for you to write. Anything already there by name is skipped.', 'Load', false).then(function (ok) {
-          if (!ok) return; sb.disabled = true; sb.textContent = 'Loading…';
-          M.api('sampleSeed', { today: new Date().toISOString().slice(0, 10) }).then(function (r) { var m = r.made || {}; M.toast('Added ' + (m.programs || []).length + ' programs, ' + (m.projects || []).length + ' projects and ' + (m.companies || []).length + ' ESG companies' + ((m.skipped || []).length ? ' (' + m.skipped.length + ' already there)' : '')); if (/^#?programs\/?$/.test(location.hash || '')) programsView(); }).catch(function (e) { sb.disabled = false; sb.textContent = '🧪 Load sample data'; M.fail(e); });
-        }); };
       draw();
     }).catch(fail);
   }

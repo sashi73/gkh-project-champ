@@ -279,7 +279,7 @@ async function handle(req, context) {
     const loginOf = (L, p) => p && L.find((u) => u.kind !== 'google' && u.kind !== 'subbie' && (u.personId === p.id || (p.email && String(u.email || u.username || '').toLowerCase() === String(p.email).toLowerCase())));
     if (action === 'pplSave' && body.person) { const lu = loginOf(await U.list(), body.person); if (lu) body.person.role = lu.role; }
     let res = await (async () => { switch (action) {
-      case 'me': return out(200, { build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, money: U.seesMoney(ctx), mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.pgm ? null : ctx.scope || null, pgm: ctx.pgm ? { kind: ctx.pgm.kind, programs: ctx.pgm.names, projects: ctx.pgm.cores.length } : null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
+      case 'me': return out(200, { sampleDue: ctx.owner && !ctx.scope ? !(await kv.get('sample-portfolio').catch(() => true)) : false, build: { label: `${BUILD.version}.${BUILD.build}`, build: BUILD.build, commit: (BUILD.commit || '').slice(0, 7) }, test: PPL.isTest(), user: who, name: ctx.name, expires: session.exp, owner: ctx.owner, r2: R2.ready(), role: ctx.role, money: U.seesMoney(ctx), mods: ctx.mods, mustChange: !!ctx.mustChange, personId: ctx.personId || '', kind: ctx.kind || '', scope: ctx.pgm ? null : ctx.scope || null, pgm: ctx.pgm ? { kind: ctx.pgm.kind, programs: ctx.pgm.names, projects: ctx.pgm.cores.length } : null, subId: ctx.subId || '', modules: U.MODS.map((m) => ({ key: m[0], name: m[1] })) });
 
       // 📍 Location: search a place (countries and states offline, towns from OpenStreetMap), and its weekend and public holidays
       case 'planPlacesGet': return out(200, { places: await WCAL.places(clean(body.q, 60)) });
@@ -333,6 +333,7 @@ async function handle(req, context) {
       case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
       case 'sampleSeed': {   // 🧪 sample programs, projects and ESG companies: the super user only
         if (!ctx.owner) return bad('Only the super user loads the sample data.', 403);
+        if (body.auto) { const O = await import('../lib/sample-once.mjs'), m = await O.runOnce(by); return out(200, { made: m || { programs: [], projects: [], companies: [], skipped: [] } }); }   // the automatic run happens once, even with two windows open
         const SP = await import('../lib/sample-portfolio.mjs'); const made = await SP.seed(by, String(body.today || ''));
         await A.audit(who, 'Sample data loaded: ' + made.programs.length + ' programs, ' + made.projects.length + ' projects, ' + made.companies.length + ' ESG companies'); return out(200, { made });
       }
