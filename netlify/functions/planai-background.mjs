@@ -46,6 +46,12 @@ async function run(req) {
     // 💰 AI work that reads or writes money (costing, BOM, reports, the project plan document, change impacts, the watch, document reviews, the CEO's briefing):
     //    not for a login without money (contractors, project personnel ...)
     if (!U.seesMoney(ctx) && ['bom', 'cost', 'report', 'plandoc', 'charter', 'cr', 'fit', 'watch', 'watchAll', 'docAnalyse', 'docReview', 'ceoBrief', 'ceoAsk', 'vaultRedact', 'lessonsReport'].includes(body.mode)) { await kv.set('aiplan:' + id, { status: 'error', error: 'Cost and billing work is only for the project manager and the finance team.', at: Date.now() }); return ok(); }
+    if (body.mode === 'svBill') {   // 🗄 the Sustainability vault: any utility or fuel bill (its text, read or OCR'd in the browser), spread over its months (nothing saved until the user adds it)
+      await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
+      const VA = await import('../lib/esg-vault.mjs'), r = await VA.readAnyBill(body.text, String(body.file || '').slice(0, 120)).catch((e) => ({ error: e.message }));
+      await kv.set('aiplan:' + id, { esg: r.error ? null : r, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
+      return ok();
+    }
     if (body.mode === 'esgBill' || body.mode === 'esgMap') {   // 🌿 ESG: read an electricity bill, or map a spreadsheet's columns onto the ESG fields (anyone signed in; nothing is saved until the user applies it)
       await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
       const E = await import('../lib/esg.mjs');

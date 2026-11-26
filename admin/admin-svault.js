@@ -175,18 +175,72 @@
           Object.keys(groups[fy]).sort().reverse().map(function (p) { var dd = new Date(p + '-01T00:00:00'); return '<div class="sv-month"><h4>' + esc(MON[dd.getMonth()] + ' ' + dd.getFullYear()) + '</h4>' + groups[fy][p].map(function (d) { return '<div class="vl-r"><span class="vl-ic">' + ic(d.name) + '</span><div class="vl-m"><div class="vl-n"><b>' + esc(d.name) + '</b><span class="vl-tag">' + esc(F[d.folder] || d.folder) + '</span>' + (d.tags || []).map(function (t) { return '<span class="vl-tag sv-tag">' + esc(t) + '</span>'; }).join('') + (d.auto ? '<span class="vl-tag ch">Champ</span>' : '') + '</div><div class="vl-s">' + esc(d.by || '') + ' · filed ' + esc(when(d.at)) + (d.size ? ' · ' + size(d.size) : '') + (d.note ? ' · ' + esc(d.note) : '') + '</div></div><div class="vl-a"><button class="btn btn-sm btn-gold" type="button" data-open="' + esc(d.id) + '">Open</button><button class="btn btn-sm" type="button" data-del="' + esc(d.id) + '" title="Delete">🗑</button></div></div>'; }).join('') + '</div>'; }).join('') + '</details>'; }).join('')
         : '<div class="card vl-empty"><b>📂</b><h3>' + (q || V.folder ? 'Nothing matches' : 'No evidence filed yet') + '</h3><p class="muted">File the bills, invoices, meter reads, safety reports and certificates behind the numbers, each under the month it belongs to. Assurance providers ask for them.</p></div>');
   }
+  /* ---------- 📄 reading a bill: the PDF's own text, or OCR for scans and photos (Tesseract, in the browser), then the AI picks out the quantities ---------- */
+  var load1 = function (src, test) { return test() ? Promise.resolve() : new Promise(function (res, rej) { var sc = document.createElement('script'); sc.src = src; sc.onload = res; sc.onerror = function () { rej(new Error('Could not load ' + src)); }; document.head.appendChild(sc); }); };
+  var OCR = null;
+  function ocrWorker(say) {
+    if (OCR) return OCR; var base = new URL('vendor/ocr/', location.href).href;
+    OCR = load1('vendor/ocr/tesseract.min.js?v=511', function () { return !!window.Tesseract; }).then(function () { say('Starting the text reader (first time: about 6 MB)…');
+      return window.Tesseract.createWorker('eng', 1, { workerPath: base + 'worker.min.js', corePath: base, langPath: base.replace(/\/$/, ''), gzip: true, workerBlobURL: false }); });
+    OCR.catch(function () { OCR = null; }); return OCR;
+  }
+  function ocr(src, say) { return ocrWorker(say).then(function (w) { return w.recognize(src); }).then(function (r) { return (r && r.data && r.data.text) || ''; }); }
+  function pdfPages(f) { return load1('vendor/pdf.min.js?v=3111', function () { return !!window.pdfjsLib; }).then(function () { window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js?v=3111'; return f.arrayBuffer(); }).then(function (buf) { return window.pdfjsLib.getDocument({ data: buf }).promise; }); }
+  function billText(f, say) {
+    var isPdf = /\.pdf$/i.test(f.name) || f.type === 'application/pdf', isImg = /^image\//.test(f.type) || /\.(png|jpe?g|webp|bmp|gif|tiff?)$/i.test(f.name);
+    if (isImg) { say('Reading the photo with OCR…'); return ocr(f, say).then(function (t) { return { text: t, ocr: true }; }); }
+    if (!isPdf) return Promise.reject(new Error(f.name + ': only PDF bills and photos of bills can be read.'));
+    say('Reading the PDF…');
+    return pdfPages(f).then(function (doc) {
+      var n = Math.min(doc.numPages, 6), out = [], chain = Promise.resolve();
+      for (var k = 1; k <= n; k++) (function (k) { chain = chain.then(function () { return doc.getPage(k).then(function (pg) { return pg.getTextContent(); }).then(function (c) { out.push(c.items.map(function (i) { return i.str; }).join(' ')); }); }); })(k);
+      return chain.then(function () { var t = out.join('\n'); if (t.replace(/\s/g, '').length >= 80) return { text: t, ocr: false };
+        // a scanned bill: draw each page and read it with OCR
+        var txt = [], c2 = Promise.resolve();
+        for (var j = 1; j <= Math.min(n, 4); j++) (function (j) { c2 = c2.then(function () { say('Scanned bill: reading page ' + j + ' of ' + Math.min(n, 4) + ' with OCR…'); return doc.getPage(j).then(function (pg) { var vp = pg.getViewport({ scale: 2 }), cv = document.createElement('canvas'); cv.width = vp.width; cv.height = vp.height; return pg.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise.then(function () { return ocr(cv, say); }).then(function (t1) { txt.push(t1); }); }); }); })(j);
+        return c2.then(function () { return { text: txt.join('\n'), ocr: true }; }); });
+    });
+  }
+  function aiBill(text, file) {
+    var id = 'sb' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), t0 = Date.now();
+    return fetch('/.netlify/functions/planai-background', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1' }, body: JSON.stringify({ id: id, mode: 'svBill', text: text, file: file }) })
+      .then(function (r) { if (r.status === 401 || r.status === 403) throw new Error('Your session has ended. Sign in again.'); if (r.status !== 202 && !r.ok) throw new Error('Could not start the AI (' + r.status + ')'); })
+      .then(function poll() { return new Promise(function (res) { setTimeout(res, 2500); }).then(function () { return api('esgAiStatus', { id: id }); }).then(function (d) { if (d.status === 'done' && d.esg) return d.esg; if (d.status === 'error') throw new Error(d.error || 'The AI could not read the bill'); if (Date.now() - t0 > 240000) throw new Error('Reading the bill is taking too long. Try again.'); return poll(); }); });
+  }
+  // the bill as read: what goes into which month, for the user to check before it is added
+  function billReview(f, r) {
+    return new Promise(function (res) {
+      var lines = r.lines || [], mm = {}; (r.months || []).forEach(function (m) { (mm[m.period] = mm[m.period] || {})[m.metric] = m.value; });
+      var mets = lines.map(function (l) { return l.metric; }).filter(function (x, i, a) { return a.indexOf(x) === i; }), lab = function (k) { var l = lines.filter(function (x) { return x.metric === k; })[0]; return l ? l.label + ' (' + l.unit + ')' : k; };
+      M.modal('<h2>📄 ' + esc(f.name) + '</h2><p class="muted" style="margin:4px 0 10px">' + esc([r.supplier, r.kind].filter(Boolean).join(' · ') || 'Bill') + (r.ocr ? ' · read with OCR, so check the figures' : '') + '</p>' +
+        (lines.length ? '<table class="tbl"><thead><tr><th>What</th><th class="r">On the bill</th><th class="r">Into the vault</th><th>Period</th><th>Site or account</th></tr></thead><tbody>' + lines.map(function (l) { return '<tr><td><b>' + esc(l.label) + '</b></td><td class="r">' + nf(l.qty) + ' ' + esc(l.qtyUnit) + '</td><td class="r">' + nf(l.value) + ' ' + esc(l.unit) + '</td><td>' + esc(l.from) + ' to ' + esc(l.to) + '</td><td>' + esc([l.site, l.account].filter(Boolean).join(' · ')) + '</td></tr>'; }).join('') + '</tbody></table>' +
+          '<h4 style="margin:14px 0 6px">Spread over the months (by days)</h4><table class="tbl"><thead><tr><th>Month</th>' + mets.map(function (k) { return '<th class="r">' + esc(lab(k)) + '</th>'; }).join('') + '</tr></thead><tbody>' + Object.keys(mm).sort().map(function (p) { return '<tr><td>' + p + '</td>' + mets.map(function (k) { return '<td class="r">' + (mm[p][k] == null ? '' : nf(mm[p][k])) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>' : '<p>No quantities could be read from this bill.</p>') +
+        ((r.warnings || []).length ? '<p class="muted" style="font-size:12.5px;margin:10px 0 0">⚠ ' + r.warnings.map(esc).join('<br>⚠ ') + '</p>' : '') +
+        '<p class="muted" style="font-size:12.5px;margin:10px 0 0">The figures are added to what is already in those months (another meter or site), and the same bill is never added twice.</p>' +
+        '<div class="actions" style="justify-content:flex-end"><button class="btn" type="button" id="brFile">File only</button>' + (lines.length ? '<button class="btn btn-gold" type="button" id="brAdd">Add the figures and file it</button>' : '') + '</div>');
+      var close = function (v) { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); res(v); };
+      $('#brFile').onclick = function () { close(false); }; if ($('#brAdd')) $('#brAdd').onclick = function () { close(true); };
+    });
+  }
   function uploadBox() {
     var A = V.A, now = new Date().toISOString().slice(0, 7);
     M.modal('<h2>⬆ File evidence</h2><p class="muted" style="margin:4px 0 12px">Each file is kept under the month it relates to (for a bill, the month the billing period ends).</p><div class="form"><label>Month<input type="month" id="suP" value="' + now + '"></label><label>Folder<select id="suF">' + A.folders.map(function (f) { return '<option value="' + f[0] + '">' + esc(f[1]) + '</option>'; }).join('') + '</select></label>' +
-      '<label class="full">Note (optional)<input id="suN" maxlength="300" placeholder="e.g. Warehouse 1, Q3 bill"></label><label class="full">Files<input type="file" id="suFiles" multiple></label></div><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="suGo" type="button">File</button></div>');
+      '<label class="full">Note (optional)<input id="suN" maxlength="300" placeholder="e.g. Warehouse 1, Q3 bill"></label><label class="full">Files<input type="file" id="suFiles" multiple accept=".pdf,image/*,.xlsx,.xls,.csv,.docx,.doc,.txt"></label><label class="full ck" style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="suRead" checked><span>📄 <b>Read bills and add their figures</b> to Data by month (electricity, gas, water, fuel, waste). Scans and photos are read with OCR. You check the figures before anything is added; the month comes from the bill.</span></label><p class="muted" id="suSay" style="font-size:12.5px;margin:6px 0 0"></p></div><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="suGo" type="button">File</button></div>');
     $('#suGo').onclick = function () { var b = this, files = Array.prototype.slice.call($('#suFiles').files || []), period = $('#suP').value, folder = $('#suF').value, note = $('#suN').value; if (!files.length) return toast('Choose a file'); if (!/^\d{4}-\d{2}$/.test(period)) return toast('Choose the month'); b.disabled = true; b.textContent = 'Filing…';
+      var readOn = $('#suRead').checked, say = function (t) { var e = $('#suSay'); if (e) e.textContent = t || ''; }, added = 0;
       files.reduce(function (p, f) { return p.then(function () {
+        var per = period, canRead = readOn && (/\.pdf$/i.test(f.name) || /^image\//.test(f.type) || /\.(png|jpe?g|webp|bmp|gif|tiff?)$/i.test(f.name));
+        var read = !canRead ? Promise.resolve(null) : billText(f, say).then(function (x) { say('Champ is picking out the quantities…'); return aiBill(x.text, f.name).then(function (r) { r.ocr = x.ocr; return r; }); })
+          .then(function (r) { say(''); return billReview(f, r).then(function (add) { if (r.period) per = r.period; if (!add) return null;
+            return api('esgVaultAddBill', { key: V.key, file: f.name, lines: r.lines }).then(function (z) { added += z.added || 0; if (z.skipped) toast(f.name + ': ' + z.skipped + ' line(s) were already in the vault, so not added again'); }); }); })
+          .catch(function (e) { say(''); toast(f.name + ': ' + (e.message || 'could not be read') + ' (filed without figures)'); return null; });
+        return read.then(function () {
         var b64 = function () { return new Promise(function (res, rej) { var rd = new FileReader(); rd.onload = function () { res(String(rd.result).replace(/^data:[^,]*,/, '')); }; rd.onerror = rd.onabort = function () { rej(new Error('Could not read ' + f.name)); }; rd.readAsDataURL(f); }); };
         return api('esgVaultUrl', { key: V.key, name: f.name }).then(function (u) {
           if (u && u.r2) return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': f.type || 'application/octet-stream' }, body: f }).then(function (r) { if (!r.ok) throw new Error('Upload failed (' + r.status + ')'); return { r2Key: u.key }; });
           if (f.size > 3.5 * 1024 * 1024) throw new Error(f.name + ' is over 3.5 MB: file storage (R2) is needed for large files.'); return b64().then(function (x) { return { file: x }; });
-        }).then(function (st) { return api('esgVaultAdd', { key: V.key, period: period, folder: folder, name: f.name, type: f.type, size: f.size, r2Key: st.r2Key || '', file: st.file || '', note: note }); }); }); }, Promise.resolve())
-        .then(function () { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); toast('Filed ' + files.length + ' file' + (files.length === 1 ? '' : 's') + ' under ' + period); return load(); }).then(draw).catch(function (e) { b.disabled = false; b.textContent = 'File'; fail(e); }); };
+        }).then(function (st) { return api('esgVaultAdd', { key: V.key, period: per, folder: folder, name: f.name, type: f.type, size: f.size, r2Key: st.r2Key || '', file: st.file || '', note: note }); }); }); }); }, Promise.resolve())
+        .then(function () { var m = document.getElementById('modal'); if (m && m.open) { if (M.closeModal) M.closeModal(); else if (m.close) m.close(); } toast('Filed ' + files.length + ' file' + (files.length === 1 ? '' : 's') + (added ? ' · ' + added + ' bill line' + (added === 1 ? '' : 's') + ' added to Data by month' : '')); return load(); }).then(draw).catch(function (e) { b.disabled = false; b.textContent = 'File'; fail(e); }); };
   }
 
   /* ---------- 🎯 target and settings ---------- */

@@ -126,7 +126,7 @@ export const MONEY_ROLES = ['CEO', 'CFO', 'PMO Director', 'Finance personnel', '
 export function seesMoney(ctx) { return !!ctx && (!ctx.scope || !!(ctx.pgm && ctx.pgm.kind === 'project')) && (!!ctx.owner || MONEY_ROLES.includes(ctx.role)); }   // a Project manager keeps money on their own projects
 export function allowsBg(ctx, mode) {
   if (!ctx) return false; if (ctx.owner) return true;
-  if (mode === 'esgDoc' || mode === 'esgInsight' || mode === 'esgBill' || mode === 'esgMap') return true;   // 🌿 ESG: anyone signed in
+  if (mode === 'esgDoc' || mode === 'esgInsight' || mode === 'esgBill' || mode === 'esgMap' || mode === 'svBill') return true;   // 🌿 ESG: anyone signed in
   const lv = LV[(ctx.mods || {}).projects] || 0;
   return mode === 'vaultRedact' || mode === 'ceoBrief' || mode === 'ceoAsk' || mode === 'intel' || mode === 'watch' || mode === 'docAnalyse' || mode === 'docReview' || mode === 'lessonsReport' ? lv >= 1 : lv >= 2;
 }
@@ -170,7 +170,7 @@ export async function googleUser(email, name, by) {
 }
 // what a sub-contractor signed in to one project may do. Every request naming a project must be theirs; other requests only
 // from this list (the plan page's own lookups). Money, people and other subbies' details stay out.
-const SCOPE_FREE = new Set(['planEsgPortfolioGet', 'esgAiStatus', 'esgSchema', 'esgCso', 'esgFactors', 'esgVaultOrgs', 'esgVaultOpen', 'esgVaultGet', 'esgVaultSave', 'esgVaultBills', 'esgVaultUrl', 'esgVaultAdd', 'esgVaultFile', 'esgVaultDelete', 'esgList', 'esgGet', 'esgCreate', 'esgSample', 'esgSave', 'esgDelete', 'me', 'planRaidList', 'planMyDayGet', 'planPlacesGet', 'planHolidaysGet', 'logout', 'userPassword', 'planList', 'planPipelineList', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk', 'planAiStatus', 'commsSetup', 'planBomTplList', 'planBomTplGet', 'invList', 'invGet']);
+const SCOPE_FREE = new Set(['planEsgPortfolioGet', 'esgAiStatus', 'esgSchema', 'esgCso', 'esgFactors', 'esgVaultOrgs', 'esgVaultOpen', 'esgVaultGet', 'esgVaultSave', 'esgVaultBills', 'esgVaultAddBill', 'esgVaultUrl', 'esgVaultAdd', 'esgVaultFile', 'esgVaultDelete', 'esgList', 'esgGet', 'esgCreate', 'esgSample', 'esgSave', 'esgDelete', 'me', 'planRaidList', 'planMyDayGet', 'planPlacesGet', 'planHolidaysGet', 'logout', 'userPassword', 'planList', 'planPipelineList', 'pplMe', 'pplMeSave', 'pplMeCv', 'pplMeCvGet', 'pplMeCvParse', 'guideAsk', 'planAiStatus', 'commsSetup', 'planBomTplList', 'planBomTplGet', 'invList', 'invGet']);
 // 🗺 a Program manager, beyond the project pages: their programs and links, new programs and projects, the people on their projects, and Ask AI over their own data
 //    (each of these is filtered or checked in admin.mjs: programs and projects to theirs, people to those on their projects, no money)
 const PGM_OK = new Set(['planPlacesGet', 'planProgramList', 'planProgramSave', 'planProgramDefaults', 'planProgramSet', 'planProgramMove', 'planDepSave', 'planDepDelete', 'planNewProject', 'planPipelineList', 'planPgmGet', 'pplList', 'pplGet', 'pplAssign',
