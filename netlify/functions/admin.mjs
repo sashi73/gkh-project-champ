@@ -331,6 +331,11 @@ async function handle(req, context) {
         return out(200, r);
       }
       case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
+      case 'sampleSeed': {   // 🧪 sample programs, projects and ESG companies: the super user only
+        if (!ctx.owner) return bad('Only the super user loads the sample data.', 403);
+        const SP = await import('../lib/sample-portfolio.mjs'); const made = await SP.seed(by, String(body.today || ''));
+        await A.audit(who, 'Sample data loaded: ' + made.programs.length + ' programs, ' + made.projects.length + ' projects, ' + made.companies.length + ' ESG companies'); return out(200, { made });
+      }
       case 'esgProgress': {   // 🏁 this report against the organisation's previous full year, and the measures its sector usually reports
         const E = await import('../lib/esg.mjs'), e = await E.get(body.id); if (!e) return bad('This reporting entity was not found', 404);
         return out(200, { progress: await E.progress(e).catch(() => null), kpis: E.sectorKpis((e.org || {}).industry) });
