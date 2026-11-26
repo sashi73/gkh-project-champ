@@ -158,7 +158,8 @@ export async function saveSettings(b, by) {   // compare-and-set: a save made on
 // ✨ the P5 impact analysis: the AI writes "why this score" and "what we will do" from the project's own data, for the blanks only
 // (an element not scored yet also gets a suggested score). Nothing is saved here: the browser puts the answers in and the user edits them.
 export async function p5Fill(core, esgIn, lang) {
-  const P = await import('./plan.mjs'), { llmJson } = await import('./ai.mjs');
+  const P = await import('./plan.mjs'), { llmJson, checkLimit, usage } = await import('./ai.mjs');
+  try { await checkLimit(); } catch (e) { return { error: e.message }; }   // the day's AI allowance
   const plan = await P.get(core); if (!plan) return { error: 'Project not found' };
   const e = clean(esgIn !== undefined ? esgIn : plan.esg) || { act: {}, ef: {}, p5: {}, soc: {} }, x = calc({ ...plan, esg: e });
   const todo = P5.filter(([k]) => { const v = e.p5[k] || {}; return !v.note || !v.action || !v.s; }).map(([k, pil, label, hint]) => { const v = e.p5[k] || {}; return { key: k, pillar: pil, element: label, covers: hint, score: v.s || null, why_now: v.note || '', action_now: v.action || '' }; });
@@ -174,9 +175,10 @@ export async function p5Fill(core, esgIn, lang) {
     'Where an element has no score, also give "score" (1 to 5) that fits the facts; when the facts say little, score 3 and say what to measure. Use only the facts given: never invent figures, suppliers or certifications. Plain English, no jargon, no marketing. ' +
     'Answer only with JSON: {"elements":{"<key>":{"why":"…","action":"…","score":n}}}.' + (lang && lang !== 'en' ? ' Write the text in the language with code ' + lang + '.' : '');
   const r = await llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ project_facts: facts, elements: todo }) }], { maxTokens: 2600, temperature: 0.3 });
+  await usage(true, r.used || 0).catch(() => {});
   const got = (r.data && r.data.elements) || {}, fill = {};
   todo.forEach((t) => { const a = got[t.key]; if (!a || typeof a !== 'object') return; const o = {};
     if (!t.why_now && a.why) o.note = str(a.why, 600); if (!t.action_now && a.action) o.action = str(a.action, 400); const sc = Math.round(Number(a.score)); if (!t.score && sc >= 1 && sc <= 5) o.s = sc;
-    if (Object.keys(o).length) fill[t.key] = o; });
+    if (Object.keys(o).length) { o.for = t.score || o.s || null; fill[t.key] = o; } });   // the score the reason was written for
   return { fill, tokens: r.used || 0 };
 }

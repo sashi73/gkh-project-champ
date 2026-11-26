@@ -126,7 +126,10 @@
         .then(function () { var t0 = Date.now(); return new Promise(function (res, rej) { (function go() { setTimeout(function () { api('planAiStatus', { id: id }).then(function (st) { if (st.status === 'done') return res(st.result || {}); if (st.status === 'error') return rej(new Error(st.error || 'The AI could not finish')); if (Date.now() - t0 > 300000) return rej(new Error('The AI is taking too long. Try again.')); go(); }, rej); }, 2500); })(); }); })
         .then(function (r) {
           if (C.S.core !== core) return; var e = data(), n = 0, f = r.fill || {};
-          Object.keys(f).forEach(function (k) { var o = e.p5[k] = e.p5[k] || {}, a = f[k]; if (a.note && !o.note) { o.note = a.note; n++; } if (a.action && !o.action) { o.action = a.action; n++; } if (a.s && !o.s) { o.s = a.s; n++; } });
+          var moved = 0; Object.keys(f).forEach(function (k) { var o = e.p5[k] = e.p5[k] || {}, a = f[k];
+            if (o.s && a.for && o.s !== a.for) { moved++; return; }   // the score was changed while Champ wrote: its reason would describe another score
+            if (a.s && !o.s) { o.s = a.s; n++; } if (a.note && !o.note) { o.note = a.note; n++; } if (a.action && !o.action) { o.action = a.action; n++; } });
+          if (moved) M.toast(moved + ' element(s) were re-scored while Champ wrote, so their reasons were left blank: press the button again for them.');
           if (n) { changed('P5 reasons and actions (AI)'); M.toast('✨ Champ filled ' + n + ' blanks. Read them through and change anything that is not right.'); } else M.toast(r.note || 'Nothing was left blank.');
           done(); if (C.S.tab === 'esg' && X.sub === 'p5') draw();
         }).catch(function (e) { done(); fail(e); });
