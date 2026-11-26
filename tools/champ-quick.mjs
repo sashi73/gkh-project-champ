@@ -22,7 +22,10 @@ const blobs = new BlobsServer({ directory: dir, token: 'tok', port: 0 }); const 
 const ctxB64 = Buffer.from(JSON.stringify({ siteID: 'champ', token: 'tok', edgeURL: `http://localhost:${bport}`, uncachedEdgeURL: `http://localhost:${bport}`, apiURL: `http://localhost:${bport}` })).toString('base64');
 // a fake AI: always a short, valid answer
 const LLMSEEN = {};
+const STOCKSEEN = [];
 const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += d)); q.on('end', () => {
+  if (q.url.startsWith('/v1/images/')) { STOCKSEEN.push(q.url); s.setHeader('Content-Type', 'application/json'); return s.end(JSON.stringify({ results: [1, 2, 3, 4, 5, 6].map((n) => ({ url: `http://127.0.0.1:${llm.address().port}/img/${n}.jpg`, width: 1600, height: 2000, title: 'Test photo ' + n, creator: 'Tester', license: 'cc0', foreign_landing_url: 'https://example.org/p' + n })) })); }   // 🖼 Openverse, as far as the stock photo search needs
+  if (q.url.startsWith('/img/')) { s.setHeader('Content-Type', 'image/jpeg'); return s.end(Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAeACgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDJooopHkhRRRQAUUUUAFFFFABRRRQAUUUUAf/Z', 'base64')); }
   const j = JSON.parse(b || '{}'), json = j.response_format && j.response_format.type === 'json_object';
   { const sy0 = ((j.messages || []).find((m) => m.role === 'system') || {}).content || ''; if (/estimator/.test(sy0)) LLMSEEN.bom = j.messages; if (/project document analyst/.test(sy0)) LLMSEEN.ingest = j.messages; if (/DOES NOT SEE MONEY/.test(sy0)) LLMSEEN.nomoney = j.messages; }
   if (/PART C \(climate/.test(JSON.stringify(j.messages || [])) && !LLMSEEN.partCfail) { LLMSEEN.partCfail = 1; s.statusCode = 500; return s.end('{"error":{"message":"busy"}}'); }   // one part fails once: it must be asked again
@@ -46,7 +49,7 @@ const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += 
   s.end(JSON.stringify({ choices: [{ message: { content } }], usage: { total_tokens: 50 } })); }); }).listen(0);
 await sleep(50);
 const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
-  OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
+  OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', OPENVERSE_BASE_URL: `http://127.0.0.1:${llm.address().port}`, PEXELS_API_KEY: '', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
 const srv = spawn('node', ['local-server.mjs'], { cwd: SITE, env, stdio: ['ignore', 'pipe', 'pipe'] });
 let log = ''; srv.stdout.on('data', (d) => (log += d)); srv.stderr.on('data', (d) => (log += d));
 for (let i = 0; i < 80 && !/running/i.test(log); i++) await sleep(150);
@@ -770,6 +773,21 @@ try {
           for (const id of ids) for (const photos of [[], [ph]]) { const D0 = E.statementDoc(S.docs.statement, 'en', 2); D0.theme = id; D0.photos = photos; D0._lim = 2; const D = E.enrich(D0, 'statement'); const r = await window.MBS.studio.pdf(D); out.runs.push({ id, photo: !!photos.length, pages: r.pages, size: r.blob.size, art: D._art.cover.url.length, key: D._art.cover.url.length + ':' + D._art.cover.url.slice(D._art.cover.url.length >> 1, (D._art.cover.url.length >> 1) + 40) }); if (window.CHAMP_ART) window.CHAMP_ART.push([id + (photos.length ? '-photo' : ''), D._art.cover.url, D._art.band.url]); }
           return out; });
         if (process.env.SAVE_ART) { const A = await pg.evaluate(() => window.CHAMP_ART), fs = await import('node:fs'); A.forEach(([n, c, b]) => { fs.writeFileSync(process.env.SAVE_ART + '/' + n + '.jpg', Buffer.from(c.split(',')[1], 'base64')); fs.writeFileSync(process.env.SAVE_ART + '/' + n + '-band.jpg', Buffer.from(b.split(',')[1], 'base64')); }); }
+        // 🖼 free stock photos found from the report's context, and your own photos added one pick at a time (up to 3)
+        const stk = await api('esgStockPhoto', { q: 'airline sky', i: 1 }), stkBad = await api('esgStockPhoto', { q: 'a' });
+        await pg.reload(); await pg.waitForTimeout(1500); await pg.selectOption('#dTheme', 'horizon'); await pg.waitForTimeout(300);
+        await pg.evaluate(() => { const id = window.MBS.esg.state().e.id; localStorage.removeItem('champ-esg-photos:' + id); });
+        await pg.reload(); await pg.waitForTimeout(1500); await pg.selectOption('#dTheme', 'horizon'); await pg.waitForTimeout(300);
+        const jpg = Buffer.from(await (await fetch(`http://127.0.0.1:${llm.address().port}/img/1.jpg`)).arrayBuffer());
+        await pg.setInputFiles('#dPhotos', [{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.waitForTimeout(800);
+        await pg.setInputFiles('#dPhotos', [{ name: 'b.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.waitForTimeout(800);
+        const two = await pg.evaluate(() => document.querySelectorAll('#dPhotoBox .esg-ph').length);
+        await pg.click('[data-phx="0"]'); await pg.waitForTimeout(300); const one = await pg.evaluate(() => document.querySelectorAll('#dPhotoBox .esg-ph').length);
+        await pg.fill('#dStockQ', 'airline sky'); await pg.click('#dStock'); await pg.waitForTimeout(3000);
+        const stkUi = await pg.evaluate(() => ({ n: document.querySelectorAll('#dPhotoBox .esg-ph').length, credit: /Openverse/.test(document.querySelector('#dPhotoBox').textContent), kept: JSON.parse(localStorage.getItem('champ-esg-photos:' + window.MBS.esg.state().e.id) || '[]').length }));
+        ok('StockPhotos', '🖼 free stock photos for the report styles: searched from the report\'s context (Openverse CC0 and public domain, or Pexels with a key), downloaded by the server from its own search results only, three added with their credits; your own photos add one pick at a time up to three, each with its own remove button',
+          stk.status === 200 && /^data:image\/jpeg;base64,/.test(stk.j.url) && /CC0, via Openverse/.test(stk.j.credit) && stkBad.status === 400 && STOCKSEEN.some((u) => /license=cc0,pdm/.test(u) && /aspect_ratio=tall/.test(u)) && two === 2 && one === 1 && stkUi.n === 3 && stkUi.credit && stkUi.kept === 3,
+          JSON.stringify([stk.status, stk.j && stk.j.credit, stkBad.status, STOCKSEEN.slice(0, 2), two, one, stkUi]).slice(0, 900));
         ok('ReportStyles', '📸 five report styles (Horizon, Canopy, Atlas, Aurora, Signal) in the colour scheme list, each with its own cover, part page and band artwork, using the photos you add (kept in this browser) or drawn artwork without them',
           sty.list.length === 5 && sty.styles.length === 5 && sty.box && sty.runs.length === 10 && sty.runs.every((r) => r.pages >= 3 && r.size > 20000) && new Set(sty.runs.map((r) => r.key)).size === 10, JSON.stringify(sty).slice(0, 1500));
         await pg.goto(BASE + '/admin/#cso'); await pg.waitForTimeout(2500); const cv = await pg.evaluate(() => ({ tiles: document.querySelectorAll('.pkpis .kpi').length, rows: document.querySelectorAll('.cso-tbl tbody tr').length, cal: document.querySelectorAll('.cso-cal li').length }));
