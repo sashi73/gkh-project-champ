@@ -376,4 +376,7 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 365 | 1.0.365| 2026-11-26 22:56| p5-ai| `b323131` | P5 impact analysis: ✨ Fill the blanks with AI writes the reason and the action for each element from the project's own data (and suggests a  |
 | 366 | 1.0.366| 2026-11-26 23:00| p5-ai| `f33634d` | Project management plan: a new chapter, ESG and carbon (emissions by scope, carbon budget and baseline, carbon actions, the P5 impact analys |
 | 367 | 1.0.367| 2026-11-26 23:14| p5-ai| `c6a0a1b` | P5: AI fills the reasons and actions; project plan gets an ESG and carbon chapter (#174) |
-| 368 | 1.0.368 | 2026-11-27 01:22 | esg-grounded | _this commit_ | _see git log_ |
+| 368 | 1.0.368| 2026-11-27 01:22| esg-grounded| `36182c5` | ESG documents stay on the data: the AI may not claim compliance, restatements, boundaries, funding, pay links, contacts or named plans the d |
+| 369 | 1.0.369| 2026-11-27 01:35| vault-ocr| `3693669` | Sustainability vault reads bills: PDF text or OCR for scans and photos (Tesseract in the browser), the AI picks out electricity, gas, water, |
+| 370 | 1.0.370| 2026-11-27 01:51| vault-ocr| `290cdc3` | Vault bills review: staff logins only, impossible dates refused, peak and off-peak lines added together, counts from the save that lands, th |
+| 371 | 1.0.371 | 2026-11-27 02:02 | vault-ocr | _this commit_ | _see git log_ |

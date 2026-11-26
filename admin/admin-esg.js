@@ -850,7 +850,8 @@
       if (u && u.r2) return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob }).then(function (x) { if (!x.ok) throw new Error('upload ' + x.status); return { r2Key: u.key }; });
       if (blob.size > 3.5 * 1024 * 1024) throw new Error('the file is over 3.5 MB and file storage (R2) is not set up');
       return new Promise(function (res, rej) { var rd = new FileReader(); rd.onload = function () { res({ file: String(rd.result).replace(/^data:[^,]*,/, '') }); }; rd.onerror = rd.onabort = function () { rej(new Error('the file could not be read')); }; rd.readAsDataURL(blob); });
-    }).then(function (st) { return api('esgVaultAdd', { key: key, period: today, folder: 'reports', name: name, type: blob.type, size: blob.size, r2Key: st.r2Key || '', file: st.file || '', tags: tags, auto: true, replace: true, reportId: ent.id,
+    }).then(function (st) { return api('esgVaultAdd', { key: key, period: /^\d{4}-\d{2}/.test(o.to || '') ? String(o.to).slice(0, 7) : today,   // filed under the last month of the year it reports on, not the day it was made
+      folder: 'reports', name: name, type: blob.type, size: blob.size, r2Key: st.r2Key || '', file: st.file || '', tags: tags, auto: true, replace: true, reportId: ent.id,
       note: (kind === 'report' ? 'ESG report' : 'Sustainability statement') + ' for ' + (yr || 'the year') + ((snap.N || {}).ver ? ', narrative v' + snap.N.ver : ', no narrative yet') }); }).then(function (x) { return x.doc; });
   }
   // the report a document is made from stays fixed from the press of the button to the filing in the vault

@@ -13,3 +13,6 @@ jspdf.plugin.autotable.min.js: jsPDF-AutoTable 3.8.4, Simon Bengtsson, MIT Licen
 
 
 Poppins (admin/vendor/poppins.js): Copyright 2020 The Poppins Project Authors (https://github.com/itfoundry/Poppins). Licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org). Latin subset embedded in generated project documents.
+
+ocr/tesseract.min.js, ocr/worker.min.js, ocr/tesseract-core-*.wasm.js: Tesseract.js 5.1.1 and tesseract.js-core 5.1.1, Apache License 2.0, https://github.com/naptha/tesseract.js
+ocr/eng.traineddata.gz: @tesseract.js-data/eng 1.0.0 (Tesseract 4.0.0 best_int English model), MIT / Apache License 2.0, https://github.com/naptha/tessdata
