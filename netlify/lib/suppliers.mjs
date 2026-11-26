@@ -169,7 +169,7 @@ export async function relink(key, id) {   // a new link; the old one stops worki
 }
 export async function remove(key, id) {
   key = SV.keyOf(key); let tok = null, err = null;
-  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === id); if (r && r.status === 'accepted') { err = { error: 'This supplier\'s figures are in the vault: they stay with the request. Remove the figures in Data by month first if you need to.', code: 409 }; return x; } if (r && r.status === 'accepting' && Date.now() - (r.claimAt || 0) < 120e3) { err = { error: 'This reply is being accepted right now. Wait a moment, then look again.', code: 409 }; return x; } if (r) tok = r.tok; x.list = x.list.filter((y) => y.id !== id); return x; }, { list: [] });
+  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === id); if (r && r.status === 'accepted') { err = { error: 'This supplier\'s figures are in the vault: they stay with the request. Remove the figures in Data by month first if you need to.', code: 409 }; return x; } if (r && r.status === 'accepting') { err = { error: 'This reply is being accepted, or an earlier attempt did not finish: open it and finish accepting first (its figures may already be in the vault).', code: 409 }; return x; } if (r) tok = r.tok; x.list = x.list.filter((y) => y.id !== id); return x; }, { list: [] });
   if (err) return err; if (tok) await kv.del('suptok:' + tok).catch(() => {});
   return { ok: true };
 }
