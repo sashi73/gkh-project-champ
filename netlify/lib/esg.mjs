@@ -335,9 +335,9 @@ export const SECTOR_KPIS = [
   [/./, [['Scope 1 and 2 emissions reduction', '%', 'higher', 'C'], ['Renewable electricity share', '%', 'higher', 'C'], ['Waste diverted from landfill', '%', 'higher', 'E'], ['Training hours per employee', 'hours', 'higher', 'S'], ['Employee engagement score', '%', 'higher', 'S'], ['Suppliers screened on ESG criteria', '%', 'higher', 'G']]]];
 export function sectorKpis(industry) { return (SECTOR_KPIS.find(([re]) => re.test(industry || '')) || SECTOR_KPIS[SECTOR_KPIS.length - 1])[1]; }
 function cleanAchieve(L) {
-  return arr(L, 80).map((x) => { x = x && typeof x === 'object' ? x : {}; const pil = ACH_PILLARS.some((p) => p[0] === x.pillar) ? x.pillar : 'C';
+  return arr(L, 80).filter((x) => x && typeof x === 'object' && (x.id || String(x.what || '').trim())).map((x) => { const pil = ACH_PILLARS.some((p) => p[0] === x.pillar) ? x.pillar : 'C';
     return { id: str(x.id, 20).replace(/[^A-Za-z0-9]/g, '') || uid(), pillar: pil, area: (ACH_AREAS[pil] || []).includes(x.area) ? x.area : str(x.area, 80), what: str(x.what, 160), result: str(x.result, 400),
-      metric: str(x.metric, 100), unit: str(x.unit, 40), prev: num(x.prev), now: num(x.now), better: x.better === 'higher' ? 'higher' : 'lower', status: ACH_STATUS.includes(x.status) ? x.status : 'Done', when: str(x.when, 30) }; }).filter((x) => x.what);
+      metric: str(x.metric, 100), unit: str(x.unit, 40), prev: num(x.prev), now: num(x.now), better: x.better === 'higher' ? 'higher' : 'lower', status: ACH_STATUS.includes(x.status) ? x.status : 'Done', when: str(x.when, 30) }; });   // a record being edited stays, even with its title cleared for a moment
 }
 function cleanAvoid(L) {
   return arr(L, 60).map((x) => { x = x && typeof x === 'object' ? x : {}; const q = num(x.qty), b = num(x.base), s0 = num(x.sol), at = num(x.attr);
@@ -658,7 +658,7 @@ function facts(e) {
       cbam_lines: P.cbam.map((x) => ({ market: x.market, good: x.good, cn_code: x.cn, what: x.dest, tonnes: x.tonnes, embedded_tCO2e: x.emb, values: x.sv, est_cost: x.cost, currency: x.cur })), cbam_cost_eur: P.cbamEU, cbam_cost_gbp: P.cbamUK,
       carbon_price_exposures: P.exp.map((x) => ({ scheme: x.scheme, site: x.site, liable_tCO2e: x.liable, price: x.price, currency: x.cur, est_cost: x.cost })),
       credits: P.credits.map((x) => ({ project: x.project, type: x.type, standard: x.std, vintage: x.vintage, tCO2e: x.t, use: x.use, ccp_label: x.ccp, corresponding_adjustment: x.ca, integrity_flags: x.flags })), high_quality_share_pct: P.highQualityPct }; })(),
-    achievements_this_year: (e.achieve || []).length ? Object.fromEntries(ACH_PILLARS.map(([k, label]) => [label, (e.achieve || []).filter((x) => x.pillar === k).map((x) => ({ area: x.area, what: x.what, result: x.result, status: x.status, when: x.when || undefined, measure: x.metric ? { name: x.metric, previous_year: x.prev, this_year: x.now, unit: x.unit } : undefined }))]).filter((x) => x[1].length)) : 'None recorded: do not invent achievements, initiatives or partnerships',
+    achievements_this_year: (e.achieve || []).some((x) => x.what) ? Object.fromEntries(ACH_PILLARS.map(([k, label]) => [label, (e.achieve || []).filter((x) => x.pillar === k && x.what).map((x) => ({ area: x.area, what: x.what, result: x.result, status: x.status, when: x.when || undefined, measure: x.metric ? { name: x.metric, previous_year: x.prev, this_year: x.now, unit: x.unit } : undefined }))]).filter((x) => x[1].length)) : 'None recorded: do not invent achievements, initiatives or partnerships',
     avoided_emissions_tCO2e: { total: c.avoid.total, delivered: c.avoid.delivered, planned_or_under_way: c.avoid.planned, by_category: c.avoid.byCat, third_party_verified: c.avoid.verified, items: c.avoid.items.map((x) => ({ name: x.name, category: x.cat, baseline: x.baseline, tCO2e: x.t, attribution_pct: x.attr, status: x.status, verification: x.verify })), carbon_credits_retired: c.avoid.credits, of_which_removals: c.avoid.removals } }, material_topics: mat, insights: e.insights || {}, today: new Date().toISOString().slice(0, 10) };
 }
 // 📊 progress against the previous year: this report's figures beside the organisation's previous full year (its report, or 12 months in the Sustainability vault)
@@ -671,14 +671,18 @@ export async function progress(e) {
   const o = (e && e.org) || {}; if (!o.name) return null;
   const VA = await import('./esg-vault.mjs'), A = await VA.analyse(VA.keyOf(o.name)).catch(() => null); if (!A || A.error || !A.rows) return null;
   const now = A.rows.find((r) => r.reportId === e.id); if (!now) return null;
-  const prev = [...A.rows].reverse().find((r) => r.fy < now.fy && !r.partial); if (!prev) return { now: now.label, prev: null, items: [], note: 'No earlier full year for this organisation yet: progress will show from next year (or add last year\'s months in the Sustainability vault).' };
-  const items = PROG.map(([k, label, unit, dir, pillar, d]) => { let a = prev.m[k], b = now.m[k]; if (a == null || b == null) return null; if (['ghg', 'energy', 'water'].includes(k) && prev.m.perRev !== now.m.perRev) return null;
-    const pts = unit === '%' || unit === 'out of 100', ch = pts ? b - a : a === 0 ? (b === 0 ? 0 : null) : (b / a - 1) * 100, better = ch == null || Math.abs(ch) < 0.05 ? 'same' : (dir === 'lower' ? ch < 0 : ch > 0) ? 'better' : 'worse';
+  const prev = [...A.rows].reverse().find((r) => r.fy < now.fy && !r.partial);
+  // better or worse from the two values themselves, so a rise from zero still counts; zero to zero is no change
+  const judge = (a, b, ch, dir) => (a === b || (ch != null && Math.abs(ch) < 0.05) ? 'same' : (dir === 'lower' ? b < a : b > a) ? 'better' : 'worse');
+  const items = (prev ? PROG : []).map(([k, label, unit, dir, pillar, d]) => { let a = prev.m[k], b = now.m[k]; if (a == null || b == null) return null;
+    if (['ghg', 'energy', 'water'].includes(k) && (prev.m.perRev !== now.m.perRev || (prev.m.cur || '') !== (now.m.cur || ''))) return null;   // per-revenue figures compare only in the same currency
+    const pts = unit === '%' || unit === 'out of 100', ch = pts ? b - a : a === 0 ? (b === 0 ? 0 : null) : (b / a - 1) * 100, better = judge(a, b, ch, dir);
     const rd = (v) => Math.round(v * 10 ** d) / 10 ** d; return { k, label, short: PROG_SHORT[k], unit, pillar, dir, prev: rd(a), now: rd(b), change: ch == null ? null : Math.round(ch * 10) / 10, kind: pts ? 'points' : 'pct', better }; }).filter(Boolean);
   // what the achievements register measured, beside these
   (e.achieve || []).filter((x) => x.metric && x.prev != null && x.now != null).forEach((x) => { const ch = x.unit && /%/.test(x.unit) ? x.now - x.prev : x.prev === 0 ? null : (x.now / x.prev - 1) * 100;
-    items.push({ k: 'a:' + x.id, label: x.metric, unit: x.unit, pillar: x.pillar, dir: x.better, prev: x.prev, now: x.now, change: ch == null ? null : Math.round(ch * 10) / 10, kind: x.unit && /%/.test(x.unit) ? 'points' : 'pct', better: ch == null || Math.abs(ch) < 0.05 ? 'same' : (x.better === 'lower' ? ch < 0 : ch > 0) ? 'better' : 'worse', own: true }); });
+    items.push({ k: 'a:' + x.id, label: x.metric, unit: x.unit, pillar: x.pillar, dir: x.better, prev: x.prev, now: x.now, change: ch == null ? null : Math.round(ch * 10) / 10, kind: x.unit && /%/.test(x.unit) ? 'points' : 'pct', better: judge(x.prev, x.now, ch, x.better), own: true }); });
   const idx = (A.index || []).find((x) => x.fy === now.fy) || {}, tr = ((A.target || {}).track || []).find((x) => x.fy === now.fy) || {};
+  if (!prev) return { now: now.label, prev: null, items, note: 'No earlier full year for this organisation yet: the history-based measures show from next year (or add last year\'s months in the Sustainability vault). Measures with last year\'s figure in the Achievements register are compared already.' };
   return { now: now.label, prev: prev.label, items, improved: items.filter((x) => x.better === 'better').length, worse: items.filter((x) => x.better === 'worse').length, index: idx.value ?? null, indexYoy: idx.yoy ?? null, target: tr.status || '', targetGap: tr.gap ?? null };
 }
 // 🇺🇳 the 17 UN Sustainable Development Goals: covered by default in every statement and report
@@ -715,7 +719,7 @@ export async function writeDoc(id, kind, lang, by) {
   if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.' };
   try { await checkLimit(); } catch (err) { return { error: err.message }; }
   const PARTS = kind === 'report' ? REPORT : STATEMENT, F = facts(e), PG = await progress(e).catch(() => null);
-  F.results.progress_vs_previous_year = PG && PG.prev ? { previous_year: PG.prev, this_year: PG.now, improved: PG.improved, worse: PG.worse, esg_progress_index: PG.index, index_change_pct: PG.indexYoy, target_path: PG.target || undefined, measures: PG.items.map((x) => ({ measure: x.label, pillar: x.pillar, unit: x.unit, previous: x.prev, now: x.now, change: x.change == null ? null : x.change + (x.kind === 'points' ? ' points' : '%'), result: x.better })) } : 'No previous year to compare with yet';
+  F.results.progress_vs_previous_year = PG && (PG.prev || PG.items.length) ? { previous_year: PG.prev || 'from the Achievements register only', this_year: PG.now, improved: PG.improved, worse: PG.worse, esg_progress_index: PG.index, index_change_pct: PG.indexYoy, target_path: PG.target || undefined, measures: PG.items.map((x) => ({ measure: x.label, pillar: x.pillar, unit: x.unit, previous: x.prev, now: x.now, change: x.change == null ? null : x.change + (x.kind === 'points' ? ' points' : '%'), result: x.better })) } : 'No previous year to compare with yet';
   const budget = cap(kind), inTok = Math.ceil(JSON.stringify(F).length / 3.6) + 900;
   const perOut0 = Math.floor((budget - PARTS.length * inTok) / PARTS.length), perOut = Math.max(3000, Math.min(8000, Math.floor((budget - PARTS.length * inTok) / PARTS.length)));
   if (perOut0 < 3000) return { error: 'There is too much data for the AI budget of ' + budget.toLocaleString('en-AU') + ' tokens (' + PARTS.length + ' parts need about ' + (PARTS.length * (inTok + 3000)).toLocaleString('en-AU') + '). Raise AI_ESG_' + (kind === 'report' ? 'MAX' : 'STATEMENT') + '_TOKENS, or shorten the long text fields.' };

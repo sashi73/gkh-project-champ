@@ -147,6 +147,7 @@
     var src = S.source; S.source = '';
     S.saving = api('esgSave', { id: id, rev: ent.rev, patch: patch, source: src || undefined }).then(function (d) {
       keys.forEach(function (k) { if (!S.parts[k]) ent[k] = d.entity[k]; });   // keep anything typed while it saved
+      delete PROG[id]; if (V.e === ent && V.tab === 'achieve') loadProg(id).then(function () { var L0 = $('#esgLive'); if (L0 && V.tab === 'achieve' && V.e === ent) L0.innerHTML = progSummary(); });   // progress follows every save
       ent.rev = d.entity.rev; ent.log = d.entity.log; if (!S.parts.bills) ent.bills = d.entity.bills; if (!S.parts.efsrc) ent.efsrc = d.entity.efsrc; ent.updated = d.entity.updated; ent.docs = d.entity.docs; ent.insights = d.entity.insights;
       if (V.e === ent) { V.calc = d.calc; if (d.cover) V.cover = d.cover; say('✓ Saved'); refresh(); }
       S.saving = null; return Object.keys(S.parts).length ? saveNow(id) : null;
@@ -512,16 +513,17 @@
   var numIn = function (attr, k, v, unit) { return '<span class="esg-in"><input type="number" step="any" ' + attr + '="' + k + '" value="' + esc(v == null ? '' : v) + '">' + (unit ? '<i>' + esc(unit) + '</i>' : '') + '</span>'; };
   /* ---------- 🏁 achievements and progress against the previous year: "we did", visible in every pillar of both documents ---------- */
   var PROG = {};   // report id → { progress, kpis } from the server (the previous full year comes from the organisation's earlier report or the vault)
-  function loadProg(id) { return api('esgProgress', { id: id }).then(function (d) { PROG[id] = d; return d; }, function () { PROG[id] = { progress: null, kpis: [] }; return PROG[id]; }); }
+  function loadProg(id) { return api('esgProgress', { id: id }).then(function (d) { PROG[id] = d; return d; }, function () { PROG[id] = { progress: null, kpis: [], failed: true }; return PROG[id]; }); }   // a failed lookup is never read as 'no earlier year'
   var PILN = { C: 'Climate and emissions', E: 'Environment', S: 'Social', G: 'Governance' };
   function chg(x) { if (x.change == null) return 'New'; if (Math.abs(x.change) < 0.05) return 'No change'; return (x.change > 0 ? 'Up ' : 'Down ') + nf(Math.abs(x.change), 1) + (x.kind === 'points' ? ' pts' : '%'); }
   function progSummary() {
     var P = (PROG[V.e.id] || {}).progress;
     if (!PROG[V.e.id]) return '<h3>Progress against last year</h3><p class="muted">Working it out…</p>';
+    if (PROG[V.e.id].failed) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">The comparison could not be loaded just now. Open this tab again to retry.</p>';
     if (!P) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">Name the organisation and the reporting year (Organisation tab) and save, so this year can be matched with the previous one.</p>';
-    if (!P.prev) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">' + esc(P.note || 'No previous year yet.') + '</p>';
+    if (!P.prev && !P.items.length) return '<h3>Progress against last year</h3><p class="muted" style="font-size:13px">' + esc(P.note || 'No previous year yet.') + '</p>';
     var by = function (k) { return P.items.filter(function (x) { return x.pillar === k; }); };
-    return '<h3>Progress: ' + esc(P.now) + ' against ' + esc(P.prev) + '</h3><div class="esg-big"><b>' + P.improved + '</b><span>measures improved · ' + P.worse + ' got worse' + (P.indexYoy != null ? ' · ESG Progress Index ' + (P.indexYoy >= 0 ? '+' : '') + P.indexYoy + '%' : '') + '</span></div>' +
+    return '<h3>Progress: ' + esc(P.now) + ' against ' + esc(P.prev || 'last year') + '</h3>' + (P.prev ? '' : '<p class="muted" style="font-size:12.5px">' + esc(P.note || '') + '</p>') + '<div class="esg-big"><b>' + P.improved + '</b><span>measures improved · ' + P.worse + ' got worse' + (P.indexYoy != null ? ' · ESG Progress Index ' + (P.indexYoy >= 0 ? '+' : '') + P.indexYoy + '%' : '') + '</span></div>' +
       Object.keys(PILN).filter(function (k) { return by(k).length; }).map(function (k) { return '<h4 style="margin:12px 0 4px">' + PILN[k] + '</h4><table class="tbl esg-prog"><tbody>' + by(k).map(function (x) {
         return '<tr><td>' + esc(x.label) + '</td><td class="r muted">' + nf(x.prev, 2) + ' → <b>' + nf(x.now, 2) + '</b> <small>' + esc(x.unit || '') + '</small></td><td class="r"><span class="pill t-' + (x.better === 'better' ? 'green' : x.better === 'worse' ? 'red' : '') + '">' + esc(chg(x)) + '</span></td></tr>'; }).join('') + '</tbody></table>'; }).join('') +
       '<p class="muted" style="font-size:12px;margin:10px 0 0">These lead each pillar in the statement and the report, beside your achievements, so readers see what was done before what is planned.</p>';
@@ -545,21 +547,24 @@
       rowList('achieve', L, head, line, ed, 'No achievements recorded yet. Add what was delivered this year, or pick a measure your sector usually reports.') + '</div><div><div class="card" id="esgLive">' + progSummary() + '</div></div></div>';
   }
   // the highlights that open a pillar in the documents: the measures that moved, then what was done (blocks for the document studio)
-  function highlights(pils, small) {
+  function highlights(pils, small, lim) {
     var P = (PROG[V.e.id] || {}).progress, A = (V.e.achieve || []).filter(function (x) { return pils.indexOf(x.pillar) >= 0 && x.what; }), out = [];
-    var M0 = P && P.prev ? P.items.filter(function (x) { return pils.indexOf(x.pillar) >= 0 && x.better !== 'same'; }).sort(function (a, b) { return (a.better === 'better' ? 0 : 1) - (b.better === 'better' ? 0 : 1) || Math.abs(b.change || 0) - Math.abs(a.change || 0); }) : [];
+    var M0 = P ? P.items.filter(function (x) { return pils.indexOf(x.pillar) >= 0 && x.better !== 'same'; }).sort(function (a, b) { return (a.better === 'better' ? 0 : 1) - (b.better === 'better' ? 0 : 1) || Math.abs(b.change || 0) - Math.abs(a.change || 0); }) : [];
     if (!M0.length && !A.length) return out;
     out.push({ t: 'h', text: 'Highlights this year' });
-    if (M0.length) out.push({ t: 'stats', items: M0.slice(0, small ? 3 : 4).map(function (x) { return { v: chg(x), l: (x.short || x.label) + (x.better === 'worse' ? ' (worse)' : '') + ' vs ' + P.prev }; }) });
-    if (A.length) out.push({ t: 'cards', cols: small ? 2 : 3, items: A.slice(0, small ? 4 : 6).map(function (x) { var m = x.metric && x.prev != null && x.prev !== '' && x.now != null && x.now !== '' ? x.metric + ': ' + nf(+x.prev, 2) + ' to ' + nf(+x.now, 2) + (x.unit ? ' ' + x.unit : '') : ''; return { title: x.what, text: [(x.status === 'Done' ? 'Delivered' + (x.when ? ' ' + x.when : '') : 'Under way') + (x.area ? ' · ' + x.area : '') + '.', x.result, m].filter(Boolean).join(' ') }; }) });
+    if (M0.length) out.push({ t: 'stats', items: M0.slice(0, lim ? 2 : small ? 3 : 4).map(function (x) { return { v: chg(x), l: (x.short || x.label) + (x.better === 'worse' ? ' (worse)' : '') + ' vs ' + (P.prev || 'last year') }; }) });
+    if (A.length) out.push({ t: 'cards', cols: small ? 2 : 3, items: A.slice(0, lim ? 2 : small ? 4 : 6).map(function (x) { var m = x.metric && x.prev != null && x.prev !== '' && x.now != null && x.now !== '' ? x.metric + ': ' + nf(+x.prev, 2) + ' to ' + nf(+x.now, 2) + (x.unit ? ' ' + x.unit : '') : ''; return { title: x.what, text: [(x.status === 'Done' ? 'Delivered' + (x.when ? ' ' + x.when : '') : 'Under way') + (x.area ? ' · ' + x.area : '') + '.', x.result, m].filter(Boolean).join(' ') }; }) });
     return out;
   }
+  var D_LIM = 0;
   function yearReview(kind) {
     var P = (PROG[V.e.id] || {}).progress, S = ((V.docs[kind] || {}).sections) || {}, nl = false, small = kind !== 'report', A = (V.e.achieve || []).filter(function (x) { return x.what; });
     var B = [S.year_in_review ? { t: 'p', text: S.year_in_review, noTr: true } : null];
-    if (P && P.prev) {
-      B.push({ t: 'stats', items: [{ v: String(P.improved), l: 'measures improved on ' + P.prev }, { v: String(P.worse), l: 'measures got worse' }, { v: String(A.filter(function (x) { return x.status === 'Done'; }).length), l: 'initiatives delivered' }].concat(P.indexYoy != null ? [{ v: (P.indexYoy >= 0 ? '+' : '') + nf(P.indexYoy, 1) + '%', l: 'GKH ESG Progress Index' + (P.target ? ' · ' + P.target + ' for the target' : '') }] : []) });
-      B.push({ t: 'table', title: P.now + ' against ' + P.prev, head: ['Pillar', 'Measure', P.prev, P.now, 'Change'], rows: P.items.slice(0, small ? 10 : 24).map(function (x) { return [PILN[x.pillar] || '', { t: x.label, b: true }, { t: nf(x.prev, 2) + (x.unit ? ' ' + x.unit : ''), right: true }, { t: nf(x.now, 2) + (x.unit ? ' ' + x.unit : ''), right: true }, { t: chg(x), right: true, rag: x.better === 'better' ? 'G' : x.better === 'worse' ? 'R' : 'A' }]; }) });
+    if (PROG[V.e.id] && PROG[V.e.id].failed) B.push({ t: 'callout', title: 'Comparison not available', text: 'The comparison with the previous year could not be loaded when this document was made. Make the document again to include it.' });
+    else if (P && (P.prev || P.items.length)) {
+      var pv = P.prev || 'Last year';
+      B.push({ t: 'stats', items: [{ v: String(P.items.filter(function (x) { return x.better === 'better'; }).length), l: 'measures improved on ' + pv }, { v: String(P.items.filter(function (x) { return x.better === 'worse'; }).length), l: 'measures got worse' }, { v: String(A.filter(function (x) { return x.status === 'Done'; }).length), l: 'initiatives delivered' }].concat(P.indexYoy != null ? [{ v: (P.indexYoy >= 0 ? '+' : '') + nf(P.indexYoy, 1) + '%', l: 'GKH ESG Progress Index' + (P.target ? ' · ' + P.target + ' for the target' : '') }] : []) });
+      B.push({ t: 'table', title: P.now + ' against ' + pv, head: ['Pillar', 'Measure', pv, P.now, 'Change'], rows: P.items.slice(0, small ? (D_LIM ? 6 : 10) : 24).map(function (x) { return [PILN[x.pillar] || '', { t: x.label, b: true }, { t: nf(x.prev, 2) + (x.unit ? ' ' + x.unit : ''), right: true }, { t: nf(x.now, 2) + (x.unit ? ' ' + x.unit : ''), right: true }, { t: chg(x), right: true, rag: x.better === 'better' ? 'G' : x.better === 'worse' ? 'R' : 'A' }]; }) });
     } else B.push({ t: 'callout', title: 'The first year measured', text: 'There is no earlier year to compare with yet, so this year is the baseline that next year\'s progress will be measured against.' });
     return B.filter(Boolean);
   }
@@ -783,12 +788,17 @@
     } else if (!D._lim) {   // the statement keeps to 10 pages: a few charts, only at full size
       [[/^Environment and climate/, [6, 7, 12, 13]], [/^Social$/, [3, 5, 8, 10]], [/^Governance performance/, [16, 17]], [/^Avoided emissions/, [7, 9, 13]]].forEach(function (x) { strip(x[0], x[1]); });
       add(/^Environment and climate/, [scopes, renew]);
-      { var iL = D.chapters.indexOf(find(/^Message from leadership/)); if (iL >= 0) D.chapters.splice(iL + 1, 0, { no: 0, title: 'The year in review', kicker: 'Progress', blocks: yearReview('statement') }); }
       add(/^Social$/, [gender, safety], 'top');
       add(/^Governance performance/, [pillars], 'top');
       add(/^Material topics/, [matrixImg(X)]);
-      [[/^Environment and climate/, ['C', 'E']], [/^Social$/, ['S']], [/^Governance performance/, ['G']]].forEach(function (x) { first(x[0], highlights(x[1], true)); });   // last, so the highlights open each pillar
+
       var tb2 = trendBlocks(trend, true); if (tb2) add(/^Targets and outlook/, tb2, 'top');
+    }
+    if (!rep) {   // the year in review and each pillar's highlights stay in every version of the statement, compact ones included (shorter when the page limit bites)
+      D_LIM = D._lim || 0;
+      { var iL = D.chapters.indexOf(find(/^Message from leadership/)); if (iL >= 0) D.chapters.splice(iL + 1, 0, { no: 0, title: 'The year in review', kicker: 'Progress', blocks: yearReview('statement') }); }
+      [[/^Environment and climate/, ['C', 'E']], [/^Social$/, ['S']], [/^Governance performance/, ['G']]].forEach(function (x) { first(x[0], highlights(x[1], true, D._lim)); });
+      D_LIM = 0;
     }
     return D;
   }
