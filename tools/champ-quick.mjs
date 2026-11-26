@@ -646,6 +646,18 @@ try {
           sv.status === 200 && order.join('|') === '📈 PERT|🌿 Tree view|🌳 WBS' && tv.fs && tv.svg && tv.keys === 4 && tv.badges >= 5 && tv.crit > 0 && tv.water > 0 && shown.some((x) => /Under way · \d+%/.test(x)) &&
           pt.fs && pt.nodes === 4 && pt.crit === 3 && pt.stats === 5 && /estimates/.test(pt.note) && saved.estO === 2 && saved.estP === 6 && /%$/.test(odds[2] || '') && !errs.length, JSON.stringify([sv.status, order, tv, shown, pt, saved.estO, saved.estP, odds, errs]));
       }
+      // 🌍 the country brings its currency, standards and factors; the industry its material topics; dates are dd/mm/yyyy
+      { const cr = await api('esgCreate', { name: 'Sakura Air Test', year: 'FY2026', industry: 'Airlines', country: 'Japan' }), en = (cr.j || {}).entity || {};
+        await pg.goto(BASE + '/admin/#esg/' + en.id + '/org'); await pg.reload(); await pg.waitForTimeout(2500); await pg.evaluate(() => { const c = document.getElementById('cgPanel'); if (c) c.remove(); });
+        const opts = await pg.evaluate(() => document.querySelectorAll('#esgCountryList option').length);
+        await pg.fill('#ef-org-country', 'Malaysia'); await pg.waitForTimeout(300); await pg.fill('#ef-org-from', '15/07/2025'); await pg.press('#ef-org-from', 'Tab'); await pg.fill('#ef-org-to', '31022026'); await pg.waitForTimeout(300); await pg.press('#ef-org-to', 'Tab'); await pg.waitForTimeout(2500);
+        const ui = await pg.evaluate(() => ({ cur: document.getElementById('ef-org-currency').value, from: document.getElementById('ef-org-from').value, toBad: document.getElementById('ef-org-to').classList.contains('bad') }));
+        const back = (await api('esgGet', { id: en.id })).j.entity || {};
+        ok('Country', '🌍 a country brings its currency, its usual standards (Japan: SSBJ, Malaysia: Bursa, the previous country\'s taken off) and its emission factors; the industry gives its usual material topics starting ratings; dates are typed and shown as dd/mm/yyyy and an impossible date is refused',
+          cr.status === 200 && en.org.currency === 'JPY' && en.std.includes('SSBJ') && !en.std.includes('IFRS_S2') && /^LIB_/.test(en.carbon.fset) && Object.keys(en.mat).length >= 6 && opts >= 150 &&
+          ui.cur === 'MYR' && ui.from === '15/07/2025' && ui.toBad && back.org.currency === 'MYR' && back.org.country === 'Malaysia' && back.std.includes('BURSA') && back.std.includes('IFRS_S2') && !back.std.includes('SSBJ') && back.org.from === '2025-07-15' && !back.org.to && back.carbon.fset === 'MY_EC' && !errs.length,
+          JSON.stringify([cr.status, en.org, en.std, en.carbon && en.carbon.fset, Object.keys(en.mat || {}), opts, ui, back.org, back.std, back.carbon && back.carbon.fset, errs]).slice(0, 2000));
+        await api('esgDelete', { id: en.id }); }
       // 🌿 ESG & Sustainability in a project, its program and the CEO, CSO and CFO views (pesg.mjs)
       { const np = await api('planNewProject', { name: 'Carbon test', client: 'Northside Health', program: 'Green build' }), pc = np.j.core, g0 = (await api('planGet', { core: pc })).j;
         const esg = { fset: 'NGA_AU', act: { diesel: 10000, elec: 100000, greenPct: 20, concrete: 500, steel: 40, air: 20000 }, ef: { concrete: 0.25 }, baseT: 400, capT: 300, fw: ['IFRS_S2', 'SBTI', 'P5'], p5: { 'people.labour': { s: 4, note: 'Local hires' }, 'planet.energy': { s: 2, note: 'Diesel plant' } }, soc: { workers: 40, hours: 50000, lti: 1 }, junk: 1 };

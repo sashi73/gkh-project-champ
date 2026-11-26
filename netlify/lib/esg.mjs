@@ -1,3 +1,4 @@
+import { COUNTRIES, CURRENCIES, COUNTRY_STD, GLOBAL_STD, OWN_ISSB_CODES, countryOf, stdFor } from './countries.mjs';
 // GKH Project Champ: 🌿 ESG & Sustainability reporting (one menu item: Environment · Social · Governance · Reporting).
 // A reporting entity is one organisation for one reporting year. Its data is entered in the E, S and G tabs, scored here,
 // mapped to the reporting standards it chooses (AASB S1/S2, IFRS S1/S2, ESRS/CSRD, GRI, TCFD, SASB, CDP, Bursa Malaysia and more),
@@ -106,7 +107,7 @@ const YN = ['Yes', 'No'], PARTIAL = ['Yes', 'Partly', 'No'];
 export const SECTIONS = [
   { id: 'org', g: 'rep', title: 'Organisation and report', fields: [
     ['name', 'Organisation name', 't'], ['reg', 'Registration number', 't'], ['industry', 'Industry sector', 's', INDUSTRIES], ['country', 'Main country of operation', 't'],
-    ['year', 'Reporting year', 't', null, 'e.g. FY2026'], ['from', 'Period start', 'd'], ['to', 'Period end', 'd'], ['currency', 'Currency', 's', ['AUD', 'MYR', 'SGD', 'NZD', 'USD', 'EUR', 'GBP', 'THB', 'IDR']],
+    ['year', 'Reporting year', 't', null, 'e.g. FY2026'], ['from', 'Period start', 'd'], ['to', 'Period end', 'd'], ['currency', 'Currency', 's', CURRENCIES],
     ['revenue', 'Revenue (millions)', 'n', 'M', 'For emissions intensity'], ['employees', 'Employees (headcount)', 'n'], ['listing', 'Listing', 's', ['Not listed', 'ASX', 'Bursa Malaysia Main Market', 'Bursa Malaysia ACE Market', 'SGX', 'NZX', 'EU regulated market', 'Other']],
     ['boundary', 'Consolidation approach', 's', ['Operational control', 'Financial control', 'Equity share']], ['entities', 'Entities and sites included', 'l'], ['assurance', 'External assurance', 's', ['None yet', 'Limited assurance', 'Reasonable assurance']],
     ['assurer', 'Assurance provider', 't'], ['contact', 'Report contact', 't'], ['about', 'What the organisation does', 'l', null, 'Two or three sentences: products, services, markets']] },
@@ -556,12 +557,19 @@ export async function list() { const i = (await kv.get('esg-index')) || { ents: 
 export async function get(id) { id = String(id || '').replace(/[^A-Z0-9]/gi, '').slice(0, 24); return id ? kv.get('esg:' + id) : null; }
 async function put(e) { await kv.set('esg:' + e.id, e); const c = compute(e); await kv.update('esg-index', (x) => { x.ents = x.ents || {}; x.ents[e.id] = summary(e, c); return x; }, () => ({ ents: {} })); return c; }
 const logIt = (e, by, what) => { e.log = [{ at: Date.now(), by: str(by, 60), what: str(what, 300) }].concat(e.log || []).slice(0, 200); };
+// the factor set for a country: its preset, else the first library set for it, else the IPCC defaults
+export function fsetFor(country) { const pre = { Australia: 'NGA_AU', Malaysia: 'MY_EC', Singapore: 'SG_EMA', Thailand: 'TH_TGO', 'United Kingdom': 'UK_DESNZ', 'New Zealand': 'NZ_MFE', 'United States': 'US_EPA' }[country];
+  if (pre && FACTOR_SETS[pre]) return pre; const lib = Object.keys(FACTOR_SETS).find((k) => FACTOR_SETS[k].group === country); return lib || 'IPCC'; }
+// starting double-materiality ratings for an industry: its usual topics, the first three rated higher (a start for the assessment, not the result)
+export function matFor(industry) { const L = SECTOR_TOPICS[industry] || []; return Object.fromEntries(L.map((k, i) => [k, i < 3 ? { imp: 4, fin: 3 } : i < 6 ? { imp: 3, fin: 3 } : { imp: 3, fin: 2 }])); }
 export async function create(body, by) {
   const org = cleanSection('org', { name: body.name, year: body.year, industry: body.industry, country: body.country, currency: body.currency || 'AUD' });
   if (!org.name) return { error: 'Give the organisation a name' };
-  const e = { id: uid(), rev: 1, created: Date.now(), updated: Date.now(), by: str(by, 60), std: ['IFRS_S2', 'GRI', 'SDG'], mat: {}, avoid: [], credits: [], insights: {}, docs: [], log: [] };
+  // the country brings its currency, its usual standards and its emission factors; the industry brings its usual material topics
+  const cty = countryOf(org.country); if (cty && !body.currency) org.currency = cty[2];
+  const e = { id: uid(), rev: 1, created: Date.now(), updated: Date.now(), by: str(by, 60), std: stdFor(org.country), mat: matFor(org.industry), avoid: [], credits: [], insights: {}, docs: [], log: [] };
   SECTIONS.forEach((s) => { e[s.id] = s.id === 'org' ? org : {}; });
-  e.carbon.fset = { Australia: 'NGA_AU', Malaysia: 'MY_EC', Singapore: 'SG_EMA', Thailand: 'TH_TGO', 'United Kingdom': 'UK_DESNZ', 'New Zealand': 'NZ_MFE', 'United States': 'US_EPA' }[org.country] || 'IPCC';
+  e.carbon.fset = fsetFor(org.country);
   logIt(e, by, 'Reporting entity created: ' + org.name + (org.year ? ' ' + org.year : ''));
   const c = await put(e); return { entity: e, calc: c };
 }

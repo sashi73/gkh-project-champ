@@ -1833,3 +1833,4 @@ html.dark .esg-in i,body.dark .esg-in i,html.dark .esg-dstate,body.dark .esg-dst
 @media (max-width:860px){.pe-p5{grid-template-columns:1fr}.pe-bar{grid-template-columns:1fr 1.4fr 70px}.pe-grid{grid-template-columns:1fr}}
 .pe-card{margin-top:16px}.pe-tbl td,.pe-tbl th{font-size:13px}.pe-price{margin-top:12px}.pe-price summary{cursor:pointer;font-weight:600;font-size:13px}
 .esg-prog td{font-size:12.5px;padding:5px 6px}.esg-prog .r{text-align:right;white-space:nowrap}
+.esg-date{position:relative}.esg-date input[data-dd]{padding-right:44px}.esg-date input.bad{border-color:#D64545!important}.esg-cal{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:16px;padding:4px}.esg-dpick{position:absolute;right:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
