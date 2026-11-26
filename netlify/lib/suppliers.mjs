@@ -141,7 +141,7 @@ export function calc(r) {
 
 // ---------- the buyer's side (the console) ----------
 const listOf = async (key) => (await kv.get('supreq:' + key)) || { list: [] };
-const pub = (r) => { const { tok, ...o } = r; return { ...o, result: r.answers ? calc(r) : null }; };   // never the token's hash
+const pub = (r) => { const { tok, claimed, ...o } = r; return { ...o, result: r.answers ? calc(r) : null }; };   // never the token's hash
 export async function list(key) {
   key = SV.keyOf(key); const v = await SV.get(key); if (!v) return { error: 'Open the vault first', code: 404 };
   return { requests: (await listOf(key)).list.map(pub), questions: QUESTIONS, shareQ: SHARE_Q, levels: LEVELS, frameworks: FRAMEWORKS, policies: POLICIES, countries: COUNTRIES.map((c) => c[0]) };
@@ -180,27 +180,38 @@ export async function sendBack(key, id, msg, by) {
     else { r.status = 'returned'; r.returnMsg = str(msg, 600) || 'Please check your answers.'; r.returnedBy = str(by, 80); r.returnedAt = Date.now(); out = r; } return x; }, { list: [] });
   return err || { request: pub(out) };
 }
-// ✅ accepted: the buyer's share of the supplier's Scope 1 and 2 goes into the vault, spread evenly over the months of the period (never twice)
+// ✅ accepted: the buyer's share of the supplier's Scope 1 and 2 goes into the vault, spread evenly over the months of the period (never twice).
+//   The submission is claimed first ("accepting", with a copy of its answers): while claimed it cannot be sent back or changed,
+//   so the vault and the accepted answers are always the same figures. A claim left by a failed attempt can be taken again after 2 minutes.
 export async function accept(key, id, by) {
-  key = SV.keyOf(key); const L = await listOf(key), r = L.list.find((y) => y.id === id);
-  if (!r) return { error: 'That request is no longer there.', code: 404 };
-  if (r.status === 'accepted') return { error: 'Already accepted: the figures are in the vault.', code: 409 };
-  if (r.status !== 'submitted') return { error: 'The supplier has not submitted the form yet.', code: 409 };
-  const c = calc(r); if (c.alloc == null) return { error: 'There is nothing to add yet: ' + c.notes.join(' '), code: 400 };
-  const months = []; for (let y = Number(r.from.slice(0, 4)), m = Number(r.from.slice(5)); ; m++) { if (m > 12) { m = 1; y++; } const p = y + '-' + String(m).padStart(2, '0'); months.push(p); if (p >= r.to) break; }
-  const each = c.alloc / months.length, sig = 'supplier|' + id; let err = null, added = false;
-  await kv.update('svault:' + key, (x) => {
-    if (!x) { err = { error: 'Open the vault first', code: 404 }; return x; }
-    added = false; x.billSigs = x.billSigs || []; x.records = x.records || [];
-    if (x.billSigs.includes(sig)) return x; x.billSigs.push(sig); added = true;
-    months.forEach((p) => { const i = x.records.findIndex((q) => q.period === p && q.metric === 'scope3.supplierT'), old = i >= 0 ? Number(x.records[i].value) || 0 : 0;
-      const rec = { id: i >= 0 ? x.records[i].id : 'R' + uid(), period: p, metric: 'scope3.supplierT', value: Math.round((old + each) * 10000) / 10000, source: 'Import', note: str(((i >= 0 && x.records[i].note) ? x.records[i].note + ' + ' : '') + r.supplier, 200), file: '', by: str(by, 80), at: Date.now() };
-      if (i >= 0) x.records[i] = rec; else x.records.push(rec); });
-    x.rev = (x.rev || 0) + 1; x.updated = Date.now(); return x;
-  }, () => null);
+  key = SV.keyOf(key); let err = null, snap = null;
+  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === id); err = null; snap = null;
+    if (!r) err = { error: 'That request is no longer there.', code: 404 };
+    else if (r.status === 'accepted') err = { error: 'Already accepted: the figures are in the vault.', code: 409 };
+    else if (r.status === 'accepting' && Date.now() - (r.claimAt || 0) < 120e3) err = { error: 'This reply is being accepted right now. Wait a moment and look again.', code: 409 };
+    else if (r.status !== 'submitted' && r.status !== 'accepting') err = { error: 'The supplier has not submitted the form yet.', code: 409 };
+    else { if (r.status === 'submitted') r.claimed = JSON.parse(JSON.stringify(r.answers || {})); r.status = 'accepting'; r.claimAt = Date.now(); snap = { ...r, answers: r.claimed }; }
+    return x; }, { list: [] });
   if (err) return err;
+  const release = () => kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === id); if (r && r.status === 'accepting') { r.status = 'submitted'; delete r.claimAt; delete r.claimed; } return x; }, { list: [] }).catch(() => {});
+  const c = calc(snap); if (c.alloc == null) { await release(); return { error: 'There is nothing to add yet: ' + c.notes.join(' '), code: 400 }; }
+  const months = []; for (let y = Number(snap.from.slice(0, 4)), m = Number(snap.from.slice(5)); ; m++) { if (m > 12) { m = 1; y++; } const p = y + '-' + String(m).padStart(2, '0'); months.push(p); if (p >= snap.to) break; }
+  const each = c.alloc / months.length, sig = 'supplier|' + id; let added = false; err = null;
+  try {
+    await kv.update('svault:' + key, (x) => {
+      if (!x) { err = { error: 'Open the vault first', code: 404 }; return x; }
+      added = false; x.billSigs = x.billSigs || []; x.records = x.records || [];
+      if (x.billSigs.includes(sig)) return x; x.billSigs.push(sig); added = true;
+      months.forEach((p) => { const i = x.records.findIndex((q) => q.period === p && q.metric === 'scope3.supplierT'), old = i >= 0 ? Number(x.records[i].value) || 0 : 0;
+        const rec = { id: i >= 0 ? x.records[i].id : 'R' + uid(), period: p, metric: 'scope3.supplierT', value: Math.round((old + each) * 10000) / 10000, source: 'Import', note: str(((i >= 0 && x.records[i].note) ? x.records[i].note + ' + ' : '') + snap.supplier, 200), file: '', by: str(by, 80), at: Date.now() };
+        if (i >= 0) x.records[i] = rec; else x.records.push(rec); });
+      x.rev = (x.rev || 0) + 1; x.updated = Date.now(); return x;
+    }, () => null);
+  } catch (e) { await release(); throw e; }
+  if (err) { await release(); return err; }
   let out = null;
-  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const q = x.list.find((y) => y.id === id); if (q) { q.status = 'accepted'; q.accepted = Date.now(); q.acceptedBy = str(by, 80); q.addedT = c.alloc; q.months = months.length; out = q; } return x; }, { list: [] });
+  await kv.update('supreq:' + key, (x) => { x = x || { list: [] }; const q = x.list.find((y) => y.id === id); out = null;
+    if (q && q.status === 'accepting') { q.answers = q.claimed || q.answers; delete q.claimed; delete q.claimAt; q.status = 'accepted'; q.accepted = Date.now(); q.acceptedBy = str(by, 80); q.addedT = c.alloc; q.months = months.length; out = q; } return x; }, { list: [] });
   return { request: out ? pub(out) : null, added, tCO2e: c.alloc, months: months.length };
 }
 
@@ -223,7 +234,7 @@ export async function formSave(t, body) {
   await kv.update('supreq:' + f.key, (x) => { x = x || { list: [] }; const r = x.list.find((y) => y.id === f.r.id); err = null;
     if (!r) { err = { error: 'This request was withdrawn by your customer.', code: 404 }; return x; }
     if (r.status === 'accepted') { err = { error: 'Your customer has already accepted these figures, so they can no longer be changed. Contact them if something is wrong.', code: 409 }; return x; }
-    if (r.status === 'submitted' && !submit) { err = { error: 'These figures are submitted. Your customer can send them back to you if something needs changing.', code: 409 }; return x; }
+    if (r.status === 'submitted' || r.status === 'accepting') { err = { error: 'These figures are submitted. Your customer can send them back to you if something needs changing.', code: 409 }; return x; }
     r.answers = cleanAnswers(body.answers, r.level); r.contact = contact; if (COUNTRIES.some((c) => c[0] === body.country)) r.country = body.country; if (body.currency) r.currency = str(body.currency, 8).toUpperCase();
     r.saved = Date.now(); if (submit) { r.status = 'submitted'; r.submitted = Date.now(); r.returnMsg = ''; } else if (r.status === 'sent') r.status = 'draft';
     out = r; return x; }, { list: [] });

@@ -81,12 +81,12 @@
     return '<div class="row"><input type="number" inputmode="decimal" min="0"' + (q.type === 'pct' ? ' max="100"' : '') + (q.type === 'yr' ? ' min="1950" max="2100" step="1"' : ' step="any"') + ' id="' + id + '" data-q="' + q.id + '" value="' + (v == null ? '' : esc(v)) + '"><span class="unit">' + esc(unit || '') + '</span></div>';
   }
   function draw(f) {
-    F = f; var A = f.answers || {}, locked = f.status === 'submitted' || f.status === 'accepted', secs = [];
+    F = f; var A = f.answers || {}, locked = /^(submitted|accepting|accepted)$/.test(f.status), secs = [];
     f.questions.forEach(function (q) { var s = secs.filter(function (x) { return x.n === q.section; })[0]; if (!s) secs.push(s = { n: q.section, L: [] }); s.L.push(q); });
     $('#hT').textContent = 'ESG data for ' + f.buyer; $('#hS').textContent = f.supplier + ' · ' + mon(f.from) + ' to ' + mon(f.to) + ' · ' + f.levelName + ' level';
     var pillar = function (c) { return /SEDG-E/.test(c) ? 'Environment' : /SEDG-S/.test(c) ? 'Social' : 'Governance'; }, last = '';
     var h = (f.status === 'returned' ? '<div class="note"><b>Your customer sent this back:</b> ' + esc(f.returnMsg) + '</div>' : '') +
-      (f.status === 'submitted' ? '<div class="done"><b>Thank you, submitted.</b> Your customer will review the figures. If something needs changing they will send the form back to you.</div>' : '') +
+      (f.status === 'submitted' || f.status === 'accepting' ? '<div class="done"><b>Thank you, submitted.</b> Your customer will review the figures. If something needs changing they will send the form back to you.</div>' : '') +
       (f.status === 'accepted' ? '<div class="done"><b>Accepted by your customer.</b> These figures are now part of their reporting.</div>' : '') +
       '<div class="card"><h2>About this request</h2><p class="lead">' + esc(f.buyer) + ' is asking its suppliers for environmental, social and governance figures for ' + mon(f.from) + ' to ' + mon(f.to) + '. The questions follow Malaysia\'s Simplified ESG Disclosure Guide for SMEs (SEDG), and each one also counts for the international standards shown under it (GRI, IFRS S1 and S2, the EU VSME standard, the GHG Protocol, CDP and Bursa Malaysia). Answer what you can: a blank is better than a guess.</p>' +
       (f.note ? '<p><b>Note from ' + esc(f.buyer) + ':</b> ' + esc(f.note) + '</p>' : '') + '</div>' +
@@ -115,8 +115,9 @@
     $('#prog').innerHTML = n + ' of ' + T + ' questions answered<i><span style="width:' + Math.round(n / T * 100) + '%"></span></i>'; }
   function send(submit) {
     var b = { action: 'save', submit: submit, answers: answers(), country: $('#cty').value, currency: $('#cur').value, confirm: $('#ok').checked, website: $('#website').value, contact: { name: $('#cn').value, role: $('#cr').value, email: $('#ce').value } };
-    $('#save').disabled = $('#submit').disabled = true; $('#msg').textContent = submit ? 'Submitting…' : 'Saving…';
-    call(b).then(function (f) { draw(f); $('#msg').textContent = submit ? '✓ Submitted' : '✓ Saved. You can come back to this link to finish.'; window.scrollTo(0, 0); }, function (e) { $('#save').disabled = $('#submit').disabled = false; $('#msg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; });
+    var els = [].slice.call(document.querySelectorAll('#main input, #main select, #main textarea')).filter(function (el) { return !el.disabled; }), lock = function (on) { els.forEach(function (el) { el.disabled = on; }); $('#save').disabled = $('#submit').disabled = on; };
+    lock(true); $('#msg').textContent = submit ? 'Submitting…' : 'Saving…';   // nothing can be typed while it saves, so nothing typed is lost
+    call(b).then(function (f) { draw(f); $('#msg').textContent = submit ? '✓ Submitted' : '✓ Saved. You can come back to this link to finish.'; window.scrollTo(0, 0); }, function (e) { lock(false); $('#msg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; });
   }
   $('#save').onclick = function () { send(false); };
   $('#submit').onclick = function () { send(true); };

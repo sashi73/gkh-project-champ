@@ -9,12 +9,12 @@
   var S = { key: '', box: null, d: null };
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], mon = function (p) { return p ? MON[Number(p.slice(5)) - 1] + ' ' + p.slice(0, 4) : ''; };
   var nf = function (v, d) { return v == null || isNaN(v) ? '–' : Number(v).toLocaleString('en-AU', { maximumFractionDigits: d == null ? 1 : d }); };
-  var ST = { sent: ['Link sent', 'grey'], draft: ['Being filled in', 'amber'], submitted: ['Ready to review', 'blue'], returned: ['Sent back', 'amber'], accepted: ['Accepted', 'green'] };
+  var ST = { accepting: ['Being accepted', 'blue'], sent: ['Link sent', 'grey'], draft: ['Being filled in', 'amber'], submitted: ['Ready to review', 'blue'], returned: ['Sent back', 'amber'], accepted: ['Accepted', 'green'] };
   var link = function (t) { return location.origin + '/supplier.html#t=' + t; };
   var close = function () { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); };
 
   function tab(box, key) { S.box = box; S.key = key; return load().catch(function (e) { box.innerHTML = '<div class="card empty">' + esc(e.message || 'Could not open the suppliers') + '</div>'; }); }
-  function load() { return api('supList', { key: S.key }).then(function (d) { S.d = d; draw(); }); }
+  function load() { var k = S.key, bx = S.box; return api('supList', { key: k }).then(function (d) { if (S.key !== k || S.box !== bx || !document.body.contains(bx)) return; S.d = d; draw(); }); }   // a reply for another vault (or a page left behind) is ignored
   function draw() {
     var d = S.d, L = d.requests, tot = L.filter(function (r) { return r.status === 'accepted'; }).reduce(function (a, r) { return a + (r.addedT || 0); }, 0), b = S.box;
     b.className = '';
@@ -68,7 +68,7 @@
       secs.map(function (s) { return '<h4 style="margin:12px 0 4px">' + esc(s.n) + '</h4><table class="tbl"><tbody>' + s.L.map(function (q) { return '<tr><td style="width:55%">' + esc(q.q) + '<div class="muted" style="font-size:11.5px">' + esc(q.code) + ' · ' + esc(q.fw.join(' · ')) + '</div></td><td>' + val(q) + '</td></tr>'; }).join('') + '</tbody></table>'; }).join('') + '</div>' +
       '<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">' + (r.status === 'submitted' ? '<button class="btn btn-gold" type="button" id="spAcc"' + (res.alloc == null ? ' disabled title="Needs Scope 1 or 2 and the share"' : '') + '>✓ Accept: add ' + nf(res.alloc, 2) + ' tCO2e to the vault</button><button class="btn" type="button" id="spBack">Send back with a note</button>' : '') + '<span class="sp"></span><button class="btn" type="button" id="spClose">Close</button></div>');
     document.getElementById('spClose').onclick = close;
-    var ac = document.getElementById('spAcc'); if (ac) ac.onclick = function () { ac.disabled = true; api('supAccept', { key: S.key, id: id }).then(function (z) { close(); toast(nf(z.tCO2e, 2) + ' tCO2e added over ' + z.months + ' months (Data by month › Supplier emissions)'); return load(); }).catch(function (e) { ac.disabled = false; fail(e); }); };
+    var ac = document.getElementById('spAcc'); if (ac) ac.onclick = function () { ac.disabled = true; api('supAccept', { key: S.key, id: id }).then(function (z) { close(); toast(nf(z.tCO2e, 2) + ' tCO2e added over ' + z.months + ' months (Data by month › Supplier emissions)'); if (M.svault && M.svault.reload) M.svault.reload(); return load(); }).catch(function (e) { ac.disabled = false; fail(e); }); };
     var bk = document.getElementById('spBack'); if (bk) bk.onclick = function () {
       M.modal('<h2>Send back to ' + esc(r.supplier) + '</h2><p class="muted" style="margin:4px 0 10px">The supplier sees your note when they open their link, and can change the answers and submit again.</p><div class="form"><label class="full">What should they check?<textarea id="spMsg" rows="3" maxlength="600" placeholder="For example: the electricity figure looks low for a whole year."></textarea></label></div><div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn" type="button" id="spMx">Cancel</button><button class="btn btn-gold" type="button" id="spMgo">Send back</button></div>');
       document.getElementById('spMx').onclick = function () { view(id); };

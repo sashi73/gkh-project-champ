@@ -274,5 +274,5 @@
   }
 
   M.addView('svault', 'Sustainability vault', function (parts) { if (parts[0] && parts[0] !== V.key) { V.A = null; V.fy = null; } return parts[0] ? vaultPage(parts[0], parts[1]) : listPage(); }, 'svault');
-  M.svault = { state: function () { return V; } };   // for tests
+  M.svault = { state: function () { return V; }, reload: function () { return V.key ? load(V.key).catch(function () {}) : Promise.resolve(); } };   // state for tests; reload after a supplier's figures are added   // for tests
 })();

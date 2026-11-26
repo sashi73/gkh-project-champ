@@ -6,7 +6,7 @@ import { cors, json } from '../lib/shared.mjs';
 const hits = new Map();
 function limited(ip) {   // 120 calls an hour per address: plenty for a person filling in a form, and it stops guessing
   const now = Date.now(), list = (hits.get(ip) || []).filter((t) => now - t < 3600e3);
-  list.push(now); hits.set(ip, list); if (hits.size > 5000) hits.clear();
+  list.push(now); if (list.length > 121) list.splice(0, list.length - 121); hits.set(ip, list); if (hits.size > 5000) hits.clear();
   return list.length > 120;
 }
 
