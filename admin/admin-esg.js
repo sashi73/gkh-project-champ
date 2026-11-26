@@ -179,9 +179,12 @@
   function applyCountry(prev, now) {
     var c = ctyOf(now); if (!c) return; var o = V.e.org = V.e.org || {}, said = [];
     if (o.currency !== c[2]) { o.currency = c[2]; var cs = $('#ef-org-currency'); if (cs) cs.value = c[2]; touch('org'); said.push('currency ' + c[2]); }
-    var pc = ctyOf(prev), old = pc ? ((SC.countryStd || {})[pc[1]] || []) : [], add = stdFor(c), cur = (V.e.std || []).filter(function (x) { return old.indexOf(x) < 0 || add.indexOf(x) >= 0; });
+    var pc = ctyOf(prev), old = stdFor(pc), add = stdFor(c), cur = (V.e.std || []).filter(function (x) { return old.indexOf(x) < 0 || add.indexOf(x) >= 0; });
     var nw = add.filter(function (x) { return cur.indexOf(x) < 0; }); if (nw.length || cur.length !== (V.e.std || []).length) { V.e.std = cur.concat(nw); touch('std'); if (nw.length) said.push('standards ' + nw.map(stdShort).join(', ')); }
-    var fs = (SC.countryFset || {})[c[0]], cb = V.e.carbon = V.e.carbon || {}; if (fs && SC.factorSets[fs] && (!cb.fset || cb.fset === ((SC.countryFset || {})[pc && pc[0]]) || cb.fset === 'IPCC')) { cb.fset = fs; var set = SC.factorSets[fs], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; V.e.efsrc = Object.assign({}, V.e.efsrc); Object.keys(m).forEach(function (fk) { cb[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; }); touch('carbon'); touch('efsrc'); said.push('emission factors ' + set.label.split(':')[0]); }
+    var fs = (SC.countryFset || {})[c[0]], cb = V.e.carbon = V.e.carbon || {}; if (fs && SC.factorSets[fs] && (!cb.fset || cb.fset === ((SC.countryFset || {})[pc && pc[0]]) || cb.fset === 'IPCC')) { var oldSet = SC.factorSets[cb.fset] || null; cb.fset = fs; var set = SC.factorSets[fs], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }, kept = 0; V.e.efsrc = Object.assign({}, V.e.efsrc);
+      // only factors still on the old set's values (or blank) change; a factor typed or chosen from the library stays, with its source
+      Object.keys(m).forEach(function (fk) { var src = V.e.efsrc['carbon.' + fk], v0 = cb[fk], own = v0 != null && v0 !== '' && !(src && /^Factor set: /.test(src.label || '')) && !(oldSet && Number(v0) === Number(oldSet[m[fk]])); if (own) { kept++; return; } cb[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; });
+      touch('carbon'); touch('efsrc'); said.push('emission factors ' + set.label.split(':')[0] + (kept ? ' (' + kept + ' of your own kept)' : '')); }
     if (said.length) M.toast('For ' + c[0] + ': ' + said.join(' · '));
   }
   // the industry chosen: its usual material topics get starting ratings, if nothing is rated yet
@@ -194,6 +197,7 @@
   function field(sec, f) {
     var k = f[0], label = f[1], t = f[2], opts = f[3], hint = f[4], v = (V.e[sec] || {})[k], unit = typeof opts === 'string' ? opts : t === 'p' ? '%' : '', id = 'ef-' + sec + '-' + k, ctl;
     var val = v == null ? '' : String(v);
+    if (k === 'country' && V.lastCtyFor !== V.e.id) { V.lastCtyFor = V.e.id; V.lastCty = (ctyOf(val) || [])[0] || ''; }   // the country this report started with
     if (k === 'fset') { var grp = {}, order = []; Object.keys(SC.factorSets).forEach(function (x) { var g0 = SC.factorSets[x].group || 'Presets'; if (!grp[g0]) { grp[g0] = []; order.push(g0); } grp[g0].push(x); });
       order = ['Presets'].concat(order.filter(function (g0) { return g0 !== 'Presets'; }).sort());
       ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose a factor set (' + Object.keys(SC.factorSets).length + ' sets, ' + (order.length - 1) + ' countries)…</option>' + order.map(function (g0) { return '<optgroup label="' + esc(g0 === 'Presets' ? 'Quick presets' : g0) + '">' + grp[g0].map(function (x) { var lb = SC.factorSets[x].label; if (g0 !== 'Presets') lb = lb.replace(new RegExp('^' + g0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ',? ?:?'), '').replace(/^\s*:?\s*/, '') || lb; return '<option value="' + x + '"' + (x === v ? ' selected' : '') + '>' + esc(lb) + '</option>'; }).join('') + '</optgroup>'; }).join('') + '</select>'; }
@@ -1075,7 +1079,7 @@
     });
     b.querySelectorAll('[data-s][data-k]').forEach(function (el) {
       var h = function () { var s = el.getAttribute('data-s'), k = el.getAttribute('data-k'); V.e[s] = V.e[s] || {}; var v = el.value, prevV = V.e[s][k]; if (v === '') delete V.e[s][k]; else V.e[s][k] = v;
-        if (s === 'org' && k === 'country' && ctyOf(v) && v !== prevV) applyCountry(prevV, v);
+        if (s === 'org' && k === 'country') { var rc = ctyOf(v); if (rc && rc[0] !== V.lastCty) { applyCountry(V.lastCty, rc[0]); V.lastCty = rc[0]; } }   // compared with the last country recognised, not each keystroke
         if (s === 'org' && k === 'industry' && v && v !== prevV) applyIndustry(v);
         if (k === 'fset' && SC.factorSets[v]) { var set = SC.factorSets[v], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; V.e.efsrc = Object.assign({}, V.e.efsrc); Object.keys(m).forEach(function (fk) { V.e.carbon[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; var i = $('#ef-carbon-' + fk); if (i) { i.value = set[m[fk]]; i.placeholder = set[m[fk]]; } }); touch('efsrc'); }
         var fk = s + '.' + k; if (V.e.efsrc && V.e.efsrc[fk] && String(V.e.efsrc[fk].value) !== String(v)) { V.e.efsrc = Object.assign({}, V.e.efsrc); V.e.efsrc[fk] = { id: '', label: 'Entered by you', value: v === '' ? null : Number(v) }; touch('efsrc'); var sm = el.closest('label') && el.closest('label').querySelector('.esg-efsrc'); if (sm) sm.textContent = '📚 Entered by you'; }

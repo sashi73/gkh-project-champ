@@ -566,7 +566,7 @@ export async function create(body, by) {
   const org = cleanSection('org', { name: body.name, year: body.year, industry: body.industry, country: body.country, currency: body.currency || 'AUD' });
   if (!org.name) return { error: 'Give the organisation a name' };
   // the country brings its currency, its usual standards and its emission factors; the industry brings its usual material topics
-  const cty = countryOf(org.country); if (cty && !body.currency) org.currency = cty[2];
+  const cty = countryOf(org.country); if (cty) { org.country = cty[0]; if (!body.currency) org.currency = cty[2]; }   // the country's own spelling, so its factors are found
   const e = { id: uid(), rev: 1, created: Date.now(), updated: Date.now(), by: str(by, 60), std: stdFor(org.country), mat: matFor(org.industry), avoid: [], credits: [], insights: {}, docs: [], log: [] };
   SECTIONS.forEach((s) => { e[s.id] = s.id === 'org' ? org : {}; });
   e.carbon.fset = fsetFor(org.country);
