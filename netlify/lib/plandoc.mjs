@@ -49,8 +49,8 @@ export async function write({ core, budgetFacts, lang }, by) {
   const { ctx } = await context(job, plan, 'project management plan: scope schedule cost risk quality communication');
   const F = facts(ctx); if (budgetFacts && typeof budgetFacts === 'object') F.budget = JSON.parse(JSON.stringify(budgetFacts).slice(0, 4000) || '{}');
   // 🌿 ESG and carbon (pesg.mjs): what the project emits and how it scores on P5
-  try { const PE = await import('./pesg.mjs'), x = PE.calc(plan, { BAC: Number((budgetFacts || {}).base) || 0 });
-    F.esg_and_carbon = { method: x.method, factors: x.factorSet, tCO2e: { total: x.total, scope1: x.s1t, scope2: x.s2loc, scope2_market: x.s2mkt, scope3: x.s3t, materials: x.s3.materials }, carbon_budget: x.capT, business_as_usual: x.baseT, reduction_pct: x.reductionPct, over_budget: x.overBudget,
+  try { const PE = await import('./pesg.mjs'), x = PE.calc(plan, { BAC: Number((budgetFacts || {}).base) || 0 }, { s3Off: await PE.s3OffFor(job.core) });
+    F.esg_and_carbon = { method: x.method, factors: x.factorSet, tCO2e: { total: x.total, scope1: x.s1t, scope2: x.s2loc, scope2_market: x.s2mkt, scope3: x.s3Off ? 'not reported: Scope 3 is switched off for this project' : x.s3t, materials: x.s3.materials }, carbon_budget: x.capT, business_as_usual: x.baseT, reduction_pct: x.reductionPct, over_budget: x.overBudget,
       frameworks: x.fw.map((f) => f.name + ' ' + f.pct + '% ready'), climate_risks: x.climateRisks.map((r) => r.title), p5_average: x.p5avg, p5: x.p5.filter((e) => e.s).map((e) => ({ element: e.label, score: e.s, why: e.note, action: e.action })), escalate: x.p5flags, social: { ...x.soc, invest: undefined } };
   } catch (e) { F.esg_and_carbon = 'Not available'; }
   const cap = budget(), perOut = Math.min(8000, Math.floor((cap - 3 * 4500) / 3));

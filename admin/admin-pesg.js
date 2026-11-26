@@ -46,7 +46,7 @@
     var red = x.reductionPct, cap = x.capT;
     return '<div class="pe-tiles">' +
       tile('Total emissions', nf(x.total) + ' <i>tCO2e</i>', esc(x.method), x.measured ? '' : 'amber') +
-      tile('Scope 1 · 2 · 3', nf(x.s1t) + ' · ' + nf(x.s2loc) + ' · ' + nf(x.s3t), x.measured ? 'tCO2e; Scope 1 and 2 are ' + nf(x.s12Share, 0) + '% of it' : 'Add activity data under Carbon') +
+      tile(x.s3Off ? 'Scope 1 · 2 (Scope 3 off)' : 'Scope 1 · 2 · 3', nf(x.s1t) + ' · ' + nf(x.s2loc) + (x.s3Off ? '' : ' · ' + nf(x.s3t)), x.measured ? 'tCO2e; Scope 1 and 2 are ' + nf(x.s12Share, 0) + '% of it' : 'Add activity data under Carbon') +
       tile('Carbon budget', cap ? nf(cap) + ' <i>tCO2e</i>' : 'Not set', cap ? (x.overBudget == null ? 'No measured emissions to compare yet' : x.overBudget ? 'Over budget by ' + nf(x.total - cap) + ' t' : 'Within budget') : 'Set it under Carbon', cap && x.overBudget != null ? (x.overBudget ? 'red' : 'green') : '') +
       tile('Against business as usual', red == null ? '–' : (red >= 0 ? '−' : '+') + nf(Math.abs(red)) + '%', x.baseT ? 'Baseline ' + nf(x.baseT) + ' tCO2e' : 'Set the baseline under Carbon', red == null ? '' : red >= 0 ? 'green' : 'red') +
       tile('P5 impact', x.p5avg == null ? '–' : nf(x.p5avg) + ' <i>/ 5</i>', x.p5scored + ' of ' + x.p5.length + ' elements scored' + (x.p5flags.length ? ' · ' + x.p5flags.length + ' to escalate' : ''), x.p5flags.length ? 'red' : x.p5avg >= 3.5 ? 'green' : '') +
@@ -74,7 +74,7 @@
   var NEED = { ghg: 'fuel and electricity data', s3: 'Scope 3 data (materials, travel, freight or waste)', risk: 'a climate-related risk in the register', target: 'a baseline or carbon budget', p5: 'at least 8 P5 elements scored', mat: 'materials quantities', epd: 'at least one EPD factor for a material', soc: 'workforce or hours worked', gov: 'an approved charter and a baseline' };
   function fwRows() { return X.calc.fw.map(function (f) { return '<div class="pe-fw"><div class="row"><b>' + esc(f.name) + '</b><span class="sp"></span><span class="pill t-' + (f.pct >= 100 ? 'green' : f.pct >= 50 ? 'amber' : 'red') + '">' + f.pct + '% ready</span></div>' + (f.missing.length ? '<small class="muted">Still needs: ' + esc(f.missing.map(function (k) { return NEED[k] || k; }).join('; ')) + '</small>' : '') + '</div>'; }).join(''); }
   function num(path, v, unit, ph, attrs) { return '<span class="esg-in"><input type="number" step="any" min="0" inputmode="decimal" data-pe="' + path + '" value="' + (v == null ? '' : esc(String(v))) + '"' + (ph != null ? ' placeholder="' + esc(String(ph)) + '"' : '') + (attrs || '') + '>' + (unit ? '<i>' + esc(unit) + '</i>' : '') + '</span>'; }
-  function outBox() { var x = X.calc; return 'Total <b>' + nf(x.total) + ' tCO2e</b> · Scope 1 <b>' + nf(x.s1t) + '</b> · Scope 2 <b>' + nf(x.s2loc) + '</b> (market-based ' + nf(x.s2mkt) + ') · Scope 3 <b>' + nf(x.s3t) + '</b>, of which materials <b>' + nf(x.s3.materials) + '</b>'; }
+  function outBox() { var x = X.calc; return 'Total <b>' + nf(x.total) + ' tCO2e</b> · Scope 1 <b>' + nf(x.s1t) + '</b> · Scope 2 <b>' + nf(x.s2loc) + '</b> (market-based ' + nf(x.s2mkt) + ')' + (x.s3Off ? ' · Scope 3 <b>switched off</b>' : ' · Scope 3 <b>' + nf(x.s3t) + '</b>, of which materials <b>' + nf(x.s3.materials) + '</b>'); }
   function carbon() {
     var e = data(), a = e.act, sc = X.schema, groups = {}; sc.act.forEach(function (f) { (groups[f[3]] = groups[f[3]] || []).push(f); });
     var sets = sc.factorSets || [];
@@ -84,7 +84,8 @@
       return '<label>' + esc(f[1]) + num('act.' + k, a[k], f[2], null, f[2] === '%' ? ' max="100"' : '') + (mat ? '<small class="muted">Factor ' + num('ef.' + k, e.ef[k], 'tCO2e/' + f[2], sc.matEf[k]) + '</small>' : '') + '</label>'; }).join('') + '</div></fieldset>'; };
     return '<div class="card"><h3>Carbon: what the project uses</h3><p class="muted" style="font-size:13px;margin:0 0 12px">Type the totals for the project so far (or the forecast for the whole project). Scope 1 is fuel burned on site, Scope 2 is grid electricity, Scope 3 is everything else, including the carbon embodied in materials.</p>' +
       '<div class="esg-form">' + sel + '<label>Business-as-usual baseline' + num('baseT', e.baseT, 'tCO2e') + '<small class="muted">What the project would emit without its carbon measures (the reference design).</small></label><label>Carbon budget' + num('capT', e.capT, 'tCO2e') + '<small class="muted">The most this project may emit, from the organisation\'s target.</small></label></div>' +
-      Object.keys(groups).map(grp).join('') + '<p class="muted" style="font-size:12px">' + esc(sc.matNote) + '</p><div class="pe-out" id="peOut">' + outBox() + '</div></div>';
+      Object.keys(groups).filter(function (g) { return !(X.calc.s3Off && (g === 'Scope 3' || g === 'Materials')); }).map(grp).join('') +
+      (X.calc.s3Off ? '<p class="muted pe-s3off" style="font-size:13px">🌍 Scope 3 is switched off for this project (⚙ Modules on the project), so travel, freight, waste, water and materials are not asked for or counted. Anything entered before is kept: switch it back on and it is all still there.</p>' : '') + '<p class="muted" style="font-size:12px">' + esc(sc.matNote) + '</p><div class="pe-out" id="peOut">' + outBox() + '</div></div>';
   }
   function p5() {
     var e = data(), sc = X.schema, x = X.calc;

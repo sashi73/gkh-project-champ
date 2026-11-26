@@ -87,10 +87,12 @@ export function calc(plan, money = {}, extra = {}) {
   const s3 = { travel: t(a.air, S3.fAir) + t(a.car, S3.fCar) + t(a.hotel, S3.fHotel), freight: t(a.freight, S3.fFreight), waste: (a.landfill || 0) * S3.fLandfill + (a.recycled || 0) * S3.fRecycled, water: t(a.water, S3.fWater), materials: 0 };
   const mats = Object.keys(MAT_EF).map((k) => { const f = e.ef[k] != null ? e.ef[k] : MAT_EF[k]; return { key: k, qty: a[k] || 0, f, epd: e.ef[k] != null, t: (a[k] || 0) * f }; }).filter((m) => m.qty);
   s3.materials = mats.reduce((x, m) => x + m.t, 0);
+  const s3Off = !!extra.s3Off;   // 🔌 Scope 3 switched off for this project (⚙ Modules): its figures are kept but not counted
+  if (s3Off) Object.keys(s3).forEach((k) => { s3[k] = 0; });
   const S1 = Object.values(s1).reduce((x, v) => x + v, 0), S3t = Object.values(s3).reduce((x, v) => x + v, 0), measured = ACT.some(([k, , u]) => u !== '%' && a[k] != null);   // a recorded zero is data too: only a project with no activity values gets the spend estimate
   const BAC = Number(money.BAC) || 0, AC = Number(money.AC) || 0;
   // no activity data yet: a spend-based estimate from the costs (the actual cost so far, and the whole budget), shown as Scope 3 purchased goods and services
-  const est = !measured && (BAC || AC) ? { toDate: r2(AC * SPEND_F / 1000, 1), whole: r2(BAC * SPEND_F / 1000, 1), f: SPEND_F } : null;
+  const est = !measured && !s3Off && (BAC || AC) ? { toDate: r2(AC * SPEND_F / 1000, 1), whole: r2(BAC * SPEND_F / 1000, 1), f: SPEND_F } : null;
   const total = measured ? S1 + s2loc + S3t : est ? est.whole : null;
   const base = e.baseT, red = base > 0 && total != null ? (1 - total / base) * 100 : null;
   // P5: an average per pillar (1 to 5), and the elements scored 1 or 2 (to escalate)
@@ -106,7 +108,7 @@ export function calc(plan, money = {}, extra = {}) {
   const has = { ghg: measured, s3: S3t > 0, risk: climRisks.length > 0, target: base > 0 || e.capT > 0, p5: scored.length >= 8, mat: mats.length > 0, epd: mats.some((m) => m.epd), soc: e.soc.workers != null || e.soc.hours != null, gov: gov.charter && gov.baseline };
   const need = { IFRS_S2: ['ghg', 's3', 'risk', 'target'], TCFD: ['risk', 'target'], SBTI: ['ghg', 'target'], GHGP: ['ghg', 's3'], ISO14064_2: ['ghg', 'target'], PAS2080: ['mat', 'epd', 'target'], P5: ['p5', 'soc', 'gov'], ISC_IS: ['ghg', 'mat', 'soc', 'p5'], GREENSTAR: ['ghg', 'mat'], IFC_PS: ['risk', 'soc', 'gov'] };
   const fw = (Array.isArray(e.fw) ? e.fw : ['IFRS_S2', 'GHGP', 'P5']).map((id) => { const L = need[id] || [], ok = L.filter((k) => has[k]); return { id, name: (PFW.find((x) => x[0] === id) || [])[1] || id, pct: L.length ? Math.round(ok.length / L.length * 100) : 0, missing: L.filter((k) => !has[k]) }; });
-  return { fset, factorSet: F.label, measured, method: measured ? 'Measured activity data' : est ? 'Spend-based estimate (indicative)' : 'No data yet',
+  return { s3Off, fset, factorSet: F.label, measured, method: measured ? 'Measured activity data' : est ? 'Spend-based estimate (indicative)' : 'No data yet',
     s1: Object.fromEntries(Object.entries(s1).map(([k, v]) => [k, r2(v, 2)])), s1t: r2(S1, 2), s2loc: r2(s2loc, 2), s2mkt: r2(s2mkt, 2), s3: Object.fromEntries(Object.entries(s3).map(([k, v]) => [k, r2(v, 2)])), s3t: r2(S3t, 2),
     mats: mats.map((m) => ({ ...m, t: r2(m.t, 2) })), est, total: r2(total, 1), s12Share: measured && total ? r2((S1 + s2loc) / total * 100, 0) : null,
     baseT: base ?? null, capT: e.capT ?? null, reductionPct: r2(red, 1), overBudget: e.capT > 0 && total != null ? total > e.capT : null,
@@ -116,13 +118,17 @@ export function calc(plan, money = {}, extra = {}) {
 }
 
 // 🗂 the whole portfolio (or the projects a login may see), by program, for the CEO, the CSO and the CFO
+// 🔌 the projects with Scope 3 switched off (⚙ Modules, champ-opts)
+export async function s3OffSet() { const o = await kv.get('champ-opts').catch(() => null); return new Set(Object.keys(((o && o.off) || {}).scope3 || {})); }
+export const s3OffFor = async (core) => (await s3OffSet()).has(core);
 export async function portfolio(day, cores, money) {
   const P = await import('./plan.mjs'), PG = await import('./programs.mjs');
   const [cards, plans, reg, cfg] = await Promise.all([P.portfolio(day), P.list(), PG.keyed().catch(() => []), settings()]);
   PG.tagCards(cards, reg);
   const byCore = Object.fromEntries(plans.map((p) => [p.core, p])), mine = cards.filter((c) => (!cores || cores.has(c.core)) && byCore[c.core]);
   const sw = new Set((await Promise.all(mine.map((c) => kv.get('swms:' + c.core).then((d) => (d ? c.core : null), () => null)))).filter(Boolean));   // a saved SWMS document
-  const rows = mine.map((c) => { const x = calc(byCore[c.core], { BAC: c.BAC, AC: c.AC }, { swms: sw.has(c.core) });
+  const off3 = await s3OffSet();
+  const rows = mine.map((c) => { const x = calc(byCore[c.core], { BAC: c.BAC, AC: c.AC }, { swms: sw.has(c.core), s3Off: off3.has(c.core) });
     return { core: c.core, ref: c.ref || '', name: c.name, program: c.program || 'General program', pct: c.pct || 0, BAC: c.BAC || 0, method: x.method, measured: x.measured, total: x.total, s1: x.s1t, s2: x.s2loc, s3: x.measured ? x.s3t : x.est ? x.est.whole : 0,   // a spend-based estimate counts as Scope 3 (purchased goods and services), so the scopes add up to the total
      
       materials: x.s3.materials, intensity: x.intensity, capT: x.capT, overBudget: x.overBudget, reductionPct: x.reductionPct, p5avg: x.p5avg, p5flags: x.p5flags.length, climateRisks: x.climateRisks.length, fw: x.fw.map((f) => ({ id: f.id, pct: f.pct })) }; });
@@ -161,7 +167,7 @@ export async function p5Fill(core, esgIn, lang) {
   const P = await import('./plan.mjs'), { llmJson, checkLimit, usage } = await import('./ai.mjs');
   try { await checkLimit(); } catch (e) { return { error: e.message }; }   // the day's AI allowance
   const plan = await P.get(core); if (!plan) return { error: 'Project not found' };
-  const e = clean(esgIn !== undefined ? esgIn : plan.esg) || { act: {}, ef: {}, p5: {}, soc: {} }, x = calc({ ...plan, esg: e });
+  const e = clean(esgIn !== undefined ? esgIn : plan.esg) || { act: {}, ef: {}, p5: {}, soc: {} }, x = calc({ ...plan, esg: e }, {}, { s3Off: await s3OffFor(core) });
   const todo = P5.filter(([k]) => { const v = e.p5[k] || {}; return !v.note || !v.action || !v.s; }).map(([k, pil, label, hint]) => { const v = e.p5[k] || {}; return { key: k, pillar: pil, element: label, covers: hint, score: v.s || null, why_now: v.note || '', action_now: v.action || '' }; });
   if (!todo.length) return { fill: {}, note: 'Every element already has a score, a reason and an action.' };
   const ch = plan.charter || {}, R = P.rollup(plan, new Date().toISOString().slice(0, 10));

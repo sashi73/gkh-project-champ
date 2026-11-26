@@ -766,7 +766,8 @@
       '<label>What is the project about? <small class="muted">(the AI uses this to draft the plan)</small><textarea name="summary" rows="5" maxlength="4000" placeholder="Objective, scope, constraints, budget, key dates…"></textarea></label>' +
       '<fieldset class="champ-mods"><legend>Optional modules <small class="muted">(you can change these later with ⚙ Modules)</small></legend>' +
       '<label class="mod-row"><span><b>🧱 Bill of Materials (BOM)</b><small>For projects with materials to buy (construction, fit-outs, installs)</small></span><span class="bom-switch"><input type="checkbox" name="bom" checked><span class="bom-slider"></span></span></label>' +
-      '<label class="mod-row"><span><b>🦺 SWMS</b><small>Safe Work Method Statements for high-risk construction work</small></span><span class="bom-switch"><input type="checkbox" name="swms" checked><span class="bom-slider"></span></span></label></fieldset>' +
+      '<label class="mod-row"><span><b>🦺 SWMS</b><small>Safe Work Method Statements for high-risk construction work</small></span><span class="bom-switch"><input type="checkbox" name="swms" checked><span class="bom-slider"></span></span></label>' +
+      '<label class="mod-row"><span><b>🌍 Scope 3 emissions</b><small>Travel, freight, waste, water and materials in the project\'s ESG figures (off: Scope 1 and 2 only)</small></span><span class="bom-switch"><input type="checkbox" name="scope3" checked><span class="bom-slider"></span></span></label></fieldset>' +
       '<div class="actions"><button class="btn btn-gold" type="submit">Create project and plan it →</button></div></form></div>';
     var want = ''; try { want = sessionStorage.getItem('champNewProg') || ''; sessionStorage.removeItem('champNewProg'); } catch (e2) {}
     var pick = $('#champNew').progPick, newBox = $('#champNew .champ-newprog'), newIn = $('#champNew').program, oldBox = $('#champNew .np-old');
@@ -900,7 +901,7 @@
       if (!f.progPick.value) { toast('Choose a program, or create a new one', true); var s0 = f.querySelector('.np-find'); if (s0) s0.focus(); return; }   // 🗂 the program comes first
       if (f.progPick.value === '__new' && !f.program.value.trim()) { toast('Give the new program a name', true); f.program.focus(); return; }
       var b = f.querySelector('button[type=submit]'); b.disabled = true; b.textContent = 'Creating…';
-      api('planNewProject', { loc: LOC, name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked,
+      api('planNewProject', { loc: LOC, name: f.name.value, client: f.client.value, site: f.site.value, phone: f.phone.value, email: f.email.value, summary: f.summary.value, sponsor: f.sponsor.value, manager: f.manager.value, program: f.progPick.value === '__new' ? f.program.value : f.progPick.value, bom: f.bom.checked, swms: f.swms.checked, scope3: f.scope3 ? f.scope3.checked : true,
           docSid: CN.got ? CN.sid : '', brief: CN.got ? CN.got.briefText : '', docStart: CN.got ? CN.got.fields.start : '', docFinish: CN.got ? CN.got.fields.finish : '' })
         .then(function (r) {
           toast('Project ' + r.ref + ' created' + (r.docId ? ': the document is in its Ask AI' : ''));
@@ -1015,7 +1016,7 @@
     return pending.then(function () { return api('planGet', { core: core }); }).then(function (d) {
       if (seq !== planSeq || !planHere(core, d.job)) return;   // a newer page was opened while this one loaded (another plan, another page, or back to the plan before)
       S.plan = null;
-      S.core = d.job.core; S.job = d.job; S.reminders = d.reminders; S.expensesEx = d.expensesEx; S.tab = tab; S.mods = { bom: !d.champ || d.champ.bom !== false, swms: !d.champ || d.champ.swms !== false, change: !d.champ || d.champ.change !== false }; if (S.mods[S.tab] === false) S.tab = 'overview';
+      S.core = d.job.core; S.job = d.job; S.reminders = d.reminders; S.expensesEx = d.expensesEx; S.tab = tab; S.mods = { bom: !d.champ || d.champ.bom !== false, swms: !d.champ || d.champ.swms !== false, change: !d.champ || d.champ.change !== false, scope3: !d.champ || d.champ.scope3 !== false }; if (S.mods[S.tab] === false) S.tab = 'overview';
       if (!d.plan) return chooser();
       S.plan = normalise(d.plan); S.rev = d.plan.rev; S.chain = null; S.away = false; S.bench = d.bench || null; S.isTest = !!d.test;
       loadChain();
@@ -1679,7 +1680,7 @@
     if ($('#modBtn')) $('#modBtn').onclick = function (e) {   // GKH Project Champ: optional modules (BOM, SWMS) on or off
       e.stopPropagation();
       var btn = this, old = document.getElementById('modPop'); if (old) { old.remove(); btn.setAttribute('aria-expanded', 'false'); return; }
-      var L = [['change', '🔁 Change control', 'Changes are reviewed, approved and signed before they go into the plan. Off (small projects): changes are committed straight away'], ['bom', '🧱 BOM / BOQ (Bill of Materials and Quantities)', 'Materials costed and signed off, then added to the costing'], ['swms', '🦺 SWMS', 'Safe Work Method Statements for high-risk construction work']];
+      var L = [['scope3', '🌍 Scope 3 emissions', 'Travel, freight, waste, water and the carbon in materials, counted in the project\'s ESG figures. Off: only Scope 1 and 2 are reported'], ['change', '🔁 Change control', 'Changes are reviewed, approved and signed before they go into the plan. Off (small projects): changes are committed straight away'], ['bom', '🧱 BOM / BOQ (Bill of Materials and Quantities)', 'Materials costed and signed off, then added to the costing'], ['swms', '🦺 SWMS', 'Safe Work Method Statements for high-risk construction work']];
       var pop = document.createElement('div'); pop.id = 'modPop'; pop.className = 'mod-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Modules');
       pop.innerHTML = '<b>Modules for this project</b>' + L.map(function (m) {
         return '<label class="mod-row"><span><b>' + m[1] + '</b><small>' + m[2] + '</small></span><span class="bom-switch"><input type="checkbox" data-mod="' + m[0] + '"' + ((S.mods || {})[m[0]] === false ? '' : ' checked') + '><span class="bom-slider"></span></span></label>';
@@ -1692,7 +1693,7 @@
           var mod = box.getAttribute('data-mod'), on = box.checked; box.disabled = true;
           api('planModuleSet', { core: S.core, mod: mod, on: on }).then(function () {
             S.mods = S.mods || {}; S.mods[mod] = on; if (!on && S.tab === mod) S.tab = 'overview';
-            toast(({ bom: '🧱 BOM / BOQ', swms: '🦺 SWMS', change: '🔁 Change control' }[mod] || mod) + (on ? ' switched on' : ' switched off for this project') + (mod === 'change' && !on ? ': changes are now committed straight away' : ''));
+            toast(({ bom: '🧱 BOM / BOQ', swms: '🦺 SWMS', change: '🔁 Change control', scope3: '🌍 Scope 3 emissions' }[mod] || mod) + (on ? ' switched on' : ' switched off for this project') + (mod === 'change' && !on ? ': changes are now committed straight away' : ''));
             document.removeEventListener('click', shut); render();
           }).catch(function (err) { box.checked = !on; box.disabled = false; fail(err); });
         };

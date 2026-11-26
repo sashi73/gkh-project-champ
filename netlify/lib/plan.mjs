@@ -1094,7 +1094,7 @@ export async function portfolio(day, only = null) {
   }
   return cards;
 }
-export const MODS = ['bom', 'swms', 'change'], MODNAME = { bom: 'Bill of Materials', swms: 'SWMS', change: 'Change control' };
+export const MODS = ['bom', 'swms', 'change', 'scope3'], MODNAME = { bom: 'Bill of Materials', swms: 'SWMS', change: 'Change control', scope3: 'Scope 3 emissions' };
 // champ-opts: { off: { bom: { core: true }, swms: { … } } } (older builds kept bomOff: { core: true })
 export function modulesOf(opts, core) {
   const off = (opts && opts.off) || {}, out = {};

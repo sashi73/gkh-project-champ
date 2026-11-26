@@ -379,7 +379,7 @@ async function handle(req, context) {
         const core = String(body.core || '').slice(0, 40); if (ctx.scope && !ctx.scope.includes(core)) return bad('Not your project.', 403);
         const P = await import('../lib/plan.mjs'), PE = await import('../lib/pesg.mjs'), plan = await P.get(core).catch(() => null); if (!plan) return bad('Project not found', 404);
         const K = await import('../lib/kv.mjs'), sw = await K.get('swms:' + core).catch(() => null);
-        const x = PE.calc({ ...plan, esg: body.esg !== undefined ? body.esg : plan.esg }, { BAC: Number(body.BAC) || 0, AC: Number(body.AC) || 0 }, { swms: !!sw });
+        const x = PE.calc({ ...plan, esg: body.esg !== undefined ? body.esg : plan.esg }, { BAC: Number(body.BAC) || 0, AC: Number(body.AC) || 0 }, { swms: !!sw, s3Off: await PE.s3OffFor(core) });
         if (!U.seesMoney(ctx)) { delete x.intensity; delete x.soc.invest; if (!x.measured) { x.est = null; x.total = null; x.overBudget = null; x.reductionPct = null; x.method = 'No activity data yet'; } }   // no money: no budget-based estimate either
         return out(200, { esg: x, schema: { act: PE.ACT, matEf: PE.MAT_EF, matNote: PE.MAT_NOTE, p5: PE.P5, scale: PE.P5_SCALE, pillars: PE.P5_PILLARS, fw: PE.PFW, spendF: PE.SPEND_F, factorSets: PE.SETS() } });
       }
@@ -710,6 +710,7 @@ async function handle(req, context) {
         if (body.loc && typeof body.loc === 'object') { const L0 = body.loc, cc = clean(L0.cc, 2).toUpperCase(); if (/^[A-Z]{2}$/.test(cc)) { const pl = WCAL.placeOf(cc, clean(L0.st, 24), clean(L0.place, 120)); job = await J.update(core, { loc: { cc: pl.cc, st: pl.st, place: pl.place, town: clean(L0.town, 80), postcode: clean(L0.postcode, 12) } }) || job; } }
         if (body.bom === false) await setModule(core, 'bom', false);     // optional modules chosen on the form
         if (body.swms === false) await setModule(core, 'swms', false);
+        if (body.scope3 === false) await setModule(core, 'scope3', false);
         await A.audit(who, `${J.refFor(job)}: project created (${pname})`);
         return out(200, { core, ref: J.refFor(job), docId });
       }
