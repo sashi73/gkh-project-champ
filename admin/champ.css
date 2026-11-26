@@ -1812,3 +1812,23 @@ html.dark .esg-in i,body.dark .esg-in i,html.dark .esg-dstate,body.dark .esg-dst
 .esg-mx .mx-t{font-size:7.5px;font-weight:500}.esg-mx .mx-q{font-size:7.5px;font-weight:600;opacity:.75}.esg-mx .mx-g{stroke:var(--line,#E2E8F0);stroke-width:.6;stroke-dasharray:2 3}.esg-mx .mx-n{font-size:7.5px;font-weight:700;fill:#fff}
 .mx-key{list-style:none;padding:0;margin:12px 0 0;display:grid;gap:6px}.mx-key li{display:flex;gap:9px;align-items:flex-start;font-size:13px}.mx-key li>b{flex:none;width:20px;height:20px;border-radius:50%;color:#fff!important;font-size:11px;display:grid;place-items:center;background:currentColor}.mx-key li>b.md-E{background:#2E9E6A}.mx-key li>b.md-S{background:#3B6FD8}.mx-key li>b.md-G{background:#D9822B}.mx-key small{display:block;font-size:11.5px}.mx-key .pill{font-size:10.5px;padding:1px 7px}
 .esg-why{margin-top:14px;padding:12px 14px;border-radius:12px;background:rgba(124,92,214,.07);font-size:13px;line-height:1.55}.esg-why p{margin:6px 0 0}
+.esg-stdg{border:1px solid var(--line);border-radius:12px;margin:0 0 10px;padding:0 12px}.esg-stdg>summary{cursor:pointer;padding:11px 0;font-size:14px}.esg-stdg[open]>summary{border-bottom:1px solid var(--line);margin-bottom:10px}.esg-stdg .esg-stds{padding-bottom:12px}
+/* 🌿 ESG & Sustainability in projects and programs (admin-pesg.js) */
+.ptg-esg{--g:#0F8A7E;--gt:rgba(15,138,126,.12)}
+.pe .card{margin-bottom:14px}.pe h3{margin:0 0 10px}
+.pe-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.pe-tile{border:1px solid var(--line);border-left:4px solid #0F8A7E;border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.pe-tile span{font-size:11.5px;font-weight:600;color:var(--muted)}.pe-tile b{font-size:19px;line-height:1.25}.pe-tile b i{font-style:normal;font-size:12px;font-weight:500;color:var(--muted)}.pe-tile small{font-size:11.5px;color:var(--muted);line-height:1.35}
+.pe-tile.t-green{border-left-color:#2E9E6A}.pe-tile.t-amber{border-left-color:#D9822B}.pe-tile.t-red{border-left-color:#D64545}
+.pe-subs{margin:0 0 12px;flex-wrap:wrap}
+.pe-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px}.pe-grid .card{margin:0}
+.pe-bar{display:grid;grid-template-columns:minmax(150px,1.3fr) 2fr 90px;gap:10px;align-items:center;font-size:13px;margin:6px 0}.pe-bar i{height:10px;border-radius:6px;background:var(--line);overflow:hidden;display:block}.pe-bar em{display:block;height:100%;border-radius:6px;background:#0F8A7E}.pe-bar em.s1{background:#B45309}.pe-bar em.s2{background:#2563EB}.pe-bar em.s3{background:#0F8A7E}.pe-bar em.p5{background:#7C5CD6}.pe-bar b{text-align:right;font-weight:600}
+.pe-flag{margin:10px 0 0;padding:8px 10px;border-radius:10px;background:rgba(214,69,69,.09);font-size:13px}
+.pe-fw{padding:8px 0;border-bottom:1px solid var(--line)}.pe-fw:last-child{border-bottom:0}.pe-fw small{display:block;margin-top:3px;font-size:12px}
+.pe-kv td{padding:6px 8px;font-size:13px}.pe-list{margin:6px 0 0;padding-left:18px;font-size:13px;line-height:1.7}
+.pe-fs{border:1px solid var(--line);border-radius:12px;padding:6px 12px 12px;margin:12px 0}.pe-fs legend{font-weight:700;font-size:13px;padding:0 6px}.pe-fs small .esg-in{margin-top:4px}
+.pe-out{margin-top:12px;padding:10px 12px;border-radius:10px;background:rgba(15,138,126,.08);font-size:13.5px}
+.pe-pil{margin:18px 0 6px;font-size:14px}
+.pe-p5{display:grid;grid-template-columns:minmax(200px,1.4fr) minmax(180px,1fr) 1.2fr 1.2fr;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid var(--line)}.pe-p5 small{display:block;font-size:12px}.pe-p5.bad{background:rgba(214,69,69,.06)}
+@media (max-width:860px){.pe-p5{grid-template-columns:1fr}.pe-bar{grid-template-columns:1fr 1.4fr 70px}.pe-grid{grid-template-columns:1fr}}
+.pe-card{margin-top:16px}.pe-tbl td,.pe-tbl th{font-size:13px}.pe-price{margin-top:12px}.pe-price summary{cursor:pointer;font-weight:600;font-size:13px}

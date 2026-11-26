@@ -13,6 +13,7 @@ import * as ACC from './accounts.mjs';
 const FMT_C = ['red', 'amber', 'green', 'blue', 'purple'], FMT_BG = ['yellow', 'green', 'blue', 'pink', 'grey'];
 const fmtOf = (f) => { if (!f || typeof f !== 'object') return undefined; const o = {}; if (f.b) o.b = true; if (f.i) o.i = true; if (f.u) o.u = true; if (FMT_C.includes(f.c)) o.c = f.c; if (FMT_BG.includes(f.bg)) o.bg = f.bg; return Object.keys(o).length ? o : undefined; };
 import { cleanBom } from './bom.mjs';
+import { clean as cleanEsg } from './pesg.mjs';
 
 const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
 const str = (s, max = 300) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim().slice(0, max);
@@ -304,6 +305,7 @@ function clean(p, core) {
     lessons: (Array.isArray(p.lessons) ? p.lessons : []).slice(0, 200).map((l) => (l && typeof l === 'object' ? { id: uid(l.id, 'l'), title: str(l.title, 200), category: str(l.category, 40), phase: str(l.phase, 80),
       impact: l.impact === 'positive' ? 'positive' : 'negative', what: str(l.what, 1500), cause: str(l.cause, 800), rec: str(l.rec, 800), status: ['Draft', 'Agreed'].includes(l.status) ? l.status : 'Draft',
       reuse: l.reuse !== false, source: l.source === 'ai' ? 'ai' : l.source === 'library' ? 'library' : 'manual', from: str(l.from, 120), by: str(l.by, 80), at: Number(l.at) || Date.now() } : null)).filter((l) => l && (l.title || l.what)),
+    esg: cleanEsg(p.esg),   // 🌿 the project's ESG & Sustainability data (pesg.mjs)
     lessonsUsed: (Array.isArray(p.lessonsUsed) ? p.lessonsUsed : []).slice(0, 300).map((x) => str(x, 60)).filter(Boolean),   // library lessons already applied or dismissed here
     dataLang: /^[a-z]{2}$/.test(p.dataLang || '') ? p.dataLang : undefined,
     dataSrcLang: /^[a-z]{2}$/.test(p.dataSrcLang || '') ? p.dataSrcLang : undefined,   // the language the data was first written in
@@ -1119,6 +1121,7 @@ export function stripMoney(plan) {
   for (const t of p.tasks || []) { t.rate = 0; t.actual = 0; delete t.bomx; t.basis = ''; t.mats = []; for (const x of t.subs || []) { delete x.rate; delete x.cost; } }
   delete p.budgetCfg; delete p.bom; delete p.bomLoose; delete p.bomBase; delete p.bomRevs; p.moneyHidden = true;
   if (p.charter) p.charter.budget = 0;
+  if (p.esg && p.esg.soc) delete p.esg.soc.invest;   // 🌿 community investment is money
   if (p.baseline) delete p.baseline.BAC; (p.baselineHist || []).forEach((b) => { delete b.BAC; });
   p.changes = (p.changes || []).map((c) => { const x = { ...c }; delete x.items; delete x.bom; if (x.eval) x.eval = { ...x.eval, cost: '' }; delete x.extra; delete x.cost; return x; });
   return p;
@@ -1129,6 +1132,8 @@ export function keepMoney(before, inc) {
   for (const t of Array.isArray(inc.tasks) ? inc.tasks : []) { const o = old[t && t.id]; if (!o) { if (t) { t.rate = 0; t.actual = 0; } continue; } t.rate = o.rate; t.actual = o.actual; t.basis = o.basis; t.mats = o.mats; t.unit = o.unit; t.qty = o.qty; t.crew = o.crew; t.crewSet = o.crewSet; t.est = o.est; }
   for (const k of ['budgetCfg', 'bom', 'bomLoose', 'baseline', 'baselineHist']) inc[k] = before[k];
   inc.charter = Object.assign({}, inc.charter || {}, { budget: (before.charter || {}).budget });
+  if (inc.esg === undefined && before.esg) inc.esg = before.esg;   // a save without the ESG section keeps it as stored
+  { const inv = ((before.esg || {}).soc || {}).invest; if (inc.esg && typeof inc.esg === 'object') { inc.esg.soc = Object.assign({}, inc.esg.soc || {}); if (inv != null) inc.esg.soc.invest = inv; else delete inc.esg.soc.invest; } }
   const oc = Object.fromEntries((before.changes || []).map((c) => [c.id, c]));
   inc.changes = (Array.isArray(inc.changes) ? inc.changes : []).map((c) => (c && oc[c.id] ? oc[c.id] : c)).concat((before.changes || []).filter((c) => !(inc.changes || []).some((x) => x && x.id === c.id)));
   delete inc.moneyHidden;

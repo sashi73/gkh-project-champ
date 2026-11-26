@@ -357,4 +357,9 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 346 | 1.0.346| 2026-11-26 09:29| esg-sectors| `b5ec319` | ESG documents: any narrative section left out is asked for again and merged; {text} answers are read as text; a section still missing is nam |
 | 347 | 1.0.347| 2026-11-26 09:37| esg-sectors| `4d09505` | ESG documents: the cut-short note stays while cut text remains, and every section still missing after a restore is named |
 | 348 | 1.0.348| 2026-11-26 09:50| esg-sectors| `71f3d23` | ESG documents: tables left out are named too; the quick check answers every key a part asks for |
-| 349 | 1.0.349 | 2026-11-26 09:56 | esg-sectors | _this commit_ | _see git log_ |
+| 349 | 1.0.349| 2026-11-26 09:56| esg-sectors| `191f920` | ESG: wider industry sectors, labelled materiality matrix, every report part written (#166) |
+| 350 | 1.0.350| 2026-11-26 10:13| esg-projects| `02327fd` | ESG: 59 reporting standards in 10 groups with a search (SBTi and less common ones), and ESG & Sustainability for projects and programs: GHG  |
+| 351 | 1.0.351| 2026-11-26 10:36| esg-projects| `e059c8d` | ESG review fixes: standards can be ticked again (search uses its own attribute), PCAF needs a financed-emissions inventory, logins without m |
+| 352 | 1.0.352| 2026-11-26 10:48| esg-projects| `ee0443c` | ESG review: blank activity values are missing (not zero), no carbon budget or baseline signal from estimates for logins without money, a wai |
+| 353 | 1.0.353| 2026-11-26 10:56| esg-projects| `31a5fbf` | ESG review: community investment is hidden from and kept for logins without money, whitespace counts as blank, and the carbon budget tile sa |
+| 354 | 1.0.354 | 2026-11-26 11:03 | esg-projects | _this commit_ | _see git log_ |
