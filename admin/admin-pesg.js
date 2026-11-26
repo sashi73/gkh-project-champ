@@ -88,7 +88,7 @@
   }
   function p5() {
     var e = data(), sc = X.schema, x = X.calc;
-    return '<div class="card"><h3>PMI® GPM® P5™ impact analysis</h3><p class="muted" style="font-size:13px;margin:0 0 12px">Score the project\'s impact on each element from 1 (high negative) to 5 (high positive), say why, and what you will do. An element scored 1 or 2 is flagged to escalate. The P5 Standard looks at People, Planet and Prosperity, and at the project\'s Process and Product.</p>' +
+    return '<div class="card"><div class="row" style="align-items:center;gap:10px"><h3 style="margin:0">PMI® GPM® P5™ impact analysis</h3><span class="sp"></span>' + (M.allowed && !M.allowed('projects', 'edit') ? '' : '<button type="button" class="btn btn-sm btn-gold" id="p5Ai" title="Champ writes the blank reasons and actions from this project\'s data (and suggests a score where there is none). You can change every word.">✨ Fill the blanks with AI</button>') + '</div><p class="muted" style="font-size:13px;margin:8px 0 12px">Score the project\'s impact on each element from 1 (high negative) to 5 (high positive), say why, and what you will do. An element scored 1 or 2 is flagged to escalate. The P5 Standard looks at People, Planet and Prosperity, and at the project\'s Process and Product.</p>' +
       sc.pillars.map(function (pil) { return '<h4 class="pe-pil">' + esc(pil) + (x.p5pillars[pil] != null ? ' <span class="muted">' + nf(x.p5pillars[pil]) + ' / 5</span>' : '') + '</h4>' + sc.p5.filter(function (r) { return r[1] === pil; }).map(function (r) {
         var v = e.p5[r[0]] || {};
         return '<div class="pe-p5' + (v.s && v.s <= 2 ? ' bad' : '') + '"><div><b>' + esc(r[2]) + '</b><small class="muted">' + esc(r[3]) + '</small></div><select data-p5s="' + r[0] + '" aria-label="Impact score for ' + esc(r[2]) + '"><option value="">Not scored</option>' + [1, 2, 3, 4, 5].map(function (n) { return '<option value="' + n + '"' + (v.s === n ? ' selected' : '') + '>' + n + ': ' + esc(sc.scale[n]) + '</option>'; }).join('') + '</select>' +
@@ -118,6 +118,22 @@
       if (i.hasAttribute('data-p5s')) { o.s = Number(i.value) || 0; i.closest('.pe-p5').classList.toggle('bad', o.s > 0 && o.s <= 2); } else if (i.hasAttribute('data-p5n')) o.note = i.value; else o.action = i.value;
       changed('P5 impact analysis'); }; });
     b.querySelectorAll('[data-pefw]').forEach(function (cb) { cb.onchange = function () { var e = data(), cur = Array.isArray(e.fw) ? e.fw.slice() : ['IFRS_S2', 'GHGP', 'P5'], id = cb.getAttribute('data-pefw'); cur = cur.filter(function (x) { return x !== id; }); if (cb.checked) cur.push(id); e.fw = cur; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); changed('ESG frameworks'); }; });
+    var ai = b.querySelector('#p5Ai'); if (ai) ai.onclick = function () {   // ✨ the AI fills only what is blank; the user's own words stay
+      var core = X.core, id = 'p5' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); ai.disabled = true; ai.textContent = '✨ Champ is writing…';
+      var done = function () { ai.disabled = false; ai.textContent = '✨ Fill the blanks with AI'; };
+      fetch('/.netlify/functions/planai-background', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1', 'X-Champ-Lang': (window.ChampI18n && window.ChampI18n.get()) || 'en' }, body: JSON.stringify({ id: id, mode: 'p5Fill', core: core, esg: plan().esg || null }) })
+        .then(function (r) { if (r.status === 401 || r.status === 403) throw new Error('Your session has ended, or you can view this project only.'); if (r.status !== 202 && !r.ok) throw new Error('Could not start the AI (' + r.status + ')'); })
+        .then(function () { var t0 = Date.now(); return new Promise(function (res, rej) { (function go() { setTimeout(function () { api('planAiStatus', { id: id }).then(function (st) { if (st.status === 'done') return res(st.result || {}); if (st.status === 'error') return rej(new Error(st.error || 'The AI could not finish')); if (Date.now() - t0 > 300000) return rej(new Error('The AI is taking too long. Try again.')); go(); }, rej); }, 2500); })(); }); })
+        .then(function (r) {
+          if (C.S.core !== core) return; var e = data(), n = 0, f = r.fill || {};
+          var moved = 0; Object.keys(f).forEach(function (k) { var o = e.p5[k] = e.p5[k] || {}, a = f[k];
+            if (o.s && a.for && o.s !== a.for) { moved++; return; }   // the score was changed while Champ wrote: its reason would describe another score
+            if (a.s && !o.s) { o.s = a.s; n++; } if (a.note && !o.note) { o.note = a.note; n++; } if (a.action && !o.action) { o.action = a.action; n++; } });
+          if (moved) M.toast(moved + ' element(s) were re-scored while Champ wrote, so their reasons were left blank: press the button again for them.');
+          if (n) { changed('P5 reasons and actions (AI)'); M.toast('✨ Champ filled ' + n + ' blanks. Read them through and change anything that is not right.'); } else M.toast(r.note || 'Nothing was left blank.');
+          done(); if (C.S.tab === 'esg' && X.sub === 'p5') draw();
+        }).catch(function (e) { done(); fail(e); });
+    };
     var nt = b.querySelector('[data-pe-note]'); if (nt) nt.oninput = function () { data().note = nt.value; C.dirty('ESG notes'); };
   }
   M.pesgTab = tab;

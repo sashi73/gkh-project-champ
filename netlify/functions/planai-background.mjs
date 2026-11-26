@@ -118,6 +118,14 @@ async function run(req) {
       if (!r.error) await A.audit(session.u, `AI suggested RAID items for ${core} (${r.tokens || 0} tokens)`);
       return ok();
     }
+    if (body.mode === 'p5Fill') {   // 🌿 the P5 impact analysis: reasons and actions for the blank elements (nothing saved: the browser fills them in)
+      await kv.set('aiplan:' + id, { status: 'working', at: Date.now() });
+      const PE = await import('../lib/pesg.mjs'), core = String(body.core || '').slice(0, 40), lang = String(req.headers.get('x-champ-lang') || 'en').slice(0, 5);
+      const r = await PE.p5Fill(core, body.esg, lang).catch((e) => ({ error: e.message }));
+      await kv.set('aiplan:' + id, { result: r.error ? null : r, error: r.error, status: r.error ? 'error' : 'done', at: Date.now() });
+      if (!r.error) await A.audit(session.u, `AI wrote P5 reasons and actions for ${core} (${Object.keys(r.fill || {}).length} elements, ${r.tokens || 0} tokens)`);
+      return ok();
+    }
     if (body.mode === 'lessonsSuggest' || body.mode === 'lessonsReport') {   // 📘 lessons from the project's history, or the 4-page report and the video script
       const L = await import('../lib/lessons.mjs'), core = String(body.core || '').slice(0, 40);
       const r = body.mode === 'lessonsSuggest' ? await L.suggest(core) : await L.report(core, `Admin (${session.u})`);

@@ -28,7 +28,7 @@ const PARTS = [
     '"communication_plan" (6-9 items {"audience":"","information":"","method":"","frequency":"","owner":""}), "stakeholder_engagement" (110-160 words).' },
   { keys: 'C', ask: 'Write: "risk_management" (150-200 words: how risks are identified, scored 1-5 × 1-5, owned, reviewed and escalated, and the top risks for this project), "quality_management" (130-180 words), ' +
     '"quality_checks" (4-8 items {"deliverable":"","standard":"","check":"how and when it is checked"}), "change_control" (110-160 words: how changes are raised, assessed, approved and signed, recorded; mention any change requests in the data), ' +
-    '"procurement" (90-140 words), "governance" (110-160 words), "governance_forums" (3-5 items {"forum":"","members":"","frequency":"","purpose":""}), ' +
+    '"procurement" (90-140 words), "esg_carbon" (160-220 words: how the project manages ESG and carbon: its emissions by scope (mostly CO2) from esg_and_carbon, the carbon budget and business-as-usual baseline, the main reduction measures, how carbon is measured and reported (GHG Protocol, IFRS S2 / AASB S2, the SBTi target), the P5 impact analysis and anything scored 1 or 2, and climate-related risks; if there is no ESG data yet, say what will be measured and when), "carbon_actions" (3-6 items {"action":"","owner":"","when":""} from the data), "governance" (110-160 words), "governance_forums" (3-5 items {"forum":"","members":"","frequency":"","purpose":""}), ' +
     '"closure" (110-160 words: acceptance, handover, benefits, lessons learned, closing the project), "next_steps" (4-6 strings for the next 30 days).' }
 ];
 
@@ -48,6 +48,11 @@ export async function write({ core, budgetFacts, lang }, by) {
   try { await checkLimit(); } catch (e) { return { error: e.message }; }
   const { ctx } = await context(job, plan, 'project management plan: scope schedule cost risk quality communication');
   const F = facts(ctx); if (budgetFacts && typeof budgetFacts === 'object') F.budget = JSON.parse(JSON.stringify(budgetFacts).slice(0, 4000) || '{}');
+  // 🌿 ESG and carbon (pesg.mjs): what the project emits and how it scores on P5
+  try { const PE = await import('./pesg.mjs'), x = PE.calc(plan, { BAC: Number((budgetFacts || {}).base) || 0 });
+    F.esg_and_carbon = { method: x.method, factors: x.factorSet, tCO2e: { total: x.total, scope1: x.s1t, scope2: x.s2loc, scope2_market: x.s2mkt, scope3: x.s3t, materials: x.s3.materials }, carbon_budget: x.capT, business_as_usual: x.baseT, reduction_pct: x.reductionPct, over_budget: x.overBudget,
+      frameworks: x.fw.map((f) => f.name + ' ' + f.pct + '% ready'), climate_risks: x.climateRisks.map((r) => r.title), p5_average: x.p5avg, p5: x.p5.filter((e) => e.s).map((e) => ({ element: e.label, score: e.s, why: e.note, action: e.action })), escalate: x.p5flags, social: { ...x.soc, invest: undefined } };
+  } catch (e) { F.esg_and_carbon = 'Not available'; }
   const cap = budget(), perOut = Math.min(8000, Math.floor((cap - 3 * 4500) / 3));
   const L = LANG[lang] ? lang : 'en', sys = BASE + (L !== 'en' ? ` Write every value in ${LANG[L]} (natural, professional ${LANG[L]}; the JSON keys stay in English; keep PMBOK, PRINCE2, RACI, SPI, CPI, Gantt and product names as they are).` : '');
   const results = await Promise.all(PARTS.map((part) => llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ task: part.ask, project_data: F }) }], { maxTokens: Math.max(2500, perOut), timeoutMs: 240000, temperature: 0.3 })
@@ -65,7 +70,8 @@ export async function write({ core, budgetFacts, lang }, by) {
     communication_plan: arr(d.communication_plan, 10).map((o) => ({ audience: str(o && o.audience, 120), information: str(o && o.information, 300), method: str(o && o.method, 120), frequency: str(o && o.frequency, 80), owner: str(o && o.owner, 100) })).filter((o) => o.audience),
     stakeholder_engagement: str(d.stakeholder_engagement), risk_management: str(d.risk_management), quality_management: str(d.quality_management),
     quality_checks: arr(d.quality_checks, 10).map((o) => ({ deliverable: str(o && o.deliverable, 160), standard: str(o && o.standard, 300), check: str(o && o.check, 300) })).filter((o) => o.deliverable),
-    change_control: str(d.change_control), procurement: str(d.procurement), governance: str(d.governance),
+    change_control: str(d.change_control), procurement: str(d.procurement), governance: str(d.governance), esg_carbon: str(d.esg_carbon),
+    carbon_actions: arr(d.carbon_actions, 8).map((o) => ({ action: str(o && o.action, 300), owner: str(o && o.owner, 100), when: str(o && o.when, 80) })).filter((o) => o.action),
     governance_forums: arr(d.governance_forums, 6).map((o) => ({ forum: str(o && o.forum, 120), members: str(o && o.members, 300), frequency: str(o && o.frequency, 80), purpose: str(o && o.purpose, 300) })).filter((o) => o.forum),
     closure: str(d.closure), next_steps: arr(d.next_steps, 8).map((x) => str(x, 300)).filter(Boolean)
   };

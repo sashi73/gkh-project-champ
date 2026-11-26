@@ -372,4 +372,7 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 361 | 1.0.361| 2026-11-26 20:49| sample-data| `e292920` | Sample data review: a retry finishes a company or project left half-made, a failed lookup stops the load, Programs refreshes only if still o |
 | 362 | 1.0.362| 2026-11-26 21:10| sample-data| `b346dc4` | Quick check: the country test leaves the Scope 1 and 2 tab on its first sub-tab |
 | 363 | 1.0.363| 2026-11-26 21:15| esg-orgform| `a8e8a2c` | ESG organisation: country list, currency and standards by country, topics by industry, dd/mm/yyyy dates (#172) |
-| 364 | 1.0.364 | 2026-11-26 21:33 | sample-auto | _this commit_ | _see git log_ |
+| 364 | 1.0.364| 2026-11-26 21:33| sample-auto| `49f8ad7` | Sample data loads itself into the database once (after the deploy, or within 15 minutes, or at the super user's next sign-in), with no one s |
+| 365 | 1.0.365| 2026-11-26 22:56| p5-ai| `b323131` | P5 impact analysis: ✨ Fill the blanks with AI writes the reason and the action for each element from the project's own data (and suggests a  |
+| 366 | 1.0.366| 2026-11-26 23:00| p5-ai| `f33634d` | Project management plan: a new chapter, ESG and carbon (emissions by scope, carbon budget and baseline, carbon actions, the P5 impact analys |
+| 367 | 1.0.367 | 2026-11-26 23:14 | p5-ai | _this commit_ | _see git log_ |
