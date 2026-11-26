@@ -361,4 +361,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 350 | 1.0.350| 2026-11-26 10:13| esg-projects| `02327fd` | ESG: 59 reporting standards in 10 groups with a search (SBTi and less common ones), and ESG & Sustainability for projects and programs: GHG  |
 | 351 | 1.0.351| 2026-11-26 10:36| esg-projects| `e059c8d` | ESG review fixes: standards can be ticked again (search uses its own attribute), PCAF needs a financed-emissions inventory, logins without m |
 | 352 | 1.0.352| 2026-11-26 10:48| esg-projects| `ee0443c` | ESG review: blank activity values are missing (not zero), no carbon budget or baseline signal from estimates for logins without money, a wai |
-| 353 | 1.0.353 | 2026-11-26 10:56 | esg-projects | _this commit_ | _see git log_ |
+| 353 | 1.0.353| 2026-11-26 10:56| esg-projects| `31a5fbf` | ESG review: community investment is hidden from and kept for logins without money, whitespace counts as blank, and the carbon budget tile sa |
+| 354 | 1.0.354 | 2026-11-26 11:03 | esg-projects | _this commit_ | _see git log_ |
