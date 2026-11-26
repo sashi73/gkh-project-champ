@@ -192,7 +192,7 @@ export async function seed(by, today) {
     if (oe && (oe.org || {}).revenue) { made.skipped.push(C.name); continue; }
     const r = oe ? { entity: oe } : await E.create({ name: C.name, year: C.year, industry: C.industry, country: C.country, currency: C.currency }, by); if (r.error) throw new Error(r.error);
     const patch = { ...C.patch, org: { ...r.entity.org, ...C.patch.org, name: C.name, year: C.year, industry: C.industry, country: C.country, currency: C.currency } };
-    const s = await E.save(r.entity.id, { patch }, by); if (s.error) throw new Error(s.error);
+    const s = await E.save(r.entity.id, { patch, rev: r.entity.rev }, by); if (s.error) throw new Error(s.error);   // refused if someone edited it since it was read
     made.companies.push({ id: r.entity.id, name: C.name });
   }
   // 🗂 the programs and their projects
