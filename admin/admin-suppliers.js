@@ -1,0 +1,79 @@
+/* GKH Project Champ: 🤝 Supplier ESG data (Scope 3), a tab of the Sustainability vault.
+   Send each supplier a private link to a short form based on Malaysia's SEDG (mapped to GRI, IFRS S1/S2, EU VSME, the GHG Protocol,
+   CDP and Bursa Malaysia), review what comes back, and accept it: your share of the supplier's Scope 1 and 2 goes into the vault
+   month by month as Scope 3 Category 1. Server: netlify/lib/suppliers.mjs; the form: /supplier.html. */
+(function () {
+  'use strict';
+  var M = window.MBS; if (!M) return;
+  var api = M.api, esc = M.esc, toast = M.toast, fail = M.fail;
+  var S = { key: '', box: null, d: null };
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], mon = function (p) { return p ? MON[Number(p.slice(5)) - 1] + ' ' + p.slice(0, 4) : ''; };
+  var nf = function (v, d) { return v == null || isNaN(v) ? '–' : Number(v).toLocaleString('en-AU', { maximumFractionDigits: d == null ? 1 : d }); };
+  var ST = { sent: ['Link sent', 'grey'], draft: ['Being filled in', 'amber'], submitted: ['Ready to review', 'blue'], returned: ['Sent back', 'amber'], accepted: ['Accepted', 'green'] };
+  var link = function (t) { return location.origin + '/supplier.html#t=' + t; };
+  var close = function () { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); };
+
+  function tab(box, key) { S.box = box; S.key = key; return load().catch(function (e) { box.innerHTML = '<div class="card empty">' + esc(e.message || 'Could not open the suppliers') + '</div>'; }); }
+  function load() { return api('supList', { key: S.key }).then(function (d) { S.d = d; draw(); }); }
+  function draw() {
+    var d = S.d, L = d.requests, tot = L.filter(function (r) { return r.status === 'accepted'; }).reduce(function (a, r) { return a + (r.addedT || 0); }, 0), b = S.box;
+    b.className = '';
+    b.innerHTML = '<div class="card" style="margin-bottom:12px"><div class="row" style="gap:10px;flex-wrap:wrap;align-items:flex-start"><div style="flex:1;min-width:260px"><h3 style="margin:0 0 4px">🤝 Supplier ESG data (Scope 3)</h3>' +
+      '<p class="muted" style="margin:0;font-size:13px">Send each supplier a private link to a short form. The questions follow Malaysia\'s Simplified ESG Disclosure Guide for SMEs (SEDG: Basic, Intermediate or Advanced), and each answer also counts for GRI, IFRS S1 and S2 (and AASB S2), the EU VSME standard, the GHG Protocol, CDP and Bursa Malaysia. When you accept a reply, your share of the supplier\'s Scope 1 and 2 goes into Data by month as <b>Supplier emissions (your share)</b>, Scope 3 Category 1.</p></div>' +
+      '<button class="btn btn-gold" type="button" id="supNew">＋ Request data from a supplier</button></div>' +
+      (L.length ? '<div class="pkpis" style="margin-top:12px"><div class="card kpi"><div class="k">Suppliers asked</div><div class="v" style="font-size:20px">' + L.length + '</div></div><div class="card kpi"><div class="k">Replies to review</div><div class="v" style="font-size:20px">' + L.filter(function (r) { return r.status === 'submitted'; }).length + '</div></div><div class="card kpi"><div class="k">Accepted into the vault</div><div class="v" style="font-size:20px">' + nf(tot, 2) + ' tCO2e</div></div></div>' : '') + '</div>' +
+      (L.length ? '<div class="card" style="overflow-x:auto"><table class="tbl sup-tbl"><thead><tr><th>Supplier</th><th>Period</th><th>Level</th><th>Status</th><th class="right">Answered</th><th class="right">Your share, tCO2e</th><th></th></tr></thead><tbody>' + L.map(function (r) {
+        var s = ST[r.status] || [r.status, 'grey'], res = r.result;
+        return '<tr data-id="' + esc(r.id) + '"><td><b>' + esc(r.supplier) + '</b><div class="muted" style="font-size:12px">' + esc(r.country) + (r.email ? ' · ' + esc(r.email) : '') + '</div></td><td>' + mon(r.from) + ' to ' + mon(r.to) + '</td><td>' + esc((d.levels.filter(function (l) { return l[0] === r.level; })[0] || [])[1] || r.level) + '</td>' +
+          '<td><span class="pill t-' + s[1] + '">' + esc(s[0]) + '</span></td><td class="right">' + (res ? res.answered + ' of ' + res.asked : '–') + '</td><td class="right">' + (res && res.alloc != null ? nf(res.alloc, 2) : '–') + '</td>' +
+          '<td class="right" style="white-space:nowrap">' + (r.answers ? '<button class="btn btn-sm" type="button" data-view="' + esc(r.id) + '">' + (r.status === 'submitted' ? 'Review' : 'View') + '</button> ' : '') + (r.status !== 'accepted' ? '<button class="btn btn-sm" type="button" data-link="' + esc(r.id) + '">New link</button> <button class="btn btn-sm" type="button" data-del="' + esc(r.id) + '" aria-label="Delete the request to ' + esc(r.supplier) + '">🗑</button>' : '') + '</td></tr>'; }).join('') + '</tbody></table></div>'
+        : '<div class="card empty" style="padding:26px">No supplier requests yet. Start with your biggest suppliers: they usually make up most of your Scope 3.</div>');
+    b.querySelector('#supNew').onclick = newReq;
+    b.querySelectorAll('[data-view]').forEach(function (x) { x.onclick = function () { view(x.getAttribute('data-view')); }; });
+    b.querySelectorAll('[data-link]').forEach(function (x) { x.onclick = function () { M.confirmBox('Make a new link?', 'The old link stops working. The supplier\'s answers so far are kept.', 'Make a new link').then(function (ok) { if (!ok) return; api('supRelink', { key: S.key, id: x.getAttribute('data-link') }).then(function (r) { showLink(byId(x.getAttribute('data-link')), r.token); }).catch(fail); }); }; });
+    b.querySelectorAll('[data-del]').forEach(function (x) { x.onclick = function () { M.confirmBox('Delete this request?', 'Its link stops working and the supplier\'s answers are deleted.', 'Delete', true).then(function (ok) { if (!ok) return; api('supDelete', { key: S.key, id: x.getAttribute('data-del') }).then(function () { toast('Deleted'); return load(); }).catch(fail); }); }; });
+  }
+  var byId = function (id) { return S.d.requests.filter(function (r) { return r.id === id; })[0]; };
+  function newReq() {
+    var d = S.d, now = new Date(), y = now.getFullYear() - 1;
+    M.modal('<h2>＋ Request ESG data from a supplier</h2><p class="muted" style="margin:4px 0 12px">You get a private link to send to the supplier. They need no account.</p><div class="form">' +
+      '<label class="full">Supplier<input id="spN" maxlength="120" placeholder="Company name"></label><label>Contact email (for your records)<input id="spE" type="email" maxlength="120"></label>' +
+      '<label>Country<input id="spC" list="spCs" value="Malaysia"><datalist id="spCs">' + d.countries.map(function (c) { return '<option value="' + esc(c) + '">'; }).join('') + '</datalist></label>' +
+      '<label>First month<input id="spF" type="month" value="' + y + '-01"></label><label>Last month<input id="spT" type="month" value="' + y + '-12"></label>' +
+      '<label>Level<select id="spL">' + d.levels.map(function (l) { return '<option value="' + l[0] + '">' + esc(l[1]) + ' (' + d.questions.filter(function (q) { return ({ basic: 1, intermediate: 2, advanced: 3 })[q.level] <= ({ basic: 1, intermediate: 2, advanced: 3 })[l[0]]; }).length + ' questions)</option>'; }).join('') + '</select></label>' +
+      '<label>Currency<input id="spCur" maxlength="8" placeholder="MYR"></label><label class="full">Note to the supplier (optional)<textarea id="spNote" maxlength="600" rows="2"></textarea></label></div>' +
+      '<p class="muted" style="font-size:12.5px">Basic suits most small suppliers. Intermediate and Advanced add reductions, waste streams, diversity, training, and Scope 3.</p><div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn" type="button" id="spX">Cancel</button><button class="btn btn-gold" type="button" id="spGo">Make the link</button></div>');
+    document.getElementById('spX').onclick = close;
+    document.getElementById('spGo').onclick = function () { var g = function (i) { return document.getElementById(i).value; }, bt = this; bt.disabled = true;
+      api('supCreate', { key: S.key, supplier: g('spN'), email: g('spE'), country: g('spC'), from: g('spF'), to: g('spT'), level: g('spL'), currency: g('spCur'), note: g('spNote') }).then(function (r) { S.d.requests.unshift(r.request); showLink(r.request, r.token); }).catch(function (e) { bt.disabled = false; fail(e); }); };
+  }
+  function showLink(r, token) {
+    var u = link(token), subj = 'ESG data request from ' + (M.svault && M.svault.state().A ? M.svault.state().A.name : 'us'), body = 'Hello,\n\nPlease fill in our short ESG data form for ' + mon(r.from) + ' to ' + mon(r.to) + ':\n' + u + '\n\nIt follows Malaysia\'s Simplified ESG Disclosure Guide (SEDG). You can save it and finish later.\n\nThank you';
+    M.modal('<h2>🔗 The link for ' + esc(r.supplier) + '</h2><p class="muted" style="margin:4px 0 10px">Send it to the supplier. Anyone with the link can open this form, so send it only to them. You can make a new link at any time (the old one then stops working).</p>' +
+      '<input id="spLink" readonly value="' + esc(u) + '" style="width:100%" aria-label="The supplier\'s link"><div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-gold" type="button" id="spCopy">Copy the link</button>' +
+      (r.email ? '<a class="btn" id="spMail" href="mailto:' + encodeURIComponent(r.email) + '?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body) + '">✉ Write the email</a>' : '') + '<span class="sp"></span><button class="btn" type="button" id="spDone">Done</button></div>');
+    document.getElementById('spCopy').onclick = function () { var i = document.getElementById('spLink'); i.select(); (navigator.clipboard ? navigator.clipboard.writeText(u) : Promise.reject()).then(function () { toast('Link copied'); }, function () { document.execCommand('copy'); toast('Link copied'); }); };
+    document.getElementById('spDone').onclick = function () { close(); load().catch(fail); };
+  }
+  function view(id) {
+    var r = byId(id), d = S.d, a = r.answers || {}, res = r.result || {}, secs = [];
+    d.questions.filter(function (q) { return ({ basic: 1, intermediate: 2, advanced: 3 })[q.level] <= ({ basic: 1, intermediate: 2, advanced: 3 })[r.level]; }).forEach(function (q) { var s = secs.filter(function (x) { return x.n === q.section; })[0]; if (!s) secs.push(s = { n: q.section, L: [] }); s.L.push(q); });
+    var val = function (q) { var v = a[q.id]; if (v == null || v === '' || (Array.isArray(v) && !v.length)) return '<span class="muted">Not answered</span>'; if (Array.isArray(v)) return esc(v.join(', ')); if (typeof v === 'number') return nf(v, 3) + ' ' + esc(q.unit === 'money' ? r.currency || '' : q.unit); return esc(v).replace(/\n/g, '<br>'); };
+    var fw = Object.keys(res.fw || {}).map(function (k) { var f = res.fw[k], n = (d.frameworks.filter(function (x) { return x[0] === k; })[0] || [k, k])[1]; return '<span class="pill">' + esc(n) + ': ' + f.answered + ' of ' + f.asked + '</span>'; }).join(' ');
+    M.modal('<h2>' + esc(r.supplier) + ' · ' + mon(r.from) + ' to ' + mon(r.to) + '</h2><p class="muted" style="margin:4px 0 10px">' + (r.contact && r.contact.name ? 'Answered by ' + esc(r.contact.name) + (r.contact.role ? ', ' + esc(r.contact.role) : '') + (r.contact.email ? ' (' + esc(r.contact.email) + ')' : '') + '. ' : '') + esc(r.country) + ' · ' + res.answered + ' of ' + res.asked + ' questions answered.</p>' +
+      '<div class="pkpis"><div class="card kpi"><div class="k">Scope 1</div><div class="v" style="font-size:18px">' + nf(res.s1, 2) + ' t</div></div><div class="card kpi"><div class="k">Scope 2</div><div class="v" style="font-size:18px">' + nf(res.s2, 2) + ' t</div></div><div class="card kpi"><div class="k">Your share of their sales</div><div class="v" style="font-size:18px">' + (res.share == null ? '–' : nf(res.share, 1) + '%') + '</div></div><div class="card kpi"><div class="k">Into your Scope 3</div><div class="v" style="font-size:18px">' + nf(res.alloc, 2) + ' t</div></div></div>' +
+      '<ul class="muted" style="font-size:12.5px;margin:8px 0">' + (res.notes || []).map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + (res.upstreamS3 != null ? '<li>Their own Scope 3, your share: ' + nf(res.upstreamS3, 2) + ' tCO2e (shown, not added).</li>' : '') + '<li>If this supplier\'s spend is also in Purchased goods and services (spend), take it out there so it is not counted twice.</li></ul>' +
+      '<div style="margin:6px 0 10px">' + fw + '</div><div style="max-height:46vh;overflow:auto;border:1px solid var(--line,#e5e5e5);border-radius:8px;padding:4px 12px">' +
+      '<h4 style="margin:10px 0 4px">Share</h4><table class="tbl"><tbody><tr><td>Revenue</td><td class="right">' + nf(a.revenue, 0) + ' ' + esc(r.currency || '') + '</td></tr><tr><td>Sales to you</td><td class="right">' + nf(a.sales, 0) + ' ' + esc(r.currency || '') + '</td></tr></tbody></table>' +
+      secs.map(function (s) { return '<h4 style="margin:12px 0 4px">' + esc(s.n) + '</h4><table class="tbl"><tbody>' + s.L.map(function (q) { return '<tr><td style="width:55%">' + esc(q.q) + '<div class="muted" style="font-size:11.5px">' + esc(q.code) + ' · ' + esc(q.fw.join(' · ')) + '</div></td><td>' + val(q) + '</td></tr>'; }).join('') + '</tbody></table>'; }).join('') + '</div>' +
+      '<div class="row" style="gap:8px;margin-top:12px;flex-wrap:wrap">' + (r.status === 'submitted' ? '<button class="btn btn-gold" type="button" id="spAcc"' + (res.alloc == null ? ' disabled title="Needs Scope 1 or 2 and the share"' : '') + '>✓ Accept: add ' + nf(res.alloc, 2) + ' tCO2e to the vault</button><button class="btn" type="button" id="spBack">Send back with a note</button>' : '') + '<span class="sp"></span><button class="btn" type="button" id="spClose">Close</button></div>');
+    document.getElementById('spClose').onclick = close;
+    var ac = document.getElementById('spAcc'); if (ac) ac.onclick = function () { ac.disabled = true; api('supAccept', { key: S.key, id: id }).then(function (z) { close(); toast(nf(z.tCO2e, 2) + ' tCO2e added over ' + z.months + ' months (Data by month › Supplier emissions)'); return load(); }).catch(function (e) { ac.disabled = false; fail(e); }); };
+    var bk = document.getElementById('spBack'); if (bk) bk.onclick = function () {
+      M.modal('<h2>Send back to ' + esc(r.supplier) + '</h2><p class="muted" style="margin:4px 0 10px">The supplier sees your note when they open their link, and can change the answers and submit again.</p><div class="form"><label class="full">What should they check?<textarea id="spMsg" rows="3" maxlength="600" placeholder="For example: the electricity figure looks low for a whole year."></textarea></label></div><div class="row" style="justify-content:flex-end;gap:8px;margin-top:10px"><button class="btn" type="button" id="spMx">Cancel</button><button class="btn btn-gold" type="button" id="spMgo">Send back</button></div>');
+      document.getElementById('spMx').onclick = function () { view(id); };
+      document.getElementById('spMgo').onclick = function () { var bt = this; bt.disabled = true; api('supReturn', { key: S.key, id: id, msg: document.getElementById('spMsg').value }).then(function () { close(); toast('Sent back. The supplier sees your note when they open their link.'); return load(); }).catch(function (e) { bt.disabled = false; fail(e); }); };
+    };
+  }
+  M.supTab = tab;
+})();

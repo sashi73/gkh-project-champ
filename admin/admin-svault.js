@@ -41,7 +41,7 @@
   }
 
   /* ---------- one vault ---------- */
-  var TABS = [['performance', '📈 Performance'], ['data', '📅 Data by month'], ['evidence', '📎 Evidence'], ['target', '🎯 Target and settings']];
+  var TABS = [['performance', '📈 Performance'], ['data', '📅 Data by month'], ['evidence', '📎 Evidence'], ['suppliers', '🤝 Suppliers'], ['target', '🎯 Target and settings']];
   function vaultPage(key, tab) {
     V.tab = TABS.some(function (t) { return t[0] === tab; }) ? tab : 'performance';
     var go = function () { draw(); };
@@ -65,7 +65,7 @@
       tile('Target', lt && lt.status ? lt.status : T.tgtPct != null ? 'Set' : 'Not set', T.tgtPct != null ? '−' + T.tgtPct + '% by ' + (T.tgtYear || '?') + (T.needPct != null ? ' · needs −' + T.needPct + '% a year' : '') : 'Set it in Target and settings', lt ? rag(lt.status) : 'grey') +
       tile('Data gathered ' + fyLabel(fyNow), got + ' of 12 months', nf(R.filter(function (r) { return mNow.indexOf(r.period) >= 0; }).length) + ' values · ' + nf(((A.vault && A.vault.docs) || []).filter(function (d) { return mNow.indexOf(d.period) >= 0; }).length) + ' files', got >= 9 ? 'green' : got >= 4 ? 'amber' : 'grey');
   }
-  function body() { var b = $('#svBody'); b.innerHTML = V.tab === 'data' ? dataTab() : V.tab === 'evidence' ? evidenceTab() : V.tab === 'target' ? targetTab() : perfTab(); wire(b); }
+  function body() { var b = $('#svBody'); if (V.tab === 'suppliers') { b.innerHTML = '<div class="empty" id="supBox">Opening the suppliers…</div>'; if (M.supTab) M.supTab($('#supBox'), V.key); return; } b.innerHTML = V.tab === 'data' ? dataTab() : V.tab === 'evidence' ? evidenceTab() : V.tab === 'target' ? targetTab() : perfTab(); wire(b); }
   function say(t) { var s = $('#svSaved'); if (s) s.textContent = t; }
 
   /* ---------- 📈 performance ---------- */

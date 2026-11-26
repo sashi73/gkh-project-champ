@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Supplier ESG data · GKH Project Champ</title>
+<link rel="icon" href="/assets/favicon-32.png">
+<style>
+  :root { --ink: #16302a; --muted: #5d6f69; --line: #dfe7e3; --paper: #f6f8f7; --acc: #0f7a5c; --acc2: #e8f4ef; --warn: #fff6e0; --bad: #b42318; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: var(--paper); }
+  header { background: var(--ink); color: #fff; padding: 22px 20px 26px; }
+  header .in, main { max-width: 860px; margin: 0 auto; }
+  header small { color: #a9cfc1; font-weight: 600; letter-spacing: .02em; }
+  header h1 { margin: 6px 0 4px; font-size: 26px; line-height: 1.2; }
+  header p { margin: 0; color: #d4e6df; }
+  main { padding: 18px 16px 60px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px 18px 6px; margin-bottom: 14px; }
+  .card h2 { font-size: 18px; margin: 0 0 4px; }
+  .card > p.lead { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+  .q { padding: 12px 0; border-top: 1px solid var(--line); }
+  .q:first-of-type { border-top: 0; }
+  .q label.t { display: block; font-weight: 600; margin-bottom: 6px; }
+  .q .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .q input[type=number], .q input[type=text], .q select, .q textarea, .f input, .f select { font: inherit; padding: 9px 11px; border: 1px solid #c9d6d1; border-radius: 8px; background: #fff; color: var(--ink); }
+  .q input[type=number] { width: 200px; }
+  .q textarea { width: 100%; min-height: 70px; }
+  .q input[type=text] { width: 100%; max-width: 420px; }
+  .unit { color: var(--muted); font-size: 14px; }
+  .tags { margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .tags b { display: inline-block; background: var(--acc2); color: var(--acc); border-radius: 5px; padding: 1px 6px; margin-right: 6px; font-weight: 700; }
+  .chk { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px 14px; }
+  .chk label { font-weight: 400; display: flex; gap: 8px; align-items: center; }
+  .f { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px 14px; margin-bottom: 12px; }
+  .f label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; font-size: 14px; }
+  .bar { position: sticky; bottom: 0; background: #fff; border-top: 1px solid var(--line); padding: 12px 16px; box-shadow: 0 -6px 18px rgba(0,0,0,.05); }
+  .bar .in { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .prog { flex: 1; min-width: 160px; font-size: 13px; color: var(--muted); }
+  .prog i { display: block; height: 6px; background: var(--line); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .prog i span { display: block; height: 100%; background: var(--acc); }
+  button { font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 16px; border: 1px solid var(--acc); background: #fff; color: var(--acc); cursor: pointer; }
+  button.go { background: var(--acc); color: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #8cd3b8; outline-offset: 1px; }
+  .note { background: var(--warn); border: 1px solid #f1d58a; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .done { background: var(--acc2); border: 1px solid #b6dccb; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; }
+  .err { color: var(--bad); font-weight: 600; }
+  .res { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 12px; }
+  .res div { background: var(--paper); border-radius: 10px; padding: 10px 12px; }
+  .res b { display: block; font-size: 20px; }
+  .res span { font-size: 12.5px; color: var(--muted); }
+  details summary { cursor: pointer; color: var(--acc); font-weight: 600; margin: 4px 0 10px; }
+  footer { text-align: center; color: var(--muted); font-size: 12.5px; padding: 18px; }
+  .hp { position: absolute; left: -9999px; }
+</style>
+</head>
+<body>
+<header><div class="in"><small>Supplier ESG data request</small><h1 id="hT">Loading your form…</h1><p id="hS"></p></div></header>
+<main id="main" aria-live="polite"><div class="card"><p>Loading…</p></div></main>
+<div class="bar" id="bar" hidden><div class="in"><div class="prog" id="prog"></div><span id="msg" role="status"></span><button type="button" id="save">Save and finish later</button><button type="button" class="go" id="submit">Submit to your customer</button></div></div>
+<footer>Made with GKH Project Champ. Your answers go only to the customer who sent you this link.</footer>
+<script>
+(function () {
+  'use strict';
+  var t = (location.hash.match(/t=([A-Za-z0-9_-]+)/) || [])[1] || '', F = null, $ = function (s) { return document.querySelector(s); };
+  var esc = function (s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], mon = function (p) { return p ? MON[Number(p.slice(5)) - 1] + ' ' + p.slice(0, 4) : ''; };
+  var nf = function (v, d) { return v == null ? '–' : Number(v).toLocaleString('en-MY', { maximumFractionDigits: d == null ? 1 : d }); };
+  function call(body) { body.t = t; return fetch('/.netlify/functions/supplier', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || 'Something went wrong'); return j; }); }); }
+  function fail(m) { $('#hT').textContent = 'This form could not open'; $('#hS').textContent = ''; $('#main').innerHTML = '<div class="card"><p class="err">' + esc(m) + '</p><p>If you were sent this link by a customer, ask them to send a new one.</p></div>'; }
+  if (!t) return fail('The link is missing its code. Open it from the email or message your customer sent.');
+  call({ action: 'get' }).then(draw, function (e) { fail(e.message); });
+
+  function input(q, v) {
+    var id = 'q_' + q.id, unit = q.unit === 'money' ? (F.currency || 'in your currency') : q.unit;
+    if (q.type === 'l') return '<textarea id="' + id + '" data-q="' + q.id + '">' + esc(v || '') + '</textarea>';
+    if (q.type === 't') return '<input type="text" id="' + id + '" data-q="' + q.id + '" value="' + esc(v || '') + '">' + (unit ? ' <span class="unit">' + esc(unit) + '</span>' : '');
+    if (q.type === 'multi') return '<div class="chk" role="group" aria-labelledby="l_' + q.id + '">' + F.policies.map(function (p) { return '<label><input type="checkbox" data-multi="' + q.id + '" value="' + esc(p) + '"' + ((v || []).indexOf(p) >= 0 ? ' checked' : '') + '> ' + esc(p) + '</label>'; }).join('') + '</div>';
+    return '<div class="row"><input type="number" inputmode="decimal" min="0"' + (q.type === 'pct' ? ' max="100"' : '') + (q.type === 'yr' ? ' min="1950" max="2100" step="1"' : ' step="any"') + ' id="' + id + '" data-q="' + q.id + '" value="' + (v == null ? '' : esc(v)) + '"><span class="unit">' + esc(unit || '') + '</span></div>';
+  }
+  function draw(f) {
+    F = f; var A = f.answers || {}, locked = f.status === 'submitted' || f.status === 'accepted', secs = [];
+    f.questions.forEach(function (q) { var s = secs.filter(function (x) { return x.n === q.section; })[0]; if (!s) secs.push(s = { n: q.section, L: [] }); s.L.push(q); });
+    $('#hT').textContent = 'ESG data for ' + f.buyer; $('#hS').textContent = f.supplier + ' · ' + mon(f.from) + ' to ' + mon(f.to) + ' · ' + f.levelName + ' level';
+    var pillar = function (c) { return /SEDG-E/.test(c) ? 'Environment' : /SEDG-S/.test(c) ? 'Social' : 'Governance'; }, last = '';
+    var h = (f.status === 'returned' ? '<div class="note"><b>Your customer sent this back:</b> ' + esc(f.returnMsg) + '</div>' : '') +
+      (f.status === 'submitted' ? '<div class="done"><b>Thank you, submitted.</b> Your customer will review the figures. If something needs changing they will send the form back to you.</div>' : '') +
+      (f.status === 'accepted' ? '<div class="done"><b>Accepted by your customer.</b> These figures are now part of their reporting.</div>' : '') +
+      '<div class="card"><h2>About this request</h2><p class="lead">' + esc(f.buyer) + ' is asking its suppliers for environmental, social and governance figures for ' + mon(f.from) + ' to ' + mon(f.to) + '. The questions follow Malaysia\'s Simplified ESG Disclosure Guide for SMEs (SEDG), and each one also counts for the international standards shown under it (GRI, IFRS S1 and S2, the EU VSME standard, the GHG Protocol, CDP and Bursa Malaysia). Answer what you can: a blank is better than a guess.</p>' +
+      (f.note ? '<p><b>Note from ' + esc(f.buyer) + ':</b> ' + esc(f.note) + '</p>' : '') + '</div>' +
+      '<div class="card"><h2>Your company and the share for ' + esc(f.buyer) + '</h2><p class="lead">Your emissions are shared out by how much of your sales went to ' + esc(f.buyer) + '. These two figures are used for that only.</p><div class="f">' +
+      '<label>Country<select id="cty">' + f.countries.map(function (c) { return '<option' + (c === f.country ? ' selected' : '') + '>' + esc(c) + '</option>'; }).join('') + '</select></label>' +
+      '<label>Currency<input id="cur" maxlength="8" value="' + esc(f.currency || '') + '" placeholder="MYR"></label>' +
+      f.shareQ.map(function (q) { return '<label>' + esc(q.q.replace('the buyer', f.buyer)) + '<input type="number" min="0" step="any" data-q="' + q.id + '" value="' + (A[q.id] == null ? '' : esc(A[q.id])) + '"></label>'; }).join('') + '</div></div>';
+    secs.forEach(function (s) { var p = pillar(s.L[0].code);
+      h += '<div class="card"><h2>' + (p !== last ? esc(p) + ': ' : '') + esc(s.n) + '</h2>' + s.L.map(function (q) {
+        return '<div class="q"><label class="t" id="l_' + q.id + '" for="q_' + q.id + '">' + esc(q.q) + '</label>' + input(q, A[q.id]) +
+          '<div class="tags"><b>' + esc(q.code) + '</b>' + esc(q.fw.filter(function (x) { return x !== 'SEDG only'; }).join(' · ')) + '</div></div>'; }).join('') + '</div>'; last = p; });
+    if (f.result) { var r = f.result; h += '<div class="card"><h2>What your answers add up to</h2><div class="res">' +
+      '<div><b>' + nf(r.s1, 2) + '</b><span>Scope 1, tCO2e' + (r.s1calc != null && A.e11 == null ? ' (worked out from your fuels)' : '') + '</span></div><div><b>' + nf(r.s2, 2) + '</b><span>Scope 2, tCO2e' + (r.s2calc != null && A.e12 == null ? ' (worked out from your electricity)' : '') + '</span></div>' +
+      '<div><b>' + (r.share == null ? '–' : nf(r.share, 1) + '%') + '</b><span>Share of your sales to ' + esc(f.buyer) + '</span></div><div><b>' + nf(r.alloc, 2) + '</b><span>tCO2e counted in ' + esc(f.buyer) + '\'s Scope 3</span></div></div>' +
+      (r.notes.length ? '<details><summary>How this was worked out</summary><ul>' + r.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join('') + '</ul></details>' : '') + '</div>'; }
+    var C = f.contact || {};
+    h += '<div class="card"><h2>Who is answering</h2><div class="f"><label>Your name<input id="cn" maxlength="80" autocomplete="name" value="' + esc(C.name || '') + '"></label><label>Your role<input id="cr" maxlength="80" autocomplete="organization-title" value="' + esc(C.role || '') + '"></label><label>Your email<input id="ce" type="email" maxlength="120" autocomplete="email" value="' + esc(C.email || '') + '"></label></div>' +
+      '<p><label style="display:flex;gap:8px;align-items:flex-start"><input type="checkbox" id="ok"> <span>These figures are correct to the best of my knowledge, and ' + esc(f.buyer) + ' may use them in its sustainability reporting.</span></label></p><input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true"></div>';
+    $('#main').innerHTML = h; $('#bar').hidden = false;
+    document.querySelectorAll('#main input, #main select, #main textarea').forEach(function (el) { if (locked) el.disabled = true; el.addEventListener('input', progress); el.addEventListener('change', progress); });
+    $('#save').disabled = $('#submit').disabled = locked; progress();
+  }
+  function answers() { var a = {}; document.querySelectorAll('[data-q]').forEach(function (el) { if (el.value !== '') a[el.getAttribute('data-q')] = el.value; });
+    document.querySelectorAll('[data-multi]').forEach(function (el) { var k = el.getAttribute('data-multi'); a[k] = a[k] || []; if (el.checked) a[k].push(el.value); }); return a; }
+  function progress() { var a = answers(), n = F.questions.filter(function (q) { var v = a[q.id]; return v != null && v !== '' && !(Array.isArray(v) && !v.length); }).length, T = F.questions.length;
+    $('#prog').innerHTML = n + ' of ' + T + ' questions answered<i><span style="width:' + Math.round(n / T * 100) + '%"></span></i>'; }
+  function send(submit) {
+    var b = { action: 'save', submit: submit, answers: answers(), country: $('#cty').value, currency: $('#cur').value, confirm: $('#ok').checked, website: $('#website').value, contact: { name: $('#cn').value, role: $('#cr').value, email: $('#ce').value } };
+    $('#save').disabled = $('#submit').disabled = true; $('#msg').textContent = submit ? 'Submitting…' : 'Saving…';
+    call(b).then(function (f) { draw(f); $('#msg').textContent = submit ? '✓ Submitted' : '✓ Saved. You can come back to this link to finish.'; window.scrollTo(0, 0); }, function (e) { $('#save').disabled = $('#submit').disabled = false; $('#msg').innerHTML = '<span class="err">' + esc(e.message) + '</span>'; });
+  }
+  $('#save').onclick = function () { send(false); };
+  $('#submit').onclick = function () { send(true); };
+})();
+</script>
+</body>
+</html>

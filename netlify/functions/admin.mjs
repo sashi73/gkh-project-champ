@@ -332,6 +332,17 @@ async function handle(req, context) {
         if (action === 'esgVaultSave' && (body.set || []).length) await A.audit(who, `Sustainability vault: ${(body.set || []).length} monthly value(s) saved (${key})`);
         return out(200, r);
       }
+      // 🤝 supplier ESG data (Scope 3): private links to a form based on Malaysia's SEDG, mapped to every framework (netlify/lib/suppliers.mjs)
+      case 'supList': case 'supCreate': case 'supRelink': case 'supDelete': case 'supAccept': case 'supReturn': {
+        const SP = await import('../lib/suppliers.mjs'), key = String(body.key || '').slice(0, 80), id = String(body.id || '').slice(0, 30);
+        const r = action === 'supList' ? await SP.list(key) : action === 'supCreate' ? await SP.create(key, body, by) : action === 'supRelink' ? await SP.relink(key, id)
+          : action === 'supDelete' ? await SP.remove(key, id) : action === 'supAccept' ? await SP.accept(key, id, by) : await SP.sendBack(key, id, body.msg, by);
+        if (r.error) return out(r.code || 400, { error: r.error });
+        if (action === 'supCreate') await A.audit(who, `Supplier ESG data: a request to ${r.request.supplier} (${key})`);
+        if (action === 'supAccept') await A.audit(who, `Supplier ESG data: ${r.request && r.request.supplier} accepted, ${r.tCO2e} tCO2e into the vault (${key})`);
+        if (action === 'supDelete') await A.audit(who, `Supplier ESG data: a request deleted (${key})`);
+        return out(200, r);
+      }
       case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
       case 'sampleSeed': {   // 🧪 sample programs, projects and ESG companies: the super user only
         if (!ctx.owner) return bad('Only the super user loads the sample data.', 403);
