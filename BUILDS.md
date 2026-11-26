@@ -363,4 +363,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 352 | 1.0.352| 2026-11-26 10:48| esg-projects| `ee0443c` | ESG review: blank activity values are missing (not zero), no carbon budget or baseline signal from estimates for logins without money, a wai |
 | 353 | 1.0.353| 2026-11-26 10:56| esg-projects| `31a5fbf` | ESG review: community investment is hidden from and kept for logins without money, whitespace counts as blank, and the carbon budget tile sa |
 | 354 | 1.0.354| 2026-11-26 11:03| esg-projects| `ca3b0ef` | ESG: more reporting standards, and ESG & Sustainability for projects and programs (P5) (#167) |
-| 355 | 1.0.355 | 2026-11-26 18:08 | login-eye | _this commit_ | _see git log_ |
+| 355 | 1.0.355| 2026-11-26 18:08| login-eye| `a1a3b55` | Sign-in: a failed attempt no longer turns the password eye into 'Sign in' (the form picked the first button, which became the eye when it wa |
+| 356 | 1.0.356 | 2026-11-26 18:15 | login-eye-wait | _this commit_ | _see git log_ |
