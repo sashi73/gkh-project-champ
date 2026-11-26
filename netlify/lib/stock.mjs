@@ -27,7 +27,7 @@ function download(url, ms = 10000, hops = 3) {
     if (!/^https?:$/.test(u.protocol) || (u.protocol === 'http:' && !localOk())) return no(new Error('only https'));
     const h = u.hostname.replace(/^\[|\]$/g, ''); if (net.isIP(h) && !localOk() && privateIp(h)) return no(new Error('private address'));
     const req = (u.protocol === 'https:' ? https : http).get(u, { lookup: safeLookup, timeout: ms, headers: { 'User-Agent': 'GKH-Project-Champ/1.0 (report photos)' } }, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { res.resume(); clearTimeout(t); if (!hops) return no(new Error('too many redirects')); return download(new URL(res.headers.location, u).href, ms, hops - 1).then(ok, no); }
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) { res.resume(); clearTimeout(t); if (!hops) return no(new Error('too many redirects')); let nx; try { nx = new URL(res.headers.location, u).href; } catch { return no(new Error('bad redirect')); } return download(nx, ms, hops - 1).then(ok, no); }
       const ty = String(res.headers['content-type'] || '').split(';')[0];
       if (res.statusCode !== 200 || !/^image\/(jpeg|png|webp)$/.test(ty)) { res.resume(); clearTimeout(t); return no(new Error('not an image')); }
       const parts = []; let n = 0;
