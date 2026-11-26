@@ -80,10 +80,11 @@
     M.modal('<h2>🌿 New ESG report</h2><p class="muted" style="margin:4px 0 12px">One report is one organisation for one reporting year. You can change everything later.</p><div class="form">' +
       '<label class="full">Organisation name<input id="enName" maxlength="120" placeholder="e.g. GKH Consultancy Sdn Bhd"></label><label>Reporting year<input id="enYear" maxlength="20" placeholder="e.g. FY2026"></label>' +
       '<label>Industry sector<select id="enInd"><option value="">Choose…</option>' + indOpts('') + '</select></label>' +
-      '<label>Main country<select id="enCty">' + ['Australia', 'Malaysia', 'Singapore', 'New Zealand', 'Thailand', 'Indonesia', 'United Kingdom', 'United States', 'European Union', 'Other'].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></label>' +
-      '<label>Currency<select id="enCur">' + ['AUD', 'MYR', 'SGD', 'NZD', 'USD', 'EUR', 'GBP', 'THB', 'IDR'].map(function (x) { return '<option>' + x + '</option>'; }).join('') + '</select></label></div>' +
+      '<label>Main country<input id="enCty" list="esgCountryList" autocomplete="off" maxlength="80" placeholder="Type three letters, e.g. Mal">' + countryList() + '</label>' +
+      '<label>Currency<select id="enCur">' + ((SC.sec.org.fields.filter(function (f) { return f[0] === 'currency'; })[0] || [])[3] || ['AUD']).map(function (x) { return '<option' + (x === 'AUD' ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label></div>' +
+      '<p class="muted" style="font-size:12.5px;margin:8px 0 0">The country sets the currency, the usual reporting standards (Australia: AASB S2; Malaysia: Bursa Malaysia; Japan: SSBJ…) and the emission factors. The industry gives its usual material topics starting ratings. You can change all of them later.</p>' +
       '<div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Cancel</button><button class="btn btn-gold" id="enGo" type="button">Create</button></div>');
-    $('#enCty').onchange = function () { $('#enCur').value = { Australia: 'AUD', Malaysia: 'MYR', Singapore: 'SGD', 'New Zealand': 'NZD', Thailand: 'THB', Indonesia: 'IDR', 'United Kingdom': 'GBP', 'United States': 'USD', 'European Union': 'EUR' }[this.value] || 'USD'; };
+    $('#enCty').oninput = $('#enCty').onchange = function () { var c = ctyOf(this.value); if (c) $('#enCur').value = c[2]; };
     $('#enName').focus();
     $('#enGo').onclick = function () { var b = this; b.disabled = true; api('esgCreate', { name: $('#enName').value, year: $('#enYear').value, industry: $('#enInd').value, country: $('#enCty').value, currency: $('#enCur').value })
       .then(function (d) { M.closeModal && M.closeModal(); var m = document.getElementById('modal'); if (m && m.open) m.close && m.close(); location.hash = '#esg/' + d.entity.id + '/org'; }).catch(function (e) { b.disabled = false; fail(e); }); };
@@ -170,12 +171,39 @@
   // the industry list, grouped by sector (131 industries in 14 groups)
   function indOpts(v) { var G0 = SC.industryGroups || [['Industries', (SC.sections[0].fields.filter(function (f) { return f[0] === 'industry'; })[0] || [])[3] || []]];
     return G0.map(function (g0) { return '<optgroup label="' + esc(g0[0]) + '">' + g0[1].map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</optgroup>'; }).join(''); }
+  // 🌍 the country list: type three letters and the matches appear
+  function countryList() { return document.getElementById('esgCountryList') ? '' : '<datalist id="esgCountryList">' + (SC.countries || []).map(function (c) { return '<option value="' + esc(c[0]) + '">' + esc(c[2]) + '</option>'; }).join('') + '</datalist>'; }
+  var ctyOf = function (n) { n = String(n || '').trim().toLowerCase(); return (SC.countries || []).filter(function (c) { return c[0].toLowerCase() === n; })[0] || null; };
+  var stdFor = function (c) { if (!c) return []; var own = (SC.countryStd || {})[c[1]] || [], L = own.concat((SC.ownIssb || []).indexOf(c[1]) >= 0 ? [] : ['IFRS_S1', 'IFRS_S2']).concat(SC.globalStd || []); return L.filter(function (x, i) { return L.indexOf(x) === i && SC.std[x]; }); };
+  // the country chosen: its currency, its usual standards (those of the previous country come off) and its emission factor set
+  function applyCountry(prev, now) {
+    var c = ctyOf(now); if (!c) return; var o = V.e.org = V.e.org || {}, said = [];
+    if (o.currency !== c[2]) { o.currency = c[2]; var cs = $('#ef-org-currency'); if (cs) cs.value = c[2]; touch('org'); said.push('currency ' + c[2]); }
+    var pc = ctyOf(prev), old = stdFor(pc), add = stdFor(c), cur = (V.e.std || []).filter(function (x) { return old.indexOf(x) < 0 || add.indexOf(x) >= 0; });
+    var nw = add.filter(function (x) { return cur.indexOf(x) < 0; }); if (nw.length || cur.length !== (V.e.std || []).length) { V.e.std = cur.concat(nw); touch('std'); if (nw.length) said.push('standards ' + nw.map(stdShort).join(', ')); }
+    var fs = (SC.countryFset || {})[c[0]], cb = V.e.carbon = V.e.carbon || {}; if (fs && SC.factorSets[fs] && (!cb.fset || cb.fset === ((SC.countryFset || {})[pc && pc[0]]) || cb.fset === 'IPCC')) { var oldSet = SC.factorSets[cb.fset] || null; cb.fset = fs; var set = SC.factorSets[fs], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }, kept = 0; V.e.efsrc = Object.assign({}, V.e.efsrc);
+      // only factors still on the old set's values (or blank) change; a factor typed or chosen from the library stays, with its source
+      Object.keys(m).forEach(function (fk) { var src = V.e.efsrc['carbon.' + fk], v0 = cb[fk], own = v0 != null && v0 !== '' && !(src && /^Factor set: /.test(src.label || '')) && !(oldSet && Number(v0) === Number(oldSet[m[fk]])); if (own) { kept++; return; } cb[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; });
+      touch('carbon'); touch('efsrc'); said.push('emission factors ' + set.label.split(':')[0] + (kept ? ' (' + kept + ' of your own kept)' : '')); }
+    if (said.length) M.toast('For ' + c[0] + ': ' + said.join(' · '));
+  }
+  // the industry chosen: its usual material topics get starting ratings, if nothing is rated yet
+  function sectorStart(ind) { var L = (SC.sectorTopics || {})[ind] || [], o = {}; L.forEach(function (k, i) { o[k] = i < 3 ? { imp: 4, fin: 3 } : i < 6 ? { imp: 3, fin: 3 } : { imp: 3, fin: 2 }; }); return o; }
+  function applyIndustry(ind, force) {
+    var mat = V.e.mat = V.e.mat || {}, any = Object.keys(mat).some(function (k) { return mat[k].imp || mat[k].fin; }), st = sectorStart(ind), n = 0;
+    if (any && !force) { M.toast('Material topics for ' + ind + ' are marked ⭐ in Material topics; your ratings are kept.'); return; }
+    Object.keys(st).forEach(function (k) { var m = mat[k] = mat[k] || {}; if (!m.imp && !m.fin) { m.imp = st[k].imp; m.fin = st[k].fin; n++; } }); if (n) { touch('mat'); M.toast(n + ' material topics usual for ' + ind + ' given starting ratings: review them in Material topics.'); }
+  }
   function field(sec, f) {
     var k = f[0], label = f[1], t = f[2], opts = f[3], hint = f[4], v = (V.e[sec] || {})[k], unit = typeof opts === 'string' ? opts : t === 'p' ? '%' : '', id = 'ef-' + sec + '-' + k, ctl;
     var val = v == null ? '' : String(v);
+    if (k === 'country' && (V.lastCtyFor !== V.e.id || V.lastCtyRev !== V.e.rev && !document.activeElement.matches('#ef-org-country'))) { V.lastCtyRev = V.e.rev; V.lastCtyFor = V.e.id; V.lastCty = (ctyOf(val) || [])[0] || ''; }   // the country this report started with
     if (k === 'fset') { var grp = {}, order = []; Object.keys(SC.factorSets).forEach(function (x) { var g0 = SC.factorSets[x].group || 'Presets'; if (!grp[g0]) { grp[g0] = []; order.push(g0); } grp[g0].push(x); });
       order = ['Presets'].concat(order.filter(function (g0) { return g0 !== 'Presets'; }).sort());
       ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose a factor set (' + Object.keys(SC.factorSets).length + ' sets, ' + (order.length - 1) + ' countries)…</option>' + order.map(function (g0) { return '<optgroup label="' + esc(g0 === 'Presets' ? 'Quick presets' : g0) + '">' + grp[g0].map(function (x) { var lb = SC.factorSets[x].label; if (g0 !== 'Presets') lb = lb.replace(new RegExp('^' + g0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ',? ?:?'), '').replace(/^\s*:?\s*/, '') || lb; return '<option value="' + x + '"' + (x === v ? ' selected' : '') + '>' + esc(lb) + '</option>'; }).join('') + '</optgroup>'; }).join('') + '</select>'; }
+    else if (k === 'country') ctl = '<span class="esg-in"><input id="' + id + '" data-s="' + sec + '" data-k="' + k + '" type="text" list="esgCountryList" autocomplete="off" maxlength="80" placeholder="Type three letters, e.g. Mal" value="' + esc(val) + '"></span>' + countryList();
+    else if (t === 'd') { var dv = /^\d{4}-\d{2}-\d{2}$/.test(val) ? val.slice(8, 10) + '/' + val.slice(5, 7) + '/' + val.slice(0, 4) : '';   // 📅 typed and shown as dd/mm/yyyy; stored as yyyy-mm-dd
+      ctl = '<span class="esg-in esg-date"><input id="' + id + '" type="text" inputmode="numeric" maxlength="10" placeholder="dd/mm/yyyy" data-dd="' + sec + '.' + k + '" value="' + dv + '" aria-describedby="' + id + '-h"><button type="button" class="esg-cal" data-cal="' + sec + '.' + k + '" aria-label="Pick ' + esc(label) + ' from a calendar">📅</button><input type="date" class="esg-dpick" tabindex="-1" aria-hidden="true" data-s="' + sec + '" data-k="' + k + '" value="' + esc(val) + '"></span>'; }
     else if (k === 'industry') ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose an industry (' + (SC.industryGroups || []).reduce(function (n, g0) { return n + g0[1].length; }, 0) + ')…</option>' + indOpts(v) + '</select>';
     else if (t === 's' || t === 'y') ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">–</option>' + opts.map(function (x) { return '<option' + (x === v ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join('') + '</select>';
     else if (t === 'l') ctl = '<textarea id="' + id + '" rows="4" data-s="' + sec + '" data-k="' + k + '">' + esc(val) + '</textarea>';
@@ -478,7 +506,8 @@
   function materialTab() {
     var mat = V.e.mat || {}, R = ['–', 'Low', 'Medium', 'High', 'Very high'], sub = (V.subs || {}).material || 'E', sect = (SC.sectorTopics || {})[(V.e.org || {}).industry] || [];
     var sel = function (k, f, v) { return '<select data-mat="' + k + '" data-mf="' + f + '" aria-label="' + (f === 'imp' ? 'Impact' : 'Financial') + '">' + R.map(function (x, i) { return '<option value="' + i + '"' + (i === (v || 0) ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select>'; };
-    var L = SC.topicsFull.filter(function (t) { return t[2] === sub; }), rated = function (p) { return SC.topicsFull.filter(function (t) { return t[2] === p && mat[t[0]] && (mat[t[0]].imp || mat[t[0]].fin); }).length; };
+    var L = SC.topicsFull.filter(function (t) { return t[2] === sub; }).sort(function (a, b) { var x = sect.indexOf(a[0]), y = sect.indexOf(b[0]); return (x < 0 ? 99 : x) - (y < 0 ? 99 : y); }),   // the industry's usual topics first
+       rated = function (p) { return SC.topicsFull.filter(function (t) { return t[2] === p && mat[t[0]] && (mat[t[0]].imp || mat[t[0]].fin); }).length; };
     var rows = L.map(function (t) { var m = mat[t[0]] || {}, on = V.open.mat === t[0], star = sect.indexOf(t[0]) >= 0;
       return '<div class="esg-li esg-mt' + (on ? ' on' : '') + '"><div class="esg-mtr"><button type="button" class="esg-mtn" data-open="mat" data-id="' + t[0] + '" aria-expanded="' + on + '"><b>' + esc(t[1]) + '</b>' + (star ? ' <span class="pill t-amber" title="Usually material for ' + esc((V.e.org || {}).industry) + '">⭐ sector</span>' : '') + '<small class="muted">' + esc([t[4], t[5], t[6]].filter(Boolean).join(' · ')) + '</small></button>' +
         '<label class="esg-mts">Impact' + sel(t[0], 'imp', m.imp) + '</label><label class="esg-mts">Financial' + sel(t[0], 'fin', m.fin) + '</label><i class="esg-chev" aria-hidden="true">›</i></div>' +
@@ -486,7 +515,7 @@
           '<label>Time horizon<select data-mat="' + t[0] + '" data-mf="horizon"><option value="">–</option>' + SC.horizons.map(function (h) { return '<option' + (h === m.horizon ? ' selected' : '') + '>' + esc(h) + '</option>'; }).join('') + '</select></label><label>Raised by (stakeholders)<input data-mat="' + t[0] + '" data-mf="who" maxlength="200" value="' + esc(m.who || '') + '" placeholder="e.g. employees, investors, regulators"></label>' +
           '<label class="full">Why it matters<input data-mat="' + t[0] + '" data-mf="note" maxlength="300" value="' + esc(m.note || '') + '"></label><label class="full">Our response (policy, action, target)<input data-mat="' + t[0] + '" data-mf="action" maxlength="300" value="' + esc(m.action || '') + '"></label></div>' : '<p class="muted" style="font-size:12.5px;margin:0">Rate the impact or the financial effect to add the details.</p>') + '</div>' : '') + '</div>'; }).join('');
     return subBar([['E', 'Environment (' + rated('E') + ' rated)'], ['S', 'Social (' + rated('S') + ' rated)'], ['G', 'Governance (' + rated('G') + ' rated)']], sub, 'Material topics') +
-      '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Material topics</h3><span class="sp"></span>' + (sect.length ? '<span class="muted" style="font-size:12.5px">⭐ usually material for ' + esc((V.e.org || {}).industry) + '</span>' : '<span class="muted" style="font-size:12.5px">Set the industry (Organisation) to see the usual topics</span>') + '</div>' +
+      '<div class="esg-split"><div><div class="card"><div class="row"><h3 style="margin:0">Material topics</h3><span class="sp"></span>' + (sect.length ? '<span class="muted" style="font-size:12.5px">⭐ usually material for ' + esc((V.e.org || {}).industry) + ', listed first</span><button type="button" class="btn btn-sm" id="matStart" title="Give the unrated topics usual for this industry a starting rating">Starting ratings</button>' : '<span class="muted" style="font-size:12.5px">Set the industry (Organisation) to see the usual topics</span>') + '</div>' +
       '<p class="muted" style="font-size:13px;margin:6px 0 0"><b>Impact</b>: how much the organisation affects people and the planet (GRI 3, ESRS impact materiality). <b>Financial</b>: how much the topic can affect cash flows, cost of capital or value (IFRS S1, ESRS financial materiality). Rating both is double materiality. Press a topic for its references, the kind of impact, horizon, stakeholders and response.</p></div>' +
       '<div class="card esg-list">' + rows + '</div></div><div><div class="card" id="esgLive">' + live('material') + '</div></div></div>';
   }
@@ -1039,8 +1068,19 @@
 
   /* ---------- events ---------- */
   function wire(b) {
+    b.querySelectorAll('[data-dd]').forEach(function (tx) {   // dd/mm/yyyy typed: checked, then stored as yyyy-mm-dd in the hidden date field
+      var pk = tx.parentNode.querySelector('.esg-dpick'), put = function () { var m = tx.value.trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/), iso = '';
+        if (m) { var d = new Date(Date.UTC(+m[3], +m[2] - 1, +m[1])); if (d.getUTCDate() === +m[1] && d.getUTCMonth() === +m[2] - 1) iso = d.toISOString().slice(0, 10); }
+        tx.classList.toggle('bad', !!tx.value.trim() && !iso); if (iso || !tx.value.trim()) { if (iso) tx.value = iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4); if (pk.value !== iso) { pk.value = iso; pk.dispatchEvent(new Event('input')); } } };
+      tx.addEventListener('change', put); tx.addEventListener('blur', put);
+      tx.addEventListener('input', function () { var v = tx.value.replace(/[^\d]/g, ''); if (/^\d{8}$/.test(v)) { tx.value = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4); put(); } });
+      var cal = tx.parentNode.querySelector('.esg-cal'); cal.onclick = function () { try { pk.showPicker(); } catch (x) { pk.focus(); pk.click(); } };
+      pk.addEventListener('change', function () { var iso = pk.value; tx.value = iso ? iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4) : ''; tx.classList.remove('bad'); pk.dispatchEvent(new Event('input')); });
+    });
     b.querySelectorAll('[data-s][data-k]').forEach(function (el) {
-      var h = function () { var s = el.getAttribute('data-s'), k = el.getAttribute('data-k'); V.e[s] = V.e[s] || {}; var v = el.value; if (v === '') delete V.e[s][k]; else V.e[s][k] = v;
+      var h = function () { var s = el.getAttribute('data-s'), k = el.getAttribute('data-k'); V.e[s] = V.e[s] || {}; var v = el.value, prevV = V.e[s][k]; if (v === '') delete V.e[s][k]; else V.e[s][k] = v;
+        if (s === 'org' && k === 'country') { var rc = ctyOf(v); if (rc && rc[0] !== V.lastCty) { applyCountry(V.lastCty, rc[0]); V.lastCty = rc[0]; } }   // compared with the last country recognised, not each keystroke
+        if (s === 'org' && k === 'industry' && v && v !== prevV) applyIndustry(v);
         if (k === 'fset' && SC.factorSets[v]) { var set = SC.factorSets[v], m = { fDiesel: 'diesel', fPetrol: 'petrol', fJet: 'jet', fLpg: 'lpg', fGas: 'gas', fElec: 'elec' }; V.e.efsrc = Object.assign({}, V.e.efsrc); Object.keys(m).forEach(function (fk) { V.e.carbon[fk] = set[m[fk]]; V.e.efsrc['carbon.' + fk] = { id: '', label: 'Factor set: ' + set.label, value: set[m[fk]] }; var i = $('#ef-carbon-' + fk); if (i) { i.value = set[m[fk]]; i.placeholder = set[m[fk]]; } }); touch('efsrc'); }
         var fk = s + '.' + k; if (V.e.efsrc && V.e.efsrc[fk] && String(V.e.efsrc[fk].value) !== String(v)) { V.e.efsrc = Object.assign({}, V.e.efsrc); V.e.efsrc[fk] = { id: '', label: 'Entered by you', value: v === '' ? null : Number(v) }; touch('efsrc'); var sm = el.closest('label') && el.closest('label').querySelector('.esg-efsrc'); if (sm) sm.textContent = '📚 Entered by you'; }
         touch(s); };
@@ -1048,6 +1088,7 @@
     });
     var sq = b.querySelector('#esgStdQ'); if (sq) sq.oninput = function () { var q = sq.value.trim().toLowerCase(); b.querySelectorAll('.esg-stdg').forEach(function (g0) { var k = 0; g0.querySelectorAll('.esg-stdc').forEach(function (c0) { var hit = !q || c0.getAttribute('data-std-search').indexOf(q) >= 0; c0.hidden = !hit; if (hit) k++; }); g0.hidden = !k; if (q && k) g0.open = true; }); };
     b.querySelectorAll('[data-std]').forEach(function (cb) { cb.onchange = function () { var s = cb.getAttribute('data-std'), L = (V.e.std || []).filter(function (x) { return x !== s; }); if (cb.checked) L.push(s); V.e.std = L; cb.closest('.esg-stdc').classList.toggle('on', cb.checked); touch('std'); }; });
+    if ($('#matStart')) $('#matStart').onclick = function () { applyIndustry((V.e.org || {}).industry, true); body(); };
     b.querySelectorAll('[data-matk]').forEach(function (cb) { cb.onchange = function () { var k = cb.getAttribute('data-matk'), m = V.e.mat[k]; if (!m) return; var L = (m.kind || []).filter(function (x) { return x !== cb.value; }); if (cb.checked) L.push(cb.value); m.kind = L; touch('mat'); }; });
     b.querySelectorAll('[data-mat]').forEach(function (el) { el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', function () { var k = el.getAttribute('data-mat'), f = el.getAttribute('data-mf'); V.e.mat = V.e.mat || {}; var m = V.e.mat[k] = V.e.mat[k] || { imp: 0, fin: 0 }, was = !!(m.imp || m.fin); m[f] = f === 'imp' || f === 'fin' ? Number(el.value) : el.value; touch('mat'); var lv = $('#esgLive'); if (lv) lv.innerHTML = live('material'); if (V.tab === 'material' && (f === 'imp' || f === 'fin') && was !== !!(m.imp || m.fin)) { V.open.mat = k; body(); } }); });
     b.querySelectorAll('[data-ins]').forEach(function (x) { x.onclick = function () { askInsight(x.getAttribute('data-ins')); }; });

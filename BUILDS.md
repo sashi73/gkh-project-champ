@@ -370,4 +370,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 359 | 1.0.359| 2026-11-26 19:26| esg-progress| `84c6e36` | ESG: achievements and progress against last year in every pillar (#170) |
 | 360 | 1.0.360| 2026-11-26 20:32| sample-data| `5fdc466` | Sample data: the super user loads two programs (Green Freight Hub about 80% done with two projects; Coral Sky Sustainable Operations about 5 |
 | 361 | 1.0.361| 2026-11-26 20:49| sample-data| `e292920` | Sample data review: a retry finishes a company or project left half-made, a failed lookup stops the load, Programs refreshes only if still o |
-| 362 | 1.0.362 | 2026-11-26 21:10 | sample-data | _this commit_ | _see git log_ |
+| 362 | 1.0.362| 2026-11-26 21:10| sample-data| `b346dc4` | Quick check: the country test leaves the Scope 1 and 2 tab on its first sub-tab |
+| 363 | 1.0.363 | 2026-11-26 21:15 | esg-orgform | _this commit_ | _see git log_ |
