@@ -49,7 +49,7 @@ const llm = http.createServer((q, s) => { let b = ''; q.on('data', (d) => (b += 
   s.end(JSON.stringify({ choices: [{ message: { content } }], usage: { total_tokens: 50 } })); }); }).listen(0);
 await sleep(50);
 const env = { ...process.env, PORT: String(PORT), HOST: '127.0.0.1', NETLIFY_BLOBS_CONTEXT: ctxB64, ADMIN_USERNAME: '', ADMIN_PASSWORD: '', ADMIN_SESSION_SECRET: '',
-  OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', OPENVERSE_BASE_URL: `http://127.0.0.1:${llm.address().port}`, PEXELS_API_KEY: '', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
+  OWNER_EMAIL: 'owner@example.com', LLM_API_KEY: 'test-key', LLM_BASE_URL: `http://127.0.0.1:${llm.address().port}`, LLM_MODEL: 'deepseek-chat', OPENVERSE_BASE_URL: `http://127.0.0.1:${llm.address().port}`, PEXELS_API_KEY: '', STOCK_ALLOW_LOCAL: '1', LIMIT_ADMIN: '5000/10', CHAMP_I18N_LIMIT: '400' };
 const srv = spawn('node', ['local-server.mjs'], { cwd: SITE, env, stdio: ['ignore', 'pipe', 'pipe'] });
 let log = ''; srv.stdout.on('data', (d) => (log += d)); srv.stderr.on('data', (d) => (log += d));
 for (let i = 0; i < 80 && !/running/i.test(log); i++) await sleep(150);

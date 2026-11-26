@@ -382,4 +382,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 371 | 1.0.371| 2026-11-27 02:02| vault-ocr| `1568978` | Sustainability vault: bills read with OCR into Data by month (#176) |
 | 372 | 1.0.372| 2026-11-27 03:25| report-styles| `4de1c77` | ESG documents: five report styles (Horizon, Canopy, Atlas, Aurora, Signal) with your photos |
 | 373 | 1.0.373| 2026-11-27 03:35| report-styles| `9c73e70` | ESG documents: five report styles with your photos (#177) |
-| 374 | 1.0.374 | 2026-11-27 03:49 | stock-photos | _this commit_ | _see git log_ |
+| 374 | 1.0.374| 2026-11-27 03:49| stock-photos| `7316e4b` | Report photos: add one pick at a time (up to 3), remove each, and free stock photos from the report's context |
+| 375 | 1.0.375 | 2026-11-27 04:04 | stock-photos | _this commit_ | _see git log_ |
