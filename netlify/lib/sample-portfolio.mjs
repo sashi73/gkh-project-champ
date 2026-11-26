@@ -185,23 +185,26 @@ export async function seed(by, today) {
   today = /^\d{4}-\d{2}-\d{2}$/.test(today || '') ? today : ymd(new Date());
   const made = { companies: [], programs: [], projects: [], skipped: [] };
   // 🌿 the companies (skipped when one of the same name is already there)
-  const have = new Set((await E.list()).map((x) => String(x.name || (x.org || {}).name || '').toLowerCase()));
+  // a company already there with its data is skipped; one made earlier whose data did not save is filled in now
+  const ents = await E.list();
   for (const C of COMPANIES) {
-    if (have.has(C.name.toLowerCase())) { made.skipped.push(C.name); continue; }
-    const r = await E.create({ name: C.name, year: C.year, industry: C.industry, country: C.country, currency: C.currency }, by); if (r.error) throw new Error(r.error);
+    const old = ents.find((x) => String(x.name || '').toLowerCase() === C.name.toLowerCase()), oe = old ? await E.get(old.id) : null;
+    if (oe && (oe.org || {}).revenue) { made.skipped.push(C.name); continue; }
+    const r = oe ? { entity: oe } : await E.create({ name: C.name, year: C.year, industry: C.industry, country: C.country, currency: C.currency }, by); if (r.error) throw new Error(r.error);
     const patch = { ...C.patch, org: { ...r.entity.org, ...C.patch.org, name: C.name, year: C.year, industry: C.industry, country: C.country, currency: C.currency } };
     const s = await E.save(r.entity.id, { patch }, by); if (s.error) throw new Error(s.error);
     made.companies.push({ id: r.entity.id, name: C.name });
   }
   // 🗂 the programs and their projects
-  const progs = await PG.list(), cards = await Pl.portfolio(today).catch(() => []), names = new Set(cards.map((c) => String(c.name || '').toLowerCase()));
+  // a project is there when its plan is; a project record left without a plan (a save that failed) is reused, not made twice. A failed lookup stops the load.
+  const progs = await PG.list(), plans = await Pl.list(), names = new Set(plans.map((p) => String(p.name || '').toLowerCase())), withPlan = new Set(plans.map((p) => p.core)), jobs = await J.all();
   const PROG_INFO = { 'Green Freight Hub': { manager: 'Priya Nair', sponsor: 'Daniel Ong', client: 'GKH EcoVista Holdings (sample)', objective: 'Cut the warehouse and delivery fleet emissions by 40% by 2028. (Sample data.)', start: '2026-04-06', finish: '2027-02-26' },
     'Coral Sky Sustainable Operations': { manager: 'Marcus Lee', sponsor: 'Helen Carter', client: 'Coral Sky Airways (sample)', objective: 'Ground and fuel projects behind the airline\'s 2030 emissions target. (Sample data.)', start: '2026-06-22', finish: '2027-06-30' } };
   for (const [name, info] of Object.entries(PROG_INFO)) if (!progs.some((p) => p.name.toLowerCase() === name.toLowerCase())) { await PG.save({ name, ...info, status: 'active' }, by); made.programs.push(name); }
   for (const P of PROJECTS) {
     if (names.has(P.name.toLowerCase())) { made.skipped.push(P.name); continue; }
-    const core = await J.nextCore('P');
-    await J.create({ core, name: P.client, suburb: P.site, service: P.name, summary: P.name + ' (sample project)', program: P.program, manager: P.manager, sponsor: P.sponsor, source: 'Project Champ' }, by);
+    const orphan = jobs.find((j) => j.service === P.name && !withPlan.has(j.core) && j.stage !== 'lost'), core = orphan ? orphan.core : await J.nextCore('P');
+    if (!orphan) await J.create({ core, name: P.client, suburb: P.site, service: P.name, summary: P.name + ' (sample project)', program: P.program, manager: P.manager, sponsor: P.sponsor, source: 'Project Champ' }, by);
     await J.setProgram(core, P.program); await J.setStage(core, 'won', by);
     const plan = Pl.clean(buildPlan(P, core, today, by), core);
     // the baseline: the plan as first approved (its dates and costs)
