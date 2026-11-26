@@ -107,6 +107,8 @@
     $('#login').hidden = true;
     api('me').then(function (me) {
       window.MBS.me = me; applyAccess(me);
+      // 🧪 the sample programs, projects and ESG companies load by themselves once, the first time the super user signs in after this build
+      if (me.owner && me.sampleDue) api('sampleSeed', { auto: true, today: new Date().toISOString().slice(0, 10) }).then(function (r) { var m = (r && r.made) || {}; if ((m.programs || []).length + (m.projects || []).length + (m.companies || []).length) window.MBS.toast('🧪 Sample data added: ' + (m.programs || []).length + ' programs, ' + (m.projects || []).length + ' projects and ' + (m.companies || []).length + ' ESG companies. Open Programs or ESG & Sustainability to see them.'); }).catch(function () {});
       if (window.ChampPhone && window.ChampPhone.is && window.MBS.phoneApp) { window.MBS.phoneApp.start(me); return; }   // 📱 a phone: only Today, like a messenger (champ-phone-app.js)
       $('#app').hidden = false;
       if (me.mustChange && window.MBS.users) { view.innerHTML = '<div class="empty">Set your own password to carry on.</div>'; window.MBS.users.changePassword(true); return; }
