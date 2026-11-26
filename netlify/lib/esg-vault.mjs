@@ -155,7 +155,7 @@ export const INDEX_METHOD = 'GKH ESG Progress Index v1 (2026-11)';
 function measures(e, c) {
   const em = c.em, o = e.org || {}, rev = o.revenue > 0 ? o.revenue : null, per = (v) => (v == null ? null : rev ? v / rev : v), cb = e.carbon || {}, rs = e.resources || {}, w = e.workforce || {};
   const s12 = em.s1t == null && em.s2loc == null ? null : (em.s1t || 0) + (em.s2loc || 0);
-  return { rev, s1: em.s1t, s2: em.s2loc, s3: em.s3t, s12, total: em.total, perRev: !!rev, ghg: per(s12), s3i: per(em.s3t), renew: rs.renewPct != null ? rs.renewPct : cb.elec > 0 && cb.green != null ? (cb.green / cb.elec) * 100 : null,
+  return { rev, cur: o.currency || '', s1: em.s1t, s2: em.s2loc, s3: em.s3t, s12, total: em.total, perRev: !!rev, ghg: per(s12), s3i: per(em.s3t), renew: rs.renewPct != null ? rs.renewPct : cb.elec > 0 && cb.green != null ? (cb.green / cb.elec) * 100 : null,
     energy: per(em.energy), water: per(rs.waterWd), divert: rs.divertPct != null ? rs.divertPct : rs.wasteT > 0 && e.scope3 && e.scope3.recycled != null ? (e.scope3.recycled / rs.wasteT) * 100 : null,
     ltifr: w.ltifr != null ? w.ltifr : w.hours > 0 && w.injuries != null ? (w.injuries * 1e6) / w.hours : null, womenMgmt: c.soc.womenMgmtPct, training: w.trainHrs, gov: c.gov.score, esg: c.esg, env: c.env.score, soc: c.soc.score };
 }
