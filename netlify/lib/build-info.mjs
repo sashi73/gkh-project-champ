@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 356,
+  "build": 357,
   "commit": "",
-  "branch": "login-eye-wait",
+  "branch": "esg-progress",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-26 18:15",
+  "builtAt": "2026-11-26 18:57",
   "site": ""
 };
