@@ -648,7 +648,7 @@ try {
       }
       // 🌍 the country brings its currency, standards and factors; the industry its material topics; dates are dd/mm/yyyy
       { const cr = await api('esgCreate', { name: 'Sakura Air Test', year: 'FY2026', industry: 'Airlines', country: 'Japan' }), en = (cr.j || {}).entity || {};
-        await pg.goto(BASE + '/admin/#esg/' + en.id + '/carbon'); await pg.reload(); await pg.waitForTimeout(2500); await pg.fill('#ef-carbon-fElec', '0.5'); await pg.waitForTimeout(2200);
+        await pg.goto(BASE + '/admin/#esg/' + en.id + '/carbon'); await pg.reload(); await pg.waitForTimeout(2500); await pg.evaluate(() => { const c = document.getElementById('cgPanel'); if (c) c.remove(); }); await pg.click('.esg-sub [data-sub="factors"]'); await pg.waitForTimeout(500); await pg.fill('#ef-carbon-fElec', '0.5'); await pg.waitForTimeout(2200); await pg.click('.esg-sub button:first-child'); await pg.waitForTimeout(300);
         await pg.goto(BASE + '/admin/#esg/' + en.id + '/org');  await pg.waitForTimeout(2500); await pg.evaluate(() => { const c = document.getElementById('cgPanel'); if (c) c.remove(); });
         const opts = await pg.evaluate(() => document.querySelectorAll('#esgCountryList option').length);
         await pg.fill('#ef-org-country', ''); await pg.type('#ef-org-country', 'Thailand'); await pg.waitForTimeout(200); await pg.fill('#ef-org-country', ''); await pg.type('#ef-org-country', 'Malaysia'); await pg.waitForTimeout(300); await pg.fill('#ef-org-from', '15/07/2025'); await pg.press('#ef-org-from', 'Tab'); await pg.fill('#ef-org-to', '31022026'); await pg.waitForTimeout(300); await pg.press('#ef-org-to', 'Tab'); await pg.waitForTimeout(2500);
