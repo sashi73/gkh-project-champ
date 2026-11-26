@@ -687,7 +687,19 @@
   }
 
   /* ---------- 📄 the Sustainability Statement and the ESG Report ---------- */
-  var THEME = 'forest';
+  var THEME = 'forest', PHOTOS = {};
+  // 📸 photos for the report styles (cover, part pages, chapter bands): made smaller in the browser and kept in this browser for this report
+  var photosOf = function (id) { if (!PHOTOS[id]) { try { PHOTOS[id] = JSON.parse(localStorage.getItem('champ-esg-photos:' + id) || '[]'); } catch (e) { PHOTOS[id] = []; } } return PHOTOS[id]; };
+  function shrink(file) { return new Promise(function (ok) { var r = new FileReader(); r.onload = function () { var im = new Image(); im.onload = function () { var k = Math.min(1, 1400 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.8)); }; im.onerror = function () { ok(null); }; im.src = r.result; }; r.onerror = function () { ok(null); }; r.readAsDataURL(file); }); }
+  function photoBox() { var P = photosOf(V.e.id), st = /^(horizon|canopy|atlas|aurora|signal)$/.test(THEME);
+    return '<div class="esg-photos" id="dPhotoBox"><label>Photos for the cover, part pages and chapter bands <span class="muted">(optional, up to 3)</span><input type="file" id="dPhotos" accept="image/*" multiple></label>' +
+      '<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px">' + P.map(function (u, i) { return '<img src="' + u + '" alt="Photo ' + (i + 1) + '" class="esg-ph">'; }).join('') + (P.length ? '<button class="btn btn-sm" type="button" id="dPhotoClr">Remove the photos</button>' : '') + '</div>' +
+      '<p class="muted" style="font-size:12px;margin:6px 0 0">' + (st ? 'This style puts your photos on the cover, the part pages and the chapter bands (the first photo on the cover, the second on part pages, the third on the bands). Without photos it uses drawn artwork.' : 'Photos are used by the five styles (Horizon, Canopy, Atlas, Aurora and Signal) in the colour scheme list.') + ' They stay in this browser.</p></div>'; }
+  function wirePhotos() {
+    var inp = $('#dPhotos'), redraw = function () { var b = $('#dPhotoBox'); if (b) { b.outerHTML = photoBox(); wirePhotos(); } }, keep = function (L) { PHOTOS[V.e.id] = L; try { localStorage.setItem('champ-esg-photos:' + V.e.id, JSON.stringify(L)); } catch (e) { toast('These photos are used now, but are too large to keep in this browser for next time.'); } };
+    if (inp) inp.onchange = function () { var F = [].slice.call(inp.files || []).filter(function (f) { return /^image\//.test(f.type); }).slice(0, 3); if (!F.length) return; Promise.all(F.map(shrink)).then(function (L) { L = L.filter(Boolean); if (!L.length) { toast('Those photos could not be read: try JPG or PNG.'); return; } keep(L); redraw(); toast(L.length + ' photo' + (L.length === 1 ? '' : 's') + ' ready for the report'); }); };
+    var clr = $('#dPhotoClr'); if (clr) clr.onclick = function () { keep([]); try { localStorage.removeItem('champ-esg-photos:' + V.e.id); } catch (e) { /* nothing kept */ } redraw(); };
+  }
   function docTab(kind) {
     var N = V.docs[kind], rep = kind === 'report', l = (window.ChampI18n && window.ChampI18n.get && window.ChampI18n.get()) || 'en', L = (window.ChampI18n && window.ChampI18n.langs) || [['en', 'English']], busy = V.ai[V.id + ':' + kind];
     var T = (M.studio && M.studio.themes && M.studio.themes()) || [];
@@ -695,7 +707,7 @@
       (rep ? 'A full report of about 60 pages in seven parts: introduction and strategy, governance, climate (IFRS S2 / AASB S2 / TCFD), environment, social, performance and roadmap, and reporting standards, with the data tables, charts, the avoided emissions, a content index for each standard you chose, a glossary and an approval page. ✨ Champ writes the narrative in seven parts at once (up to 100,000 tokens, about 3 to 6 minutes).'
         : 'A concise statement of under 10 pages: the leadership message, basis of preparation, governance, material topics, environment and climate, social, governance performance, avoided emissions, targets and outlook, and a short content index. ✨ Champ writes it in two parts (about 1 to 2 minutes).') + '</p>' +
       '<div class="form" style="margin-top:10px"><label>Language<select id="dLang" data-noi18n>' + L.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === l ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('') + '</select></label>' +
-      '<label>Colour scheme<select id="dTheme">' + T.map(function (t) { return '<option value="' + t.id + '"' + (t.id === THEME ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></label></div>' +
+      '<label>Colour scheme<select id="dTheme">' + T.map(function (t) { return '<option value="' + t.id + '"' + (t.id === THEME ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></label></div>' + photoBox() +
       '<div class="row" style="gap:6px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="dAi" type="button"' + (busy ? ' disabled' : '') + '>' + (busy ? '✨ Writing…' : N ? '✨ Write it again' : '✨ Write with AI') + '</button><button class="btn" id="dPdf" type="button">⬇ PDF</button><button class="btn" id="dDocx" type="button">⬇ Word</button><span class="muted" id="dMsg" style="font-size:12.5px">' + (busy ? '<span class="ask-think">✨ Champ is writing…</span>' : '') + '</span></div>' +
       (N && N.rev != null && N.rev < V.e.rev ? '<div class="esg-stale" role="status">⚠ The data has changed since this narrative was written (data version ' + N.rev + ', now ' + V.e.rev + '). The figures, tables and charts use today\'s data, so the text may quote older numbers: <b>write it again</b> before you publish. The documents are marked until you do.</div>' : '') + checksBox(N) + '<div class="esg-dstate">' + (N ? '✓ Narrative v' + N.ver + ' written ' + esc(when(N.at)) + ' by ' + esc(N.by || '') + ' · ' + nf(N.tokens) + ' tokens' + (N.partial ? ' · <span class="t-amber">' + esc(N.partial) + '</span>' : '') + '. Write it again after you change the data.' : 'No narrative yet: the PDF and Word still work, with the data, charts and tables, and a note where the narrative goes.') + '</div></div>' +
       '<div class="card"><h3 style="margin-top:0">Inside</h3><ol class="esg-toc">' + (rep ? REPORT_TOC : STATEMENT_TOC).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div></div>';
@@ -861,7 +873,7 @@
     THEME = $('#dTheme').value || 'forest';
     var snap = { e: V.e, docs: V.docs, N: V.docs[kind], org: JSON.parse(JSON.stringify(V.e.org || {})), id: V.e.id },   // the organisation as it was when the document started: filing never reads a later edit
       same = function () { if (V.e !== snap.e) throw new Error('Another report was opened while this one was being prepared. Go back to it and make the document again.'); };
-    var k0 = orgKey(snap.org.name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0._lim = lim; return enrich(D0, kind); };
+    var k0 = orgKey(snap.org.name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0.photos = photosOf(snap.id).slice(); D0._lim = lim; return enrich(D0, kind); };
     say('Gathering the figures…');
     return Promise.all([api('esgVaultGet', { key: k0 }).then(function (a) { TREND[k0] = a; }, function () { TREND[k0] = null; }), loadSdg(), loadProg(snap.id)])
       .then(function () { return makeDoc2(kind, fmt, lang, build, say, snap, win); }).catch(function (e) { say(''); if (win) win.close(); fail(e); });
@@ -1144,7 +1156,8 @@
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };
     if ($('#dPdf')) $('#dPdf').onclick = function () { var w0 = M.studio && M.studio.needsPrint({ lang: $('#dLang').value }) ? window.open('', '_blank') : null; flush().then(function () { makeDoc(V.tab, 'pdf', w0); }, function (e) { if (w0) w0.close(); if (!e.shown) fail(e); }); };   // the print window opens at the click, before the waiting
     if ($('#dDocx')) $('#dDocx').onclick = function () { flush().then(function () { makeDoc(V.tab, 'docx'); }, function (e) { if (!e.shown) fail(e); }); };
-    if ($('#dTheme')) $('#dTheme').onchange = function () { THEME = this.value; };
+    if ($('#dTheme')) $('#dTheme').onchange = function () { THEME = this.value; var b = $('#dPhotoBox'); if (b) { b.outerHTML = photoBox(); wirePhotos(); } };
+    wirePhotos();
   }
   // leaving with changes not yet saved: save them now
   window.addEventListener('hashchange', function () { Object.keys(Q).forEach(function (id) { if (Object.keys(Q[id].parts).length) saveNow(id).catch(function () {}); }); });
