@@ -30,13 +30,21 @@
     sunset: ['Sunset', [67, 20, 52], [249, 115, 22], [253, 186, 116], [225, 29, 72], [255, 247, 237]],
     graphite: ['Graphite and lime', [24, 24, 27], [132, 204, 22], [190, 242, 100], [99, 102, 241], [247, 248, 244]],
     ruby: ['Ruby', [69, 10, 10], [225, 29, 72], [253, 164, 175], [217, 119, 6], [255, 241, 242]],
-    clean: ['Clean blue', [30, 41, 59], [37, 99, 235], [147, 197, 253], [16, 185, 129], [248, 250, 252]]
+    clean: ['Clean blue', [30, 41, 59], [37, 99, 235], [147, 197, 253], [16, 185, 129], [248, 250, 252]],
+    // 📸 report styles: the colours plus their own artwork for the cover, part pages and chapter bands, with your photos if you add them
+    horizon: ['Style: Horizon (photos, slanted panels, navy and teal)', [11, 42, 91], [15, 158, 143], [159, 227, 216], [21, 101, 192], [236, 244, 251], 'horizon'],
+    canopy: ['Style: Canopy (editorial, deep forest, arched photos)', [29, 74, 58], [111, 143, 78], [201, 216, 176], [166, 124, 58], [247, 244, 238], 'canopy'],
+    atlas: ['Style: Atlas (midnight, cyan and lime, bold)', [10, 16, 32], [34, 211, 238], [163, 230, 53], [124, 58, 237], [242, 246, 252], 'atlas'],
+    aurora: ['Style: Aurora (lavender and mint, duotone photos)', [42, 37, 80], [124, 92, 255], [196, 181, 253], [56, 217, 169], [251, 250, 255], 'aurora'],
+    signal: ['Style: Signal (black, white and yellow, Swiss grid)', [0, 0, 0], [255, 212, 0], [255, 233, 128], [90, 90, 90], [255, 255, 255], 'signal']
   };
+  var STYLE = '';
   var THEME = 'champ';
   function setTheme(th) {   // th: a theme id, or { ink: '#hex', accent: '#hex' } for a custom one
     var t = th && typeof th === 'object' ? th : null, def = THEMES[th] || THEMES.champ, ink, acc, light, sec, paper;
     if (t && rgb(t.ink) && rgb(t.accent)) { ink = rgb(t.ink); if (lum(ink) > 0.35) ink = mix(ink, [0, 0, 0], 0.65); acc = rgb(t.accent); light = mix(acc, [255, 255, 255], 0.45); sec = rgb(t.second) || mix(acc, [20, 120, 200], 0.6); paper = mix(acc, [255, 255, 255], 0.94); THEME = 'custom'; }
     else { ink = def[1]; acc = def[2]; light = def[3]; sec = def[4]; paper = def[5]; THEME = THEMES[th] ? th : 'champ'; }
+    STYLE = t ? '' : def[6] || '';
     C.ink = ink; C.ink2 = mix(ink, [255, 255, 255], 0.07); C.gold = acc; C.gold2 = light; C.goldD = lum(acc) > 0.45 ? mix(acc, ink, 0.45) : mix(acc, ink, 0.15);
     C.cream = paper; C.cream2 = mix(paper, ink, 0.05); C.line = mix(paper, ink, 0.13); C.tint = mix(acc, [255, 255, 255], 0.88); C.em = sec;
     C.onDark = mix(ink, [255, 255, 255], 0.84); C.onDark2 = mix(ink, [255, 255, 255], 0.68); C.ghost = mix(ink, acc, 0.3); C.onAcc = lum(acc) > 0.5 ? ink : [255, 255, 255];
@@ -59,7 +67,72 @@
   function use(D) { D.words = D.words || JSON.parse(JSON.stringify(WORDS)); CURW = D.words; CURL = D.lang || 'en'; setTheme(D.theme || 'champ'); }
   /* ---------- artwork (canvas): cover, part dividers, bands ---------- */
   function rnd(seed) { var s = seed || 7; return function () { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
-  function art(kind, w, h, seed) {
+  // a photo drawn to fill a box (cropped, not stretched): plain, black and white, or in two colours (dark → light)
+  function photo(x, img, dx, dy, dw, dh, mode, ax, ay) {
+    if (!img || !img.width) return false;
+    var k = Math.max(dw / img.width, dh / img.height), sw = dw / k, sh = dh / k, sx = (img.width - sw) * (ax == null ? 0.5 : ax), sy = (img.height - sh) * (ay == null ? 0.5 : ay);
+    if (!mode) { x.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); return true; }
+    var c = document.createElement('canvas'); c.width = Math.round(dw); c.height = Math.round(dh); var g = c.getContext('2d'); g.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+    var d = g.getImageData(0, 0, c.width, c.height), p = d.data, lo = mode === 'duo' ? C.ink : [0, 0, 0], hi = mode === 'duo' ? mix(C.gold, C.em, 0.35) : [255, 255, 255], ct = mode === 'gray' ? 1.25 : 1;
+    for (var i = 0; i < p.length; i += 4) { var l = (0.2126 * p[i] + 0.7152 * p[i + 1] + 0.0722 * p[i + 2]) / 255; l = Math.max(0, Math.min(1, (l - 0.5) * ct + 0.5)); p[i] = lo[0] + (hi[0] - lo[0]) * l; p[i + 1] = lo[1] + (hi[1] - lo[1]) * l; p[i + 2] = lo[2] + (hi[2] - lo[2]) * l; }
+    g.putImageData(d, 0, 0); x.drawImage(c, dx, dy, dw, dh); return true;
+  }
+  // the five report styles: each draws its own artwork, around the photo when there is one, and keeps the left side dark enough for white text
+  function styleArt(kind, w, h, img, R) {
+    var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'), band = kind === 'band', u = w / 1000;
+    var lin = function (x0, y0, x1, y1, stops) { var g = x.createLinearGradient(x0, y0, x1, y1); stops.forEach(function (s) { g.addColorStop(s[0], s[1]); }); return g; };
+    var glow = function (cx, cy, r, col, a) { var q = x.createRadialGradient(cx, cy, 0, cx, cy, r); q.addColorStop(0, CSS(col, a)); q.addColorStop(1, CSS(col, 0)); x.fillStyle = q; x.fillRect(0, 0, w, h); };
+    var poly = function (pts, fs) { x.beginPath(); pts.forEach(function (p, i) { if (i) x.lineTo(p[0], p[1]); else x.moveTo(p[0], p[1]); }); x.closePath(); x.fillStyle = fs; x.fill(); };
+    if (STYLE === 'horizon') {
+      if (!photo(x, img, 0, 0, w, h, '', 0.5, 0.45)) {   // drawn: a sky to the horizon, the sun low, layered hills
+        x.fillStyle = lin(0, 0, 0, h, [[0, CSS(C.ink)], [0.55, CSS(C.em)], [0.78, CSS(mix(C.gold2, [255, 255, 255], 0.3))]]); x.fillRect(0, 0, w, h);
+        glow(w * 0.72, h * 0.74, w * 0.5, [255, 236, 190], 0.55);
+        [[0.74, 0.55, C.gold], [0.8, 0.35, mix(C.gold, C.ink, 0.4)], [0.88, 0.2, mix(C.ink, C.gold, 0.2)]].forEach(function (hl, j) { x.beginPath(); x.moveTo(0, h); x.lineTo(0, h * hl[0]);
+          for (var t = 0; t <= 1.001; t += 0.05) x.lineTo(w * t, h * hl[0] - Math.sin(t * (3 + j) + j) * h * 0.03 * (band ? 0.3 : 1) - R() * h * 0.006); x.lineTo(w, h); x.closePath(); x.fillStyle = CSS(hl[2], 0.75 + j * 0.08); x.fill(); });
+      }
+      if (band) { x.fillStyle = lin(0, 0, w, 0, [[0, CSS(C.ink, 0.95)], [0.45, CSS(C.ink, 0.75)], [0.7, CSS(C.ink, 0.15)], [1, CSS(C.ink, 0)]]); x.fillRect(0, 0, w, h);
+        poly([[w * 0.5, 0], [w * 0.56, 0], [w * 0.46, h], [w * 0.4, h]], CSS(C.gold, 0.55)); }
+      else { poly([[0, 0], [w * 0.78, 0], [w * 0.42, h], [0, h]], CSS(C.ink, 0.9)); poly([[w * 0.78, 0], [w * 0.9, 0], [w * 0.54, h], [w * 0.42, h]], CSS(C.gold, 0.5)); poly([[w * 0.9, 0], [w * 0.93, 0], [w * 0.57, h], [w * 0.54, h]], CSS(C.gold2, 0.35)); }
+    } else if (STYLE === 'canopy') {
+      x.fillStyle = CSS(C.ink); x.fillRect(0, 0, w, h);
+      var ax = band ? w * 0.6 : w * 0.5, ay = band ? h * 0.12 : h * 0.06, aw = band ? w * 0.36 : w * 0.44, ah = band ? h * 0.88 : h * 0.62, rad = band ? ah * 0.9 : aw * 0.5;
+      x.save(); x.beginPath(); x.moveTo(ax, ay + ah); x.lineTo(ax, ay + rad); x.arcTo(ax, ay, ax + rad, ay, rad); x.lineTo(ax + aw, ay); x.lineTo(ax + aw, ay + ah); x.closePath(); x.clip();
+      if (!photo(x, img, ax, ay, aw, ah, '', 0.5, 0.4)) {   // drawn: leaves
+        x.fillStyle = lin(ax, ay, ax, ay + ah, [[0, CSS(mix(C.ink, C.gold, 0.35))], [1, CSS(mix(C.ink, [0, 0, 0], 0.3))]]); x.fillRect(ax, ay, aw, ah);
+        for (var i = 0; i < 26; i++) { var lx = ax + R() * aw, ly = ay + R() * ah, ls = (40 + R() * 120) * u, ang = R() * Math.PI * 2; x.save(); x.translate(lx, ly); x.rotate(ang);
+          x.beginPath(); x.moveTo(0, 0); x.quadraticCurveTo(ls * 0.5, -ls * 0.35, ls, 0); x.quadraticCurveTo(ls * 0.5, ls * 0.35, 0, 0); x.fillStyle = CSS(R() < 0.5 ? C.gold : C.gold2, 0.25 + R() * 0.45); x.fill();
+          x.strokeStyle = CSS(C.ink, 0.35); x.lineWidth = 2 * u; x.beginPath(); x.moveTo(0, 0); x.lineTo(ls * 0.9, 0); x.stroke(); x.restore(); }
+      }
+      x.fillStyle = CSS(C.ink, band ? 0.15 : 0.25); x.fillRect(ax, ay, aw, ah); x.restore();
+      x.strokeStyle = CSS(C.gold2, 0.5); x.lineWidth = 2 * u; x.beginPath(); x.moveTo(w * 0.06, band ? h * 0.86 : h * 0.73); x.lineTo(ax - 30 * u, band ? h * 0.86 : h * 0.73); x.stroke();
+    } else if (STYLE === 'atlas') {
+      x.fillStyle = CSS(C.ink); x.fillRect(0, 0, w, h);
+      if (photo(x, img, 0, 0, w, band ? h : h * 0.72, '', 0.5, 0.5)) { x.fillStyle = lin(0, 0, 0, band ? h : h * 0.72, [[0, CSS(C.ink, band ? 0.55 : 0.25)], [0.6, CSS(C.ink, band ? 0.7 : 0.35)], [1, CSS(C.ink, 1)]]); x.fillRect(0, 0, w, band ? h : h * 0.72); if (band) { x.fillStyle = lin(0, 0, w, 0, [[0, CSS(C.ink, 0.85)], [0.6, CSS(C.ink, 0.2)]]); x.fillRect(0, 0, w, h); } }
+      else {   // drawn: lights running to a horizon
+        glow(w * 0.5, h * (band ? 0.9 : 0.55), w * 0.7, C.gold, 0.22); glow(w * 0.85, h * 0.1, w * 0.5, C.em, 0.18);
+        var vx = w * 0.62, vy = h * (band ? 0.2 : 0.42);
+        for (var k = -14; k <= 14; k++) { x.strokeStyle = CSS(k % 3 ? C.gold : C.gold2, 0.12 + Math.abs(k % 3) * 0.05); x.lineWidth = (1 + (k % 2 ? 0 : 1.5)) * u; x.beginPath(); x.moveTo(vx, vy); x.lineTo(vx + k * w * 0.12, h); x.stroke(); }
+        for (var n = 0; n < 60; n++) { var t = Math.pow(R(), 1.8), kk = Math.round((R() - 0.5) * 28) / 2, px = vx + kk * w * 0.12 * t, py = vy + (h - vy) * t; x.fillStyle = CSS(R() < 0.7 ? C.gold : C.gold2, 0.5 + R() * 0.5); x.beginPath(); x.arc(px, py, (1.5 + 6 * t) * u, 0, Math.PI * 2); x.fill(); }
+      }
+      x.fillStyle = CSS(C.gold2); x.fillRect(w * 0.06, band ? h * 0.9 : h * 0.88, 70 * u, 6 * u);
+    } else if (STYLE === 'aurora') {
+      x.fillStyle = CSS(C.ink); x.fillRect(0, 0, w, h);
+      [[0.15, 0.2, C.gold, 0.75], [0.85, 0.3, C.em, 0.6], [0.55, 0.85, C.gold2, 0.5], [0.95, 0.95, C.em, 0.4]].forEach(function (b) { glow(w * b[0], h * b[1], w * (band ? 0.45 : 0.6), b[2], b[3]); });
+      var cr = band ? h * 0.42 : w * 0.3, ccx = band ? w * 0.8 : w * 0.66, ccy = band ? h * 0.5 : h * 0.36;
+      x.save(); x.beginPath(); x.arc(ccx, ccy, cr, 0, Math.PI * 2); x.clip();
+      if (!photo(x, img, ccx - cr, ccy - cr, cr * 2, cr * 2, 'duo')) { x.fillStyle = lin(ccx - cr, ccy - cr, ccx + cr, ccy + cr, [[0, CSS(C.gold)], [1, CSS(C.em)]]); x.fillRect(ccx - cr, ccy - cr, cr * 2, cr * 2); }
+      x.restore(); x.strokeStyle = CSS([255, 255, 255], 0.35); x.lineWidth = 2 * u; [1.12, 1.26].forEach(function (k2) { x.beginPath(); x.arc(ccx, ccy, cr * k2, 0, Math.PI * 2); x.stroke(); });
+    } else {   // signal: black, a hard-edged black-and-white photo, one yellow block
+      x.fillStyle = '#000'; x.fillRect(0, 0, w, h);
+      var px0 = band ? w * 0.55 : w * 0.38, py1 = band ? h : h * 0.5;
+      if (!photo(x, img, px0, 0, w - px0, py1, 'gray')) { for (var gy = 0; gy < py1; gy += 14 * u) for (var gx = px0; gx < w; gx += 14 * u) { var rr = 5.5 * u * (0.25 + 0.75 * ((gx - px0) / (w - px0)) * (1 - gy / py1)); x.fillStyle = '#fff'; x.beginPath(); x.arc(gx, gy, rr, 0, Math.PI * 2); x.fill(); } }
+      x.fillStyle = CSS(C.gold); if (band) x.fillRect(px0 - 18 * u, 0, 18 * u, h); else x.fillRect(w * 0.62, h * 0.86, w * 0.38, h * 0.14);
+      x.fillStyle = '#fff'; for (var li = 0; li < 12; li++) x.fillRect(w * li / 12, band ? h - 3 * u : h * 0.995, 1.2 * u, band ? 3 * u : h * 0.005);
+    }
+    return { url: c.toDataURL('image/jpeg', 0.86), png: c.toDataURL('image/png'), w: w, h: h };
+  }
+  function art(kind, w, h, seed, img) {
+    if (STYLE) return styleArt(kind, w, h, img, rnd(seed || 11));
     var c = document.createElement('canvas'); c.width = w; c.height = h; var x = c.getContext('2d'), R = rnd(seed || 11);
     var g = x.createLinearGradient(0, 0, w, h); g.addColorStop(0, CSS(C.ink)); g.addColorStop(0.55, CSS(mix(C.ink, C.gold, 0.07))); g.addColorStop(1, CSS(mix(C.ink, C.gold, 0.18))); x.fillStyle = g; x.fillRect(0, 0, w, h);
     var glow = function (cx, cy, r, col, a) { var q = x.createRadialGradient(cx, cy, 0, cx, cy, r); q.addColorStop(0, CSS(col, a)); q.addColorStop(1, CSS(col, 0)); x.fillStyle = q; x.fillRect(0, 0, w, h); };
@@ -350,10 +423,14 @@
   }
   // load the artwork and turn chart blocks into pictures
   function prep(D) {
-    use(D); if (D._artTheme !== JSON.stringify(D.theme || 'champ')) { D._art = null; D._artTheme = JSON.stringify(D.theme || 'champ'); (D.chapters || []).forEach(function (ch) { (ch.blocks || []).forEach(function (b) { if (b.t === 'chart') b._img = null; }); }); }
-    D._art = D._art || { cover: art('cover', 1240, 1754, 7), divider: art('divider', 1240, 1754, 23), band: art('band', 1600, 300, 41) };
+    use(D); var pk = (D.photos || []).map(function (p) { return String(p).length + ':' + String(p).slice(-24); }).join(','), ak = JSON.stringify(D.theme || 'champ') + '|' + pk;
+    if (D._artTheme !== ak) { D._art = null; D._artTheme = ak; (D.chapters || []).forEach(function (ch) { (ch.blocks || []).forEach(function (b) { if (b.t === 'chart') b._img = null; }); }); }
+    // your photos (up to 3: the cover, the part pages, the chapter bands), loaded before the artwork is drawn; a photo that will not load is left out
+    var pics = (D.photos || []).slice(0, 3).map(function (src) { return new Promise(function (ok) { var im = new Image(); im.onload = function () { ok(im); }; im.onerror = function () { ok(null); }; im.src = src; }); });
+    var made = Promise.all(pics).then(function (P) { use(D); var p = function (i) { return P[i] || P[i - 1] || P[0] || null; };   // the theme again: another document may have been prepared while the photos loaded
+      D._art = D._art || { cover: art('cover', 1240, 1754, 7, p(0)), divider: art('divider', 1240, 1754, 23, p(1)), band: art('band', 1600, 300, 41, p(2)) }; });
     var fonts = document.fonts && document.fonts.load ? Promise.all(['400 20px Poppins', '600 20px Poppins', '800 20px Poppins'].map(function (f) { return document.fonts.load(f).catch(function () {}); })) : Promise.resolve();
-    return fonts.then(function () { (D.chapters || []).forEach(function (ch) { (ch.blocks || []).forEach(function (b) { if (b.t === 'chart' && !b._img) b._img = chart(b); if (b.t === 'image' && !b._img && b.url) b._img = { url: b.url, w: b.iw, h: b.ih }; }); }); });
+    return Promise.all([fonts, made]).then(function () { (D.chapters || []).forEach(function (ch) { (ch.blocks || []).forEach(function (b) { if (b.t === 'chart' && !b._img) b._img = chart(b); if (b.t === 'image' && !b._img && b.url) b._img = { url: b.url, w: b.iw, h: b.ih }; }); }); });
   }
 
   /* ---------- Word ---------- */
@@ -560,6 +637,6 @@
     });
   }
 
-  function themes() { return Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return { id: k, name: t[0], ink: '#' + HEX(t[1]), accent: '#' + HEX(t[2]), light: '#' + HEX(t[3]), second: '#' + HEX(t[4]), paper: '#' + HEX(t[5]) }; }); }
+  function themes() { return Object.keys(THEMES).map(function (k) { var t = THEMES[k]; return { id: k, style: t[6] || '', name: t[0], ink: '#' + HEX(t[1]), accent: '#' + HEX(t[2]), light: '#' + HEX(t[3]), second: '#' + HEX(t[4]), paper: '#' + HEX(t[5]) }; }); }
   M.studio = { pdf: function (D) { return translate(D).then(function () { return pdf(D); }); }, docx: function (D) { return translate(D).then(function () { return docx(D); }); }, print: printView, html: html, themes: themes, setWords: function (w, l) { CURW = w || {}; CURL = l || 'en'; setTheme('champ'); }, needsPrint: needsPrint, translate: translate, art: art, chart: chart, clean: clean };
 })();
