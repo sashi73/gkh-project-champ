@@ -197,7 +197,7 @@
   function field(sec, f) {
     var k = f[0], label = f[1], t = f[2], opts = f[3], hint = f[4], v = (V.e[sec] || {})[k], unit = typeof opts === 'string' ? opts : t === 'p' ? '%' : '', id = 'ef-' + sec + '-' + k, ctl;
     var val = v == null ? '' : String(v);
-    if (k === 'country' && V.lastCtyFor !== V.e.id) { V.lastCtyFor = V.e.id; V.lastCty = (ctyOf(val) || [])[0] || ''; }   // the country this report started with
+    if (k === 'country' && (V.lastCtyFor !== V.e.id || V.lastCtyRev !== V.e.rev && !document.activeElement.matches('#ef-org-country'))) { V.lastCtyRev = V.e.rev; V.lastCtyFor = V.e.id; V.lastCty = (ctyOf(val) || [])[0] || ''; }   // the country this report started with
     if (k === 'fset') { var grp = {}, order = []; Object.keys(SC.factorSets).forEach(function (x) { var g0 = SC.factorSets[x].group || 'Presets'; if (!grp[g0]) { grp[g0] = []; order.push(g0); } grp[g0].push(x); });
       order = ['Presets'].concat(order.filter(function (g0) { return g0 !== 'Presets'; }).sort());
       ctl = '<select id="' + id + '" data-s="' + sec + '" data-k="' + k + '"><option value="">Choose a factor set (' + Object.keys(SC.factorSets).length + ' sets, ' + (order.length - 1) + ' countries)…</option>' + order.map(function (g0) { return '<optgroup label="' + esc(g0 === 'Presets' ? 'Quick presets' : g0) + '">' + grp[g0].map(function (x) { var lb = SC.factorSets[x].label; if (g0 !== 'Presets') lb = lb.replace(new RegExp('^' + g0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ',? ?:?'), '').replace(/^\s*:?\s*/, '') || lb; return '<option value="' + x + '"' + (x === v ? ' selected' : '') + '>' + esc(lb) + '</option>'; }).join('') + '</optgroup>'; }).join('') + '</select>'; }
