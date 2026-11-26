@@ -126,7 +126,7 @@ export const MONEY_ROLES = ['CEO', 'CFO', 'PMO Director', 'Finance personnel', '
 export function seesMoney(ctx) { return !!ctx && (!ctx.scope || !!(ctx.pgm && ctx.pgm.kind === 'project')) && (!!ctx.owner || MONEY_ROLES.includes(ctx.role)); }   // a Project manager keeps money on their own projects
 export function allowsBg(ctx, mode) {
   if (!ctx) return false; if (ctx.owner) return true;
-  if (mode === 'esgDoc' || mode === 'esgInsight' || mode === 'esgBill' || mode === 'esgMap' || mode === 'svBill') return true;   // 🌿 ESG: anyone signed in
+  if (mode === 'esgDoc' || mode === 'esgInsight' || mode === 'esgBill' || mode === 'esgMap' || mode === 'svBill') return !ctx.scope;   // 🌿 ESG: staff logins only (contractors and program logins are kept out)   // 🌿 ESG: anyone signed in
   const lv = LV[(ctx.mods || {}).projects] || 0;
   return mode === 'vaultRedact' || mode === 'ceoBrief' || mode === 'ceoAsk' || mode === 'intel' || mode === 'watch' || mode === 'docAnalyse' || mode === 'docReview' || mode === 'lessonsReport' ? lv >= 1 : lv >= 2;
 }

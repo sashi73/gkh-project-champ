@@ -227,6 +227,8 @@ const BILL_KINDS = { electricity: ['carbon.elec', { kwh: 0.001, mwh: 1, gwh: 100
   'waste to landfill': ['scope3.landfill', { t: 1, kg: 0.001 }], 'waste recycled': ['scope3.recycled', { t: 1, kg: 0.001 }] };
 const BILL_SYS2 = 'You read utility and fuel bills (electricity, gas, water, diesel, petrol, LPG, jet fuel, waste collection) for sustainability reporting. The text may come from OCR and contain errors: read carefully and never guess. Return JSON only. ' +
   'For each quantity actually used or delivered in the billing period (not demand kW, not meter readings on their own, not previous bills), give one line. Leave a value null when the bill does not show it.';
+// a real calendar day (2026-02-31 is refused, not read as 3 March)
+const realDay = (x) => { const s = String(x || ''); if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null; const t = Date.parse(s + 'T00:00:00Z'); return Number.isFinite(t) && new Date(t).toISOString().slice(0, 10) === s ? s : null; };
 export async function readAnyBill(text, file) {
   const { llmJson, llmSetup, checkLimit, usage } = await import('./ai.mjs');
   if (!llmSetup()) return { error: 'AI is not set up yet: add LLM_API_KEY (DeepSeek) in Netlify.' };
@@ -236,7 +238,7 @@ export async function readAnyBill(text, file) {
     { maxTokens: 1800, timeoutMs: 120000, temperature: 0 }).catch((e) => ({ error: e.message }));
   if (r.error) return { error: r.error };
   await usage(1, r.used || 0).catch(() => {});
-  const d = r.data || {}, ymd = (x) => (/^\d{4}-\d{2}-\d{2}$/.test(String(x || '')) ? String(x) : null), warnings = (Array.isArray(d.warnings) ? d.warnings : []).slice(0, 6).map((x) => str(x, 200)).filter(Boolean);
+  const d = r.data || {}, ymd = realDay, warnings = (Array.isArray(d.warnings) ? d.warnings : []).slice(0, 6).map((x) => str(x, 200)).filter(Boolean);
   const lines = (Array.isArray(d.lines) ? d.lines : []).slice(0, 20).map((x) => { x = x && typeof x === 'object' ? x : {}; const k = BILL_KINDS[String(x.kind || '').toLowerCase()], u = String(x.unit || '').toLowerCase().replace(/[^a-z0-9]/g, ''), q = num(x.qty), from = ymd(x.from), to = ymd(x.to);
     if (!k) { if (x.kind) warnings.push('Skipped "' + str(x.kind, 40) + '": not a measure the vault keeps.'); return null; }
     const f = k[1][u]; if (q == null || f == null) { warnings.push('Skipped ' + x.kind + ': ' + (q == null ? 'no quantity' : 'unit "' + str(x.unit, 12) + '" not understood') + '.'); return null; }
@@ -254,15 +256,19 @@ export async function readAnyBill(text, file) {
 // never twice: a line already added (same measure, account and period) is skipped
 const BILL_METRICS = new Set(Object.values(BILL_KINDS).map((k) => k[0]));
 export async function addBill(key, body, by) {
-  key = keyOf(key); const ymd = (x) => (/^\d{4}-\d{2}-\d{2}$/.test(String(x || '')) ? String(x) : null), file = str(body.file, 120);
+  key = keyOf(key); const ymd = realDay, file = str(body.file, 120);
   const lines = (Array.isArray(body.lines) ? body.lines : []).slice(0, 20).map((l) => ({ metric: String(l.metric || ''), value: num(l.value), from: ymd(l.from), to: ymd(l.to), account: str(l.account, 60), site: str(l.site, 120) }))
     .filter((l) => BILL_METRICS.has(l.metric) && l.value != null && l.value >= 0 && l.from && l.to && l.to >= l.from && (Date.parse(l.to) - Date.parse(l.from)) / 864e5 <= 400);
   if (!lines.length) return { error: 'No usable lines on this bill: each needs a measure, a quantity and a billing period.', code: 400 };
+  // lines for the same measure, account and period (peak and off-peak, two tariffs) are one quantity: added together first
+  const byS = new Map(); lines.forEach((l) => { const sig = [l.metric, l.account.toLowerCase(), l.from, l.to].join('|'), o = byS.get(sig); if (o) o.value += l.value; else byS.set(sig, { ...l, sig }); });
+  const merged = [...byS.values()];
   let err = null, added = 0, skipped = 0, months = new Set();
   const v = await kv.update('svault:' + key, (x) => {
     if (!x) { err = { error: 'Open the vault first', code: 404 }; return x; }
+    added = 0; skipped = 0; months = new Set();   // counted again on each attempt: only the save that lands is reported
     x.billSigs = x.billSigs || []; x.records = x.records || [];
-    lines.forEach((l) => { const sig = [l.metric, l.account.toLowerCase(), l.from, l.to].join('|'); if (x.billSigs.includes(sig)) { skipped++; return; } x.billSigs.push(sig); added++;
+    merged.forEach((l) => { const sig = l.sig; if (x.billSigs.includes(sig)) { skipped++; return; } x.billSigs.push(sig); added++;
       const a = Date.parse(l.from + 'T00:00:00Z'), b = Date.parse(l.to + 'T00:00:00Z'), days = Math.round((b - a) / 864e5) + 1, part = {};
       for (let t = a; t <= b; t += 864e5) { const p = new Date(t).toISOString().slice(0, 7); part[p] = (part[p] || 0) + l.value / days; }
       Object.entries(part).forEach(([p, val]) => { months.add(p); const i = x.records.findIndex((r) => r.period === p && r.metric === l.metric), old = i >= 0 ? Number(x.records[i].value) || 0 : 0;

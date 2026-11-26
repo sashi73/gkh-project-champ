@@ -213,12 +213,14 @@
       var lines = r.lines || [], mm = {}; (r.months || []).forEach(function (m) { (mm[m.period] = mm[m.period] || {})[m.metric] = m.value; });
       var mets = lines.map(function (l) { return l.metric; }).filter(function (x, i, a) { return a.indexOf(x) === i; }), lab = function (k) { var l = lines.filter(function (x) { return x.metric === k; })[0]; return l ? l.label + ' (' + l.unit + ')' : k; };
       M.modal('<h2>📄 ' + esc(f.name) + '</h2><p class="muted" style="margin:4px 0 10px">' + esc([r.supplier, r.kind].filter(Boolean).join(' · ') || 'Bill') + (r.ocr ? ' · read with OCR, so check the figures' : '') + '</p>' +
-        (lines.length ? '<table class="tbl"><thead><tr><th>What</th><th class="r">On the bill</th><th class="r">Into the vault</th><th>Period</th><th>Site or account</th></tr></thead><tbody>' + lines.map(function (l) { return '<tr><td><b>' + esc(l.label) + '</b></td><td class="r">' + nf(l.qty) + ' ' + esc(l.qtyUnit) + '</td><td class="r">' + nf(l.value) + ' ' + esc(l.unit) + '</td><td>' + esc(l.from) + ' to ' + esc(l.to) + '</td><td>' + esc([l.site, l.account].filter(Boolean).join(' · ')) + '</td></tr>'; }).join('') + '</tbody></table>' +
-          '<h4 style="margin:14px 0 6px">Spread over the months (by days)</h4><table class="tbl"><thead><tr><th>Month</th>' + mets.map(function (k) { return '<th class="r">' + esc(lab(k)) + '</th>'; }).join('') + '</tr></thead><tbody>' + Object.keys(mm).sort().map(function (p) { return '<tr><td>' + p + '</td>' + mets.map(function (k) { return '<td class="r">' + (mm[p][k] == null ? '' : nf(mm[p][k])) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>' : '<p>No quantities could be read from this bill.</p>') +
+        (lines.length ? '<table class="tbl"><thead><tr><th>What</th><th class="r">On the bill</th><th class="r">Into the vault</th><th>Period</th><th>Site or account</th></tr></thead><tbody>' + lines.map(function (l) { return '<tr><td><b>' + esc(l.label) + '</b></td><td class="r">' + nf(l.qty, 3) + ' ' + esc(l.qtyUnit) + '</td><td class="r">' + nf(l.value, 4) + ' ' + esc(l.unit) + '</td><td>' + esc(l.from) + ' to ' + esc(l.to) + '</td><td>' + esc([l.site, l.account].filter(Boolean).join(' · ')) + '</td></tr>'; }).join('') + '</tbody></table>' +
+          '<h4 style="margin:14px 0 6px">Spread over the months (by days)</h4><table class="tbl"><thead><tr><th>Month</th>' + mets.map(function (k) { return '<th class="r">' + esc(lab(k)) + '</th>'; }).join('') + '</tr></thead><tbody>' + Object.keys(mm).sort().map(function (p) { return '<tr><td>' + p + '</td>' + mets.map(function (k) { return '<td class="r">' + (mm[p][k] == null ? '' : nf(mm[p][k], 4)) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table>' : '<p>No quantities could be read from this bill.</p>') +
         ((r.warnings || []).length ? '<p class="muted" style="font-size:12.5px;margin:10px 0 0">⚠ ' + r.warnings.map(esc).join('<br>⚠ ') + '</p>' : '') +
         '<p class="muted" style="font-size:12.5px;margin:10px 0 0">The figures are added to what is already in those months (another meter or site), and the same bill is never added twice.</p>' +
         '<div class="actions" style="justify-content:flex-end"><button class="btn" type="button" id="brFile">File only</button>' + (lines.length ? '<button class="btn btn-gold" type="button" id="brAdd">Add the figures and file it</button>' : '') + '</div>');
-      var close = function (v) { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); res(v); };
+      var done = false, settle = function (v) { if (!done) { done = true; res(v); } }, md = document.getElementById('modal');
+      if (md) md.addEventListener('close', function () { settle(false); }, { once: true });   // Escape or ✕: filed without figures, and the next file carries on
+      var close = function (v) { settle(v); var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); };
       $('#brFile').onclick = function () { close(false); }; if ($('#brAdd')) $('#brAdd').onclick = function () { close(true); };
     });
   }
@@ -231,15 +233,16 @@
       files.reduce(function (p, f) { return p.then(function () {
         var per = period, canRead = readOn && (/\.pdf$/i.test(f.name) || /^image\//.test(f.type) || /\.(png|jpe?g|webp|bmp|gif|tiff?)$/i.test(f.name));
         var read = !canRead ? Promise.resolve(null) : billText(f, say).then(function (x) { say('Champ is picking out the quantities…'); return aiBill(x.text, f.name).then(function (r) { r.ocr = x.ocr; return r; }); })
-          .then(function (r) { say(''); return billReview(f, r).then(function (add) { if (r.period) per = r.period; if (!add) return null;
-            return api('esgVaultAddBill', { key: V.key, file: f.name, lines: r.lines }).then(function (z) { added += z.added || 0; if (z.skipped) toast(f.name + ': ' + z.skipped + ' line(s) were already in the vault, so not added again'); }); }); })
+          .then(function (r) { say(''); return billReview(f, r).then(function (add) { if (r.period) per = r.period; return add ? r : null; }); })
           .catch(function (e) { say(''); toast(f.name + ': ' + (e.message || 'could not be read') + ' (filed without figures)'); return null; });
-        return read.then(function () {
+        // the evidence is kept first; its figures go in only once the file is safely filed
+        var addFigures = function (r) { if (!r) return null; return api('esgVaultAddBill', { key: V.key, file: f.name, lines: r.lines }).then(function (z) { added += z.added || 0; if (z.skipped) toast(f.name + ': ' + z.skipped + ' line(s) were already in the vault, so not added again'); }, function (e) { toast(f.name + ' is filed, but its figures were not added (' + (e.message || 'error') + '). Type them into Data by month, or file the bill again.'); }); };
+        return read.then(function (rd) {
         var b64 = function () { return new Promise(function (res, rej) { var rd = new FileReader(); rd.onload = function () { res(String(rd.result).replace(/^data:[^,]*,/, '')); }; rd.onerror = rd.onabort = function () { rej(new Error('Could not read ' + f.name)); }; rd.readAsDataURL(f); }); };
         return api('esgVaultUrl', { key: V.key, name: f.name }).then(function (u) {
           if (u && u.r2) return fetch(u.url, { method: 'PUT', headers: { 'Content-Type': f.type || 'application/octet-stream' }, body: f }).then(function (r) { if (!r.ok) throw new Error('Upload failed (' + r.status + ')'); return { r2Key: u.key }; });
           if (f.size > 3.5 * 1024 * 1024) throw new Error(f.name + ' is over 3.5 MB: file storage (R2) is needed for large files.'); return b64().then(function (x) { return { file: x }; });
-        }).then(function (st) { return api('esgVaultAdd', { key: V.key, period: per, folder: folder, name: f.name, type: f.type, size: f.size, r2Key: st.r2Key || '', file: st.file || '', note: note }); }); }); }); }, Promise.resolve())
+        }).then(function (st) { return api('esgVaultAdd', { key: V.key, period: per, folder: folder, name: f.name, type: f.type, size: f.size, r2Key: st.r2Key || '', file: st.file || '', note: note }); }).then(function () { return addFigures(rd); }); }); }); }, Promise.resolve())
         .then(function () { var m = document.getElementById('modal'); if (m && m.open) { if (M.closeModal) M.closeModal(); else if (m.close) m.close(); } toast('Filed ' + files.length + ' file' + (files.length === 1 ? '' : 's') + (added ? ' · ' + added + ' bill line' + (added === 1 ? '' : 's') + ' added to Data by month' : '')); return load(); }).then(draw).catch(function (e) { b.disabled = false; b.textContent = 'File'; fail(e); }); };
   }
 
