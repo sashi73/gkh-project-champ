@@ -268,16 +268,16 @@ export async function addBill(key, body, by) {
     if (!x) { err = { error: 'Open the vault first', code: 404 }; return x; }
     added = 0; skipped = 0; months = new Set();   // counted again on each attempt: only the save that lands is reported
     x.billSigs = x.billSigs || []; x.records = x.records || [];
+    if (x.billSigs.length + merged.length > 20000) { err = { error: 'This vault has 20,000 bill lines on record: ask GKH to archive older years before adding more.', code: 400 }; return x; }   // signatures are never dropped, so a bill can never count twice
     merged.forEach((l) => { const sig = l.sig; if (x.billSigs.includes(sig)) { skipped++; return; } x.billSigs.push(sig); added++;
       const a = Date.parse(l.from + 'T00:00:00Z'), b = Date.parse(l.to + 'T00:00:00Z'), days = Math.round((b - a) / 864e5) + 1, part = {};
       for (let t = a; t <= b; t += 864e5) { const p = new Date(t).toISOString().slice(0, 7); part[p] = (part[p] || 0) + l.value / days; }
       Object.entries(part).forEach(([p, val]) => { months.add(p); const i = x.records.findIndex((r) => r.period === p && r.metric === l.metric), old = i >= 0 ? Number(x.records[i].value) || 0 : 0;
         const rec = { id: i >= 0 ? x.records[i].id : 'R' + uid(), period: p, metric: l.metric, value: Math.round((old + val) * 10000) / 10000, source: 'Bill', note: str(((i >= 0 && x.records[i].note) ? x.records[i].note + ' + ' : '') + (file || 'bill') + (l.site ? ' (' + l.site + ')' : ''), 200), file, by: str(by, 80), at: Date.now() };
         if (i >= 0) x.records[i] = rec; else x.records.push(rec); }); });
-    if (x.billSigs.length > 2000) x.billSigs = x.billSigs.slice(-2000);
     x.rev = (x.rev || 0) + 1; x.updated = Date.now(); return x;
   }, () => null);
   if (err) return err;
-  await touchIndex(v);
+  await touchIndex(v).catch(() => {});   // the figures are saved: a slow index update does not undo them
   return { vault: v, added, skipped, months: months.size };
 }

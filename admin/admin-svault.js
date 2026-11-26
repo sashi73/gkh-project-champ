@@ -236,7 +236,7 @@
           .then(function (r) { say(''); return billReview(f, r).then(function (add) { if (r.period) per = r.period; return add ? r : null; }); })
           .catch(function (e) { say(''); toast(f.name + ': ' + (e.message || 'could not be read') + ' (filed without figures)'); return null; });
         // the evidence is kept first; its figures go in only once the file is safely filed
-        var addFigures = function (r) { if (!r) return null; return api('esgVaultAddBill', { key: V.key, file: f.name, lines: r.lines }).then(function (z) { added += z.added || 0; if (z.skipped) toast(f.name + ': ' + z.skipped + ' line(s) were already in the vault, so not added again'); }, function (e) { toast(f.name + ' is filed, but its figures were not added (' + (e.message || 'error') + '). Type them into Data by month, or file the bill again.'); }); };
+        var addFigures = function (r) { if (!r) return null; return api('esgVaultAddBill', { key: V.key, file: f.name, lines: r.lines }).then(function (z) { added += z.added || 0; if (z.skipped) toast(f.name + ': ' + z.skipped + ' line(s) were already in the vault, so not added again'); }, function (e) { toast(f.name + ' is filed, but adding its figures did not confirm (' + (e.message || 'error') + '). Check Data by month; filing the bill again is safe, because a bill is never added twice.'); }); };
         return read.then(function (rd) {
         var b64 = function () { return new Promise(function (res, rej) { var rd = new FileReader(); rd.onload = function () { res(String(rd.result).replace(/^data:[^,]*,/, '')); }; rd.onerror = rd.onabort = function () { rej(new Error('Could not read ' + f.name)); }; rd.readAsDataURL(f); }); };
         return api('esgVaultUrl', { key: V.key, name: f.name }).then(function (u) {
