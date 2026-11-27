@@ -2,11 +2,11 @@
 export default {
   "product": "GKH Project Champ",
   "version": "1.0",
-  "build": 390,
+  "build": 391,
   "commit": "",
   "branch": "sticky-esg",
   "deployId": "",
   "context": "local",
-  "builtAt": "2026-11-27 12:58",
+  "builtAt": "2026-11-27 13:13",
   "site": ""
 };

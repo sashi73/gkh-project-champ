@@ -108,6 +108,13 @@ export const SCHEMA = {
   subcontractors: ['id', 'business', 'contact', 'trade', 'other_trades', 'phone', 'email', 'suburb', 'postcode', 'region', 'western_sydney', 'areas_covered', 'status', 'preference_rank', 'rating',
     'hourly_rate', 'callout_fee', 'after_hours_rate', 'payment_terms', 'availability', 'licence_no', 'licence_class', 'licence_expiry', 'licence_state', 'insurer', 'pl_policy', 'pl_cover', 'pl_expiry', 'pl_state',
     'wc_policy', 'wc_expiry', 'wc_state', 'sole_trader', 'white_card', 'swms', 'compliance', 'problems', 'any_expired', 'last_used', 'days_since_used', 'archived'],
+  // 🌿 ESG & Sustainability: one row per reporting entity (company), and its credits, avoided emissions, CBAM goods and sticky notes
+  esg_reports: ['report_id', 'company', 'industry', 'country', 'reporting_year', 'standards', 'esg_score', 'environment_score', 'social_score', 'governance_score', 'report_readiness_pct', 'scope1_t', 'scope2_location_t', 'scope2_market_t', 'scope3_t', 'total_t',
+    'renewable_pct', 'women_pct', 'ltifr', 'independent_directors_pct', 'sbti_target', 'reduction_target_pct', 'target_year', 'net_zero_year', 'iso14001', 'iso45001', 'iso27001', 'iso9001', 'avoided_t', 'credits_retired_t', 'high_quality_credits_pct', 'cbam_goods', 'open_notes', 'urgent_notes', 'updated'],
+  esg_credits: ['report_id', 'company', 'project', 'credit_type', 'standard', 'registry', 'vintage', 'tonnes', 'use_of_credit', 'ccp_label', 'corresponding_adjustment', 'quality_pct', 'integrity_flags', 'cost'],
+  esg_avoided: ['report_id', 'company', 'solution', 'category', 'baseline', 'tonnes', 'attribution_pct', 'status', 'verification'],
+  esg_cbam: ['report_id', 'company', 'market', 'goods', 'cn_code', 'destination', 'tonnes', 'embedded_t', 'liable_t', 'cbam_cost', 'currency'],
+  esg_notes: ['report_id', 'company', 'section', 'urgency', 'note', 'written_by', 'written', 'due', 'done', 'done_by'],
   sub_trades: ['trade', 'licence_needed', 'subbies', 'preferred', 'approved', 'all_papers_ok', 'with_expired', 'avg_rating', 'avg_hourly_rate', 'cheapest_hourly_rate']
 };
 for (const [tb, K] of Object.entries(KEYS)) {   // key columns first: own key, then keys of other tables
@@ -115,6 +122,9 @@ for (const [tb, K] of Object.entries(KEYS)) {   // key columns first: own key, t
   SCHEMA[tb] = [...new Set([...ks, ...SCHEMA[tb]])];
 }
 export const DESCRIBE = {
+  esg_reports: 'ESG & Sustainability: one row per company report with its E, S and G scores, readiness, Scope 1, 2 and 3 emissions, targets and certifications',
+  esg_credits: 'Carbon credits retired or held, per ESG report, with their integrity checks', esg_avoided: 'Avoided emissions (solutions that cut other people\'s emissions), per ESG report',
+  esg_cbam: 'Goods exported into the EU or UK CBAM, per ESG report', esg_notes: 'Sticky notes left on ESG report sections',
   projects: 'Start here. One row per project with its program, PMBOK phase, health (RAG), % complete, budget, earned value, SPI/CPI, dates, late tasks, risks and issues',
   customers: 'One row per customer (same phone + email = same customer) with their job counts and values', jobs: 'Every enquiry and job (pipeline stage, customer, suburb, trade, values)', quotes: 'Quotes (status, totals ex/inc GST)', invoices: 'Tax invoices (paid, balance, days overdue)',
   items: 'Line items of quotes and invoices', plan_tasks: 'Project plan tasks (dates, costs, % complete)', plan_risks: 'Risk registers of all plans', plan_issues: 'Issue logs of all plans', raid_log: 'The RAID log of every project: risks, assumptions, issues and dependencies (outside ones and links to other projects) in one table, each with a RAG status (red, amber, green, grey = closed). date is the review, check, due or needed-by date', plan_subtasks: 'Sub-tasks inside plan tasks (no costs; costs stay on the task)', plan_stakeholders: 'Stakeholders (RACI) on each project plan, including the subbies working on it', plan_contracts: 'Contracts uploaded on each project: customer, sub-contractor, supply, consultant', sub_trades: 'Every trade category (also ones with no subbies yet) with how many subbies, preferred, compliant, average rating and rates', subcontractors: 'Sub-contractors (subbies): trade, where they are, status, rating, rates, licence and insurance with expiry and whether expired', inventory: 'Stock items (on hand, set aside for jobs, re-order level)', suppliers: 'Suppliers', supplier_prices: 'Supplier quotes per stock item', stock_moves: 'Stock in and out', payments: 'Payments received', expenses: 'Expenses and receipts', reminders: 'Call-backs and follow-ups', visits: 'Website visitors per day'
@@ -298,8 +308,32 @@ export async function tables() {
   const change_records = (await crRecords().catch(() => [])).map((r) => ({ record_id: r.key, job: r.core, project: (cardBy[r.core] || {}).name || r.project, program: (cardBy[r.core] || {}).program || r.program || '', cr: r.cr, title: r.title,
     decision: r.outcome, approved_by: r.by, role: r.role, signed: !!r.sig, decided: d10(r.at), finish_before: r.f0, finish_after: r.f1, budget_before: r.b0, budget_after: r.b1, days: r.days, cost: r.cost,
     applied_directly: !!r.direct, status: r.status, note: r.note, pdf_kept: !!r.hasPdf, recorded_by: r.recordedBy }));
-  const all = { projects, programs, dependencies, change_records, customers, jobs, quotes, invoices, items, payments, expenses, reminders, visits, plan_tasks, plan_subtasks, plan_risks, plan_issues, raid_log, inventory, suppliers, supplier_prices, stock_moves, subcontractors, sub_trades, plan_stakeholders, plan_contracts };
+  const esg = await esgTables().catch(() => ({}));
+  const all = { ...esg, projects, programs, dependencies, change_records, customers, jobs, quotes, invoices, items, payments, expenses, reminders, visits, plan_tasks, plan_subtasks, plan_risks, plan_issues, raid_log, inventory, suppliers, supplier_prices, stock_moves, subcontractors, sub_trades, plan_stakeholders, plan_contracts };
   return withKeys(all, { custOfJob: custOf });
+}
+
+// 🌿 the ESG & Sustainability tables: every report, worked out the same way as on its screen
+async function esgTables() {
+  const E = await import('./esg.mjs'), idx = (await kv.get('esg-index')) || { ents: {} }, ids = Object.keys(idx.ents || {}).slice(0, 300);
+  const ents = await kv.getMany(ids.map((i) => 'esg:' + i)), notesAll = await kv.getMany(ids.map((i) => 'esgnotes:' + i)).catch(() => []);
+  const SEC = (await import('./esg-notes.mjs')).SEC_NAME, U = { R: 'Urgent', A: 'Semi-urgent', G: 'Fine' }, n0 = (v) => (v == null || v === '' ? null : v);
+  const esg_reports = [], esg_credits = [], esg_avoided = [], esg_cbam = [], esg_notes = [];
+  ents.forEach((e, k) => {
+    if (!e) return; let c; try { c = E.compute(e); } catch { return; }
+    const o = e.org || {}, w = e.workforce || {}, b = e.board || {}, cl = e.climate || {}, ce = e.certs || {}, id = e.id, co = o.name || 'Untitled', N = ((notesAll[k] || {}).notes || []);
+    esg_reports.push({ report_id: id, company: co, industry: o.industry || '', country: o.country || '', reporting_year: o.year || '', standards: (e.std || []).join(', '), esg_score: c.esg, environment_score: c.env.score, social_score: c.soc.score, governance_score: c.gov.score,
+      report_readiness_pct: c.readiness, scope1_t: c.em.s1t, scope2_location_t: c.em.s2loc, scope2_market_t: c.em.s2mkt, scope3_t: c.em.s3t, total_t: c.em.total, renewable_pct: n0((e.resources || {}).renewPct),
+      women_pct: n0(c.soc.womenPct), ltifr: n0(w.ltifr), independent_directors_pct: n0(b.indepPct), sbti_target: cl.sbti || '', reduction_target_pct: n0(cl.tgtPct), target_year: cl.tgtYear || '', net_zero_year: cl.netZero || '',
+      iso14001: (e.resources || {}).iso14001 || '', iso45001: ce.iso45001 || '', iso27001: ce.iso27001 || '', iso9001: ce.iso9001 || '', avoided_t: c.avoid.total, credits_retired_t: c.avoid.credits, high_quality_credits_pct: n0(c.price.highQualityPct),
+      cbam_goods: (c.price.cbam || []).length, open_notes: N.filter((n) => !n.done).length, urgent_notes: N.filter((n) => !n.done && n.c === 'R').length, updated: d10(e.updated) });
+    (c.price.credits || []).forEach((x) => esg_credits.push({ report_id: id, company: co, project: x.project || '', credit_type: x.type || '', standard: x.std || '', registry: x.registry || '', vintage: x.vintage || '', tonnes: n0(x.t), use_of_credit: x.use || '', ccp_label: x.ccp || '',
+      corresponding_adjustment: x.ca || '', quality_pct: x.quality, integrity_flags: (x.flags || []).join('; '), cost: n0(x.cost) }));
+    (c.avoid.items || []).forEach((x) => esg_avoided.push({ report_id: id, company: co, solution: x.name || '', category: x.cat || '', baseline: x.baseline || '', tonnes: n0(x.t), attribution_pct: n0(x.attr), status: x.status || '', verification: x.verify || '' }));
+    (c.price.cbam || []).forEach((x) => esg_cbam.push({ report_id: id, company: co, market: x.market, goods: x.good, cn_code: x.cn || '', destination: x.dest || '', tonnes: n0(x.tonnes), embedded_t: n0(x.emb), liable_t: n0(x.liable), cbam_cost: n0(x.cost), currency: x.cur }));
+    N.forEach((n) => esg_notes.push({ report_id: id, company: co, section: SEC[n.sec] || n.sec, urgency: U[n.c] || 'Fine', note: n.text, written_by: n.by || '', written: d10(n.at), due: n.due || '', done: !!n.done, done_by: n.doneBy || '' }));
+  });
+  return { esg_reports, esg_credits, esg_avoided, esg_cbam, esg_notes };
 }
 
 // ---------- AI narrative (DeepSeek) ----------
@@ -348,6 +382,8 @@ export async function narrative({ title, sql, columns, rows, focus }) {
 // short notes the AI needs (kept brief to save tokens)
 // short notes per table (only the tables a question needs are sent, to keep each AI call small)
 const NOTE = {
+  esg_reports: 'ESG & Sustainability reports (NOT projects: an ESG project in projects is consulting work; this is the company\'s own ESG data). One row per company (report_id joins the other esg_ tables). Scores 0-100 (esg_score = average of environment, social, governance); report_readiness_pct = how much of the chosen standards the data covers; emissions in tCO2e (total_t = Scope 1 + 2 location + 3); sbti_target Validated|Committed|No; iso* Yes|No|Certified|Working towards it; open_notes = sticky notes not done, urgent_notes = red ones',
+  esg_credits: 'one row per carbon credit line: report_id = esg_reports.report_id; credit_type (Avoidance or Removal…), use_of_credit, ccp_label Yes|No|Unknown, quality_pct 100 = no integrity flags, integrity_flags lists the problems', esg_avoided: 'one row per avoided-emissions solution: tonnes = tCO2e avoided a year; status Delivered|Under way|Planned', esg_cbam: 'one row per CBAM good: market EU|UK, embedded_t and liable_t in tCO2e, cbam_cost in currency', esg_notes: 'one row per sticky note on an ESG report; urgency Urgent|Semi-urgent|Fine; done true|false; dates YYYY-MM-DD',
   programs: 'one row per program (the top level; every project belongs to one): roll-up of its projects: health counts, % complete weighted by budget, $ budget/earned/spent, spi/cpi, forecast_finish vs target_finish, dependency_problems; join projects.program = programs.program',
   change_records: 'one row per change control decision kept on record (signed PDF kept): cr CR-001, decision Approved|Rejected|Deferred, approved_by and role (who decided), signed true when a signature was typed, decided date, finish_before/after, budget_before/after, days and cost effect, applied_directly true when applied with Fit to finish-by without a board review; job = jobs.core, join projects.job',
   dependencies: 'links between projects: from_project must happen before to_project (type finish to start|start to start|finish to finish, lag_days); status Clash (plans already clash)|At risk|OK|Done|No dates; buffer_days (negative = late); cross_program true when the two projects are in different programs; explanation in plain English',
@@ -372,6 +408,8 @@ const NOTE = {
   suppliers: 'suppliers', supplier_prices: 'one row per supplier quote for a stock item', stock_moves: 'qty + in / - out; kind in|out|count|plan|order; job = jobs.core'
 };
 const WORDS = {
+  esg_reports: /esg|sustainab|environment|social|governance|carbon|emission|scope|ghg|climate|net zero|sbti|readiness|issb|gri|ifrs|tcfd|csrd|brsr|bursa|iso ?14001|iso ?45001|green|renewable|company|companies|entit/i,
+  esg_credits: /credit|offset|retire|verra|gold standard|ccp|vintage|removal/i, esg_avoided: /avoid|scope 4|solution|handprint/i, esg_cbam: /cbam|border|export|eu ets|carbon price|levy/i, esg_notes: /note|sticky|remark|comment/i,
   projects: /project|program|portfolio|phase|initiat|planning|execution|monitor|closing|health|on track|at risk|rag|spi|cpi|earned|budget|overrun|over budget|behind|status|pmo|overall|summary/i,
   programs: /program|portfolio|pmo|overall|sponsor|benefit|roll-?up/i,
   change_records: /change|variation|\bcr\b|cr-\d|approv|sign|decision|reject|defer|baseline|board|ccb/i,
@@ -383,10 +421,18 @@ const WORDS = {
   subcontractors: /sub-?contract|subb(ie|y|ies)|tradie|sparky|rating|rated|roof|drain|gutter|leak|liability|call-?out|hourly|rates?\b|sole trader|papers?\b|complian|on hold|do not use|(not|haven'?t|didn'?t)( we)? used|last used|who (can|does|do)|someone|anyone|nobody|no one|\bguy\b|person for|trades?(wo)?m[ae]n|licen[cs]|insur|workers'? comp|white card|swms|plumb|electric|sparkie|cleaner|tiler|painter|carpent|roofer|concret|plaster|waterproof|glazier|landscap|fenc|scaffold|demoli|asbestos|skip bin|pest|locksmith|handyman|gas ?fit|air ?con|certifier|engineer|surveyor|bricklay|joiner/i,
   inventory: /stock|inventor|material|re-?order|low on|on hand|short supply|short of|running (low|out)|run(ning)? out|\blow\b|\bitems?\b|\border(ing)?\b|restock|shortage|supplies|parts?\b|products?\b/i, suppliers: /supplier|vendor/i, supplier_prices: /price|cheap|compare|supplier quote/i, stock_moves: /stock (used|in|out)|used|movement|consum|took/i
 };
-export function pickTables(question, extraSql = '') {
-  const q = String(question || ''), chosen = new Set(['jobs', 'projects']);
+export const ESG_TABLES = ['esg_reports', 'esg_credits', 'esg_avoided', 'esg_cbam', 'esg_notes'];
+export function pickTables(question, extraSql = '', esg = false) {
+  const q = String(question || '');
+  if (esg) {   // 🌿 ESG query & reports: only the ESG tables; esg_reports always, the others when the question (or the last query) is about them
+    const c = new Set(['esg_reports']); for (const t of ESG_TABLES) if ((WORDS[t] && WORDS[t].test(q)) || new RegExp('\\b' + t + '\\b', 'i').test(extraSql)) c.add(t);
+    if (c.size === 1 && !/score|readiness|emission|scope|target|certif|women|ltifr|board|compan/i.test(q)) ESG_TABLES.forEach((t) => c.add(t));
+    return ESG_TABLES.filter((t) => c.has(t));
+  }
+  const chosen = new Set(['jobs', 'projects']);
   for (const [t, re] of Object.entries(WORDS)) if (re.test(q)) chosen.add(t);
   for (const t of Object.keys(SCHEMA)) if (new RegExp('\\b' + t + '\\b', 'i').test(extraSql)) chosen.add(t);
+  if (chosen.has('esg_credits') || chosen.has('esg_avoided') || chosen.has('esg_cbam') || chosen.has('esg_notes')) chosen.add('esg_reports');
   if (chosen.has('plan_subtasks')) chosen.add('plan_tasks');
   if (chosen.has('supplier_prices') || chosen.has('stock_moves') || chosen.has('suppliers')) chosen.add('inventory');
   if (chosen.has('inventory') && /supplier|order from|whom|who to|contact|phone|call|email|vendor/i.test(q)) chosen.add('suppliers');
@@ -395,10 +441,10 @@ export function pickTables(question, extraSql = '') {
   if (/stakeholder|raci|accountable|responsible|consulted|informed/i.test(q)) { chosen.add('plan_stakeholders'); chosen.add('plan_tasks'); }
   // nothing specific (and not about jobs): give the AI every table
   if (chosen.size === 2 && !/job|enquir|customer|lead|won|lost|suburb|trade|new|stage|called/i.test(q)) Object.keys(SCHEMA).forEach((t) => chosen.add(t));
-  return Object.keys(SCHEMA).filter((t) => chosen.has(t) && CHAMP_TABLES.has(t));
+  return Object.keys(SCHEMA).filter((t) => chosen.has(t) && CHAMP_TABLES.has(t) && !ESG_TABLES.includes(t));   // the ESG tables have their own page (ESG query & reports)
 }
 // GKH Project Champ: only the project tables (the MBS business tables, such as quotes and invoices, are always empty here)
-export const CHAMP_TABLES = new Set(['projects', 'programs', 'dependencies', 'change_records', 'jobs', 'plan_tasks', 'plan_subtasks', 'plan_risks', 'plan_issues', 'raid_log', 'plan_stakeholders', 'plan_contracts', 'subcontractors', 'sub_trades']);
+export const CHAMP_TABLES = new Set(['esg_reports', 'esg_credits', 'esg_avoided', 'esg_cbam', 'esg_notes', 'projects', 'programs', 'dependencies', 'change_records', 'jobs', 'plan_tasks', 'plan_subtasks', 'plan_risks', 'plan_issues', 'raid_log', 'plan_stakeholders', 'plan_contracts', 'subcontractors', 'sub_trades']);
 const champOnly = (o) => Object.fromEntries(Object.entries(o).filter(([t]) => CHAMP_TABLES.has(t)));
 
 function sydneyDates(now = Date.now()) {
@@ -416,8 +462,8 @@ function sydneyDates(now = Date.now()) {
     last_30_days: [S(add(today, -29)), S(today)]
   };
 }
-const HINT_KEYS = { quote_status: 8, invoice_status: 8, expense_categories: 12, trades: 10, sources: 8, suburbs: 12, plans: 15, sub_trades: 35 };
-const HINT_FOR = { quote_status: 'quotes', invoice_status: 'invoices', expense_categories: 'expenses', plans: 'plan_tasks', sub_trades: 'subcontractors' };
+const HINT_KEYS = { companies: 40, industries: 20, countries: 20, quote_status: 8, invoice_status: 8, expense_categories: 12, trades: 10, sources: 8, suburbs: 12, plans: 15, sub_trades: 35 };
+const HINT_FOR = { companies: 'esg_reports', industries: 'esg_reports', countries: 'esg_reports', quote_status: 'quotes', invoice_status: 'invoices', expense_categories: 'expenses', plans: 'plan_tasks', sub_trades: 'subcontractors' };
 function cleanHints(h, use) {
   const out = {};
   for (const [k, n] of Object.entries(HINT_KEYS)) {
@@ -443,14 +489,15 @@ const SYSTEM = 'Turn the question from a project, program or portfolio manager u
   '7) Lists: useful columns, newest first, LIMIT 200. Totals/counts: one row. If it cannot be answered from these tables, sql = "" and say why in note. ' +
   'Reply JSON only: {"sql":"","title":"max 60 chars","note":"one short sentence: how you read it","chart":null or {"type":"bar|hbar|line|pie|doughnut","x":"alias","y":["alias"]}}';
 
-export async function askSql({ question, hints, previous, history }) {
+export async function askSql({ question, hints, previous, history, esg }) {
   const first = !(previous && previous.sql);
   if (first) await checkLimit();
-  const use = pickTables(question, [(history || []).map((h) => h && h.sql).join(' '), previous && previous.sql].join(' '));
+  const use = pickTables(question, [(history || []).map((h) => h && h.sql).join(' '), previous && previous.sql].join(' '), !!esg);
   const tables = use.map((t) => `${t}(${SCHEMA[t].join(',')})`).join('\n');
   const notes = use.map((t) => `${t}: ${NOTE[t] || DESCRIBE[t] || ''}`).join('. ');
   const user = { q: String(question).slice(0, 300), dates: sydneyDates(), tables, notes, values: cleanHints(hints, use) };
   if (Array.isArray(history) && history.length) user.earlier = history.slice(-1).map((h) => ({ q: String(h.q || '').slice(0, 200), sql: String(h.sql || '').slice(0, 600) }));
+  if (esg) user.about = 'ESG & Sustainability reporting: the tables hold each company\'s own ESG data (scores, emissions, targets, credits, CBAM, notes). A company is a row of esg_reports; join the other esg_ tables on report_id.';
   if (!first) user.fix = { sql: String(previous.sql).slice(0, 1500), error: String(previous.error || '').slice(0, 200) };
   const { data: o, used } = await llmJson([{ role: 'system', content: SYSTEM }, { role: 'user', content: JSON.stringify(user) }], { maxTokens: tokCap() });
   const today = await usage(first, used);
@@ -564,6 +611,15 @@ function scoped(data, g) {
 }
 const noMoneyCols = (o) => Object.fromEntries(Object.entries(o).map(([t, c]) => [t, Array.isArray(c) ? c.filter((k) => !MONEY_COL.test(typeof k === 'string' ? k : (k && k.name) || '')) : c]));
 export async function sqlPost(action, body, { who, ctx }) {
+  // 🌿 ESG query & reports: the same tools on the ESG tables only (open to every staff login, like the rest of ESG)
+  if (action === 'esgSqlData') {
+    const all = await tables(), money = !!(ctx && (ctx.owner || seesMoney(ctx))), pick = (o) => Object.fromEntries(ESG_TABLES.map((t) => [t, o[t]]));
+    const data = Object.fromEntries(ESG_TABLES.map((t) => [t, (all[t] || []).map((r) => (money ? r : Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k)))))]));
+    return out(200, { schema: money ? pick(SCHEMA) : noMoneyCols(pick(SCHEMA)), describe: pick(DESCRIBE), keys: Object.fromEntries(ESG_TABLES.map((t) => [t, { pk: t === 'esg_reports' ? 'report_id' : '', fk: t === 'esg_reports' ? {} : { report_id: 'esg_reports' } }])), data });
+  }
+  if (action === 'esgSqlAsk') { body = { ...body, esg: true }; action = 'sqlAsk'; }
+  else if (action === 'esgSqlAnswer' || action === 'esgSqlPdf' || action === 'esgSqlNarrative') action = 'sql' + action.slice(6);
+  else if (action === 'esgSqlUsage') action = 'sqlUsage';
   if (action === 'sqlData' && ctx && ctx.pgm) { const data = scoped(champOnly(await tables()), ctx.pgm), keep = (o) => Object.fromEntries(Object.entries(champOnly(o)).filter(([t]) => data[t]));
     return out(200, { schema: ctx.pgm.kind === 'project' ? keep(SCHEMA) : noMoneyCols(keep(SCHEMA)), describe: keep(DESCRIBE), keys: keep(Object.fromEntries(Object.entries(KEYS).map(([t, K]) => [t, { pk: K.pk, fk: K.fk || {} }]))), data, scoped: true }); }
   if (action === 'sqlData' && ctx && !ctx.owner && !seesMoney(ctx)) {   // 🔒 a login without money access (site administrator, view only): the money columns are removed
@@ -578,7 +634,7 @@ export async function sqlPost(action, body, { who, ctx }) {
   if (action === 'sqlAsk') {
     const question = String(body.question || '').trim();
     if (!question) return bad('Type a question first');
-    try { return out(200, await askSql({ question, hints: body.hints || {}, previous: body.previous || null, history: body.history || [] })); }
+    try { return out(200, await askSql({ question, hints: body.hints || {}, previous: body.previous || null, history: body.history || [], esg: !!body.esg })); }
     catch (e) { const st = Number.isInteger(e.code) && e.code >= 400 && e.code < 600 ? e.code : 502; return out(st, { error: e.message, retry: st === 504 }); }
   }
   if (action === 'aiPing') return out(200, await ping());

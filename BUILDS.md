@@ -398,4 +398,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 387 | 1.0.387| 2026-11-27 11:43| magazine| `7aeb0f1` | ESG documents: magazine edition (6 styles, AI-chosen free photos) and a 2-page preview (#184) |
 | 388 | 1.0.388| 2026-11-27 12:19| certs-more| `4b3171a` | ESG: more certifications and systems |
 | 389 | 1.0.389| 2026-11-27 12:28| certs-more| `149530d` | ESG: more certifications and systems (#186) |
-| 390 | 1.0.390 | 2026-11-27 12:58 | sticky-esg | _this commit_ | _see git log_ |
+| 390 | 1.0.390| 2026-11-27 12:58| sticky-esg| `7bec5a2` | ESG: sticky notes on every section, pushed to Today with @mentions |
+| 391 | 1.0.391 | 2026-11-27 13:13 | sticky-esg | _this commit_ | _see git log_ |
