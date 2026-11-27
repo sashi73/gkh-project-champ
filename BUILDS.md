@@ -389,5 +389,7 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 378 | 1.0.378| 2026-11-27 04:42| supplier-form| `a450ccb` | Supplier form: actions under the ESG prefix (staff logins, no Stock clash); finish a stalled acceptance; no delete mid-accept |
 | 379 | 1.0.379| 2026-11-27 04:53| supplier-form| `2406291` | Vault: a late load for a vault no longer open changes nothing; an accepting supplier request cannot be deleted |
 | 380 | 1.0.380| 2026-11-27 05:03| supplier-form| `539a5e5` | Supplier ESG data (Scope 3): SEDG-based form via private link, into the vault (#179) |
-| 381 | 1.0.381| 2026-11-27 11:05| samples-2| `cb2a780` | Sample data, second set: Singapore shipping and Dubai real estate (poor), Saudi cement (average), with vaults and supplier data at all three |
-| 382 | 1.0.382 | 2026-11-27 11:27 | samples-2 | _this commit_ | _see git log_ |
+| 381 | 1.0.381| 2026-11-27 10:52| vault-import| `a6eb59b` | Sustainability vault: import from other systems (any CSV or Excel layout, Diligent and other exports) and an API |
+| 382 | 1.0.382| 2026-11-27 11:14| vault-import| `3b0d9ee` | Vault import: real spreadsheet row numbers, same-month rows add up, a stricter date reader, a failed file clears the old one; API: storage e |
+| 383 | 1.0.383| 2026-11-27 11:26| vault-import| `f2ec027` | Sample data set 2: a stopped run resumes (missing months only, unfinished supplier replies), a safer claim that a dead run cannot hold |
+| 384 | 1.0.384 | 2026-11-27 11:32 | samples-2 | _this commit_ | _see git log_ |
