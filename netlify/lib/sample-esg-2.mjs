@@ -11,6 +11,38 @@ import * as kv from './kv.mjs';
 const YRS = ['2024', '2025', '2026'];   // two full years and January to October 2026
 const sea = (m, amp) => 1 + amp * Math.cos(((m - 1) / 12) * 2 * Math.PI - Math.PI * 1.1);   // a seasonal swing (hotter months use more cooling)
 
+// 💱 carbon avoidance, credits, pricing and CBAM for two of the three (added to their patches below, and to companies already loaded by topUp2)
+export const MARKETS = {
+  'Lion City Marine Logistics Pte Ltd': {
+    climate: { carbonPrice: 0 },
+    avoid: [{ name: 'Slow steaming on the Port Klang and Batam feeder loops', cat: 'Energy efficiency', baseline: 'Marine gas oil per voyage at design speed', unit: 'voyages', qty: 1400, base: 31000, sol: 27500, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 14', note: 'Fuel saving taken from the voyage logs; not yet checked against bunker receipts.' },
+      { name: 'Shore power for harbour tugs at Pasir Panjang', cat: 'Process and fuel switching', baseline: 'Auxiliary diesel while berthed, per hour', unit: 'h', qty: 9000, base: 160, sol: 46, attr: 100, status: 'Planned', verify: 'Estimate', sdg: 'SDG 7' }],
+    credits: [{ project: 'REDD+ forest protection, Kalimantan (bought to sell "carbon-neutral shipping")', type: 'Avoidance credit', registry: 'Verra', vintage: '2016', t: 20000, cost: 4.5, purpose: 'Offered to customers as carbon-neutral container moves', std: 'Verra VCS', ccp: 'Unknown', ca: 'Unknown', use: 'Carbon-neutral claim (ISO 14068-1)' },
+      { project: 'Clean cookstoves, Cambodia', type: 'Avoidance credit', registry: 'Gold Standard', vintage: '2023', t: 5000, cost: 14, purpose: 'A contribution beyond the value chain', std: 'Gold Standard', ccp: 'Yes', ca: 'Not needed', use: 'Ongoing emissions responsibility (contribution)' }],
+    pricing: { schemes: ['EU_ETS', 'SG_TAX', 'VCS', 'ICVCM', 'VCMI'], euaPrice: 75, cbam: [],
+      exp: [{ scheme: 'EU_ETS', site: 'MV Lion Star and MV Lion Pearl, Port Klang to Piraeus service (half of voyage emissions into and out of the EU, 70% phase-in for 2025)', covered: 12600, price: 75, cur: 'EUR', offsetPct: 0, note: 'The shipping company must surrender EU allowances for 2025; none bought yet.' },
+        { scheme: 'SG_TAX', site: 'Pasir Panjang depot', covered: 2100, price: 0, cur: 'SGD', offsetPct: 0, note: 'Below the 25,000 tCO2e threshold: not liable, shown for awareness.' }] } },
+  'Najd Cement Company': {
+    climate: { carbonPrice: 90 },
+    avoid: [{ name: 'Clinker cut with limestone and fly ash (blended cements)', cat: 'Process and fuel switching', baseline: 'Ordinary Portland cement, kgCO2e per tonne', unit: 't cement', qty: 2400000, base: 860, sol: 820, attr: 100, status: 'Delivered', verify: 'Internal review', sdg: 'SDG 9' },
+      { name: 'Tyres and refuse-derived fuel in the Riyadh kiln', cat: 'Process and fuel switching', baseline: 'Heavy fuel oil, kgCO2e per GJ', unit: 'GJ', qty: 1200000, base: 77, sol: 30, attr: 100, status: 'Under way', verify: 'Internal review', sdg: 'SDG 12' },
+      { name: 'Waste-heat recovery power at Riyadh', cat: 'Energy efficiency', baseline: 'Saudi grid electricity, kgCO2e per MWh', unit: 'MWh', qty: 85000, base: 560, sol: 0, attr: 100, status: 'Planned', verify: 'Estimate', sdg: 'SDG 7' }],
+    credits: [{ project: 'Clean cookstoves, Kenya (bought through the Regional Voluntary Carbon Market Company)', type: 'Avoidance credit', registry: 'Verra', vintage: '2024', t: 12000, cost: 11, purpose: 'A contribution while the plant cuts its own emissions', std: 'Verra VCS', ccp: 'Yes', ca: 'Not needed', use: 'Ongoing emissions responsibility (contribution)' },
+      { project: 'Mangrove restoration, Red Sea coast (planned purchase)', type: 'Removal credit (nature-based)', registry: '', vintage: '2026', t: 3000, cost: 28, purpose: 'Towards residual emissions after 2040', std: 'Other', ccp: 'Unknown', ca: 'Unknown', use: 'Not decided' }],
+    pricing: { schemes: ['EU_CBAM', 'UK_CBAM', 'ICVCM', 'VCMI', 'SBTI'], euaPrice: 75, ukRate: 40,
+      cbam: [{ market: 'EU', good: 'Cement', cn: '2523 29', dest: 'Grey cement from Jeddah to Piraeus and Ravenna', tonnes: 180000, see: 0.78, bench: 0.6, paid: 0, sv: 'Actual (verified)', note: 'Embedded emissions from the plant\'s verified data, not EU default values.' },
+        { market: 'UK', good: 'Cement', cn: '2523 10', dest: 'Clinker to Tilbury, from 2027', tonnes: 60000, see: 0.86, paid: 0, sv: 'Default values', note: 'The UK CBAM starts on 1 January 2027: shown for planning.' }],
+      exp: [] } },
+  // Kinabalu Palm (from the first sample set): more avoided emissions, its carbon credits and the carbon prices that may reach it
+  'Kinabalu Palm Holdings Berhad': {
+    avoid: [{ name: 'Solar on mill and office roofs, Sandakan and Lahad Datu', cat: 'Renewable energy', baseline: 'Sabah grid electricity, kgCO2e per MWh', unit: 'MWh', qty: 3200, base: 539, sol: 0, attr: 100, status: 'Delivered', verify: 'Internal review', sdg: 'SDG 7' },
+      { name: 'Empty fruit bunches composted instead of left to rot', cat: 'Circularity and recycling', baseline: 'Methane from dumped bunches, kgCO2e per tonne', unit: 't EFB', qty: 140000, base: 120, sol: 25, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 12' },
+      { name: 'Peat swamp in Kinabatangan kept out of planting', cat: 'Nature-based solutions', baseline: 'Drained peat planted with oil palm, kgCO2e per hectare a year', unit: 'ha', qty: 1200, base: 55000, sol: 0, attr: 100, status: 'Delivered', verify: 'Estimate', sdg: 'SDG 15', note: 'Avoided conversion is measured against what would otherwise have happened: reported beside the inventory, never subtracted from it.' }],
+    credits: [{ project: 'Bursa Carbon Exchange Global Technology-Based Contract (solar and hydro in Asia)', type: 'Avoidance credit', registry: 'Verra', vintage: '2021', t: 6000, cost: 25, purpose: 'A contribution while the mills cut their own emissions', std: 'Bursa Carbon Exchange listing', ccp: 'Unknown', ca: 'Unknown', use: 'Ongoing emissions responsibility (contribution)' },
+      { project: 'INFAPRO rainforest rehabilitation, Danum Valley, Sabah', type: 'Removal credit (nature-based)', registry: 'Verra', vintage: '2024', t: 4000, cost: 95, purpose: 'Towards the 2050 net-zero residual emissions', std: 'Verra VCS', ccp: 'Yes', ca: 'Unknown', use: 'Neutralise residual emissions (net zero)' }],
+    pricing: { schemes: ['MY_TAX', 'ART62', 'VCS', 'ICVCM', 'VCMI', 'SBTI'], cbam: [],
+      exp: [{ scheme: 'MY_TAX', site: 'Four palm oil mills and the Sandakan refinery (if the carbon tax goes beyond iron, steel and energy)', covered: 48000, price: 15, cur: 'MYR', offsetPct: 0, note: 'No rate announced: modelled at the internal carbon price of RM15 a tonne.' }] } } };
+
 export const COMPANIES2 = [
   { name: 'Lion City Marine Logistics Pte Ltd', year: 'FY2025', industry: 'Shipping & Marine Transport', country: 'Singapore', currency: 'SGD', grade: 'poor',
     patch: {
@@ -104,7 +136,7 @@ export async function seed2(by) {
     if (!(oe && (oe.org || {}).revenue)) {
       const r = oe ? { entity: oe } : await E.create({ name: C.name, year: C.year, industry: C.industry, country: C.country, currency: C.currency }, by); if (r.error) throw new Error(r.error);
       // the report's year (2025) is the same model as the vault's months, so the year from the report and the years from the vault line up
-      const P = JSON.parse(JSON.stringify(C.patch)), yr = monthly(C).filter((x) => x.period.startsWith('2025')), M = {};
+      const mk = MARKETS[C.name] || {}, P = JSON.parse(JSON.stringify({ ...C.patch, ...mk, climate: { ...(C.patch.climate || {}), ...(mk.climate || {}) } })), yr = monthly(C).filter((x) => x.period.startsWith('2025')), M = {};
       yr.forEach((x) => { (M[x.metric] = M[x.metric] || []).push(x.value); });
       Object.entries(M).forEach(([k, L]) => { const [a, b] = k.split('.'), v = b === 'fte' ? L.reduce((x, y) => x + y, 0) / L.length : L.reduce((x, y) => x + y, 0), tgt = a === 'org' ? 'org' : a;
         if (P[tgt]) P[tgt][b] = Math.round(v * (b === 'revenue' ? 10 : 1)) / (b === 'revenue' ? 10 : 1); });
@@ -136,4 +168,23 @@ export async function seed2(by) {
     }
   }
   return made;
+}
+
+// 💱 for companies already loaded before the carbon-market data existed: added once, only where those parts are still empty
+export async function topUp2(by) {
+  const E = await import('./esg.mjs'), ents = await E.list(), done = [];
+  for (const [name, mk] of Object.entries(MARKETS)) {
+    const x = ents.find((y) => String(y.name || '').toLowerCase() === name.toLowerCase()); if (!x) continue;
+    const e = await E.get(x.id); if (!e) continue;
+    const patch = {}, p = e.pricing || {};
+    const names = new Set((e.avoid || []).map((a) => String(a.name || '').toLowerCase())), more = (mk.avoid || []).filter((a) => !names.has(a.name.toLowerCase()));
+    if (more.length) patch.avoid = [...(e.avoid || []), ...more];   // added to what is there, never replacing it
+    if (!(e.credits || []).length) patch.credits = mk.credits;
+    if (!(p.schemes || []).length && !(p.cbam || []).length && !(p.exp || []).length) patch.pricing = mk.pricing;
+    if ((e.climate || {}).carbonPrice == null && mk.climate) patch.climate = { ...(e.climate || {}), ...mk.climate };
+    if (!Object.keys(patch).length) continue;
+    const r = await E.save(e.id, { patch, rev: e.rev }, by); if (r.error) throw new Error(r.error);
+    done.push(name);
+  }
+  return done;
 }
