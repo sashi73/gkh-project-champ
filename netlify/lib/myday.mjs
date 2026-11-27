@@ -43,7 +43,8 @@ export async function seenGet(ctx, core) {
   return { seen: (await kv.get('seen:' + core)) || {} };
 }
 export async function seenMark(ctx, body) {
-  if (body.esg) {   // 🌿 a note on an ESG report: kept as seen:esg:<id>
+  if (body.esg) {   // 🌿 a note on an ESG report: kept as seen:esg:<id> (staff logins only)
+    if (ctx.scope) return { error: 'ESG notes are for staff logins.', code: 403 };
     const id = String(body.esg).replace(/[^A-Z0-9]/gi, '').slice(0, 24), nid = String(body.nid || '').replace(/[^\w-]/g, '').slice(0, 20); if (!id || !nid) return { error: 'Which note?', code: 400 };
     const who = String(ctx.name || 'Someone').slice(0, 80), at = Date.now();
     await kv.update('seen:esg:' + id, (m) => { m['n:' + nid] = Object.assign({}, m['n:' + nid] || {}, { [who]: { at, via: body.via === 'phone' ? 'phone' : 'web' } }); const ks = Object.keys(m); if (ks.length > 1000) delete m[ks[0]]; return m; }, () => ({}));
@@ -106,7 +107,7 @@ export async function myDay(ctx, opts) {
   }
   // 🌿 sticky notes on ESG reports that @mention you: pushed here (and to the phone app) the same way as a note on a project
   { const names = new Set([norm(ctx.name)].filter(Boolean)), ahead = P.addWork(P.nextWork(today, false), 4, false);
-    if (names.size) { const L = await EN.forMe((text) => mentions(names, text)).catch(() => []), seenE = await kv.getMany([...new Set(L.map((x) => 'seen:esg:' + x.esg))]).catch(() => []), sk = [...new Set(L.map((x) => 'seen:esg:' + x.esg))];
+    if (names.size && !ctx.scope) { const L = await EN.forMe((text) => mentions(names, text)).catch(() => []), seenE = await kv.getMany([...new Set(L.map((x) => 'seen:esg:' + x.esg))]).catch(() => []), sk = [...new Set(L.map((x) => 'seen:esg:' + x.esg))];
       for (const x of L) { const n = x.note, due = n.due || '';
         if (isMe(names, n.by) && !mentions(names, n.text)) continue;
         if (due && due > ahead) { laterNotes++; continue; }
@@ -133,7 +134,7 @@ export async function myDay(ctx, opts) {
 
 // ✓ from the start screen: tick an item done, or resolve a note (it then leaves the list)
 export async function myDayDone(ctx, body, by) {
-  if (body.esg) { const r = await EN.markDone(body.esg, body.nid, ctx.name || by || 'Admin'); return r.error ? r : { ok: true }; }   // 🌿 a note on an ESG report
+  if (body.esg) { if (ctx.scope) return { error: 'ESG notes are for staff logins.', code: 403 }; const r = await EN.markDone(body.esg, body.nid, ctx.name || by || 'Admin'); return r.error ? r : { ok: true }; }   // 🌿 a note on an ESG report
   const core = String(body.core || ''), plan = core && (await P.get(core));
   if (!plan || !Array.isArray(plan.tasks)) return { error: 'That project is not there any more.', code: 404 };
   if (ctx.scope && !ctx.scope.includes(core)) return { error: 'This login can only work on the projects it was given.', code: 403 };

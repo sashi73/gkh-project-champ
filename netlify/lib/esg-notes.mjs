@@ -24,7 +24,9 @@ export async function add(id, body, by) {
   const text = str(body.text, 1500); if (!text) return { error: 'Write the note first.', code: 400 };
   const sec = SECS.includes(body.sec) ? body.sec : 'overview';
   const n = { id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), sec, c: ['R', 'A', 'G'].includes(body.c) ? body.c : 'G', text, by: str(by, 80) || 'Someone', at: Date.now(), done: false, doneBy: '', due: ymd(body.due), editedAt: 0, editedBy: '' };
-  const r = await kv.update(key(id), (x) => { x.notes = (x.notes || []).concat([n]); if (x.notes.length > MAX) { const done = x.notes.findIndex((q) => q.done); x.notes.splice(done >= 0 ? done : 0, 1); } return x; }, () => ({ notes: [] }));
+  let full = false;
+  const r = await kv.update(key(id), (x) => { full = false; x.notes = x.notes || []; if (x.notes.length >= MAX) { const done = x.notes.findIndex((q) => q.done); if (done < 0) { full = true; return x; } x.notes.splice(done, 1); } x.notes = x.notes.concat([n]); return x; }, () => ({ notes: [] }));   // the oldest done note makes room; open notes are never dropped
+  if (full) return { error: 'This report has ' + MAX + ' open notes: tick some done (or delete them) before adding more.', code: 409 };
   return { note: n, notes: r.notes, name: (e.org || {}).name || '' };
 }
 
@@ -37,8 +39,9 @@ export async function set(id, nid, body, ctx, by) {
     const i = x.notes.findIndex((q) => q.id === nid); if (i < 0) { err = { error: 'That note is not there any more.', code: 404 }; return x; }
     const n = x.notes[i];
     if (body.del) { if (!(ctx && ctx.owner) && n.by !== by) { err = { error: 'Only the person who wrote a note (or the super user) can delete it.', code: 403 }; return x; } x.notes.splice(i, 1); found = n; return x; }
+    const t = body.text != null ? str(body.text, 1500) : null; if (t === '') { err = { error: 'A note cannot be empty: delete it instead.', code: 400 }; return x; }   // check everything before changing anything
     if ('done' in body) { n.done = !!body.done; n.doneBy = n.done ? str(by, 80) : ''; }
-    if (body.text != null) { const t = str(body.text, 1500); if (!t) { err = { error: 'A note cannot be empty: delete it instead.', code: 400 }; return x; } if (t !== n.text) { n.text = t; n.editedAt = Date.now(); n.editedBy = str(by, 80); } }
+    if (t != null && t !== n.text) { n.text = t; n.editedAt = Date.now(); n.editedBy = str(by, 80); }
     if (['R', 'A', 'G'].includes(body.c) && body.c !== n.c) { n.c = body.c; n.editedAt = Date.now(); n.editedBy = str(by, 80); }
     if ('due' in body) n.due = ymd(body.due);
     found = n; return x;

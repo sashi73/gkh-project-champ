@@ -361,9 +361,10 @@ async function handle(req, context) {
       case 'esgNotes': case 'esgNoteAdd': case 'esgNoteSet': case 'esgNotePeople': {   // 🗒 sticky notes on an ESG report (netlify/lib/esg-notes.mjs)
         const EN = await import('../lib/esg-notes.mjs');
         if (action === 'esgNotePeople') { if (ctx.scope) return out(200, { people: ctx.name ? [{ name: ctx.name, role: '' }] : [] });   // a scoped login does not see the staff list
-          const L = await U.list(); return out(200, { people: L.filter((u) => u.active !== false && u.name && (u.kind || 'person') === 'person').map((u) => ({ name: u.name, role: u.role || '' })).concat(ctx.name && !L.some((u) => u.name === ctx.name) ? [{ name: ctx.name, role: ctx.role || '' }] : []).slice(0, 300) }); }
+          const L = await U.list(); return out(200, { people: L.filter((u) => u.active !== false && u.name && ['person', 'email'].includes(u.kind || 'person')).map((u) => ({ name: u.name, role: u.role || '' })).concat(ctx.name && !L.some((u) => u.name === ctx.name) ? [{ name: ctx.name, role: ctx.role || '' }] : []).slice(0, 300) }); }
         const r = action === 'esgNotes' ? await EN.list(body.id) : action === 'esgNoteAdd' ? await EN.add(body.id, body, by) : await EN.set(body.id, body.nid, body, ctx, by);
         if (r.error) return bad(r.error, r.code || 400);
+        r.you = by;   // who the notes are written as here, so the page knows which ones are yours
         if (action === 'esgNoteAdd') await A.audit(who, `ESG: a note on ${EN.SEC_NAME[r.note.sec] || r.note.sec} for ${r.name}`).catch(() => {});
         return out(200, r);
       }

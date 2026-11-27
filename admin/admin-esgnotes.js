@@ -10,7 +10,7 @@
   var STK = { R: ['Urgent', '#DC2626'], A: ['Semi-urgent', '#D97706'], G: ['Fine', '#16A34A'] };
   var NAME = { overview: 'Overview', org: 'Organisation', standards: 'Standards', material: 'Material topics', achieve: 'Achievements', carbon: 'Scope 1 & 2', scope3: 'Scope 3', resources: 'Energy, water & waste', climate: 'Climate risk',
     workforce: 'Workforce & safety', rights: 'Human rights', community: 'Community', board: 'Board', ethics: 'Ethics & risk', certs: 'Certifications', avoid: 'Avoided emissions', credits: 'Carbon credits', pricing: 'Pricing & CBAM', statement: 'Statement', report: 'ESG report', records: 'Records' };
-  var N = {}, PEOPLE = null, cur = { id: '', tab: '' }, ST = { col: 'G', edit: '', all: false };
+  var N = {}, YOU = '', PEOPLE = null, cur = { id: '', tab: '' }, ST = { col: 'G', edit: '', all: false };
   var me = function () { return (M.me && (M.me.name || M.me.user)) || 'Admin'; };
   var isOwner = function () { return !!(M.me && M.me.owner); };
   var openOf = function (L) { return L.filter(function (n) { return !n.done; }); };
@@ -37,7 +37,7 @@
     btn.innerHTML = '🗒 Notes' + (o.length ? ' <b>' + o.length + '</b>' : c === 'B' ? ' ✓' : '');
     btn.title = cur.tab === 'overview' ? 'Every note on this report' : 'Notes on ' + (NAME[cur.tab] || 'this section') + ': leave a remark for the team; @ someone to send it to their Today';
   }
-  function load(id) { return api('esgNotes', { id: id }).then(function (d) { N[id] = d.notes || []; if (cur.id === id) { badges(); var p = document.getElementById('esnPop'); if (p) p._draw(); } }).catch(function () {}); }
+  function load(id) { return api('esgNotes', { id: id }).then(function (d) { N[id] = d.notes || []; if (d.you) YOU = d.you; if (cur.id === id) { badges(); var p = document.getElementById('esnPop'); if (p) p._draw(); } }).catch(function () {}); }
 
   // after each draw of the report: the 🗒 Notes button beside 📥 Import, and the dots on the tiles
   function attach(id, tab) {
@@ -55,14 +55,17 @@
     if (!PEOPLE) api('esgNotePeople', {}).then(function (d) { PEOPLE = d.people || []; }).catch(function () { PEOPLE = []; });
     var pop = document.createElement('div'); pop.id = 'esnPop'; pop.className = 'stkpop esn-pop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', 'Notes'); document.body.appendChild(pop);
     var id = cur.id, first = true;
-    var save = function (p, ok) { return p.then(function (d) { N[id] = d.notes || N[id]; badges(); draw(); if (ok) toast(ok); }).catch(function (e) { toast(e.message, true); }); };
-    var draw = function () {
+    // a redraw keeps what is being typed (a note not saved yet, its due date)
+    var keep = function () { var ta = document.getElementById('esnTx'), du = document.getElementById('esnDue'); return { tx: ta ? ta.value : '', due: du ? du.value : '' }; };
+    var save = function (p, ok, clear) { var k = keep(); return p.then(function (d) { N[id] = d.notes || N[id]; if (d.you) YOU = d.you; if (clear) k = { tx: '', due: '' }; badges(); draw(k); if (ok) toast(ok); return true; }).catch(function (e) { toast(e.message, true); var b = pop.querySelector('[data-eadd]'); if (b) b.disabled = false; return false; }); };
+    var draw = function (kp) {
+      kp = kp || keep();
       var sec = cur.tab, all = sec === 'overview' || ST.all, L = (N[id] || []).filter(function (n) { return all || n.sec === sec; }).slice().sort(function (a, b) { return (a.done - b.done) || (b.at - a.at); }), col = ST.col;
       pop.innerHTML = '<div class="stk-h"><b>🗒 Notes</b><span class="stk-t">' + esc(all ? 'Every section of this report' : NAME[sec] || '') + '</span><span class="sp"></span>' +
         (sec !== 'overview' ? '<label class="esn-all" title="Show the notes on every section"><input type="checkbox" data-eall' + (ST.all ? ' checked' : '') + '> All sections</label>' : '') +
         '<button type="button" class="stk-x" data-eclose title="Close (Esc)">✕</button></div>' +
         '<div class="stk-list">' + (L.length ? L.map(function (x) {
-          var ed = ST.edit === x.id, mine = x.by === me() || isOwner();
+          var ed = ST.edit === x.id, mine = (YOU && x.by === YOU) || x.by === me() || isOwner();
           return '<div class="stk-n stk-' + x.c + (x.done ? ' done' : '') + (hl === x.id ? ' esn-hl' : '') + '" data-nid="' + esc(x.id) + '"><div class="stk-m">' +
             '<label class="stk-ck" title="' + (x.done ? 'Done: untick to open it again' : 'Tick when it is done') + '"><input type="checkbox" data-edone' + (x.done ? ' checked' : '') + '></label>' +
             (x.done ? '<span class="stk-tag stk-alldone">✓ Done</span>' : '<span class="stk-tag">' + STK[x.c][0] + '</span>') +
@@ -82,7 +85,7 @@
       pop.querySelectorAll('[data-ecol]').forEach(function (b) { b.onclick = function () { ST.col = b.getAttribute('data-ecol'); pop.querySelectorAll('[data-ecol]').forEach(function (q) { q.classList.toggle('on', q === b); }); }; });
       var nidOf = function (el) { return el.closest('[data-nid]').getAttribute('data-nid'); };
       var add = pop.querySelector('[data-eadd]'); if (add) add.onclick = function () { var ta = document.getElementById('esnTx'), tx = ta.value.trim(); if (!tx) { ta.focus(); return; }
-        add.disabled = true; save(api('esgNoteAdd', { id: id, sec: sec === 'overview' ? 'overview' : sec, c: ST.col, text: tx, due: (document.getElementById('esnDue') || {}).value || '' }), /@\S/.test(tx) ? '🗒 Saved: it is in the Today of the people you @mentioned' : '🗒 Note saved'); };
+        add.disabled = true; save(api('esgNoteAdd', { id: id, sec: sec === 'overview' ? 'overview' : sec, c: ST.col, text: tx, due: (document.getElementById('esnDue') || {}).value || '' }), /@\S/.test(tx) ? '🗒 Saved: it is in the Today of the people you @mentioned' : '🗒 Note saved', true); };
       pop.querySelectorAll('[data-edone]').forEach(function (b) { b.onchange = function () { save(api('esgNoteSet', { id: id, nid: nidOf(b), done: b.checked })); }; });
       pop.querySelectorAll('[data-edel]').forEach(function (b) { b.onclick = function () { save(api('esgNoteSet', { id: id, nid: nidOf(b), del: true }), 'Note deleted'); }; });
       var edit = function (el) { ST.edit = nidOf(el); var n = (N[id] || []).filter(function (q) { return q.id === ST.edit; })[0]; ST.ecol = n ? n.c : 'G'; draw(); var t = pop.querySelector('[data-etx]'); if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); } };
@@ -90,9 +93,10 @@
       pop.querySelectorAll('[data-eedit]').forEach(function (d) { d.ondblclick = function () { if (!d.closest('.done')) edit(d); }; });
       pop.querySelectorAll('[data-ecol2]').forEach(function (b) { b.onclick = function () { ST.ecol = b.getAttribute('data-ecol2'); pop.querySelectorAll('[data-ecol2]').forEach(function (q) { q.classList.toggle('on', q === b); }); }; });
       var ec = pop.querySelector('[data-ecancel]'); if (ec) ec.onclick = function () { ST.edit = ''; draw(); };
-      var es = pop.querySelector('[data-esave]'); if (es) { var doSave = function () { var t = pop.querySelector('[data-etx]').value.trim(), nid = ST.edit; if (!t) return; ST.edit = ''; save(api('esgNoteSet', { id: id, nid: nid, text: t, c: ST.ecol })); };
+      var es = pop.querySelector('[data-esave]'); if (es) { var doSave = function () { var t = pop.querySelector('[data-etx]').value.trim(), nid = ST.edit; if (!t || !nid) return; es.disabled = true;
+          api('esgNoteSet', { id: id, nid: nid, text: t, c: ST.ecol }).then(function (d) { ST.edit = ''; N[id] = d.notes || N[id]; badges(); draw(); }).catch(function (e) { es.disabled = false; toast(e.message, true); }); };   // the editor stays open (with the text) until the save works
         es.onclick = doSave; pop.querySelector('[data-etx]').onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); doSave(); } if (e.key === 'Escape') { e.stopPropagation(); ST.edit = ''; draw(); } }; atPick(pop.querySelector('[data-etx]')); }
-      var ta = document.getElementById('esnTx'); if (ta) { ta.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); add.onclick(); } }; atPick(ta); if (first && !hl) setTimeout(function () { ta.focus(); }, 30); }
+      var ta = document.getElementById('esnTx'), du0 = document.getElementById('esnDue'); if (ta && kp.tx) ta.value = kp.tx; if (du0 && kp.due) du0.value = kp.due; if (ta) { ta.onkeydown = function (e) { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); add.onclick(); } }; atPick(ta); if (first && !hl) setTimeout(function () { ta.focus(); }, 30); }
       if (hl) { var h = pop.querySelector('.esn-hl'); if (h && h.scrollIntoView) h.scrollIntoView({ block: 'nearest' }); }
       first = false;
     };
