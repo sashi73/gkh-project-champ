@@ -857,6 +857,23 @@ try {
         const jur = await pg.evaluate(() => { const j = document.querySelector('#esgJur .jur'); return j ? { txt: j.textContent, on: j.querySelectorAll('.jur-chip.on').length, chips: j.querySelectorAll('.jur-chip').length } : null; });
         ok('Jurisdiction', '⚖ each ESG company shows its jurisdiction prominently: the main country of operation, the standards expected there (ticked when the report uses them), the other standards chosen, and the human-rights rules that apply',
           !!jur && /main country of operation/.test(jur.txt) && jur.chips >= 3 && jur.on >= 1 && /Human rights/.test(jur.txt), JSON.stringify(jur));
+        // 📰 the magazine edition: six styles shown before choosing, the AI's photo plan, every chapter laid out
+        await pg.goto(BASE + '/admin/#esg/' + eid + '/report'); await pg.waitForTimeout(1500); await pg.click('#dMagBox summary'); await pg.waitForTimeout(1500);
+        const magUi = await pg.evaluate(() => ({ n: document.querySelectorAll('[data-mag]').length, prev: [...document.querySelectorAll('[data-magprev]')].filter((f) => (f.srcdoc || '').length > 3000).length, btn: !!document.querySelector('#dMag'), pv: !!document.querySelector('#dPrev') }));
+        await pg.click('[data-mag="atlas"]'); const magSel = await pg.evaluate(() => localStorage.getItem('champ-mag-style'));
+        const plan = await api('esgPhotoPlan', { org: 'Coral Sky', industry: 'Airlines', country: 'Australia', chapters: [{ title: 'Message from the CEO' }, { title: 'Our planet', divider: true }, { title: 'Climate and emissions' }, { title: 'Our people', divider: true }, { title: 'Governance' }] });
+        if (process.env.SAVE_ART) await pg.evaluate(() => { window.CHAMP_ART = []; });
+        const mag = await pg.evaluate(async () => { const S = window.MBS.esg.state(), E = window.MBS.esg, out = {};
+          const c = document.createElement('canvas'); c.width = 800; c.height = 600; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 800, 600); gr.addColorStop(0, '#1e6091'); gr.addColorStop(1, '#99d98c'); g.fillStyle = gr; g.fillRect(0, 0, 800, 600); const ph = c.toDataURL('image/jpeg', 0.8);
+          await window.MBS.studio._.fonts();
+          for (const st of window.MBS.mag.styles().map((x) => x.id)) { const D = E.enrich(E.reportDoc(S.docs.report, 'en', 0), 'report'); D.theme = 'forest'; await window.MBS.studio._.prep(D);
+            const P = { cover: ph, ch: {} }; D.chapters.forEach((ch, i) => { if (ch.divider || i % 3 === 0) P.ch[i] = ph; });
+            const h = window.MBS.mag.build(D, st, P, window.MBS.studio._.md, window.MBS.studio._.WD); out[st] = { len: h.length, pages: (h.match(/<section class="pg/g) || []).length, chapters: D.chapters.length, html: window.CHAMP_ART ? h : '' }; }
+          return out; });
+        if (process.env.SAVE_ART) { const fs = await import('node:fs'); Object.entries(mag).forEach(([k, v]) => fs.writeFileSync(process.env.SAVE_ART + '/mag-' + k + '.html', v.html || '')); }
+        ok('Magazine', '📰 the magazine edition: six styles (National after the Canva report, Horizon, Canopy, Atlas, Aurora, Signal), each shown as its first pages before choosing; the AI (or keywords) plans the photos per chapter; every chapter of the report is laid out with a cover, contents and part openers; a 2-page preview of the PDF colour scheme',
+          magUi.n === 6 && magUi.prev === 6 && magUi.btn && magUi.pv && magSel === 'atlas' && plan.status === 200 && plan.j.cover && Array.isArray(plan.j.chapters) && Object.values(mag).every((v) => v.pages === v.chapters + 2 && v.len > 20000),
+          JSON.stringify([magUi, magSel, plan.status, plan.j, Object.fromEntries(Object.entries(mag).map(([k, v]) => [k, [v.pages, v.chapters, v.len]]))]).slice(0, 1500));
         ok('ReportStyles', '📸 five report styles (Horizon, Canopy, Atlas, Aurora, Signal) in the colour scheme list, each with its own cover, part page and band artwork, using the photos you add (kept in this browser) or drawn artwork without them',
           sty.list.length === 5 && sty.styles.length === 5 && sty.box && sty.runs.length === 10 && sty.runs.every((r) => r.pages >= 3 && r.size > 20000) && new Set(sty.runs.map((r) => r.key)).size === 10, JSON.stringify(sty).slice(0, 1500));
         await pg.goto(BASE + '/admin/#cso'); await pg.waitForTimeout(2500); const cv = await pg.evaluate(() => ({ tiles: document.querySelectorAll('.pkpis .kpi').length, rows: document.querySelectorAll('.cso-tbl tbody tr').length, cal: document.querySelectorAll('.cso-cal li').length }));
