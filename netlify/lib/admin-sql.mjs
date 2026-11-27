@@ -308,15 +308,15 @@ export async function tables() {
   const change_records = (await crRecords().catch(() => [])).map((r) => ({ record_id: r.key, job: r.core, project: (cardBy[r.core] || {}).name || r.project, program: (cardBy[r.core] || {}).program || r.program || '', cr: r.cr, title: r.title,
     decision: r.outcome, approved_by: r.by, role: r.role, signed: !!r.sig, decided: d10(r.at), finish_before: r.f0, finish_after: r.f1, budget_before: r.b0, budget_after: r.b1, days: r.days, cost: r.cost,
     applied_directly: !!r.direct, status: r.status, note: r.note, pdf_kept: !!r.hasPdf, recorded_by: r.recordedBy }));
-  const esg = await esgTables().catch(() => ({}));
-  const all = { ...esg, projects, programs, dependencies, change_records, customers, jobs, quotes, invoices, items, payments, expenses, reminders, visits, plan_tasks, plan_subtasks, plan_risks, plan_issues, raid_log, inventory, suppliers, supplier_prices, stock_moves, subcontractors, sub_trades, plan_stakeholders, plan_contracts };
+  const all = { projects, programs, dependencies, change_records, customers, jobs, quotes, invoices, items, payments, expenses, reminders, visits, plan_tasks, plan_subtasks, plan_risks, plan_issues, raid_log, inventory, suppliers, supplier_prices, stock_moves, subcontractors, sub_trades, plan_stakeholders, plan_contracts };
   return withKeys(all, { custOfJob: custOf });
 }
 
 // 🌿 the ESG & Sustainability tables: every report, worked out the same way as on its screen
 async function esgTables() {
-  const E = await import('./esg.mjs'), idx = (await kv.get('esg-index')) || { ents: {} }, ids = Object.keys(idx.ents || {}).slice(0, 300);
-  const ents = await kv.getMany(ids.map((i) => 'esg:' + i)), notesAll = await kv.getMany(ids.map((i) => 'esgnotes:' + i)).catch(() => []);
+  const E = await import('./esg.mjs'), idx = (await kv.get('esg-index')) || { ents: {} }, ids = Object.keys(idx.ents || {});   // every report, read in batches of 200
+  const ents = [], notesAll = [];
+  for (let i = 0; i < ids.length; i += 200) { const b = ids.slice(i, i + 200); ents.push(...await kv.getMany(b.map((x) => 'esg:' + x))); notesAll.push(...await kv.getMany(b.map((x) => 'esgnotes:' + x)).catch(() => b.map(() => null))); }
   const SEC = (await import('./esg-notes.mjs')).SEC_NAME, U = { R: 'Urgent', A: 'Semi-urgent', G: 'Fine' }, n0 = (v) => (v == null || v === '' ? null : v);
   const esg_reports = [], esg_credits = [], esg_avoided = [], esg_cbam = [], esg_notes = [];
   ents.forEach((e, k) => {
@@ -444,7 +444,7 @@ export function pickTables(question, extraSql = '', esg = false) {
   return Object.keys(SCHEMA).filter((t) => chosen.has(t) && CHAMP_TABLES.has(t) && !ESG_TABLES.includes(t));   // the ESG tables have their own page (ESG query & reports)
 }
 // GKH Project Champ: only the project tables (the MBS business tables, such as quotes and invoices, are always empty here)
-export const CHAMP_TABLES = new Set(['esg_reports', 'esg_credits', 'esg_avoided', 'esg_cbam', 'esg_notes', 'projects', 'programs', 'dependencies', 'change_records', 'jobs', 'plan_tasks', 'plan_subtasks', 'plan_risks', 'plan_issues', 'raid_log', 'plan_stakeholders', 'plan_contracts', 'subcontractors', 'sub_trades']);
+export const CHAMP_TABLES = new Set(['projects', 'programs', 'dependencies', 'change_records', 'jobs', 'plan_tasks', 'plan_subtasks', 'plan_risks', 'plan_issues', 'raid_log', 'plan_stakeholders', 'plan_contracts', 'subcontractors', 'sub_trades']);
 const champOnly = (o) => Object.fromEntries(Object.entries(o).filter(([t]) => CHAMP_TABLES.has(t)));
 
 function sydneyDates(now = Date.now()) {
@@ -613,7 +613,7 @@ const noMoneyCols = (o) => Object.fromEntries(Object.entries(o).map(([t, c]) => 
 export async function sqlPost(action, body, { who, ctx }) {
   // 🌿 ESG query & reports: the same tools on the ESG tables only (open to every staff login, like the rest of ESG)
   if (action === 'esgSqlData') {
-    const all = await tables(), money = !!(ctx && (ctx.owner || seesMoney(ctx))), pick = (o) => Object.fromEntries(ESG_TABLES.map((t) => [t, o[t]]));
+    const all = await esgTables(), money = !!(ctx && (ctx.owner || seesMoney(ctx))), pick = (o) => Object.fromEntries(ESG_TABLES.map((t) => [t, o[t]]));
     const data = Object.fromEntries(ESG_TABLES.map((t) => [t, (all[t] || []).map((r) => (money ? r : Object.fromEntries(Object.entries(r).filter(([k]) => !MONEY_COL.test(k)))))]));
     return out(200, { schema: money ? pick(SCHEMA) : noMoneyCols(pick(SCHEMA)), describe: pick(DESCRIBE), keys: Object.fromEntries(ESG_TABLES.map((t) => [t, { pk: t === 'esg_reports' ? 'report_id' : '', fk: t === 'esg_reports' ? {} : { report_id: 'esg_reports' } }])), data });
   }

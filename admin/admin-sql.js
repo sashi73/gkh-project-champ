@@ -299,12 +299,15 @@
     if (!question) return toast('Type a question first', true);
     if (S.askBusy) return;
     S.askBusy = true;
+    // the question belongs to the page that asked it: if you switch page (Ask AI ↔ ESG query) before it is answered, it stops quietly
+    var st = S, STALE = new Error('stale'), live = function () { if (S !== st) throw STALE; };
     var btn = $('#askGo'); if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
     var O = $('#askOut'); if (O) O.innerHTML = '<div class="ask-ans"><div class="ask-q">“' + esc(question) + '”</div><div class="ask-a"><span class="ask-think">Writing the query…</span></div></div>';
     var H = hints(), hist = S.askLog.slice(-1).map(function (a) { return { q: a.q, sql: a.sql }; });
     var a = { q: question, at: Date.now(), tokens: 0 };
     var count = function (r) { a.tokens += Number(r && r.tokens) || 0; if (r && r.today) showUse(r.today); return r; };
     var tryRun = function (r, n) {
+      live();
       if (!r.sql) return Promise.reject(new Error(r.note || 'I could not turn that into a query. Try asking in a different way.'));
       try {
         run(r.sql);
@@ -343,6 +346,7 @@
       });
     };
     first().then(count).then(function (r) { return tryRun(r, 0); }).then(function (r) {
+      live();
       a.sql = S.sql; a.title = r.title || 'AI query'; a.note = r.note || '';
       S.title = a.title;
       var ok = r.chart && S.cols.indexOf(r.chart.x) >= 0 && r.chart.y.every(function (y) { return S.cols.indexOf(y) >= 0; });
@@ -355,11 +359,12 @@
       if (a.single != null) { a.answer = a.title + ': ' + a.single + '.'; return; }
       return api('sqlAnswer', { question: question, title: a.title, sql: S.sql, columns: S.cols, rows: S.rows.slice(0, 20), row_count: S.rows.length }).then(function (x) { a.answer = x.answer; count(x); }).catch(function () { a.answer = S.rows.length + ' row' + (S.rows.length === 1 ? '' : 's') + ' found (see the table).'; });
     }).then(function () {
-      S.askLog.push(a); if (S.askLog.length > 20) S.askLog.shift();
-      showAnswer(a);
+      st.askLog.push(a); if (st.askLog.length > 20) st.askLog.shift();
+      if (S === st) showAnswer(a);
     }).catch(function (e) {
+      if (e === STALE || S !== st) return;
       a.answer = e.message; a.error = true; showAnswer(a);
-    }).then(function () { S.askBusy = false; var b = $('#askGo'); if (b) { b.disabled = false; b.textContent = 'Ask'; } });
+    }).then(function () { st.askBusy = false; if (S !== st) return; var b = $('#askGo'); if (b) { b.disabled = false; b.textContent = 'Ask'; } });
   }
 
   /* ---------- wizard ---------- */
@@ -460,7 +465,7 @@
     cm = window.CodeMirror.fromTextArea($('#sqlText'), { mode: 'text/x-sql', lineNumbers: true, lineWrapping: true, viewportMargin: Infinity,
       extraKeys: { 'Ctrl-Space': 'autocomplete', 'Ctrl-Enter': function () { $('#sqlRun').click(); }, 'Cmd-Enter': function () { $('#sqlRun').click(); } },
       hintOptions: { tables: hintTables, completeSingle: false, hint: smartHint } });
-    cm.setValue(S.sql || 'SELECT *\nFROM jobs\nLIMIT 50');
+    cm.setValue(S.sql || (MODE === 'esg' ? 'SELECT *\nFROM esg_reports\nLIMIT 50' : 'SELECT *\nFROM jobs\nLIMIT 50'));
     cm.on('inputRead', function (ed, ch) { if (/^[A-Za-z_.]$/.test(ch.text[0] || '') && !ed.state.completionActive) ed.showHint({ completeSingle: false }); });
     $('#sqlRun').onclick = function () { try { if (cm.getValue().trim().replace(/;\s*$/, '') !== String(S.sql).trim()) S.title = 'Query results'; run(cm.getValue()); if (!S.chart.x || S.cols.indexOf(S.chart.x) < 0) autoChart(); results(); } catch (e) { fail(e); } };
     $('#sqlClear').onclick = function () { cm.setValue(''); cm.focus(); };
