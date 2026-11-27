@@ -46,6 +46,17 @@
       return '<div class="ptg ptg-' + g[1] + '" style="--n:' + g[2].length + '" role="group" aria-label="' + esc(g[0]) + '"><span class="ptg-h">' + esc(g[0]) + '</span><div class="ptg-row">' + g[2].map(function (t) {
         return '<a class="tab' + (V.tab === t[0] ? ' on' : '') + '" href="#esg/' + esc(V.id) + '/' + t[0] + '"' + (V.tab === t[0] ? ' aria-current="page"' : '') + ' title="' + esc(t[1]) + '"><i class="pt-ic"><svg viewBox="0 0 24 24" aria-hidden="true">' + (ICO[t[0]] || ICO.overview) + '</svg></i><span>' + esc(t[1]) + '</span></a>'; }).join('') + '</div></div>'; }).join('') + '</nav>';
   }
+  // ⚖ the jurisdiction (the main country of operation): the standards expected there, which of them this report uses, the others chosen, and the human-rights rules
+  function jurHtml() {
+    var e = V.e, o = e.org || {}, c = ctyOf(o.country), chosen = e.std || [], exp = stdFor(c), rs = ((V.calc || {}).soc || {}).rightsScope || {};
+    var nm = function (id) { var x = SC.std[id] || {}; return x.short || x.name || id; }, chip = function (id, on) { return '<a class="jur-chip' + (on ? ' on' : '') + '" href="#esg/' + esc(V.id) + '/standards" title="' + esc((SC.std[id] || {}).name || id) + (on ? ': in this report' : ': expected here, not chosen yet') + '">' + (on ? '✓ ' : '○ ') + esc(nm(id)) + '</a>'; };
+    var extra = chosen.filter(function (id) { return exp.indexOf(id) < 0 && SC.std[id]; });
+    if (!c) return '<div class="card jur jur-warn" role="note">⚖ <b>No country of operation yet.</b> Choose it under <a href="#esg/' + esc(V.id) + '/org">Organisation</a>: the standards, the emission factors and the human-rights rules follow it.</div>';
+    return '<div class="card jur" role="note"><div class="jur-h">⚖ <b>' + esc(c[0]) + '</b> <span class="muted">main country of operation: the standards and rules below follow it</span></div>' +
+      '<div class="jur-row"><span class="jur-k">Standards for ' + esc(c[0]) + '</span>' + exp.map(function (id) { return chip(id, chosen.indexOf(id) >= 0); }).join('') + '</div>' +
+      (extra.length ? '<div class="jur-row"><span class="jur-k">Also in this report</span>' + extra.map(function (id) { return chip(id, true); }).join('') + '</div>' : '') +
+      '<div class="jur-row jur-notes"><span class="jur-k">Human rights</span><span>' + (rs.indigenous === false ? 'Indigenous peoples items: not applicable in ' + esc(c[0]) + ' (they do not count for or against).' : 'Indigenous peoples items apply in ' + esc(c[0]) + '.') + (rs.msNote ? ' ' + esc(rs.msNote) : '') + '</span></div></div>';
+  }
   function tile(k, v, s, c) { return '<div class="card kpi rag-card rag-b-' + (c || 'grey') + '"><div class="k">' + esc(k) + ' <span class="dot dot-' + (c || 'grey') + '"></span></div><div class="v" style="font-size:20px">' + esc(v) + '</div><div class="s">' + esc(s) + '</div></div>'; }
   function tilesHtml() {
     var c = V.calc, e = V.e, std = (e.std || []).map(function (s) { return (SC.std[s] || {}).id; }).filter(Boolean);
@@ -109,7 +120,7 @@
     document.title = (o.name || 'ESG report') + ' · ESG · GKH Project Champ';
     view().innerHTML = '<div class="row plan-head" style="margin-bottom:12px"><a class="btn btn-sm" href="#esg">← ESG reports</a><h2 style="font-size:21px">' + esc(o.name || 'Untitled') + '</h2><span class="muted">' + esc([o.year, o.industry, o.country].filter(Boolean).join(' · ')) + '</span><span class="sp"></span>' +
       '<span class="esg-saved muted" id="esgSaved" aria-live="polite"></span><button class="btn btn-sm" id="esgImp" type="button">📥 Import</button><button class="btn btn-sm" id="esgDel" type="button" title="Delete this ESG report">🗑</button></div>' +
-      '<div class="grid pkpis" id="esgTiles">' + tilesHtml() + '</div>' + tabsHtml() + '<div id="esgBody"></div>';
+      '<div id="esgJur">' + jurHtml() + '</div><div class="grid pkpis" id="esgTiles">' + tilesHtml() + '</div>' + tabsHtml() + '<div id="esgBody"></div>';
     $('#esgImp').onclick = function () { flush().catch(function () {}); importModal(); };
     $('#esgDel').onclick = function () { M.confirmBox('Delete this ESG report?', 'This deletes <b>' + esc(o.name || 'this report') + '</b>, its data, its AI narratives and its history. It cannot be undone.', 'Delete', true).then(function (ok) { if (!ok) return; api('esgDelete', { id: V.id }).then(function () { V.e = null; toast('Deleted'); location.hash = '#esg'; }).catch(fail); }); };
     var on = view().querySelector('#planTabs .tab.on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (x) {}
@@ -130,7 +141,7 @@
     wire(b);
   }
   // after a save: the tiles and the live results change, the fields being typed in stay as they are
-  function refresh() { var bs = $('#esgBillSum'); if (bs) { bs.innerHTML = billSum(); wireUse(); } if (V.tab === 'standards' && !document.activeElement.matches('input:not([type=checkbox]),select,textarea')) { var y = scrollY; body(); scrollTo(0, y); } var T = $('#esgTiles'); if (T) T.innerHTML = tilesHtml(); var r = $('#esgRes'); if (r) r.innerHTML = results(V.tab); var x = $('#esgLive'); if (x) x.innerHTML = live(V.tab); }
+  function refresh() { var jr = $('#esgJur'); if (jr && SC) jr.innerHTML = jurHtml(); var bs = $('#esgBillSum'); if (bs) { bs.innerHTML = billSum(); wireUse(); } if (V.tab === 'standards' && !document.activeElement.matches('input:not([type=checkbox]),select,textarea')) { var y = scrollY; body(); scrollTo(0, y); } var T = $('#esgTiles'); if (T) T.innerHTML = tilesHtml(); var r = $('#esgRes'); if (r) r.innerHTML = results(V.tab); var x = $('#esgLive'); if (x) x.innerHTML = live(V.tab); }
 
   /* ---------- 💾 saving: a short pause after typing, then the changed sections; each report keeps its own queue ---------- */
   var Q = {};   // report id → { ent, parts, saving, timer, failed }

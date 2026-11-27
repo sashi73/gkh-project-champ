@@ -26,3 +26,11 @@ export async function runOnce2(who) {
     return made;
   } catch (e) { await kv.del('sample-esg-2').catch(() => {}); throw e; }
 }
+// 💱 the carbon-market examples for two sample companies loaded before they existed (sample-esg-2.mjs topUp2), once
+export async function runOnce2b(who) {
+  let first = false;
+  await kv.update('sample-esg-2b', (cur) => { first = false; if (cur && !(cur.running && Date.now() - (cur.at || 0) > 20 * 60e3)) return cur; first = true; return { at: Date.now(), by: who, running: true }; }, () => null);
+  if (!first) return null;
+  try { const S2 = await import('./sample-esg-2.mjs'), done = await S2.topUp2(who); await kv.set('sample-esg-2b', { at: Date.now(), by: who, done }); return done; }
+  catch (e) { await kv.del('sample-esg-2b').catch(() => {}); throw e; }
+}
