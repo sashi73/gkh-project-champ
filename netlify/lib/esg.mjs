@@ -102,7 +102,7 @@ export const INDUSTRY_GROUPS = [
   ['Public Sector & Not-for-profit', ['Government & Public Sector', 'Local Government & Councils', 'Defence', 'Education & Training', 'Universities & Research', 'Schools', 'Not-for-profit & Charities', 'International Development & NGOs', 'Religious & Community Organisations']],
   ['Other', ['Conglomerate / Diversified Holdings', 'Other']]];
 export const INDUSTRIES = INDUSTRY_GROUPS.flatMap((g) => g[1]);
-const YN = ['Yes', 'No'], PARTIAL = ['Yes', 'Partly', 'No'];
+const YN = ['Yes', 'No'], PARTIAL = ['Yes', 'Partly', 'No'], CERT = ['Certified', 'Working towards it', 'No', 'Not applicable'];
 // [key, label, type, unit/options, hint] — type: n number, p percent, t text, l long text, s select, y yes/no, d date
 export const SECTIONS = [
   { id: 'org', g: 'rep', title: 'Organisation and report', fields: [
@@ -151,7 +151,17 @@ export const SECTIONS = [
     ['tax', 'Tax transparency disclosure', 'y', YN], ['political', 'Political contributions disclosed', 'y', YN], ['stakeGriev', 'Stakeholder grievance mechanism', 'y', YN]] },
   { id: 'certs', g: 'gov', title: 'Certifications and systems', fields: [
     ['iso45001', 'ISO 45001 safety management', 'y', YN], ['iso27001', 'ISO 27001 information security', 'y', YN], ['iso9001', 'ISO 9001 quality management', 'y', YN], ['grc', 'GRC platform', 's', ['Deployed', 'Manual', 'None']],
-    ['susReport', 'Sustainability report published last year', 'y', YN], ['ethicsAuditPct', 'Third-party ethics audits of suppliers', 'p']] }
+    ['susReport', 'Sustainability report published last year', 'y', YN], ['ethicsAuditPct', 'Third-party ethics audits of suppliers', 'p'],
+    ['iso50001', 'ISO 50001 energy management', 's', CERT], ['iso14064', 'Greenhouse gas inventory verified (ISO 14064-3)', 's', ['Verified', 'Working towards it', 'No']],
+    ['iso37001', 'ISO 37001 anti-bribery management', 's', CERT], ['iso37301', 'ISO 37301 compliance management', 's', CERT],
+    ['iso22301', 'ISO 22301 business continuity', 's', CERT], ['iso27701', 'ISO 27701 privacy information management', 's', CERT],
+    ['iso42001', 'ISO 42001 AI management system', 's', CERT], ['soc2', 'SOC 2 or PCI DSS attestation', 's', CERT],
+    ['sa8000', 'SA8000 social accountability', 's', CERT], ['bcorp', 'B Corp certification', 's', CERT],
+    ['foodSafety', 'Food safety (ISO 22000, FSSC 22000 or HACCP)', 's', CERT], ['palm', 'Sustainable palm oil (RSPO, MSPO or ISPO)', 's', CERT],
+    ['forest', 'Timber and paper chain of custody (FSC, PEFC or MTCS)', 's', CERT], ['greenBuilding', 'Green building rating (Green Star, GBI, Green Mark, LEED, Estidama, Mostadam)', 's', CERT],
+    ['ecovadis', 'EcoVadis rating', 's', ['Platinum', 'Gold', 'Silver', 'Bronze', 'Committed', 'Not rated']], ['cdp', 'CDP climate score', 's', ['A', 'A-', 'B', 'B-', 'C', 'C-', 'D', 'D-', 'Not disclosed']],
+    ['esgPlatform', 'ESG data and carbon accounting system', 's', ['Deployed', 'Manual', 'None']], ['ehsSystem', 'Health, safety and environment (EHS) software', 's', ['Deployed', 'Manual', 'None']],
+    ['erpEsg', 'ERP or finance system captures ESG data', 's', PARTIAL], ['otherCerts', 'Other certifications and systems', 'l', null, 'One per line, with the certifying body and expiry date, e.g. ISO 13485 medical devices, BSI, expires 03/2028']] }
 ];
 const FIELDS = {}; SECTIONS.forEach((s) => s.fields.forEach((f) => { FIELDS[s.id + '.' + f[0]] = { sec: s.id, k: f[0], label: f[1], t: f[2], opts: Array.isArray(f[3]) ? f[3] : null, unit: typeof f[3] === 'string' ? f[3] : '' }; }));
 const PILLAR_OF = { org: 'org', carbon: 'env', scope3: 'env', resources: 'env', climate: 'env', workforce: 'soc', rights: 'soc', community: 'soc', board: 'gov', ethics: 'gov', certs: 'gov' };
@@ -294,14 +304,14 @@ const DISC = [
   ['EU_TAX', 'Art. 8', 'Taxonomy-aligned turnover, CapEx and OpEx', ['avoid', 'org.revenue']], ['VSME', 'Basic', 'Energy, emissions, workforce and conduct basics', ['resources.energyMWh', 'carbon.elec', 'workforce.fte', 'ethics.corruptCases']], ['IR', 'Content', 'Business model, strategy and value creation', ['org.about', 'mat']],
   ['UNGC', 'CoP', 'Human rights, labour, environment and anti-corruption', ['rights.hrPolicy', 'rights.childLabour', 'resources.iso14001', 'ethics.antiCorrupt']], ['UNGP', 'HRDD', 'Human rights due diligence and grievance', ['rights.hrPolicy', 'rights.modernSlavery', 'community.grievance']],
   ['AU_MSA', 's16', 'Modern slavery risks, actions and effectiveness', ['rights.modernSlavery', 'community.supAudit']], ['ISO20400', 'Procurement', 'Sustainable procurement and supplier assessment', ['community.supAudit', 'community.localPct']], ['ISO26000', 'Core subjects', 'Social responsibility across the core subjects', ['rights.hrPolicy', 'community.invest', 'ethics.code']],
-  ['ISO14001', 'Certificate', 'Environmental management system', ['resources.iso14001']], ['ISO50001', 'Energy', 'Energy performance', ['resources.energyMWh', 'resources.renewPct']], ['ISO45001', 'Certificate', 'Health and safety management system', ['certs.iso45001', 'workforce.ltifr']],
+  ['ISO14001', 'Certificate', 'Environmental management system', ['resources.iso14001']], ['ISO50001', 'Energy', 'Energy performance', ['certs.iso50001', 'resources.energyMWh', 'resources.renewPct']], ['ISO45001', 'Certificate', 'Health and safety management system', ['certs.iso45001', 'workforce.ltifr']],
   ['TNFD_GRI101', '101-1 to 101-8', 'Biodiversity impacts, sites and supply chain', ['resources.biodiv', 'resources.waterStress']], ['SBTN', 'Steps 1-3', 'Nature targets for freshwater and land', ['resources.waterStress', 'resources.biodiv']],
   ['P5', 'Planet', 'Energy, emissions, water, waste and materials', ['carbon.elec', 'resources.waterWd', 'resources.wasteT']], ['P5', 'People', 'Labour, safety, human rights, community', ['workforce.ltifr', 'rights.hrPolicy', 'community.invest']], ['P5', 'Prosperity', 'Economic value and business agility', ['org.revenue', 'ethics.erm']],
   ['PAS2080', 'Whole life', 'Whole-life carbon management and reduction', ['carbon.baseT', 'climate.tgtPct', 'scope3.purch']], ['ISC_IS', 'Rating', 'Energy and carbon, resources, people and governance', ['carbon.elec', 'resources.wasteT', 'workforce.ltifr']],
-  ['GREENSTAR', 'Rating', 'Energy, water and materials in buildings', ['resources.energyMWh', 'resources.waterWd', 'resources.renewPct']], ['NABERS', 'Rating', 'Measured energy and water use', ['resources.energyMWh', 'resources.waterWd']], ['LEED', 'Rating', 'Energy, water, materials and indoor quality', ['resources.energyMWh', 'resources.waterWd']],
+  ['GREENSTAR', 'Rating', 'Energy, water and materials in buildings', ['certs.greenBuilding', 'resources.energyMWh', 'resources.waterWd', 'resources.renewPct']], ['NABERS', 'Rating', 'Measured energy and water use', ['resources.energyMWh', 'resources.waterWd']], ['LEED', 'Rating', 'Energy, water, materials and indoor quality', ['certs.greenBuilding', 'resources.energyMWh', 'resources.waterWd']],
   ['ENVISION', 'Rating', 'Quality of life, leadership, resources, natural world, climate', ['community.invest', 'resources.biodiv', 'climate.risks']], ['IFC_PS', 'PS1-PS8', 'Environmental and social risk management for the project', ['climate.risks', 'workforce.ltifr', 'resources.biodiv', 'rights.indigPolicy']], ['EQUATOR', 'EP4', 'Environmental and social assessment, climate risk and human rights', ['climate.risks', 'rights.hrPolicy']],
-  ['GRESB', 'Assessment', 'Management, performance and development of real assets', ['resources.energyMWh', 'carbon.elec', 'resources.waterWd']], ['ECOVADIS', 'Themes', 'Environment, labour and human rights, ethics, procurement', ['resources.iso14001', 'rights.hrPolicy', 'ethics.code', 'community.supAudit']],
-  ['BCORP', 'Impact', 'Governance, workers, community, environment, customers', ['board.execEsg', 'workforce.payGap', 'community.invest', 'carbon.elec']], ['WEF_SCM', 'Core', 'Governance, planet, people, prosperity metrics', ['board.indepPct', 'carbon.elec', 'workforce.ltifr', 'org.revenue']], ['ISSA5000', 'Assurance', 'Assurance of the sustainability information', ['org.assurance', 'org.assurer']]
+  ['GRESB', 'Assessment', 'Management, performance and development of real assets', ['resources.energyMWh', 'carbon.elec', 'resources.waterWd']], ['ECOVADIS', 'Themes', 'Environment, labour and human rights, ethics, procurement', ['certs.ecovadis', 'resources.iso14001', 'rights.hrPolicy', 'ethics.code', 'community.supAudit']],
+  ['BCORP', 'Impact', 'Governance, workers, community, environment, customers', ['certs.bcorp', 'board.execEsg', 'workforce.payGap', 'community.invest', 'carbon.elec']], ['WEF_SCM', 'Core', 'Governance, planet, people, prosperity metrics', ['board.indepPct', 'carbon.elec', 'workforce.ltifr', 'org.revenue']], ['ISSA5000', 'Assurance', 'Assurance of the sustainability information', ['org.assurance', 'org.assurer']]
 ];
 export const DISCLOSURES = DISC.map((d, i) => ({ id: 'D' + (i + 1), std: d[0], ref: d[1], title: d[2], fields: d[3] }));
 
@@ -525,6 +535,8 @@ function socScore(e) {
   if (!rs.resolved) why.push('The country "' + rs.country + '" is not recognised: choose it from the list so the rules of that jurisdiction apply.');
   return { score: Math.round(core + opt), core: Math.round(core), opt: Math.round(opt), womenPct: r2(wp, 1), womenMgmtPct: r2(mp, 1), rightsScope: rs, why };
 }
+// the certifications beyond the core three ISO standards (each adds to the certifications spoke of the radar)
+const OTHER_CERTS = ['iso50001', 'iso14064', 'iso37001', 'iso37301', 'iso22301', 'iso27701', 'iso42001', 'soc2', 'sa8000', 'bcorp', 'foodSafety', 'palm', 'forest', 'greenBuilding'];
 // Governance (out of 100) and the GRI 2 alignment index: from the GKH Governance Intelligence tool
 function govScore(e) {
   const b = e.board || {}, t = e.ethics || {}, c = e.certs || {}; let core = 0, opt = 0, gri = 0; const why = [];
@@ -532,10 +544,12 @@ function govScore(e) {
   core += bw == null ? 0 : bw >= 30 ? 8 : bw >= 20 ? 6 : bw >= 10 ? 3 : 0; core += ip == null ? 0 : ip >= 50 ? 10 : ip >= 33 ? 7 : ip >= 20 ? 3 : 0;
   core += pts(b.chairSep, 4) + pts(t.code, 6) + pts(t.gWhistle, 7) + pts(t.antiCorrupt, 6) + pts(t.erm, 6, 3) + pts(t.audit, 5) + pts(t.cyber, 5) + pts(b.susCommittee, 6) + pts(b.indepSus, 4) + pts(t.tax, 3);
   core += has(t.corruptCases) && !t.corruptCases ? 3 : 0; core += Math.min(2, (t.abcTrain || 0) / 50); core = Math.min(75, core);
-  opt += pts(c.iso45001, 4) + pts(c.iso27001, 4) + pts(c.iso9001, 3) + pts(c.grc, 3, 1) + pts(t.privacy, 3, 1) + pts(t.political, 2) + pts(b.execEsg, 2) + pts(b.boardTrain, 2) + pts(c.susReport, 2); opt = Math.min(25, opt);
+  opt += pts(c.iso45001, 4) + pts(c.iso27001, 4) + pts(c.iso9001, 3) + pts(c.grc, 3, 1) + pts(t.privacy, 3, 1) + pts(t.political, 2) + pts(b.execEsg, 2) + pts(b.boardTrain, 2) + pts(c.susReport, 2);
+  opt += pts(c.iso37001, 3) + pts(c.iso37301, 2) + pts(c.iso22301, 2) + pts(c.iso27701, 2) + pts(c.iso42001, 1) + pts(c.soc2, 1) + pts(c.sa8000, 2) + pts(c.bcorp, 2) + pts(c.iso14064 === 'Verified' ? 'Yes' : c.iso14064, 2) + pts(c.esgPlatform, 2, 1) + pts(c.erpEsg, 1)
+    + (['Platinum', 'Gold'].includes(c.ecovadis) ? 2 : ['Silver', 'Bronze'].includes(c.ecovadis) ? 1 : 0) + (/^A/.test(c.cdp || '') ? 2 : /^B/.test(c.cdp || '') ? 1 : 0); opt = Math.min(25, opt);
   gri += ip == null ? 0 : ip >= 33 ? 20 : ip >= 20 ? 12 : 5; gri += pts(t.code, 15) + pts(t.gWhistle, 15) + pts(b.susCommittee, 15) + pts(b.indepSus, 12) + pts(t.antiCorrupt, 10) + pts(t.audit, 8) + pts(t.tax, 5); gri = Math.min(100, gri);
   const radar = [['Board independence', Math.min(100, ip || 0)], ['Ethics and whistleblowing', (yes(t.code) ? 50 : 0) + (yes(t.gWhistle) ? 50 : 0)], ['Sustainability oversight', (yes(b.susCommittee) ? 60 : 0) + (yes(b.indepSus) ? 40 : 0)],
-    ['Certifications', (yes(c.iso45001) ? 35 : 0) + (yes(c.iso27001) ? 35 : 0) + (yes(c.iso9001) ? 30 : 0)], ['Risk and audit', (yes(t.erm) ? 50 : part(t.erm) ? 25 : 0) + (yes(t.audit) ? 50 : 0)], ['Anti-corruption', yes(t.antiCorrupt) ? (t.corruptCases ? 60 : 100) : 0]];
+    ['Certifications', Math.min(100, (yes(c.iso45001) ? 35 : 0) + (yes(c.iso27001) ? 35 : 0) + (yes(c.iso9001) ? 30 : 0) + 10 * OTHER_CERTS.filter((k) => yes(c[k]) || c[k] === 'Verified').length)], ['Risk and audit', (yes(t.erm) ? 50 : part(t.erm) ? 25 : 0) + (yes(t.audit) ? 50 : 0)], ['Anti-corruption', yes(t.antiCorrupt) ? (t.corruptCases ? 60 : 100) : 0]];
   if (ip != null && ip < 50) why.push('Fewer than half the directors are independent.');
   if (!yes(b.susCommittee)) why.push('No board sustainability committee yet.');
   return { score: Math.round(core + opt), core: Math.round(core), opt: Math.round(opt), gri: Math.round(gri), boardWomenPct: r2(bw, 1), radar, why };
