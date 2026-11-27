@@ -391,5 +391,6 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 380 | 1.0.380| 2026-11-27 05:03| supplier-form| `539a5e5` | Supplier ESG data (Scope 3): SEDG-based form via private link, into the vault (#179) |
 | 381 | 1.0.381| 2026-11-27 10:52| vault-import| `a6eb59b` | Sustainability vault: import from other systems (any CSV or Excel layout, Diligent and other exports) and an API |
 | 382 | 1.0.382| 2026-11-27 11:14| vault-import| `3b0d9ee` | Vault import: real spreadsheet row numbers, same-month rows add up, a stricter date reader, a failed file clears the old one; API: storage e |
-| 383 | 1.0.383| 2026-11-27 11:26| vault-import| `a10543c` | Rights by jurisdiction: countries by name, ISO code or short name (UK, USA, UAE); modern slavery laws flagged as required only at the size t |
-| 384 | 1.0.384 | 2026-11-27 11:32 | rights-jurisdiction | _this commit_ | _see git log_ |
+| 383 | 1.0.383| 2026-11-27 11:26| vault-import| `f2ec027` | Sample data set 2: a stopped run resumes (missing months only, unfinished supplier replies), a safer claim that a dead run cannot hold |
+| 384 | 1.0.384| 2026-11-27 11:32| samples-2| `e1178ae` | Merge main into rights-jurisdiction |
+| 385 | 1.0.385 | 2026-11-27 11:34 | rights-jurisdiction | _this commit_ | _see git log_ |
