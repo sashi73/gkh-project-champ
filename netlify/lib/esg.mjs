@@ -537,6 +537,8 @@ function socScore(e) {
 }
 // the certifications beyond the core three ISO standards (each adds to the certifications spoke of the radar)
 const OTHER_CERTS = ['iso50001', 'iso14064', 'iso37001', 'iso37301', 'iso22301', 'iso27701', 'iso42001', 'soc2', 'sa8000', 'bcorp', 'foodSafety', 'palm', 'forest', 'greenBuilding'];
+// ratings and systems that also count on the certifications spoke: EcoVadis Gold or Platinum, a CDP A score, a deployed ESG or EHS system
+const strongRatings = (c) => (['Platinum', 'Gold'].includes(c.ecovadis) ? 1 : 0) + (/^A/.test(c.cdp || '') ? 1 : 0) + (yes(c.esgPlatform) ? 1 : 0) + (yes(c.ehsSystem) ? 1 : 0);
 // Governance (out of 100) and the GRI 2 alignment index: from the GKH Governance Intelligence tool
 function govScore(e) {
   const b = e.board || {}, t = e.ethics || {}, c = e.certs || {}; let core = 0, opt = 0, gri = 0; const why = [];
@@ -545,11 +547,12 @@ function govScore(e) {
   core += pts(b.chairSep, 4) + pts(t.code, 6) + pts(t.gWhistle, 7) + pts(t.antiCorrupt, 6) + pts(t.erm, 6, 3) + pts(t.audit, 5) + pts(t.cyber, 5) + pts(b.susCommittee, 6) + pts(b.indepSus, 4) + pts(t.tax, 3);
   core += has(t.corruptCases) && !t.corruptCases ? 3 : 0; core += Math.min(2, (t.abcTrain || 0) / 50); core = Math.min(75, core);
   opt += pts(c.iso45001, 4) + pts(c.iso27001, 4) + pts(c.iso9001, 3) + pts(c.grc, 3, 1) + pts(t.privacy, 3, 1) + pts(t.political, 2) + pts(b.execEsg, 2) + pts(b.boardTrain, 2) + pts(c.susReport, 2);
-  opt += pts(c.iso37001, 3) + pts(c.iso37301, 2) + pts(c.iso22301, 2) + pts(c.iso27701, 2) + pts(c.iso42001, 1) + pts(c.soc2, 1) + pts(c.sa8000, 2) + pts(c.bcorp, 2) + pts(c.iso14064 === 'Verified' ? 'Yes' : c.iso14064, 2) + pts(c.esgPlatform, 2, 1) + pts(c.erpEsg, 1)
+  opt += pts(c.iso37001, 3) + pts(c.iso37301, 2) + pts(c.iso22301, 2) + pts(c.iso27701, 2) + pts(c.iso42001, 1) + pts(c.soc2, 1) + pts(c.sa8000, 2) + pts(c.bcorp, 2) + pts(c.iso14064 === 'Verified' ? 'Yes' : c.iso14064, 2) + pts(c.esgPlatform, 2, 1) + pts(c.ehsSystem, 1) + pts(c.erpEsg, 1)
+    + ['iso50001', 'foodSafety', 'palm', 'forest', 'greenBuilding'].reduce((n, k) => n + pts(c[k], 1), 0)
     + (['Platinum', 'Gold'].includes(c.ecovadis) ? 2 : ['Silver', 'Bronze'].includes(c.ecovadis) ? 1 : 0) + (/^A/.test(c.cdp || '') ? 2 : /^B/.test(c.cdp || '') ? 1 : 0); opt = Math.min(25, opt);
   gri += ip == null ? 0 : ip >= 33 ? 20 : ip >= 20 ? 12 : 5; gri += pts(t.code, 15) + pts(t.gWhistle, 15) + pts(b.susCommittee, 15) + pts(b.indepSus, 12) + pts(t.antiCorrupt, 10) + pts(t.audit, 8) + pts(t.tax, 5); gri = Math.min(100, gri);
   const radar = [['Board independence', Math.min(100, ip || 0)], ['Ethics and whistleblowing', (yes(t.code) ? 50 : 0) + (yes(t.gWhistle) ? 50 : 0)], ['Sustainability oversight', (yes(b.susCommittee) ? 60 : 0) + (yes(b.indepSus) ? 40 : 0)],
-    ['Certifications', Math.min(100, (yes(c.iso45001) ? 35 : 0) + (yes(c.iso27001) ? 35 : 0) + (yes(c.iso9001) ? 30 : 0) + 10 * OTHER_CERTS.filter((k) => yes(c[k]) || c[k] === 'Verified').length)], ['Risk and audit', (yes(t.erm) ? 50 : part(t.erm) ? 25 : 0) + (yes(t.audit) ? 50 : 0)], ['Anti-corruption', yes(t.antiCorrupt) ? (t.corruptCases ? 60 : 100) : 0]];
+    ['Certifications', Math.min(100, (yes(c.iso45001) ? 35 : 0) + (yes(c.iso27001) ? 35 : 0) + (yes(c.iso9001) ? 30 : 0) + 10 * OTHER_CERTS.filter((k) => yes(c[k]) || c[k] === 'Verified').length + 10 * strongRatings(c))], ['Risk and audit', (yes(t.erm) ? 50 : part(t.erm) ? 25 : 0) + (yes(t.audit) ? 50 : 0)], ['Anti-corruption', yes(t.antiCorrupt) ? (t.corruptCases ? 60 : 100) : 0]];
   if (ip != null && ip < 50) why.push('Fewer than half the directors are independent.');
   if (!yes(b.susCommittee)) why.push('No board sustainability committee yet.');
   return { score: Math.round(core + opt), core: Math.round(core), opt: Math.round(opt), gri: Math.round(gri), boardWomenPct: r2(bw, 1), radar, why };

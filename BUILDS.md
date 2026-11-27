@@ -396,4 +396,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 385 | 1.0.385| 2026-11-27 11:34| rights-jurisdiction| `3901a30` | Merge main into magazine |
 | 386 | 1.0.386| 2026-11-27 11:36| magazine| `a6f5e98` | Merge main into magazine |
 | 387 | 1.0.387| 2026-11-27 11:43| magazine| `7aeb0f1` | ESG documents: magazine edition (6 styles, AI-chosen free photos) and a 2-page preview (#184) |
-| 388 | 1.0.388 | 2026-11-27 12:19 | certs-more | _this commit_ | _see git log_ |
+| 388 | 1.0.388| 2026-11-27 12:19| certs-more| `4b3171a` | ESG: more certifications and systems |
+| 389 | 1.0.389 | 2026-11-27 12:28 | certs-more | _this commit_ | _see git log_ |
