@@ -699,8 +699,8 @@
   }
   function wireMag() {
     var box = $('#dMagBox'); if (!box) return;
-    var fillPrev = function () { box.querySelectorAll('[data-magprev]').forEach(function (f) { if (f.getAttribute('data-done')) return; f.setAttribute('data-done', '1'); try { f.srcdoc = M.mag.preview(f.getAttribute('data-magprev'), 2).replace('</style>', '.pg{margin:0 6px 0 0!important;display:inline-block;vertical-align:top;box-shadow:none!important}body{background:transparent!important;white-space:nowrap}</style>'); } catch (e) { /* no preview */ } }); };
-    box.addEventListener('toggle', function () { if (box.open) M.studio._.fonts().then(fillPrev); });
+    var fillPrev = function () { box.querySelectorAll('[data-magprev]').forEach(function (f) { if (f.getAttribute('data-done')) return; f.setAttribute('data-done', '1'); try { f.srcdoc = M.mag.preview(f.getAttribute('data-magprev'), 2).replace('</style>', '.pg{margin:0 6px 0 0!important;display:inline-block;vertical-align:top;box-shadow:none!important;white-space:normal}body{background:transparent!important;white-space:nowrap}</style>'); } catch (e) { /* no preview */ } }); };
+    box.addEventListener('toggle', function () { if (box.open) M.studio._.fonts().then(fillPrev, function () { toast('The report fonts did not load: the samples use the browser\'s fonts.'); fillPrev(); }); });
     box.querySelectorAll('[data-mag]').forEach(function (b) { b.onclick = function () { MAGST = b.getAttribute('data-mag'); try { localStorage.setItem('champ-mag-style', MAGST); } catch (e) { /* kept for this page only */ }
       box.querySelectorAll('[data-mag]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }); $('#dMagName').textContent = b.querySelector('b').textContent; }; });
   }
@@ -918,7 +918,7 @@
       say('Designing the magazine edition…'); return M.mag.make(Dm, win, MAGST, say).then(function (r) { say(''); toast('Magazine edition open in a new tab, ' + r.photos + ' photo' + (r.photos === 1 ? '' : 's') + ': choose “Save as PDF”'); }); }
     if (fmt === 'preview') { var Dp = build(0); say('Laying out the first pages…');   // 👁 the first two pages in the chosen colour scheme, in a window here
       return M.studio._.fonts().then(function () { return M.studio.translate(Dp); }).then(function () { return M.studio._.prep(Dp); }).then(function () { say('');
-        var h = M.studio.html(Dp), pages = h.split('<div class="pg'), two = pages.slice(0, 3).join('<div class="pg') + '</body></html>';
+        var h = M.studio.html(Dp), pages = h.split('<div class="pg'), two = (pages.slice(0, 3).join('<div class="pg') + '</body></html>').replace('</style>', '.pg{max-height:297mm}</style>');   // two pages at most, also for a statement that flows on one long page
         M.modal('<h2>👁 Preview: ' + esc((M.studio.themes().filter(function (t) { return t.id === THEME; })[0] || {}).name || THEME) + '</h2><p class="muted" style="margin:4px 0 10px">The first two pages as the PDF will look. Change the colour scheme and preview again until it suits.</p><iframe class="doc-prev" title="Preview of the first two pages" sandbox srcdoc="' + esc(two) + '"></iframe><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Close</button></div>'); }); }
     var D = build(0), file = function (r) { toast('Filing a copy in the Sustainability vault…'); return toVault(kind, r, snap).then(function (f) { if (f) toast('Filed in the Sustainability vault: ' + f.tags.join(' · ')); }, function (e) { toast('Not filed in the vault: ' + e.message); }); };
     if (fmt === 'pdf' && M.studio.needsPrint(D)) {   // a script the PDF fonts do not cover: the browser prints it; the vault keeps the Word version
