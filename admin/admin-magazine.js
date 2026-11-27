@@ -125,17 +125,31 @@
 
   // ---- 🖼 the photos: the user's first, then what the AI's plan asks for (each fetched once, made smaller in the browser)
   var shrink = function (src) { return new Promise(function (ok) { var im = new Image(); im.onload = function () { var k = Math.min(1, 1600 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k)); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.82)); }; im.onerror = function () { ok(null); }; im.src = src; }); };
+  // 📸 which photos go where: your photos by group (General on the cover, introduction and part openers; E, S and G on their own chapters),
+  //   each used once while the group lasts; a chapter with none of yours gets a free stock photo (unless "only my photos"), else one of its group again
+  var PILLAR = [[/environment|climate|carbon|emission|ghg|energy|water|waste|nature|biodivers|land|circular|scope|net.?zero|avoided|pricing|cbam/i, 'env'],
+    [/social|people|workforce|employee|safety|health|human rights|labour|labor|divers|inclusion|community|communities|supplier|talent|training/i, 'soc'],
+    [/governance|board|ethic|integrity|risk|compliance|cyber|privacy|tax|assurance|content index|standards|reporting/i, 'gov']];
+  var pillarOf = function (c) { var t = (c.title || '') + ' ' + (c.part || ''); for (var i = 0; i < PILLAR.length; i++) if (PILLAR[i][0].test(c.title || '')) return PILLAR[i][1]; for (var k = 0; k < PILLAR.length; k++) if (PILLAR[k][0].test(t)) return PILLAR[k][1]; return 'gen'; };
   function photos(D, say) {
-    var chs = (D.chapters || []).map(function (c) { return { title: c.title, part: c.part || '', divider: !!c.divider }; }), own = (D.photos || []).slice();
-    var P = { ch: {}, credits: [], plan: null };
+    var chs = (D.chapters || []).map(function (c) { return { title: c.title, part: c.part || '', divider: !!c.divider }; });
+    var G = D.photoGroups || { gen: (D.photos || []).slice(), env: [], soc: [], gov: [] }, used = { gen: 0, env: 0, soc: 0, gov: 0 }, mine = 0;
+    ['gen', 'env', 'soc', 'gov'].forEach(function (k) { G[k] = (G[k] || []).slice(); mine += G[k].length; });
+    var take = function (k, again) { var L = G[k] || []; if (!L.length) return null; if (used[k] < L.length) return L[used[k]++]; return again ? L[(used[k]++) % L.length] : null; };
+    var P = { ch: {}, credits: [], plan: null, mine: 0, stock: 0, missed: 0 };
+    var hasParts = (D.chapters || []).some(function (c) { return c.divider; }), slot = (D.chapters || []).map(function (c, i) { return { i: i, c: c, g: pillarOf(c) }; }).filter(function (x) { return x.c.divider || !hasParts || x.g !== 'gen' || x.i < 3; });
+    P.cover = take('gen') || take('env') || take('soc') || take('gov');
+    slot.forEach(function (x) { var u = take(x.g); if (u) { P.ch[x.i] = u; P.mine++; } });
+    if (P.cover) P.mine++;
+    var need = slot.filter(function (x) { return !P.ch[x.i]; }), again = function () { need.forEach(function (x) { if (!P.ch[x.i]) { var u = take(x.g, true); if (u) P.ch[x.i] = u; } }); };
+    if (D.ownOnly || (!need.length && P.cover)) { again(); return Promise.resolve(P); }
+    say('Finding free photos for ' + need.length + ' page' + (need.length === 1 ? '' : 's') + ' without one of yours…');
     return M.api('esgPhotoPlan', { org: D.title, industry: D.industry || '', country: D.country || '', title: D.kicker + ' ' + (D.subtitle || ''), chapters: chs }).catch(function () { return { cover: (D.industry || '') + ' sustainability', chapters: [] }; }).then(function (plan) {
-      P.plan = plan; var jobs = [{ k: 'cover', q: plan.cover }].concat((plan.chapters || []).map(function (c) { return { k: c.i, q: c.q }; })), n = jobs.length, done = 0;
-      if (own.length) { P.cover = own.shift(); jobs.shift(); }   // your photos: the cover, then the parts in order
-      var hasParts = (D.chapters || []).some(function (c) { return c.divider; });
-      (D.chapters || []).forEach(function (c, i) { if ((c.divider || !hasParts) && own.length) { P.ch[i] = own.shift(); jobs = jobs.filter(function (j) { return j.k !== i; }); } });   // statements have no part openers: your photos go to the first chapters
+      P.plan = plan; var want = {}; need.forEach(function (x) { want[x.i] = 1; });
+      var jobs = (P.cover ? [] : [{ k: 'cover', q: plan.cover }]).concat((plan.chapters || []).filter(function (c) { return want[c.i]; }).map(function (c) { return { k: c.i, q: c.q }; })), n = jobs.length, done = 0;
       var next = 0, run = function () { var j = jobs[next++]; if (!j) return Promise.resolve();
-        return M.api('esgStockPhoto', { q: j.q, i: j.k === 'cover' ? 0 : 1, skip: 0 }).then(function (r) { return shrink(r.url).then(function (u) { if (u) { if (j.k === 'cover') P.cover = u; else P.ch[j.k] = u; P.credits.push(r.credit || ''); } }); }, function () {}).then(function () { done++; if (say) say('Finding photos… ' + done + ' of ' + n); return run(); }); };
-      return Promise.all([run(), run(), run(), run()]).then(function () { return P; });   // four at a time
+        return M.api('esgStockPhoto', { q: j.q, i: j.k === 'cover' ? 0 : 1, skip: 0 }).then(function (r) { return shrink(r.url).then(function (u) { if (u) { if (j.k === 'cover') P.cover = u; else P.ch[j.k] = u; P.credits.push(r.credit || ''); P.stock++; } else P.missed++; }); }, function () { P.missed++; }).then(function () { done++; say('Finding free photos: ' + done + ' of ' + n + '…'); return run(); }); };
+      return Promise.all([run(), run(), run(), run()]).then(function () { again(); return P; });   // four at a time; a page still without a photo takes one of its group's again
     });
   }
 
@@ -145,7 +159,7 @@
     return S.fonts().then(function () { return M.studio.translate(D); }).then(function () { return S.prep(D); }).then(function () { return D.noPhotos ? { ch: {} } : photos(D, say); }).then(function (P) {
       var h = build(D, st, P, S.md, S.WD); win.document.open(); win.document.write(h); win.document.close();
       setTimeout(function () { try { win.focus(); win.print(); } catch (e) { /* the user prints from the tab */ } }, 1200);
-      return { printed: true, photos: Object.keys(P.ch).length + (P.cover ? 1 : 0), plan: P.plan && P.plan.source, html: h };
+      return { printed: true, photos: Object.keys(P.ch).length + (P.cover ? 1 : 0), mine: P.mine || 0, stock: P.stock || 0, missed: P.missed || 0, plan: P.plan && P.plan.source, html: h };
     });
   }
   // 👁 a style's first pages with sample text and drawn artwork (no photos, no AI): for the style picker
@@ -155,5 +169,5 @@
     var h = build(D, STYLES[st] ? st : 'national', { ch: {} }, S.md, S.WD); if (pages === 1) h = h.replace(/<section class="pg ch[\s\S]*<\/section>/, '');
     return h;
   }
-  M.mag = { styles: function () { return Object.keys(STYLES).map(function (k) { return { id: k, name: STYLES[k][0], about: STYLES[k][1] }; }); }, make: make, preview: preview, build: build };
+  M.mag = { _photos: photos, styles: function () { return Object.keys(STYLES).map(function (k) { return { id: k, name: STYLES[k][0], about: STYLES[k][1] }; }); }, make: make, preview: preview, build: build };
 })();

@@ -695,7 +695,7 @@
   // 📰 the magazine styles, each shown as its cover and a chapter page (sample text, drawn artwork) before anyone chooses
   function magBox() {
     if (!M.mag) return '';
-    return '<details class="card mag-box" id="dMagBox"><summary><b>📰 Magazine styles</b> <span class="muted" style="font-size:12.5px">for the Magazine PDF · chosen: <b id="dMagName">' + esc((M.mag.styles().filter(function (x) { return x.id === MAGST; })[0] || {}).name || '') + '</b> · the AI picks the photos (up to 20, free to use) unless you add your own</span></summary>' +
+    return '<details class="card mag-box" id="dMagBox"><summary><b>📰 Magazine styles</b> <span class="muted" style="font-size:12.5px">for the Magazine PDF · chosen: <b id="dMagName">' + esc((M.mag.styles().filter(function (x) { return x.id === MAGST; })[0] || {}).name || '') + '</b> · your photos go to their own chapters (General, E, S, G); free stock photos fill the rest unless you choose only yours</span></summary>' +
       '<div class="mag-grid">' + M.mag.styles().map(function (x) { return '<button type="button" class="mag-pick' + (x.id === MAGST ? ' on' : '') + '" data-mag="' + x.id + '" aria-pressed="' + (x.id === MAGST) + '"><span class="mag-thumbs"><iframe tabindex="-1" aria-hidden="true" loading="lazy" data-magprev="' + x.id + '"></iframe></span><b>' + esc(x.name) + '</b><small>' + esc(x.about) + '</small></button>'; }).join('') + '</div></details>';
   }
   function wireMag() {
@@ -705,34 +705,56 @@
     box.querySelectorAll('[data-mag]').forEach(function (b) { b.onclick = function () { MAGST = b.getAttribute('data-mag'); try { localStorage.setItem('champ-mag-style', MAGST); } catch (e) { /* kept for this page only */ }
       box.querySelectorAll('[data-mag]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }); $('#dMagName').textContent = b.querySelector('b').textContent; }; });
   }
-  // 📸 photos for the report styles (cover, part pages, chapter bands): made smaller in the browser and kept in this browser for this report
-  // photos are kept as { u: picture, c: credit }; older ones were the picture alone
-  var photosOf = function (id) { if (!PHOTOS[id]) { try { PHOTOS[id] = JSON.parse(localStorage.getItem('champ-esg-photos:' + id) || '[]'); } catch (e) { PHOTOS[id] = []; } } PHOTOS[id] = PHOTOS[id].map(function (p) { return typeof p === 'string' ? { u: p, c: '' } : p; }).filter(function (p) { return p && p.u; }); return PHOTOS[id]; };
+  // 📸 your photos for the report: up to 30, in four groups (General, Environment, Social, Governance) so each one goes where it belongs.
+  //   Kept in this browser (IndexedDB: room for 30 photos; the older ones in localStorage move across). A photo is { u: picture, c: credit, g: group }.
+  var PMAX = 30, PG = [['gen', 'General', 'cover, introduction, leadership and part openers'], ['env', 'Environment (E)', 'climate, energy, water, waste and nature chapters'], ['soc', 'Social (S)', 'people, safety, human rights and community chapters'], ['gov', 'Governance (G)', 'board, ethics, risk and reporting chapters']];
+  var PGN = { gen: 1, env: 1, soc: 1, gov: 1 }, PLOAD = {};
+  var idb = function () { return new Promise(function (ok, no) { if (!window.indexedDB) return no(new Error('no IndexedDB')); var r = indexedDB.open('champ-esg', 1); r.onupgradeneeded = function () { r.result.createObjectStore('photos'); }; r.onsuccess = function () { ok(r.result); }; r.onerror = function () { no(r.error); }; }); };
+  var idbDo = function (mode, fn) { return idb().then(function (db) { return new Promise(function (ok, no) { var tx = db.transaction('photos', mode), st = tx.objectStore('photos'), q = fn(st); tx.oncomplete = function () { ok(q && q.result); db.close(); }; tx.onerror = function () { no(tx.error); db.close(); }; }); }); };
+  var tidy = function (L) { return (L || []).map(function (p) { return typeof p === 'string' ? { u: p, c: '', g: 'gen' } : p; }).filter(function (p) { return p && p.u; }).map(function (p) { return { u: p.u, c: p.c || '', g: PGN[p.g] ? p.g : 'gen' }; }).slice(0, PMAX); };
+  var photosOf = function (id) {
+    if (!PHOTOS[id]) { try { PHOTOS[id] = tidy(JSON.parse(localStorage.getItem('champ-esg-photos:' + id) || '[]')); } catch (e) { PHOTOS[id] = []; } }
+    if (!PLOAD[id]) { PLOAD[id] = 1; idbDo('readonly', function (st) { return st.get(id); }).then(function (L) {   // the full set from IndexedDB, then the box is drawn again
+      if (L && L.length && PLOAD[id] === 1) { PHOTOS[id] = tidy(L); var b = $('#dPhotoBox'); if (b && V.e && V.e.id === id) { b.outerHTML = photoBox(); wirePhotos(); } } PLOAD[id] = 2; }).catch(function () { PLOAD[id] = 2; }); }
+    return PHOTOS[id]; };
+  // for the documents: the five styles take three (cover, part pages, chapter bands), General first; the magazine takes every group
+  var photoSet = function (id) { var L = photosOf(id), o = {}; PG.forEach(function (x) { o[x[0]] = L.filter(function (p) { return p.g === x[0]; }).map(function (p) { return p.u; }); }); return o; };
+  var firstThree = function (id) { var o = photoSet(id); return o.gen.concat(o.env, o.soc, o.gov).slice(0, 3); };
+  var OWNONLY = (function () { try { return localStorage.getItem('champ-mag-ownonly') === '1'; } catch (e) { return false; } })();
   function shrink(src) { return new Promise(function (ok) { var go = function (url) { var im = new Image(); im.onload = function () { var k = Math.min(1, 1400 / Math.max(im.width, im.height)), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(im.width * k)); c.height = Math.max(1, Math.round(im.height * k)); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.8)); }; im.onerror = function () { ok(null); }; im.src = url; };
     if (typeof src === 'string') return go(src); var r = new FileReader(); r.onload = function () { go(r.result); }; r.onerror = function () { ok(null); }; r.readAsDataURL(src); }); }
-  var PSKIP = {}, PLACE = ['cover', 'part pages', 'chapter bands'];
-  function photoBox() { var P = photosOf(V.e.id), st = /^(horizon|canopy|atlas|aurora|signal)$/.test(THEME), o = V.e.org || {}, q = PSKIP['q' + V.e.id] || [o.industry, 'sustainability'].filter(Boolean).join(' ') || 'nature sustainability';
-    return '<div class="esg-photos" id="dPhotoBox"><div style="font-weight:600">Photos for the cover, part pages and chapter bands <span class="muted" style="font-weight:400">(optional, up to 3)</span></div>' +
-      '<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:6px;align-items:flex-start">' + P.map(function (p, i) { return '<figure class="esg-phf"><img src="' + esc(p.u) + '" alt="Photo for the ' + PLACE[i] + '" class="esg-ph"><figcaption>' + esc(PLACE[i]) + '</figcaption><button type="button" class="esg-phx" data-phx="' + i + '" aria-label="Remove the photo for the ' + PLACE[i] + '">✕</button></figure>'; }).join('') +
-      (P.length < 3 ? '<button class="btn btn-sm" type="button" id="dPhotoAdd">＋ Add your photos</button><input type="file" id="dPhotos" accept="image/*" multiple hidden>' : '') + '</div>' +
-      '<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><input id="dStockQ" value="' + esc(q) + '" aria-label="Words to search free stock photos for" style="flex:1;min-width:180px"><button class="btn btn-sm" type="button" id="dStock">🖼 Find free stock photos</button>' + (P.length ? '<button class="btn btn-sm" type="button" id="dPhotoClr">Remove all</button>' : '') + '</div>' +
-      (P.some(function (p) { return p.c; }) ? '<p class="muted" style="font-size:11.5px;margin:6px 0 0">' + P.map(function (p, i) { return p.c ? esc(PLACE[i]) + ': ' + esc(p.c) : ''; }).filter(Boolean).join(' · ') + '</p>' : '') +
-      '<p class="muted" style="font-size:12px;margin:6px 0 0">' + (st ? 'This style puts the first photo on the cover, the second on the part pages and the third on the chapter bands. Without photos it uses drawn artwork.' : 'Photos are used by the five styles (Horizon, Canopy, Atlas, Aurora and Signal) in the colour scheme list.') + ' Stock photos are free to use (Pexels, or CC0 and public-domain photos from Openverse). Photos stay in this browser.</p></div>'; }
+  var PSKIP = {};
+  function photoBox() { var id = V.e.id, P = photosOf(id), o = V.e.org || {}, q = PSKIP['q' + id] || [o.industry, 'sustainability'].filter(Boolean).join(' ') || 'nature sustainability', g0 = PSKIP['g' + id] || 'gen', room = PMAX - P.length;
+    return '<div class="esg-photos" id="dPhotoBox"><div class="row" style="gap:8px;align-items:baseline"><b>Your photos</b><span class="muted" style="font-size:12.5px">optional, up to ' + PMAX + ': put each in its group and it goes to those chapters</span><span class="sp"></span><span class="pill" id="dPhotoN">' + P.length + ' of ' + PMAX + '</span></div>' +
+      PG.map(function (G) { var L = P.map(function (p, i) { return [p, i]; }).filter(function (x) { return x[0].g === G[0]; });
+        return '<div class="esg-phg" data-pg="' + G[0] + '"><div class="esg-phg-h"><b>' + esc(G[1]) + '</b><small>' + esc(G[2]) + '</small></div><div class="esg-phg-row">' +
+          L.map(function (x) { return '<figure class="esg-phf"><img src="' + esc(x[0].u) + '" alt="' + esc(G[1]) + ' photo" class="esg-ph" loading="lazy"><button type="button" class="esg-phx" data-phx="' + x[1] + '" aria-label="Remove this ' + esc(G[1]) + ' photo">✕</button></figure>'; }).join('') +
+          (room > 0 ? '<button class="esg-phadd" type="button" data-phadd="' + G[0] + '" title="Add photos to ' + esc(G[1]) + '">＋</button><input type="file" id="dPhotos-' + G[0] + '"' + (G[0] === 'gen' ? ' class="dPhotos"' : '') + ' accept="image/*" multiple hidden>' : '') + '</div></div>'; }).join('') +
+      '<div class="row" style="gap:6px;flex-wrap:wrap;margin-top:8px"><input id="dStockQ" value="' + esc(q) + '" aria-label="Words to search free stock photos for" style="flex:1;min-width:180px"><select id="dStockG" aria-label="Group the stock photos go into">' + PG.map(function (G) { return '<option value="' + G[0] + '"' + (G[0] === g0 ? ' selected' : '') + '>into ' + esc(G[1]) + '</option>'; }).join('') + '</select><button class="btn btn-sm" type="button" id="dStock"' + (room > 0 ? '' : ' disabled') + '>🖼 Find free stock photos</button>' + (P.length ? '<button class="btn btn-sm" type="button" id="dPhotoClr">Remove all</button>' : '') + '</div>' +
+      (P.some(function (p) { return p.c; }) ? '<details class="muted" style="font-size:11.5px;margin:6px 0 0"><summary>Photo credits</summary>' + P.filter(function (p) { return p.c; }).map(function (p) { return esc(p.c); }).join(' · ') + '</details>' : '') +
+      '<label class="esg-ownonly"><input type="checkbox" id="dOwnOnly"' + (OWNONLY ? ' checked' : '') + '> Magazine: use only my photos (no photos chosen by AI)</label>' +
+      '<p class="muted" style="font-size:12px;margin:6px 0 0">The five styles (Horizon, Canopy, Atlas, Aurora, Signal) use the first three: General first. The Magazine PDF puts each group\'s photos on its own chapters; chapters with no photo of yours get a free stock photo unless you tick the box. Stock photos are free to use (Pexels, or CC0 and public-domain photos from Openverse). Photos stay in this browser.</p></div>'; }
   var PGEN = {};   // a new pick, a search or "Remove" makes any photos still being prepared stale
   function wirePhotos() {
     var redraw = function () { var b = $('#dPhotoBox'); if (b) { b.outerHTML = photoBox(); wirePhotos(); } },
-      keep = function (id, L) { PHOTOS[id] = L.slice(0, 3); try { if (L.length) localStorage.setItem('champ-esg-photos:' + id, JSON.stringify(PHOTOS[id])); else localStorage.removeItem('champ-esg-photos:' + id); } catch (e) { toast('These photos are used now, but are too large to keep in this browser for next time.'); } },
+      keep = function (id, L) { L = tidy(L); PHOTOS[id] = L; PLOAD[id] = 2; try { localStorage.removeItem('champ-esg-photos:' + id); } catch (e) { /* nothing kept there */ }
+        return idbDo('readwrite', function (st) { return L.length ? st.put(L, id) : st.delete(id); }).catch(function () { toast('These photos are used now, but this browser could not keep them for next time.'); }); },
       after = function (id, gen, L, msg) { if (PGEN[id] !== gen) return; keep(id, L); if (V.e && V.e.id === id) redraw(); if (msg) toast(msg); };
-    var add = $('#dPhotoAdd'); if (add) add.onclick = function () { var i = $('#dPhotos'); if (i) i.click(); };
-    var inp = $('#dPhotos'); if (inp) inp.onchange = function () { var id = V.e.id, gen = PGEN[id] = (PGEN[id] || 0) + 1, have = photosOf(id).slice(), F = [].slice.call(inp.files || []).filter(function (f) { return /^image\//.test(f.type); }).slice(0, 3 - have.length); if (!F.length) return;
-      Promise.all(F.map(shrink)).then(function (L) { L = L.filter(Boolean); if (!L.length) { toast('Those photos could not be read: try JPG or PNG.'); return; } after(id, gen, have.concat(L.map(function (u) { return { u: u, c: '' }; })), L.length + ' photo' + (L.length === 1 ? '' : 's') + ' added'); }).catch(fail); };
+    document.querySelectorAll('[data-phadd]').forEach(function (b) { b.onclick = function () { var i = $('#dPhotos-' + b.getAttribute('data-phadd')); if (i) i.click(); }; });
+    PG.forEach(function (G) { var inp = $('#dPhotos-' + G[0]); if (!inp) return; inp.onchange = function () { var id = V.e.id, gen = PGEN[id] = (PGEN[id] || 0) + 1, have = photosOf(id).slice(), F = [].slice.call(inp.files || []).filter(function (f) { return /^image\//.test(f.type); }), room = PMAX - have.length;
+      if (!F.length) return; if (F.length > room) toast('Only ' + room + ' more fit (up to ' + PMAX + '): the first ' + room + ' are added.'); F = F.slice(0, room);
+      Promise.all(F.map(shrink)).then(function (L) { L = L.filter(Boolean); if (!L.length) { toast('Those photos could not be read: try JPG or PNG.'); return; } after(id, gen, have.concat(L.map(function (u) { return { u: u, c: '', g: G[0] }; })), L.length + ' photo' + (L.length === 1 ? '' : 's') + ' added to ' + G[1]); }).catch(fail); }; });
     document.querySelectorAll('[data-phx]').forEach(function (b) { b.onclick = function () { var id = V.e.id, L = photosOf(id).slice(); PGEN[id] = (PGEN[id] || 0) + 1; L.splice(Number(b.getAttribute('data-phx')), 1); keep(id, L); redraw(); }; });
-    var clr = $('#dPhotoClr'); if (clr) clr.onclick = function () { var id = V.e.id; PGEN[id] = (PGEN[id] || 0) + 1; keep(id, []); redraw(); };
-    var sb = $('#dStock'); if (sb) sb.onclick = function () { var id = V.e.id, gen = PGEN[id] = (PGEN[id] || 0) + 1, q = ($('#dStockQ').value || '').trim(), k = 'q' + id;
-      if (q.length < 2) { toast('Type a few words to search for, for example "airline sky".'); return; }
-      var skip = PSKIP[k] === q ? (PSKIP['s' + id] || 0) + 1 : 0; PSKIP[k] = q; PSKIP['s' + id] = skip; sb.disabled = true; sb.textContent = '🖼 Finding photos…';
-      Promise.all([0, 1, 2].map(function (i) { return api('esgStockPhoto', { q: q, i: i, skip: skip * 9 }).then(function (r) { return shrink(r.url).then(function (u) { return u ? { u: u, c: r.credit || '' } : null; }); }, function () { return null; }); }))
-        .then(function (L) { L = L.filter(Boolean); sb.disabled = false; sb.textContent = '🖼 Find free stock photos'; if (!L.length) { toast('No free photos came back for "' + q + '". Try other words.'); return; } after(id, gen, L, L.length + ' free photo' + (L.length === 1 ? '' : 's') + ' added. Press again for others.'); }).catch(function (e) { sb.disabled = false; fail(e); }); };
+    var clr = $('#dPhotoClr'); if (clr) clr.onclick = function () { var id = V.e.id; M.confirmBox('Remove all your photos?', 'This removes all ' + photosOf(id).length + ' photos from this report in this browser.', 'Remove all', true).then(function (ok) { if (!ok) return; PGEN[id] = (PGEN[id] || 0) + 1; keep(id, []); redraw(); }); };
+    var oo = $('#dOwnOnly'); if (oo) oo.onchange = function () { OWNONLY = oo.checked; try { localStorage.setItem('champ-mag-ownonly', OWNONLY ? '1' : '0'); } catch (e) { /* this page only */ } };
+    var sg = $('#dStockG'); if (sg) sg.onchange = function () { PSKIP['g' + V.e.id] = sg.value; };
+    var sb = $('#dStock'); if (sb) sb.onclick = function () { var id = V.e.id, gen = PGEN[id] = (PGEN[id] || 0) + 1, q = ($('#dStockQ').value || '').trim(), g = ($('#dStockG') || {}).value || 'gen', k = 'q' + id, have = photosOf(id).slice(), n = Math.min(3, PMAX - have.length);
+      if (q.length < 2) { toast('Type a few words to search for, for example "airline sky".'); return; } if (n < 1) { toast('You have ' + PMAX + ' photos: remove some first.'); return; }
+      var skip = PSKIP[k] === q ? (PSKIP['s' + id] || 0) + 1 : 0; PSKIP[k] = q; PSKIP['s' + id] = skip; PSKIP['g' + id] = g; sb.disabled = true; sb.textContent = '🖼 Finding photos…';
+      var why = '';
+      Promise.all(Array.from({ length: n }, function (x, i) { return api('esgStockPhoto', { q: q, i: i, skip: skip * 9 }).then(function (r) { return shrink(r.url).then(function (u) { return u ? { u: u, c: r.credit || '', g: g } : null; }); }, function (e) { why = e.message; return null; }); }))
+        .then(function (L) { L = L.filter(Boolean); sb.disabled = false; sb.textContent = '🖼 Find free stock photos'; if (!L.length) { toast(why || 'No free photos came back for "' + q + '". Try other words.', true); return; }
+          after(id, gen, have.concat(L), L.length + ' free photo' + (L.length === 1 ? '' : 's') + ' added to ' + PG.filter(function (x) { return x[0] === g; })[0][1] + '. Press again for others.'); }).catch(function (e) { sb.disabled = false; fail(e); }); };
   }
   function docTab(kind) {
     var N = V.docs[kind], rep = kind === 'report', l = (window.ChampI18n && window.ChampI18n.get && window.ChampI18n.get()) || 'en', L = (window.ChampI18n && window.ChampI18n.langs) || [['en', 'English']], busy = V.ai[V.id + ':' + kind];
@@ -908,7 +930,7 @@
     THEME = $('#dTheme').value || 'forest';
     var snap = { e: V.e, docs: V.docs, N: V.docs[kind], org: JSON.parse(JSON.stringify(V.e.org || {})), id: V.e.id },   // the organisation as it was when the document started: filing never reads a later edit
       same = function () { if (V.e !== snap.e) throw new Error('Another report was opened while this one was being prepared. Go back to it and make the document again.'); };
-    var k0 = orgKey(snap.org.name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0.photos = photosOf(snap.id).map(function (p) { return p.u; }); D0._lim = lim; return enrich(D0, kind); };
+    var k0 = orgKey(snap.org.name), build = function (lim) { same(); var D0 = (kind === 'report' ? reportDoc : statementDoc)(snap.N, lang, lim); D0.theme = THEME; D0.photos = firstThree(snap.id); D0.photoGroups = photoSet(snap.id); D0.ownOnly = OWNONLY; D0._lim = lim; return enrich(D0, kind); };
     say('Gathering the figures…');
     return Promise.all([api('esgVaultGet', { key: k0 }).then(function (a) { TREND[k0] = a; }, function () { TREND[k0] = null; }), loadSdg(), loadProg(snap.id)])
       .then(function () { return makeDoc2(kind, fmt, lang, build, say, snap, win); }).catch(function (e) { say(''); if (win) win.close(); fail(e); });
@@ -916,7 +938,7 @@
   function makeDoc2(kind, fmt, lang, build, say, snap, win) {
     if (fmt === 'mag') { var Dm = build(0); Dm.industry = snap.org.industry || ''; Dm.country = snap.org.country || '';   // 📰 printed from its own tab; not filed (the vault keeps the PDF and Word)
       if (!win) return fail(new Error('Allow pop-ups for this site to open the magazine edition.'));
-      say('Designing the magazine edition…'); return M.mag.make(Dm, win, MAGST, say).then(function (r) { say(''); toast('Magazine edition open in a new tab, ' + r.photos + ' photo' + (r.photos === 1 ? '' : 's') + ': choose “Save as PDF”'); }); }
+      say('Designing the magazine edition…'); return M.mag.make(Dm, win, MAGST, say).then(function (r) { say(''); toast('Magazine edition open in a new tab: ' + [r.mine ? r.mine + ' of your photos' : '', r.stock ? r.stock + ' free stock photo' + (r.stock === 1 ? '' : 's') : '', r.missed ? r.missed + ' not found (those pages use the colour panel)' : ''].filter(Boolean).join(', ') + (r.photos ? '' : 'no photos') + '. Choose “Save as PDF”.', !!r.missed); }); }
     if (fmt === 'preview') { var Dp = build(0); say('Laying out the first pages…');   // 👁 the first two pages in the chosen colour scheme, in a window here
       return M.studio._.fonts().then(function () { return M.studio.translate(Dp); }).then(function () { return M.studio._.prep(Dp); }).then(function () { say('');
         var h = M.studio.html(Dp), pages = h.split('<div class="pg'), two = (pages.slice(0, 3).join('<div class="pg') + '</body></html>').replace('</style>', '.pg{max-height:297mm}</style>');   // two pages at most, also for a statement that flows on one long page
@@ -1255,5 +1277,5 @@
 
   M.addView('esg', 'ESG & Sustainability', function (parts) { return parts[0] ? entityPage(parts[0], parts[1]) : listPage(); }, 'esg');
   M.esgReadSheet = readSheet;   // the CSV and Excel reader, also used by the Sustainability vault
-  M.esg = { enrich: enrich, loadProg: loadProg, trend: TREND, loadSdg: loadSdg, reportDoc: reportDoc, statementDoc: statementDoc, state: function () { return V; } };   // for tests
+  M.esg = { enrich: enrich, loadProg: loadProg, trend: TREND, loadSdg: loadSdg, reportDoc: reportDoc, statementDoc: statementDoc, state: function () { return V; }, photos: function (id) { return photosOf(id); } };   // for tests
 })();

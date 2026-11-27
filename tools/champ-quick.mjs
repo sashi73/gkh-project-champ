@@ -860,7 +860,7 @@ try {
         // 📸 the five report styles: each its own artwork, with your photo when there is one, through the same PDF
         await pg.goto(BASE + '/admin/#esg/' + eid + '/report'); await pg.waitForTimeout(1500);
         if (process.env.SAVE_ART) await pg.evaluate(() => { window.CHAMP_ART = []; });
-        const sty = await pg.evaluate(async () => { const S = window.MBS.esg.state(), E = window.MBS.esg, ids = ['horizon', 'canopy', 'atlas', 'aurora', 'signal'], T = window.MBS.studio.themes().filter((t) => t.style), out = { list: [...document.querySelectorAll('#dTheme option')].map((o) => o.value).filter((v) => ids.includes(v)), styles: T.map((t) => t.id), box: !!document.querySelector('#dPhotos'), runs: [] };
+        const sty = await pg.evaluate(async () => { const S = window.MBS.esg.state(), E = window.MBS.esg, ids = ['horizon', 'canopy', 'atlas', 'aurora', 'signal'], T = window.MBS.studio.themes().filter((t) => t.style), out = { list: [...document.querySelectorAll('#dTheme option')].map((o) => o.value).filter((v) => ids.includes(v)), styles: T.map((t) => t.id), box: !!document.querySelector('#dPhotos-gen'), runs: [] };
           const c = document.createElement('canvas'); c.width = 600; c.height = 400; const g = c.getContext('2d'), gr = g.createLinearGradient(0, 0, 600, 400); gr.addColorStop(0, '#2b6cb0'); gr.addColorStop(1, '#f6e05e'); g.fillStyle = gr; g.fillRect(0, 0, 600, 400); const ph = c.toDataURL('image/jpeg', 0.8);
           for (const id of ids) for (const photos of [[], [ph]]) { const D0 = E.statementDoc(S.docs.statement, 'en', 2); D0.theme = id; D0.photos = photos; D0._lim = 2; const D = E.enrich(D0, 'statement'); const r = await window.MBS.studio.pdf(D); out.runs.push({ id, photo: !!photos.length, pages: r.pages, size: r.blob.size, art: D._art.cover.url.length, key: D._art.cover.url.length + ':' + D._art.cover.url.slice(D._art.cover.url.length >> 1, (D._art.cover.url.length >> 1) + 40) }); if (window.CHAMP_ART) window.CHAMP_ART.push([id + (photos.length ? '-photo' : ''), D._art.cover.url, D._art.band.url]); }
           return out; });
@@ -868,17 +868,19 @@ try {
         // 🖼 free stock photos found from the report's context, and your own photos added one pick at a time (up to 3)
         const stk = await api('esgStockPhoto', { q: 'airline sky', i: 1 }), stkBad = await api('esgStockPhoto', { q: 'a' });
         await pg.reload(); await pg.waitForTimeout(1500); await pg.selectOption('#dTheme', 'horizon'); await pg.waitForTimeout(300);
-        await pg.evaluate(() => { const id = window.MBS.esg.state().e.id; localStorage.removeItem('champ-esg-photos:' + id); });
+        await pg.evaluate(() => new Promise((ok) => { const id = window.MBS.esg.state().e.id; localStorage.removeItem('champ-esg-photos:' + id); const r = indexedDB.deleteDatabase('champ-esg'); r.onsuccess = r.onerror = r.onblocked = () => ok(); }));
         await pg.reload(); await pg.waitForTimeout(1500); await pg.selectOption('#dTheme', 'horizon'); await pg.waitForTimeout(300);
         const jpg = Buffer.from(await (await fetch(`http://127.0.0.1:${llm.address().port}/img/1.jpg`)).arrayBuffer());
-        await pg.setInputFiles('#dPhotos', [{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.waitForTimeout(800);
-        await pg.setInputFiles('#dPhotos', [{ name: 'b.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.waitForTimeout(800);
-        const two = await pg.evaluate(() => document.querySelectorAll('#dPhotoBox .esg-ph').length);
-        await pg.click('[data-phx="0"]'); await pg.waitForTimeout(300); const one = await pg.evaluate(() => document.querySelectorAll('#dPhotoBox .esg-ph').length);
-        await pg.fill('#dStockQ', 'airline sky'); await pg.click('#dStock'); await pg.waitForTimeout(3000);
-        const stkUi = await pg.evaluate(() => ({ n: document.querySelectorAll('#dPhotoBox .esg-ph').length, credit: /Openverse/.test(document.querySelector('#dPhotoBox').textContent), kept: JSON.parse(localStorage.getItem('champ-esg-photos:' + window.MBS.esg.state().e.id) || '[]').length }));
-        ok('StockPhotos', '🖼 free stock photos for the report styles: searched from the report\'s context (Openverse CC0 and public domain, or Pexels with a key), downloaded by the server from its own search results only, three added with their credits; your own photos add one pick at a time up to three, each with its own remove button',
-          stk.status === 200 && /^data:image\/jpeg;base64,/.test(stk.j.url) && /CC0, via Openverse/.test(stk.j.credit) && stkBad.status === 400 && STOCKSEEN.some((u) => /license=cc0,pdm/.test(u) && /aspect_ratio=tall/.test(u)) && two === 2 && one === 1 && stkUi.n === 3 && stkUi.credit && stkUi.kept === 3,
+        await pg.setInputFiles('#dPhotos-gen', [{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.waitForTimeout(800);
+        await pg.setInputFiles('#dPhotos-env', [{ name: 'b.jpg', mimeType: 'image/jpeg', buffer: jpg }, { name: 'c.jpg', mimeType: 'image/jpeg', buffer: jpg }]); await pg.waitForTimeout(800);
+        const two = await pg.evaluate(() => ({ all: document.querySelectorAll('#dPhotoBox .esg-ph').length, env: document.querySelectorAll('[data-pg=env] .esg-ph').length, groups: document.querySelectorAll('#dPhotoBox .esg-phg').length, cap: /of 30/.test(document.querySelector('#dPhotoN').textContent) }));
+        await pg.click('[data-phx="0"]'); await pg.waitForTimeout(300); const one = await pg.evaluate(() => ({ all: document.querySelectorAll('#dPhotoBox .esg-ph').length, gen: document.querySelectorAll('[data-pg=gen] .esg-ph').length }));
+        await pg.fill('#dStockQ', 'airline sky'); await pg.selectOption('#dStockG', 'soc'); await pg.click('#dStock'); await pg.waitForTimeout(3000);
+        const stkUi0 = await pg.evaluate(() => ({ n: document.querySelectorAll('#dPhotoBox .esg-ph').length, soc: document.querySelectorAll('[data-pg=soc] .esg-ph').length, credit: /Openverse/.test(document.querySelector('#dPhotoBox').textContent) }));
+        await pg.waitForTimeout(500); await pg.reload(); await pg.waitForTimeout(2500);
+        const stkUi = { ...stkUi0, kept: await pg.evaluate(() => document.querySelectorAll('#dPhotoBox .esg-ph').length) };
+        ok('StockPhotos', '🖼 report photos: up to 30 in four groups (General, Environment, Social, Governance), each with its own add and remove; free stock photos searched from the report\'s context (Openverse CC0 and public domain, any shape, or Pexels with a key), downloaded by the server from its own search results only, three added to the chosen group with their credits; kept in this browser (IndexedDB) after a reload',
+          stk.status === 200 && /^data:image\/jpeg;base64,/.test(stk.j.url) && /CC0, via Openverse/.test(stk.j.credit) && stkBad.status === 400 && STOCKSEEN.some((u) => /license=cc0,pdm/.test(u) && !/aspect_ratio/.test(u)) && two.all === 3 && two.env === 2 && two.groups === 4 && two.cap && one.all === 2 && one.gen === 0 && stkUi.n === 5 && stkUi.soc === 3 && stkUi.credit && stkUi.kept === 5,
           JSON.stringify([stk.status, stk.j && stk.j.credit, stkBad.status, STOCKSEEN.slice(0, 2), two, one, stkUi]).slice(0, 900));
         // 📰 the magazine edition: six styles shown before choosing, the AI's photo plan, every chapter laid out
         await pg.goto(BASE + '/admin/#esg/' + eid + '/report'); await pg.waitForTimeout(1500); await pg.click('#dMagBox summary'); await pg.waitForTimeout(1500);
@@ -892,11 +894,18 @@ try {
           for (const st of window.MBS.mag.styles().map((x) => x.id)) { const D = E.enrich(E.reportDoc(S.docs.report, 'en', 0), 'report'); D.theme = 'forest'; await window.MBS.studio._.prep(D);
             const P = { cover: ph, ch: {} }; D.chapters.forEach((ch, i) => { if (ch.divider || i % 3 === 0) P.ch[i] = ph; });
             const h = window.MBS.mag.build(D, st, P, window.MBS.studio._.md, window.MBS.studio._.WD); out[st] = { len: h.length, pages: (h.match(/<section class="pg/g) || []).length, chapters: D.chapters.length, html: window.CHAMP_ART ? h : '' }; }
+          // 📸 your photos by group: General on the cover, E/S/G on their own chapters; only yours when asked (no stock search)
+          const mk = (t) => { const k = document.createElement('canvas'); k.width = 40; k.height = 30; const x = k.getContext('2d'); x.fillStyle = t; x.fillRect(0, 0, 40, 30); return k.toDataURL('image/jpeg', 0.9); };
+          const U = { gen: mk('#c9a227'), env: mk('#16a34a'), soc: mk('#ea580c'), gov: mk('#2563eb') };
+          const Dg = { title: 'Test Co', kicker: 'ESG Report', chapters: [{ title: 'Message from the CEO' }, { title: 'Our planet', divider: true }, { title: 'Climate and emissions', part: 'Our planet' }, { title: 'Our people', divider: true }, { title: 'Health and safety' }, { title: 'Board and governance', divider: true }], photoGroups: { gen: [U.gen], env: [U.env], soc: [U.soc], gov: [U.gov] }, ownOnly: true };
+          const Pg = await window.MBS.mag._photos(Dg, () => {});
+          out._place = { cover: Pg.cover === U.gen, climate: Pg.ch[2] === U.env, people: Pg.ch[3] === U.soc || Pg.ch[4] === U.soc, board: Pg.ch[5] === U.gov, noStock: !Pg.stock && !Pg.plan, mine: Pg.mine };
           return out; });
+        const place = mag._place; delete mag._place;
         if (process.env.SAVE_ART) { const fs = await import('node:fs'); Object.entries(mag).forEach(([k, v]) => fs.writeFileSync(process.env.SAVE_ART + '/mag-' + k + '.html', v.html || '')); }
         ok('Magazine', '📰 the magazine edition: six styles (National after the Canva report, Horizon, Canopy, Atlas, Aurora, Signal), each shown as its first pages before choosing; the AI (or keywords) plans the photos per chapter; every chapter of the report is laid out with a cover, contents and part openers; a 2-page preview of the PDF colour scheme',
-          magUi.n === 6 && magUi.prev === 6 && magUi.btn && magUi.pv && magSel === 'atlas' && plan.status === 200 && plan.j.cover && Array.isArray(plan.j.chapters) && Object.values(mag).every((v) => v.pages === v.chapters + 2 && v.len > 20000),
-          JSON.stringify([magUi, magSel, plan.status, plan.j, Object.fromEntries(Object.entries(mag).map(([k, v]) => [k, [v.pages, v.chapters, v.len]]))]).slice(0, 1500));
+          magUi.n === 6 && magUi.prev === 6 && magUi.btn && magUi.pv && magSel === 'atlas' && plan.status === 200 && plan.j.cover && Array.isArray(plan.j.chapters) && Object.values(mag).every((v) => v.pages === v.chapters + 2 && v.len > 20000) && place.cover && place.climate && place.people && place.board && place.noStock,
+          JSON.stringify([place, magUi, magSel, plan.status, plan.j, Object.fromEntries(Object.entries(mag).map(([k, v]) => [k, [v.pages, v.chapters, v.len]]))]).slice(0, 1500));
         ok('ReportStyles', '📸 five report styles (Horizon, Canopy, Atlas, Aurora, Signal) in the colour scheme list, each with its own cover, part page and band artwork, using the photos you add (kept in this browser) or drawn artwork without them',
           sty.list.length === 5 && sty.styles.length === 5 && sty.box && sty.runs.length === 10 && sty.runs.every((r) => r.pages >= 3 && r.size > 20000) && new Set(sty.runs.map((r) => r.key)).size === 10, JSON.stringify(sty).slice(0, 1500));
         await pg.goto(BASE + '/admin/#cso'); await pg.waitForTimeout(2500); const cv = await pg.evaluate(() => ({ tiles: document.querySelectorAll('.pkpis .kpi').length, rows: document.querySelectorAll('.cso-tbl tbody tr').length, cal: document.querySelectorAll('.cso-cal li').length }));
