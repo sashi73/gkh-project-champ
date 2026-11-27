@@ -13,3 +13,16 @@ export async function runOnce(who) {
     return made;
   } catch (e) { await kv.del('sample-portfolio').catch(() => {}); throw e; }   // failed: the next run tries again (names already there are skipped)
 }
+// 🧪 the second set (sample-esg-2.mjs: Singapore shipping, Dubai real estate, Saudi cement, with their vaults and supplier data), once, under its own flag
+export async function runOnce2(who) {
+  let first = false;
+  // the claim: set afresh on every attempt of the compare-and-set (a losing attempt ends with first = false); a claim left running for 20 minutes by a run that died is taken over
+  await kv.update('sample-esg-2', (cur) => { first = false; if (cur && !(cur.running && Date.now() - (cur.at || 0) > 20 * 60e3)) return cur; first = true; return { at: Date.now(), by: who, running: true }; }, () => null);
+  if (!first) return null;
+  try {
+    const S2 = await import('./sample-esg-2.mjs'), made = await S2.seed2(who);
+    try { const A = await import('./admin-lib.mjs'); await Promise.resolve(A.audit(who, 'Sample data (set 2) loaded: ' + made.companies.length + ' ESG companies, ' + made.vaults.length + ' vaults, ' + made.suppliers.length + ' supplier replies')).catch(() => {}); } catch { /* the audit is optional */ }
+    await kv.set('sample-esg-2', { at: Date.now(), by: who, made });
+    return made;
+  } catch (e) { await kv.del('sample-esg-2').catch(() => {}); throw e; }
+}
