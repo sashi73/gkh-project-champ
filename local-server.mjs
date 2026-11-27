@@ -153,7 +153,7 @@ async function oldFiles() {
   return [...out];
 }
 
-const FUNCTIONS = { chat: './netlify/functions/chat.mjs', tts: './netlify/functions/tts.mjs', stt: './netlify/functions/stt.mjs', admin: './netlify/functions/admin.mjs', supplier: './netlify/functions/supplier.mjs', 'planai-background': './netlify/functions/planai-background.mjs', contact: './netlify/functions/contact.mjs' };
+const FUNCTIONS = { chat: './netlify/functions/chat.mjs', tts: './netlify/functions/tts.mjs', stt: './netlify/functions/stt.mjs', admin: './netlify/functions/admin.mjs', 'vault-api': './netlify/functions/vault-api.mjs', supplier: './netlify/functions/supplier.mjs', 'planai-background': './netlify/functions/planai-background.mjs', contact: './netlify/functions/contact.mjs' };
 
 // Per-visitor limits, so nobody can run up AI costs or flood staff with fake enquiries once the site is public.
 // [requests allowed, per this many minutes]. Change in .env, e.g. LIMIT_CHAT=60/10

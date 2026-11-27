@@ -42,7 +42,7 @@ export async function orgs() {
   Object.values(vi).forEach((v) => { const o = out[v.key] = out[v.key] || { key: v.key, name: v.name, reports: [] }; o.vault = true; o.records = v.records; o.docs = v.docs; o.updated = v.updated; });
   return Object.values(out).sort((a, b) => a.name.localeCompare(b.name));
 }
-async function touchIndex(v) { await kv.update('svault-index', (x) => { x.v = x.v || {}; x.v[v.key] = { key: v.key, name: v.name, records: v.records.length, docs: v.docs.length, updated: Date.now() }; return x; }, () => ({ v: {} })); }
+export async function touchIndex(v) { await kv.update('svault-index', (x) => { x.v = x.v || {}; x.v[v.key] = { key: v.key, name: v.name, records: v.records.length, docs: v.docs.length, updated: Date.now() }; return x; }, () => ({ v: {} })); }
 async function reportsOf(key) {
   const idx = ((await kv.get('esg-index')) || { ents: {} }).ents || {}, L = [];
   for (const x of Object.values(idx)) if (keyOf(x.name) === key) { const e = await E.get(x.id); if (e) L.push(e); }
