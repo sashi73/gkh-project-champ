@@ -70,3 +70,32 @@ export async function photo(body) {
   }
   return { error: 'Those photos could not be downloaded just now. Try again or try other words.', code: 502 };
 }
+
+// 📰 the photo plan for a magazine-style report: the AI decides how many photos the report needs (none to 20) and what each shows,
+//   from the organisation's industry and country and the chapters' titles; without AI (or if it fails) a plan is made from keywords.
+const KW = [[/climate|carbon|emission|ghg|scope|net.?zero|decarbon/i, 'wind turbines renewable energy'], [/energy|electric|power|solar/i, 'solar panels'], [/water/i, 'water river'], [/waste|circular|recycl/i, 'recycling'],
+  [/nature|biodivers|land|forest/i, 'forest canopy'], [/people|workforce|employee|talent|divers|inclusion|culture/i, 'team workers diverse'], [/safety|health/i, 'worker safety helmet'], [/community|social/i, 'community volunteers'],
+  [/governance|board|ethic|risk|compliance/i, 'boardroom meeting'], [/supply|supplier|procure/i, 'supply chain logistics'], [/roadmap|target|plan|future|strategy/i, 'road through landscape'], [/ai|digital|data|technology/i, 'digital technology'],
+  [/message|chair|ceo|leadership/i, 'business leader'], [/about|introduction|overview|organisation|company/i, 'modern office building']];
+export function fallbackPlan(b) {
+  const ind = str(b.industry, 60), chs = (Array.isArray(b.chapters) ? b.chapters : []).slice(0, 40);
+  const picks = chs.map((c, i) => { const t = str(c.title, 120), k = KW.find(([re]) => re.test(t)); return { i, q: k ? k[1] : '', major: !!c.divider }; }).filter((x) => x.q && (x.major || x.i % 2 === 0)).slice(0, 14);
+  return { cover: (ind ? ind + ' ' : '') + 'sustainability', chapters: picks.map((x) => ({ i: x.i, q: x.q })), source: 'keywords' };
+}
+export async function photoPlan(b) {
+  const { llmJson, checkLimit, usage, llmSetup } = await import('./ai.mjs');
+  const chs = (Array.isArray(b.chapters) ? b.chapters : []).slice(0, 40).map((c, i) => ({ i, title: str(c.title, 120), part: str(c.part, 60), opens_a_part: !!c.divider }));
+  if (!chs.length) return { error: 'There are no chapters to plan photos for.', code: 400 };
+  if (!llmSetup()) return fallbackPlan(b);
+  try { await checkLimit(); } catch { return fallbackPlan(b); }
+  const sys = 'You are the art director of a corporate sustainability report. Decide which pages get a photograph and what each photo shows. Return JSON: {"cover": "search words", "chapters": [{"i": chapter index, "q": "search words"}]}. ' +
+    'Use as many photos as make the report look professional and varied: always one for each chapter that opens a part, and for other chapters only where a photo helps (a short or very technical chapter can go without). Between 3 and 20 photos in all, including the cover. ' +
+    'Search words: 2 to 4 plain English words a free stock library will match (for example "container ship port", "cement plant", "solar farm desert", "construction workers safety"), fitted to the organisation\'s industry and country and to the chapter. Never people\'s names, brands or logos. No two photos with the same words.';
+  try {
+    const r = await llmJson([{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify({ organisation: str(b.org, 120), industry: str(b.industry, 80), country: str(b.country, 60), report: str(b.title, 160), chapters: chs }) }], { maxTokens: 1200, temperature: 0.4 });
+    await usage(true, r.used || 0).catch(() => {});
+    const d = r.data || {}, seen = new Set(), L = (Array.isArray(d.chapters) ? d.chapters : []).map((x) => ({ i: Math.round(Number(x && x.i)), q: str(x && x.q, 60) })).filter((x) => x.q && x.i >= 0 && x.i < chs.length && !seen.has(x.q.toLowerCase()) && seen.add(x.q.toLowerCase())).slice(0, 19);
+    if (!L.length && !d.cover) return fallbackPlan(b);
+    return { cover: str(d.cover, 60) || fallbackPlan(b).cover, chapters: L, source: 'ai' };
+  } catch { return fallbackPlan(b); }
+}

@@ -687,7 +687,20 @@
   }
 
   /* ---------- 📄 the Sustainability Statement and the ESG Report ---------- */
-  var THEME = 'forest', PHOTOS = {};
+  var THEME = 'forest', PHOTOS = {}, MAGST = (function () { try { return localStorage.getItem('champ-mag-style') || 'national'; } catch (e) { return 'national'; } })();
+  // 📰 the magazine styles, each shown as its cover and a chapter page (sample text, drawn artwork) before anyone chooses
+  function magBox() {
+    if (!M.mag) return '';
+    return '<details class="card mag-box" id="dMagBox"><summary><b>📰 Magazine styles</b> <span class="muted" style="font-size:12.5px">for the Magazine PDF · chosen: <b id="dMagName">' + esc((M.mag.styles().filter(function (x) { return x.id === MAGST; })[0] || {}).name || '') + '</b> · the AI picks the photos (up to 20, free to use) unless you add your own</span></summary>' +
+      '<div class="mag-grid">' + M.mag.styles().map(function (x) { return '<button type="button" class="mag-pick' + (x.id === MAGST ? ' on' : '') + '" data-mag="' + x.id + '" aria-pressed="' + (x.id === MAGST) + '"><span class="mag-thumbs"><iframe tabindex="-1" aria-hidden="true" loading="lazy" data-magprev="' + x.id + '"></iframe></span><b>' + esc(x.name) + '</b><small>' + esc(x.about) + '</small></button>'; }).join('') + '</div></details>';
+  }
+  function wireMag() {
+    var box = $('#dMagBox'); if (!box) return;
+    var fillPrev = function () { box.querySelectorAll('[data-magprev]').forEach(function (f) { if (f.getAttribute('data-done')) return; f.setAttribute('data-done', '1'); try { f.srcdoc = M.mag.preview(f.getAttribute('data-magprev'), 2).replace('</style>', '.pg{margin:0 6px 0 0!important;display:inline-block;vertical-align:top;box-shadow:none!important}body{background:transparent!important;white-space:nowrap}</style>'); } catch (e) { /* no preview */ } }); };
+    box.addEventListener('toggle', function () { if (box.open) M.studio._.fonts().then(fillPrev); });
+    box.querySelectorAll('[data-mag]').forEach(function (b) { b.onclick = function () { MAGST = b.getAttribute('data-mag'); try { localStorage.setItem('champ-mag-style', MAGST); } catch (e) { /* kept for this page only */ }
+      box.querySelectorAll('[data-mag]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }); $('#dMagName').textContent = b.querySelector('b').textContent; }; });
+  }
   // 📸 photos for the report styles (cover, part pages, chapter bands): made smaller in the browser and kept in this browser for this report
   // photos are kept as { u: picture, c: credit }; older ones were the picture alone
   var photosOf = function (id) { if (!PHOTOS[id]) { try { PHOTOS[id] = JSON.parse(localStorage.getItem('champ-esg-photos:' + id) || '[]'); } catch (e) { PHOTOS[id] = []; } } PHOTOS[id] = PHOTOS[id].map(function (p) { return typeof p === 'string' ? { u: p, c: '' } : p; }).filter(function (p) { return p && p.u; }); return PHOTOS[id]; };
@@ -725,7 +738,8 @@
         : 'A concise statement of under 10 pages: the leadership message, basis of preparation, governance, material topics, environment and climate, social, governance performance, avoided emissions, targets and outlook, and a short content index. ✨ Champ writes it in two parts (about 1 to 2 minutes).') + '</p>' +
       '<div class="form" style="margin-top:10px"><label>Language<select id="dLang" data-noi18n>' + L.map(function (x) { return '<option value="' + x[0] + '"' + (x[0] === l ? ' selected' : '') + '>' + esc(x[1]) + '</option>'; }).join('') + '</select></label>' +
       '<label>Colour scheme<select id="dTheme">' + T.map(function (t) { return '<option value="' + t.id + '"' + (t.id === THEME ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></label></div>' + photoBox() +
-      '<div class="row" style="gap:6px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="dAi" type="button"' + (busy ? ' disabled' : '') + '>' + (busy ? '✨ Writing…' : N ? '✨ Write it again' : '✨ Write with AI') + '</button><button class="btn" id="dPdf" type="button">⬇ PDF</button><button class="btn" id="dDocx" type="button">⬇ Word</button><span class="muted" id="dMsg" style="font-size:12.5px">' + (busy ? '<span class="ask-think">✨ Champ is writing…</span>' : '') + '</span></div>' +
+      '<div class="row" style="gap:6px;margin-top:14px;flex-wrap:wrap"><button class="btn btn-gold" id="dAi" type="button"' + (busy ? ' disabled' : '') + '>' + (busy ? '✨ Writing…' : N ? '✨ Write it again' : '✨ Write with AI') + '</button><button class="btn" id="dPrev" type="button" title="The first two pages in the colour scheme you chose, before you download">👁 Preview 2 pages</button><button class="btn" id="dPdf" type="button">⬇ PDF</button><button class="btn" id="dDocx" type="button">⬇ Word</button><button class="btn" id="dMag" type="button" title="A designed report: full-page photos chosen by the AI, in the magazine style below">📰 Magazine PDF</button><span class="muted" id="dMsg" style="font-size:12.5px">' + (busy ? '<span class="ask-think">✨ Champ is writing…</span>' : '') + '</span></div>' +
+      magBox() +
       (N && N.rev != null && N.rev < V.e.rev ? '<div class="esg-stale" role="status">⚠ The data has changed since this narrative was written (data version ' + N.rev + ', now ' + V.e.rev + '). The figures, tables and charts use today\'s data, so the text may quote older numbers: <b>write it again</b> before you publish. The documents are marked until you do.</div>' : '') + checksBox(N) + '<div class="esg-dstate">' + (N ? '✓ Narrative v' + N.ver + ' written ' + esc(when(N.at)) + ' by ' + esc(N.by || '') + ' · ' + nf(N.tokens) + ' tokens' + (N.partial ? ' · <span class="t-amber">' + esc(N.partial) + '</span>' : '') + '. Write it again after you change the data.' : 'No narrative yet: the PDF and Word still work, with the data, charts and tables, and a note where the narrative goes.') + '</div></div>' +
       '<div class="card"><h3 style="margin-top:0">Inside</h3><ol class="esg-toc">' + (rep ? REPORT_TOC : STATEMENT_TOC).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ol></div></div>';
   }
@@ -896,6 +910,13 @@
       .then(function () { return makeDoc2(kind, fmt, lang, build, say, snap, win); }).catch(function (e) { say(''); if (win) win.close(); fail(e); });
   }
   function makeDoc2(kind, fmt, lang, build, say, snap, win) {
+    if (fmt === 'mag') { var Dm = build(0); Dm.industry = snap.org.industry || ''; Dm.country = snap.org.country || '';   // 📰 printed from its own tab; not filed (the vault keeps the PDF and Word)
+      if (!win) return fail(new Error('Allow pop-ups for this site to open the magazine edition.'));
+      say('Designing the magazine edition…'); return M.mag.make(Dm, win, MAGST, say).then(function (r) { say(''); toast('Magazine edition open in a new tab, ' + r.photos + ' photo' + (r.photos === 1 ? '' : 's') + ': choose “Save as PDF”'); }); }
+    if (fmt === 'preview') { var Dp = build(0); say('Laying out the first pages…');   // 👁 the first two pages in the chosen colour scheme, in a window here
+      return M.studio._.fonts().then(function () { return M.studio.translate(Dp); }).then(function () { return M.studio._.prep(Dp); }).then(function () { say('');
+        var h = M.studio.html(Dp), pages = h.split('<div class="pg'), two = pages.slice(0, 3).join('<div class="pg') + '</body></html>';
+        M.modal('<h2>👁 Preview: ' + esc((M.studio.themes().filter(function (t) { return t.id === THEME; })[0] || {}).name || THEME) + '</h2><p class="muted" style="margin:4px 0 10px">The first two pages as the PDF will look. Change the colour scheme and preview again until it suits.</p><iframe class="doc-prev" title="Preview of the first two pages" sandbox srcdoc="' + esc(two) + '"></iframe><div class="actions" style="justify-content:flex-end"><button class="btn" data-close type="button">Close</button></div>'); }); }
     var D = build(0), file = function (r) { toast('Filing a copy in the Sustainability vault…'); return toVault(kind, r, snap).then(function (f) { if (f) toast('Filed in the Sustainability vault: ' + f.tags.join(' · ')); }, function (e) { toast('Not filed in the vault: ' + e.message); }); };
     if (fmt === 'pdf' && M.studio.needsPrint(D)) {   // a script the PDF fonts do not cover: the browser prints it; the vault keeps the Word version
       say('Laying out…'); return M.studio.print(D, win || window.open('', '_blank')).then(function () { say(''); toast('Print view open: choose “Save as PDF”'); return M.studio.docx(build(0)).then(file); });
@@ -1172,6 +1193,9 @@
     // 📄 documents
     if ($('#dAi')) $('#dAi').onclick = function () { writeDoc(V.tab); };
     if ($('#dPdf')) $('#dPdf').onclick = function () { var w0 = M.studio && M.studio.needsPrint({ lang: $('#dLang').value }) ? window.open('', '_blank') : null; flush().then(function () { makeDoc(V.tab, 'pdf', w0); }, function (e) { if (w0) w0.close(); if (!e.shown) fail(e); }); };   // the print window opens at the click, before the waiting
+    if ($('#dMag')) $('#dMag').onclick = function () { var w0 = window.open('', '_blank'); if (w0) w0.document.write('<p style="font:16px sans-serif;padding:40px">Designing the magazine edition: finding photos and laying out the pages…</p>'); flush().then(function () { makeDoc(V.tab, 'mag', w0); }, function (e) { if (w0) w0.close(); if (!e.shown) fail(e); }); };
+    if ($('#dPrev')) $('#dPrev').onclick = function () { flush().then(function () { makeDoc(V.tab, 'preview'); }, function (e) { if (!e.shown) fail(e); }); };
+    wireMag();
     if ($('#dDocx')) $('#dDocx').onclick = function () { flush().then(function () { makeDoc(V.tab, 'docx'); }, function (e) { if (!e.shown) fail(e); }); };
     if ($('#dTheme')) $('#dTheme').onchange = function () { THEME = this.value; var b = $('#dPhotoBox'); if (b) { b.outerHTML = photoBox(); wirePhotos(); } };
     wirePhotos();
