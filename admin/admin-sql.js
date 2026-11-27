@@ -3,13 +3,16 @@
 (function () {
   'use strict';
   var M = window.MBS; if (!M) return;
-  var api = M.api, esc = M.esc, toast = M.toast, fail = M.fail, $ = M.$;
+  var esc = M.esc, toast = M.toast, fail = M.fail, $ = M.$;
+  // 🌿 two pages on one engine: Ask AI & reports (projects) and ESG query & reports (the ESG tables only, open to every staff login)
+  var MODE = 'pm', ESGA = /^sql(Ask|Answer|Pdf|Narrative|Usage|Data)$/;
+  var api = function (a, b) { return M.api(MODE === 'esg' && ESGA.test(a) ? 'esg' + a.charAt(0).toUpperCase() + a.slice(1) : a, b); };
   var V = function () { return M.view(); };
   var LIBS = ['vendor/alasql.min.js', 'vendor/chart.umd.min.js', 'vendor/codemirror.js', 'vendor/cm-sql.js', 'vendor/show-hint.js', 'vendor/sql-hint.js'];
   var CSS = ['vendor/codemirror.css', 'vendor/show-hint.css'];
   var OPEN = { jobs: true };
-  var loaded = null, DB = null, SCHEMA = null, DESCRIBE = {}, KEYS = {}, loadedAt = 0;
-  var S = { askLog: [], period: null, tab: 'ask', view: 'table', sql: '', cols: [], rows: [], chart: { type: 'bar', x: '', y: [] }, title: 'Data report', wiz: { table: '', cols: [], filters: [], order: '', dir: 'DESC', limit: 100 } };
+  var loaded = null, DB = null, SCHEMA = null, DESCRIBE = {}, KEYS = {}, loadedAt = 0, CACHE = {};
+  var S = { mode: 'pm', askLog: [], period: null, tab: 'ask', view: 'table', sql: '', cols: [], rows: [], chart: { type: 'bar', x: '', y: [] }, title: 'Data report', wiz: { table: '', cols: [], filters: [], order: '', dir: 'DESC', limit: 100 } };
   var chartObj = null, cm = null;
   var COLORS = ['#C9A227', '#1F2937', '#3B82F6', '#10B981', '#EF4444', '#8B5CF6', '#F59E0B', '#14B8A6', '#EC4899', '#6B7280', '#84CC16', '#0EA5E9'];
 
@@ -21,12 +24,13 @@
     return loaded;
   }
   function loadData(force) {
-    if (DB && !force && Date.now() - loadedAt < 5 * 60000) return Promise.resolve();
+    var c = CACHE[MODE]; if (c && !force && Date.now() - c.at < 5 * 60000) { DB = c.DB; SCHEMA = c.SCHEMA; DESCRIBE = c.DESCRIBE; KEYS = c.KEYS; loadedAt = c.at; return Promise.resolve(); }
+    var mode = MODE;
     return api('sqlData').then(function (d) {
-      SCHEMA = d.schema; DESCRIBE = d.describe || {}; KEYS = d.keys || {};
-      DB = new window.alasql.Database();
-      Object.keys(d.schema).forEach(function (t) { DB.exec('CREATE TABLE ' + t); DB.tables[t].data = d.data[t] || []; });
-      loadedAt = Date.now();
+      var db = new window.alasql.Database();
+      Object.keys(d.schema).forEach(function (t) { db.exec('CREATE TABLE ' + t); db.tables[t].data = d.data[t] || []; });
+      CACHE[mode] = { DB: db, SCHEMA: d.schema, DESCRIBE: d.describe || {}, KEYS: d.keys || {}, at: Date.now() };
+      if (mode === MODE) { DB = db; SCHEMA = d.schema; DESCRIBE = d.describe || {}; KEYS = d.keys || {}; loadedAt = CACHE[mode].at; }
     });
   }
 
@@ -94,6 +98,19 @@
     { g: 'Risks and issues', n: 'Risks and issues by project', q: 'How many open risks and issues does each project have?', d: 'Open risks, high risks and open issues per project', sql: "SELECT project_name, open_risks, high_risks, open_issues\nFROM projects\nWHERE has_plan = true\nORDER BY high_risks DESC, open_issues DESC", c: ['bar', 'project_name', ['open_risks', 'high_risks', 'open_issues']] },
     { g: 'Change control', n: 'Change decisions', q: 'What change decisions are on record?', d: 'Every decision on record, newest first', sql: "SELECT project, cr, title, decision, approved_by, role, decided, days, cost\nFROM change_records\nORDER BY decided DESC", c: null },
     { g: 'Change control', n: 'Change effect by project', q: 'What have approved changes added in time and cost on each project?', d: 'What approved changes added in time and cost', sql: "SELECT project, COUNT(*) AS approved_changes, SUM(days) AS days_added, SUM(cost) AS cost_added\nFROM change_records\nWHERE decision = 'Approved'\nGROUP BY project\nORDER BY cost_added DESC", c: ['bar', 'project', ['cost_added']] },
+    // 🌿 ESG & Sustainability: the companies' own ESG data (esg_ tables), not the ESG consulting projects
+    { g: 'ESG & Sustainability', n: 'ESG scorecard', q: 'What are the ESG scores of each company?', d: 'Environment, social and governance scores and report readiness for every company', sql: "SELECT company, industry, country, reporting_year, esg_score, environment_score, social_score, governance_score, report_readiness_pct\nFROM esg_reports\nORDER BY esg_score DESC", c: ['bar', 'company', ['environment_score', 'social_score', 'governance_score']] },
+    { g: 'ESG & Sustainability', n: 'Companies needing attention', q: 'Which companies have a weak ESG score (under 60) in any pillar?', d: 'Any pillar under 60, weakest first', sql: "SELECT company, country, esg_score, environment_score, social_score, governance_score, open_notes, urgent_notes\nFROM esg_reports\nWHERE environment_score < 60 OR social_score < 60 OR governance_score < 60\nORDER BY esg_score", c: null },
+    { g: 'ESG & Sustainability', n: 'Emissions by company', q: 'What are the Scope 1, 2 and 3 emissions of each company?', d: 'Scope 1, Scope 2 (location based) and Scope 3 in tCO2e', sql: "SELECT company, scope1_t, scope2_location_t, scope2_market_t, scope3_t, total_t\nFROM esg_reports\nORDER BY total_t DESC", c: ['bar', 'company', ['scope1_t', 'scope2_location_t', 'scope3_t']] },
+    { g: 'ESG & Sustainability', n: 'Report readiness', q: 'How ready is each company to report against its chosen standards?', d: 'How much of the chosen standards the data covers', sql: "SELECT company, standards, report_readiness_pct, updated\nFROM esg_reports\nORDER BY report_readiness_pct", c: ['hbar', 'company', ['report_readiness_pct']] },
+    { g: 'ESG & Sustainability', n: 'Climate targets', q: 'What climate targets has each company set?', d: 'Science-based target, reduction target and net zero year', sql: "SELECT company, sbti_target, reduction_target_pct, target_year, net_zero_year, renewable_pct\nFROM esg_reports\nORDER BY company", c: null },
+    { g: 'ESG & Sustainability', n: 'People and board', q: 'How does each company do on women, safety and board independence?', d: 'Women in the workforce, lost-time injury rate and independent directors', sql: "SELECT company, women_pct, ltifr, independent_directors_pct, social_score, governance_score\nFROM esg_reports\nORDER BY company", c: null },
+    { g: 'ESG & Sustainability', n: 'Certifications held', q: 'Which ISO certifications does each company hold?', d: 'ISO 14001, 45001, 27001 and 9001', sql: "SELECT company, iso14001, iso45001, iso27001, iso9001\nFROM esg_reports\nORDER BY company", c: null },
+    { g: 'ESG & Sustainability', n: 'Carbon credits by company', q: 'How many carbon credits has each company retired, and how good are they?', d: 'Credits retired and the share with no integrity flags', sql: "SELECT company, credits_retired_t, high_quality_credits_pct, avoided_t\nFROM esg_reports\nWHERE credits_retired_t > 0 OR avoided_t > 0\nORDER BY credits_retired_t DESC", c: ['bar', 'company', ['credits_retired_t', 'avoided_t']] },
+    { g: 'ESG & Sustainability', n: 'Credits with integrity flags', q: 'Which carbon credits have integrity problems?', d: 'No CCP label, no corresponding adjustment, old vintage or no registry', sql: "SELECT company, project, credit_type, vintage, tonnes, use_of_credit, quality_pct, integrity_flags\nFROM esg_credits\nWHERE quality_pct < 100\nORDER BY quality_pct, tonnes DESC", c: null },
+    { g: 'ESG & Sustainability', n: 'Avoided emissions by category', q: 'How much is avoided by each kind of solution?', d: 'tCO2e avoided a year by category', sql: "SELECT category, COUNT(*) AS solutions, SUM(tonnes) AS tonnes_avoided\nFROM esg_avoided\nGROUP BY category\nORDER BY tonnes_avoided DESC", c: ['doughnut', 'category', ['tonnes_avoided']] },
+    { g: 'ESG & Sustainability', n: 'CBAM exposure', q: 'Which goods fall under CBAM, and what will they cost?', d: 'Goods exported into the EU or UK carbon border schemes', sql: "SELECT company, market, goods, destination, tonnes, embedded_t, liable_t, cbam_cost, currency\nFROM esg_cbam\nORDER BY liable_t DESC", c: null },
+    { g: 'ESG & Sustainability', n: 'Open ESG notes', q: 'Which sticky notes on the ESG reports are still open?', d: 'Notes not done yet, urgent first', sql: "SELECT company, section, urgency, note, written_by, due\nFROM esg_notes\nWHERE done = false\nORDER BY CASE urgency WHEN 'Urgent' THEN 1 WHEN 'Semi-urgent' THEN 2 ELSE 3 END, due", c: null },
     { g: 'People', n: 'Open tasks by lead', q: 'Who leads how much open work?', d: 'Who leads how much work that is not done', sql: "SELECT t.lead, COUNT(*) AS open_tasks, SUM(CASE WHEN t.late = true THEN 1 ELSE 0 END) AS late_tasks\nFROM plan_tasks t\nWHERE t.done = false AND t.lead <> ''\nGROUP BY t.lead\nORDER BY late_tasks DESC, open_tasks DESC", c: ['hbar', 'lead', ['open_tasks', 'late_tasks']] },
     { g: 'People', n: 'Who is accountable (RACI)', q: 'Who is accountable on each project (RACI)?', d: 'The A in RACI on each project', sql: "SELECT p.project_name, t.person, t.role\nFROM plan_stakeholders t " + PJ + "\nWHERE t.raci LIKE '%A%'\nORDER BY p.project_name", c: null }
   ];
@@ -119,9 +136,9 @@
 
   /* ---------- page ---------- */
   // 🙋 Sashi's face beside the page title: the person behind Champ's answers
-  function face() { var t = document.getElementById('title'); if (t && !t.querySelector('.sql-face')) t.insertAdjacentHTML('afterbegin', '<img class="sql-face" src="../assets/team/sashi-face.webp?v=2" alt="" width="46" height="46">'); }
+  function face() { var t = document.getElementById('title'); if (t && MODE === 'esg' && !t.querySelector('.sql-face')) { t.insertAdjacentHTML('afterbegin', '<img class="sql-face" src="../assets/team/sashi-navy.webp?v=1" alt="" width="46" height="46">'); return; } if (t && !t.querySelector('.sql-face')) t.insertAdjacentHTML('afterbegin', '<img class="sql-face" src="../assets/team/sashi-face.webp?v=2" alt="" width="46" height="46">'); }
   function page() {
-    V().innerHTML = '<div class="empty">Loading your project data…</div>';
+    V().innerHTML = '<div class="empty">' + (MODE === 'esg' ? 'Loading the ESG data…' : 'Loading your project data…') + '</div>';
     face(); return loadLibs().then(function () { return loadData(); }).then(draw).then(face);
   }
   function draw() {
@@ -136,7 +153,7 @@
               SCHEMA[t].map(function (c) { var K = KEYS[t] || {}, pk = K.pk === c, fk = (K.fk || {})[c]; return '<span class="chipd' + (pk ? ' kpk' : fk ? ' kfk' : '') + '" draggable="true" data-drag="' + esc(c) + '" data-col="' + esc(c) + '" data-of="' + esc(t) + '"' + (pk ? ' title="Key of ' + esc(t) + ': one per row"' : fk ? ' title="Links to ' + esc(fk) + '.' + esc((KEYS[fk] || {}).pk || c) + '"' : '') + '>' + (pk ? '🔑 ' : fk ? '🔗 ' : '') + esc(c) + '</span>'; }).join('') + '</div></details>';
           }).join('') + '</aside>' +
         '<section class="sql-main">' +
-          '<div class="tabs" id="sqlTabs">' + [['ask', '✨ AI query'], ['templates', '★ Templates'], ['wizard', '🧩 Wizard'], ['editor', '⌨ SQL editor'], ['saved', '💾 Saved']].map(function (x) { return '<button class="tab' + (S.tab === x[0] ? ' on' : '') + '" data-tab="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
+          '<div class="tabs" id="sqlTabs">' + [['ask', MODE === 'esg' ? '🌿 Ask about ESG' : '✨ AI query'], ['templates', '★ Templates'], ['wizard', '🧩 Wizard'], ['editor', '⌨ SQL editor'], ['saved', '💾 Saved']].map(function (x) { return '<button class="tab' + (S.tab === x[0] ? ' on' : '') + '" data-tab="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
           '<div class="card" id="sqlPanel"></div>' +
           '<div class="card" id="sqlResults" style="margin-top:16px"><div class="empty">Pick a template, build a query with the wizard, or write SQL, then press Run.</div></div>' +
         '</section>' +
@@ -166,13 +183,13 @@
     if (S.tab === 'templates') {
       // GKH Project Champ: only templates whose tables exist here (the MBS money and customer tables don't)
       var have = function (t) { var used = (t.sql.match(/\b(?:FROM|JOIN)\s+([a-z_]+)/gi) || []).map(function (x) { return x.split(/\s+/).pop().toLowerCase(); }); return used.every(function (u) { return !!SCHEMA[u]; }); };
-      var groups = {}; T.forEach(function (t, i) { if (have(t)) (groups[t.g] = groups[t.g] || []).push([t, i]); });
+      var groups = {}; T.forEach(function (t, i) { if (have(t) && (t.g === 'ESG & Sustainability') === (MODE === 'esg')) (groups[t.g] = groups[t.g] || []).push([t, i]); });
       var pr = period();
       P.innerHTML = '<h2>Common reports</h2><p class="muted" style="margin:-6px 0 12px">One click runs it. You can then change it in the editor.</p>' +
         '<div class="period"><b>Period for quick numbers:</b><div class="tabs" style="margin:0">' + [['today', 'Today'], ['week', 'This week'], ['month', 'This month'], ['lastmonth', 'Last month'], ['year', 'This year'], ['fy', 'Financial year'], ['all', 'All time'], ['custom', 'Date range']].map(function (x) {
           return '<button class="tab' + (pr.key === x[0] ? ' on' : '') + '" data-per="' + x[0] + '">' + x[1] + '</button>'; }).join('') + '</div>' +
         '<div class="row" id="perRange"' + (pr.key === 'custom' ? '' : ' hidden') + '><label style="display:flex;gap:6px;align-items:center;font-weight:600">From<input type="date" id="perFrom" value="' + esc(pr.from) + '" style="width:auto"></label><label style="display:flex;gap:6px;align-items:center;font-weight:600">to<input type="date" id="perTo" value="' + esc(pr.to) + '" style="width:auto"></label></div>' +
-        '<span class="muted" id="perShow">' + esc(prettyRange(pr)) + '</span></div>' + ['Quick numbers', 'Portfolio', 'Schedule', 'Money', 'Risks and issues', 'Change control', 'People'].filter(function (g) { return groups[g]; }).concat(Object.keys(groups).filter(function (g) { return ['Quick numbers', 'Portfolio', 'Schedule', 'Money', 'Risks and issues', 'Change control', 'People'].indexOf(g) < 0; })).map(function (g) {
+        '<span class="muted" id="perShow">' + esc(prettyRange(pr)) + '</span></div>' + ['Quick numbers', 'Portfolio', 'ESG & Sustainability', 'Schedule', 'Money', 'Risks and issues', 'Change control', 'People'].filter(function (g) { return groups[g]; }).concat(Object.keys(groups).filter(function (g) { return ['Quick numbers', 'Portfolio', 'ESG & Sustainability', 'Schedule', 'Money', 'Risks and issues', 'Change control', 'People'].indexOf(g) < 0; })).map(function (g) {
         return '<p class="side-h" style="color:var(--muted);margin:14px 0 8px">' + esc(g) + (g === 'Quick numbers' ? ' <span style="text-transform:none;letter-spacing:0">(' + esc(prettyRange(pr)) + ')</span>' : '') + '</p><div class="tpl-grid">' + groups[g].map(function (x) { return '<button class="tpl' + (x[0].p ? ' tpl-p' : '') + '" data-tpl="' + x[1] + '"><b>' + esc(x[0].n) + '</b><small>' + esc(x[0].d) + '</small></button>'; }).join('') + '</div>';
       }).join('');
       P.querySelectorAll('[data-tpl]').forEach(function (b) { b.onclick = function () { useTemplate(T[+b.getAttribute('data-tpl')]); }; });
@@ -216,6 +233,7 @@
   /* ---------- ✨ AI query: ask in plain English ---------- */
   var EXAMPLES = ['How healthy is my portfolio?', 'Status of each program: budget, SPI, CPI and forecast finish', 'Which dependencies are clashing or at risk?', 'Which projects are at risk, and why?',
     'Which programs will finish after their target?', 'Which tasks are late, and who is the lead?', 'Projects over budget (CPI under 1)', 'High risks across all projects and their owners'];
+  var EXAMPLES_ESG = ['Which companies have the weakest ESG score?', 'Scope 1, 2 and 3 emissions by company', 'Which companies have no science-based target?', 'Which carbon credits have integrity flags?', 'What will CBAM cost each company?', 'How ready is each company to report?', 'Which ESG notes are still open?', 'Compare women and board independence across companies'];
   // v49: licence / insurance states stand out (expired in red, due soon in amber, missing in grey)
   function flagCell(c, v) {
     if (/(_state|^compliance)$/.test(c) && typeof v === 'string') { var k = { expired: ['⚠ EXPIRED', 'bad'], due: ['due soon', 'due'], missing: ['missing', 'miss'], ok: ['✓ ok', 'ok'] }[v]; if (k) return '<span class="sq-st sq-' + k[1] + '">' + k[0] + '</span>'; }
@@ -224,6 +242,8 @@
     return esc(fmt(v));
   }
   function hints() {
+    if (MODE === 'esg') { var qe = function (sql) { try { return DB.exec(sql).map(function (r) { return r.v; }).filter(function (v) { return v != null && v !== ''; }); } catch (e) { return []; } }, ce = {}; Object.keys(SCHEMA).forEach(function (t) { ce[t] = DB.tables[t].data.length; });
+      return { row_counts: ce, companies: qe('SELECT DISTINCT company AS v FROM esg_reports'), industries: qe('SELECT DISTINCT industry AS v FROM esg_reports'), countries: qe('SELECT DISTINCT country AS v FROM esg_reports') }; }
     var q = function (sql, k) { try { return DB.exec(sql).map(function (r) { return r[k]; }).filter(function (v) { return v != null && v !== ''; }); } catch (e) { return []; } };
     var counts = {}; Object.keys(SCHEMA).forEach(function (t) { counts[t] = DB.tables[t].data.length; });
     var plans = []; try { plans = DB.exec('SELECT DISTINCT plan_name AS pn, job AS jb FROM plan_tasks').map(function (r) { return r.pn + ' (job ' + r.jb + ')'; }); } catch (e) {}
@@ -236,18 +256,18 @@
     };
   }
   function askPanel(P) {
-    P.innerHTML = '<div class="card-h"><h2>✨ AI query</h2><span class="muted" style="font-size:12.5px">Ask in plain English. The AI writes the query; it runs here on your own data.</span></div>' +
-      '<form class="askbar" id="askForm"><input id="askQ" autocomplete="off" maxlength="400" placeholder="e.g. Which projects in the ERP program are behind schedule?" aria-label="Your question"><button class="btn btn-gold" id="askGo" type="submit">Ask</button></form>' +
-      '<div class="ask-ex">' + EXAMPLES.map(function (e) { return '<button type="button" class="chipq" data-ex="' + esc(e) + '">' + esc(e) + '</button>'; }).join('') + '</div>' +
+    P.innerHTML = '<div class="card-h"><h2>' + (MODE === 'esg' ? '🌿 Ask about ESG' : '✨ AI query') + '</h2><span class="muted" style="font-size:12.5px">Ask in plain English. The AI writes the query; it runs here on your own data.</span></div>' +
+      '<form class="askbar" id="askForm"><input id="askQ" autocomplete="off" maxlength="400" placeholder="' + (MODE === 'esg' ? 'e.g. Which companies in Malaysia have Scope 3 above Scope 1 and 2?' : 'e.g. Which projects in the ERP program are behind schedule?') + '" aria-label="Your question"><button class="btn btn-gold" id="askGo" type="submit">Ask</button></form>' +
+      '<div class="ask-ex">' + (MODE === 'esg' ? EXAMPLES_ESG : EXAMPLES).map(function (e) { return '<button type="button" class="chipq" data-ex="' + esc(e) + '">' + esc(e) + '</button>'; }).join('') + '</div>' +
       '<div id="askOut"></div><div class="muted" id="askUse" style="font-size:12px;margin-top:8px"></div>' +
       (S.askLog.length ? '<details class="ask-log"><summary>Earlier questions (' + S.askLog.length + ')</summary>' + S.askLog.slice().reverse().map(function (a, i) { return '<button type="button" class="ask-old" data-old="' + (S.askLog.length - 1 - i) + '"><b>' + esc(a.q) + '</b><small>' + esc(a.answer || '') + '</small></button>'; }).join('') + '</details>' : '') +
-      '<p style="margin:12px 0 0"><button type="button" class="btn btn-sm" id="aiPing">🔌 Test AI connection</button> <span class="muted" id="aiPingOut" style="font-size:12.5px"></span></p>' +
+      (MODE === 'esg' ? '' : '<p style="margin:12px 0 0"><button type="button" class="btn btn-sm" id="aiPing">🔌 Test AI connection</button> <span class="muted" id="aiPingOut" style="font-size:12.5px"></span></p>') +
       '<p class="muted" style="font-size:12px;margin:12px 0 0">To write the query the AI only sees table and column names, today\'s dates and short lists like stages and plan names. To word the answer it sees the results with names, phone numbers and emails removed. Don\'t type phone numbers into the question.</p>';
     var last = S.askLog[S.askLog.length - 1];
     if (S.pendingQ) { var pq = S.pendingQ; S.pendingQ = ''; $('#askQ').value = pq; setTimeout(function () { ask(pq); }, 0); }
     else if (last) showAnswer(last);
     api('sqlUsage').then(showUse).catch(function () {});
-    $('#aiPing').onclick = function () {
+    if ($('#aiPing')) $('#aiPing').onclick = function () {
       var o = $('#aiPingOut'); o.textContent = 'Checking…';
       api('aiPing').then(function (r) {
         o.textContent = r.ok ? '✅ DeepSeek answered in ' + (r.ms / 1000).toFixed(1) + ' s (model ' + r.model + ', time allowed ' + r.timeoutSec + ' s).'
@@ -279,12 +299,15 @@
     if (!question) return toast('Type a question first', true);
     if (S.askBusy) return;
     S.askBusy = true;
+    // the question belongs to the page that asked it: if you switch page (Ask AI ↔ ESG query) before it is answered, it stops quietly
+    var st = S, STALE = new Error('stale'), live = function () { if (S !== st) throw STALE; };
     var btn = $('#askGo'); if (btn) { btn.disabled = true; btn.textContent = 'Thinking…'; }
     var O = $('#askOut'); if (O) O.innerHTML = '<div class="ask-ans"><div class="ask-q">“' + esc(question) + '”</div><div class="ask-a"><span class="ask-think">Writing the query…</span></div></div>';
     var H = hints(), hist = S.askLog.slice(-1).map(function (a) { return { q: a.q, sql: a.sql }; });
     var a = { q: question, at: Date.now(), tokens: 0 };
     var count = function (r) { a.tokens += Number(r && r.tokens) || 0; if (r && r.today) showUse(r.today); return r; };
     var tryRun = function (r, n) {
+      live();
       if (!r.sql) return Promise.reject(new Error(r.note || 'I could not turn that into a query. Try asking in a different way.'));
       try {
         run(r.sql);
@@ -323,6 +346,7 @@
       });
     };
     first().then(count).then(function (r) { return tryRun(r, 0); }).then(function (r) {
+      live();
       a.sql = S.sql; a.title = r.title || 'AI query'; a.note = r.note || '';
       S.title = a.title;
       var ok = r.chart && S.cols.indexOf(r.chart.x) >= 0 && r.chart.y.every(function (y) { return S.cols.indexOf(y) >= 0; });
@@ -335,11 +359,12 @@
       if (a.single != null) { a.answer = a.title + ': ' + a.single + '.'; return; }
       return api('sqlAnswer', { question: question, title: a.title, sql: S.sql, columns: S.cols, rows: S.rows.slice(0, 20), row_count: S.rows.length }).then(function (x) { a.answer = x.answer; count(x); }).catch(function () { a.answer = S.rows.length + ' row' + (S.rows.length === 1 ? '' : 's') + ' found (see the table).'; });
     }).then(function () {
-      S.askLog.push(a); if (S.askLog.length > 20) S.askLog.shift();
-      showAnswer(a);
+      st.askLog.push(a); if (st.askLog.length > 20) st.askLog.shift();
+      if (S === st) showAnswer(a);
     }).catch(function (e) {
+      if (e === STALE || S !== st) return;
       a.answer = e.message; a.error = true; showAnswer(a);
-    }).then(function () { S.askBusy = false; var b = $('#askGo'); if (b) { b.disabled = false; b.textContent = 'Ask'; } });
+    }).then(function () { st.askBusy = false; if (S !== st) return; var b = $('#askGo'); if (b) { b.disabled = false; b.textContent = 'Ask'; } });
   }
 
   /* ---------- wizard ---------- */
@@ -440,7 +465,7 @@
     cm = window.CodeMirror.fromTextArea($('#sqlText'), { mode: 'text/x-sql', lineNumbers: true, lineWrapping: true, viewportMargin: Infinity,
       extraKeys: { 'Ctrl-Space': 'autocomplete', 'Ctrl-Enter': function () { $('#sqlRun').click(); }, 'Cmd-Enter': function () { $('#sqlRun').click(); } },
       hintOptions: { tables: hintTables, completeSingle: false, hint: smartHint } });
-    cm.setValue(S.sql || 'SELECT *\nFROM jobs\nLIMIT 50');
+    cm.setValue(S.sql || (MODE === 'esg' ? 'SELECT *\nFROM esg_reports\nLIMIT 50' : 'SELECT *\nFROM jobs\nLIMIT 50'));
     cm.on('inputRead', function (ed, ch) { if (/^[A-Za-z_.]$/.test(ch.text[0] || '') && !ed.state.completionActive) ed.showHint({ completeSingle: false }); });
     $('#sqlRun').onclick = function () { try { if (cm.getValue().trim().replace(/;\s*$/, '') !== String(S.sql).trim()) S.title = 'Query results'; run(cm.getValue()); if (!S.chart.x || S.cols.indexOf(S.chart.x) < 0) autoChart(); results(); } catch (e) { fail(e); } };
     $('#sqlClear').onclick = function () { cm.setValue(''); cm.focus(); };
@@ -449,8 +474,8 @@
       $('#svGo').onclick = function () { var l = savedList(); l.unshift({ name: $('#svName').value || 'Query', sql: cm.getValue(), at: Date.now() }); store(l.slice(0, 50)); M.closeModal(); toast('Query saved'); };
     };
   }
-  function savedList() { try { return JSON.parse(localStorage.getItem('mbs-sql-saved') || '[]'); } catch (e) { return []; } }
-  function store(l) { try { localStorage.setItem('mbs-sql-saved', JSON.stringify(l)); } catch (e) {} }
+  function savedList() { try { return JSON.parse(localStorage.getItem(MODE === 'esg' ? 'champ-esgq-saved' : 'mbs-sql-saved') || '[]'); } catch (e) { return []; } }
+  function store(l) { try { localStorage.setItem(MODE === 'esg' ? 'champ-esgq-saved' : 'mbs-sql-saved', JSON.stringify(l)); } catch (e) {} }
   function saved(P) {
     var l = savedList();
     P.innerHTML = '<h2>Saved queries</h2>' + (l.length ? '<div class="list">' + l.map(function (q, i) { return '<div class="item"><div><b>' + esc(q.name) + '</b><br><small class="ref">' + esc(q.sql.replace(/\s+/g, ' ').slice(0, 110)) + '</small></div><div class="actions"><button class="btn btn-sm btn-gold" data-load="' + i + '">Open</button><button class="btn btn-sm" data-del="' + i + '">✕</button></div></div>'; }).join('') + '</div>'
@@ -595,7 +620,7 @@
           b.disabled = true; b.textContent = 'Making the PDF…';
           var lines = function (id) { return $(id).value.split('\n').map(function (s) { return s.trim(); }).filter(Boolean); };
           fetch(M.API, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-MBS-Admin': '1', 'X-Champ-Lang': (window.ChampI18n && window.ChampI18n.get()) || 'en' },
-            body: JSON.stringify({ action: 'sqlPdf', title: $('#rpT2').value, summary: $('#rpSum').value, insights: lines('#rpIns'), recommendations: lines('#rpRec'), ai: !!n.ai,
+            body: JSON.stringify({ action: MODE === 'esg' ? 'esgSqlPdf' : 'sqlPdf', title: $('#rpT2').value, summary: $('#rpSum').value, insights: lines('#rpIns'), recommendations: lines('#rpRec'), ai: !!n.ai,
               sql: S.sql, columns: $('#rpTable').checked ? S.cols : [], rows: $('#rpTable').checked ? S.rows.slice(0, 200) : [], chart: $('#rpChart').checked ? chartImage() : '' }) })
             .then(function (r) { if (!r.ok) return r.json().then(function (j) { throw new Error(j.error || 'PDF failed'); }); return r.blob(); })
             .then(function (blob) {
@@ -607,8 +632,13 @@
     };
   }
 
-  M.addView('sql', 'Ask AI & reports', function (args) { if (args && ['ask', 'templates', 'wizard', 'editor', 'saved'].indexOf(args[0]) >= 0) S.tab = args[0]; return page(); });
+  // switch the page: each keeps its own tab, questions, results and loaded data
+  var STATES = { pm: S, esg: null };
+  function useMode(m) { if (MODE === m) return; STATES[MODE] = S; MODE = m; S = STATES[m] || (STATES[m] = JSON.parse(JSON.stringify(Object.assign({}, STATES.pm, { mode: m, askLog: [], tab: 'templates', view: 'table', sql: '', cols: [], rows: [], chart: { type: 'bar', x: '', y: [] }, title: 'ESG report', pendingQ: '', askBusy: false, wiz: { table: '', cols: [], filters: [], order: '', dir: 'DESC', limit: 100 } })))); window.MBS.sqlState = S; var c = CACHE[m]; if (c) { DB = c.DB; SCHEMA = c.SCHEMA; DESCRIBE = c.DESCRIBE; KEYS = c.KEYS; loadedAt = c.at; } else { DB = null; SCHEMA = null; } }
+  var TABS = ['ask', 'templates', 'wizard', 'editor', 'saved'];
+  M.addView('sql', 'Ask AI & reports', function (args) { useMode('pm'); if (args && TABS.indexOf(args[0]) >= 0) S.tab = args[0]; return page(); });
+  M.addView('esgq', 'ESG query & reports', function (args) { useMode('esg'); if (args && TABS.indexOf(args[0]) >= 0) S.tab = args[0]; return page(); });
   window.MBS.sqlState = S;   // for tests
   // other pages (e.g. Customers) can send a question straight to the AI query
-  M.askAI = function (q) { S.pendingQ = String(q || ''); S.tab = 'ask'; if (location.hash === '#sql/ask') page(); else location.hash = '#sql/ask'; };
+  M.askAI = function (q) { useMode('pm'); S.pendingQ = String(q || ''); S.tab = 'ask'; if (location.hash === '#sql/ask') page(); else location.hash = '#sql/ask'; };
 })();

@@ -397,4 +397,8 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 386 | 1.0.386| 2026-11-27 11:36| magazine| `a6f5e98` | Merge main into magazine |
 | 387 | 1.0.387| 2026-11-27 11:43| magazine| `7aeb0f1` | ESG documents: magazine edition (6 styles, AI-chosen free photos) and a 2-page preview (#184) |
 | 388 | 1.0.388| 2026-11-27 12:19| certs-more| `4b3171a` | ESG: more certifications and systems |
-| 389 | 1.0.389 | 2026-11-27 12:28 | certs-more | _this commit_ | _see git log_ |
+| 389 | 1.0.389| 2026-11-27 12:28| certs-more| `149530d` | ESG: more certifications and systems (#186) |
+| 390 | 1.0.390| 2026-11-27 12:58| sticky-esg| `7bec5a2` | ESG: sticky notes on every section, pushed to Today with @mentions |
+| 391 | 1.0.391| 2026-11-27 13:13| sticky-esg| `87f93d9` | ESG query & reports: its own page, ESG tables and templates |
+| 392 | 1.0.392| 2026-11-27 13:17| sticky-esg| `99e580c` | ESG notes: review fixes (drafts kept, own notes deletable, retry after failure, no open note dropped, staff-only in Today) |
+| 393 | 1.0.393 | 2026-11-27 13:28 | sticky-esg | _this commit_ | _see git log_ |
