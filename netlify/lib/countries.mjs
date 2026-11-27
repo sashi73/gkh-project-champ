@@ -7,7 +7,10 @@ export const COUNTRY_STD = {"AU": ["AASB_S2", "AASB_S1", "NGER", "AU_MSA"], "MY"
 export const GLOBAL_STD = ['GRI', 'GHGP', 'SDG'];
 // where a country has its own version of the ISSB standards (AASB S1/S2, SSBJ, UK SRS, CSDS, China CSDS, NZ CS), IFRS S1/S2 are not added on top
 const OWN_ISSB = new Set(['AU', 'JP', 'GB', 'CA', 'CN', 'NZ']);
-export const countryOf = (name) => COUNTRIES.find((x) => x[0].toLowerCase() === String(name || '').trim().toLowerCase()) || null;
+const ALIAS = { uk: 'GB', 'great britain': 'GB', britain: 'GB', england: 'GB', usa: 'US', 'u.s.': 'US', 'u.s.a.': 'US', america: 'US', 'united states of america': 'US', uae: 'AE', emirates: 'AE', dubai: 'AE', 'abu dhabi': 'AE', ksa: 'SA', 'saudi': 'SA', 'hong kong sar': 'HK', 'south korea': 'KR', korea: 'KR', 'viet nam': 'VN', russia: 'RU', 'czech republic': 'CZ', holland: 'NL' };
+// a country from its name, its ISO code (SG, GB) or a common short name (UK, USA, UAE, KSA)
+export const countryOf = (name) => { const n = String(name || '').trim().toLowerCase(); if (!n) return null; const iso = ALIAS[n] || (/^[a-z]{2}$/.test(n) ? n.toUpperCase() : null);
+  return COUNTRIES.find((x) => x[0].toLowerCase() === n) || (iso && COUNTRIES.find((x) => x[1] === iso)) || null; };
 export function stdFor(country) { const c = countryOf(country), own = (c && COUNTRY_STD[c[1]]) || []; return [...new Set([...own, ...(c && OWN_ISSB.has(c[1]) ? [] : ['IFRS_S1', 'IFRS_S2']), ...GLOBAL_STD])]; }
 export const OWN_ISSB_CODES = [...OWN_ISSB];
 // ⚖ human rights and labour depend on the jurisdiction (the main country of operation). Indigenous peoples' rights are reported where the
@@ -15,9 +18,22 @@ export const OWN_ISSB_CODES = [...OWN_ISSB];
 //   the Philippines' IPRA, Malaysia's Orang Asli and native customary rights, Japan's Ainu Act, the Nordic Sámi, Latin America's ILO 169…).
 //   Elsewhere (Singapore, China, the Gulf states…) the two Indigenous items are not asked for and do not count, for or against.
 export const INDIGENOUS = new Set(['AU', 'NZ', 'CA', 'US', 'MX', 'GT', 'HN', 'NI', 'CR', 'PA', 'CO', 'VE', 'EC', 'PE', 'BO', 'BR', 'PY', 'CL', 'AR', 'NO', 'SE', 'FI', 'DK', 'GL', 'RU', 'PH', 'MY', 'ID', 'TW', 'JP', 'IN', 'BD', 'NP', 'ZA', 'NA', 'BW', 'KE', 'CG', 'CM', 'FJ', 'PG']);
-// where a modern slavery or supply-chain due diligence law applies (a statement is required, not only good practice)
-export const MS_LAW = new Set(['AU', 'GB', 'CA', 'FR', 'DE', 'NO', 'NL', 'CH']);
-export function rightsScope(country) {
-  const c = countryOf(country), iso = c ? c[1] : '';
-  return { country: c ? c[0] : '', indigenous: !c || INDIGENOUS.has(iso), msLaw: MS_LAW.has(iso) };   // no country yet: every item counts, as before
+// modern slavery and supply-chain due diligence laws, and who they cover: [law, currency of the revenue test, revenue (millions), employees, both needed]
+//   (a summary to prompt a check, not legal advice: the organisation confirms whether it is a reporting entity)
+const MS = { AU: ['the Modern Slavery Act 2018', 'AUD', 100, null], GB: ['the Modern Slavery Act 2015', 'GBP', 36, null], CA: ['the Fighting Against Forced Labour and Child Labour in Supply Chains Act', 'CAD', 40, 250],
+  FR: ['the duty of vigilance law', null, null, 5000], DE: ['the Supply Chain Due Diligence Act (LkSG)', null, null, 1000], NO: ['the Transparency Act', 'NOK', 70, 50, true], CH: ['the due diligence rules of the Code of Obligations', 'CHF', 40, 500, true] };
+export const MS_LAW = new Set(Object.keys(MS));
+// org: { country, revenue (millions, in its currency), currency, employees }
+export function rightsScope(country, org = {}) {
+  const typed = String(country || '').trim(), c = countryOf(typed), iso = c ? c[1] : '', L = MS[iso];
+  // no country yet: every item counts, as before; a country typed that is not recognised: the Indigenous items are left out (neither for nor against)
+  const out = { country: c ? c[0] : typed, resolved: !!c || !typed, indigenous: c ? INDIGENOUS.has(iso) : !typed, msLaw: false, msNote: '' };
+  if (!L) { out.msNote = c ? 'Good practice in ' + c[0] + ' (no modern slavery reporting law there).' : ''; return out; }
+  const rev = Number(org.revenue), emp = Number(org.employees), cur = String(org.currency || '').toUpperCase();
+  const byRev = L[2] == null ? null : cur === L[1] && Number.isFinite(rev) && rev > 0 ? rev >= L[2] : null, byEmp = L[3] == null ? null : Number.isFinite(emp) && emp > 0 ? emp >= L[3] : null;
+  const tests = [byRev, byEmp].filter((x, i) => (i === 0 ? L[2] != null : L[3] != null)), known = tests.every((x) => x != null);
+  const meets = L[4] ? (known ? tests.every(Boolean) : tests.some((x) => x === false) ? false : null) : tests.some((x) => x === true) ? true : known ? false : null;
+  out.msLaw = meets === true ? 'required' : meets === false ? false : 'check';
+  out.msNote = meets === true ? 'Required by ' + L[0] + ' in ' + c[0] + ' at this size: confirm it as a reporting entity.' : meets === false ? 'Good practice: below the size ' + L[0] + ' covers in ' + c[0] + '.' : 'Check whether ' + L[0] + ' in ' + c[0] + ' applies at your size (revenue and employees).';
+  return out;
 }

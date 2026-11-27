@@ -512,7 +512,7 @@ function socScore(e) {
   core -= (w.deaths || 0) > 0 ? 6 : 0; core -= Math.min(3, Math.floor((w.injuries || 0) / 5));
   core += pts(h.hrPolicy, 4) + pts(h.antiDisc, 3) + pts(h.sWhistle, 4) + pts(h.psycho, 3) + pts(h.childLabour, 4) + pts(h.modernSlavery, 3) + pts(h.livingWage, 2);
   core += has(w.under18) && !w.under18 ? 4 : 0;
-  const rs = rightsScope((e.org || {}).country);   // ⚖ the Indigenous items count only where the main country of operation recognises Indigenous peoples
+  const rs = rightsScope((e.org || {}).country, e.org || {});   // ⚖ the Indigenous items count only where the main country of operation recognises Indigenous peoples
   if (rs.indigenous) { core += h.indigPolicy === 'Yes' ? 3 : h.indigPolicy === 'Not applicable' ? 2 : 0; core += (h.indigPct || 0) >= 3 ? 2 : (h.indigPct || 0) >= 1 ? 1 : 0; }
   core += has(w.trainHrs) ? Math.min(4, w.trainHrs / 6) : 0; core += has(w.payGap) ? (Math.abs(w.payGap) <= 5 ? 4 : Math.abs(w.payGap) <= 12 ? 2 : 0) : 0;
   core = Math.max(0, Math.min(75, core * 75 / (rs.indigenous ? 69 : 64)));   // the core items add up to 69 at best (64 without the Indigenous items): scaled onto the documented 75 points
@@ -521,7 +521,8 @@ function socScore(e) {
   if ((w.deaths || 0) > 0) why.push('A fatality in the year: report it openly with the investigation and actions.');
   if (!has(w.ltifr)) why.push('Add the LTIFR (lost time injuries per million hours).');
   if (h.childLabour !== 'Yes') why.push('Confirm child labour checks across operations and suppliers.');
-  if (rs.msLaw && h.modernSlavery !== 'Yes') why.push('A modern slavery or supply-chain due diligence statement is required by law in ' + rs.country + '.');
+  if (rs.msLaw && h.modernSlavery !== 'Yes') why.push('Modern slavery statement: ' + rs.msNote);
+  if (!rs.resolved) why.push('The country "' + rs.country + '" is not recognised: choose it from the list so the rules of that jurisdiction apply.');
   return { score: Math.round(core + opt), core: Math.round(core), opt: Math.round(opt), womenPct: r2(wp, 1), womenMgmtPct: r2(mp, 1), rightsScope: rs, why };
 }
 // Governance (out of 100) and the GRI 2 alignment index: from the GKH Governance Intelligence tool
@@ -657,8 +658,8 @@ function facts(e) {
   const c = compute(e), o = e.org || {}, std = (e.std || []).map((s) => (STANDARDS.find((x) => x.id === s) || {}).name).filter(Boolean);
   const mat = Object.entries(e.mat || {}).filter(([, v]) => v.imp || v.fin).map(([k, v]) => { const t = TOPICS_FULL.find((x) => x[0] === k) || []; return { topic: t[1], pillar: t[2], impact: RATE[v.imp], financial: RATE[v.fin], kinds: v.kind, horizon: v.horizon, stakeholders: v.who, actions: v.action, gri: t[4], esrs: t[5], note: v.note || undefined }; }).sort((a, b) => RATE.indexOf(b.impact) + RATE.indexOf(b.financial) - RATE.indexOf(a.impact) - RATE.indexOf(a.financial));
   const data = {}; SECTIONS.forEach((s) => { const v = e[s.id] || {}; if (Object.keys(v).length) data[s.title] = Object.fromEntries(s.fields.filter((f) => has(v[f[0]])).map((f) => [f[1] + (typeof f[3] === 'string' && f[3] ? ' (' + f[3] + ')' : ''), v[f[0]]])); });
-  const rs = rightsScope(o.country);
-  return { organisation: o, standards_chosen: std, data, jurisdiction: { main_country_of_operation: rs.country || o.country || '', indigenous_peoples_items: rs.indigenous ? 'apply' : 'not applicable in this jurisdiction: do not report them as a gap or a weakness', modern_slavery_statement: rs.msLaw ? 'required by law' : 'good practice, not required by law' }, results: { emissions_tCO2e: { scope1: c.em.s1t, scope1_by_source: c.em.s1, scope2_location: c.em.s2loc, scope2_market: c.em.s2mkt, scope3: c.em.s3t, scope3_by_category: c.em.s3, total: c.em.total,
+  const rs = rightsScope(o.country, o);
+  return { organisation: o, standards_chosen: std, data, jurisdiction: { main_country_of_operation: rs.country || o.country || '', indigenous_peoples_items: rs.indigenous ? 'apply' : 'not applicable in this jurisdiction: do not report them as a gap or a weakness', modern_slavery_statement: rs.msNote || 'good practice' }, results: { emissions_tCO2e: { scope1: c.em.s1t, scope1_by_source: c.em.s1, scope2_location: c.em.s2loc, scope2_market: c.em.s2mkt, scope3: c.em.s3t, scope3_by_category: c.em.s3, total: c.em.total,
     intensity_per_million_revenue: c.em.intensity, sector_intensity_indicative: c.em.bench, vs_sector_pct: c.em.vsBench, change_vs_base_year_pct: c.em.vsBase, per_employee: c.em.perFte, energy_MWh: c.em.energy, factor_set: c.em.setLabel },
     scores_out_of_100: { environment: c.env.score, social: c.soc.score, governance: c.gov.score, overall: c.esg, gri2_alignment: c.gov.gri }, women_pct: c.soc.womenPct, women_in_management_pct: c.soc.womenMgmtPct, women_on_board_pct: c.gov.boardWomenPct,
     gaps: [...c.env.why, ...c.soc.why, ...c.gov.why], standards_coverage_pct: c.coverage,

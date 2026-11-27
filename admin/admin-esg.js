@@ -199,7 +199,7 @@
     var val = v == null ? '' : String(v);
     if (sec === 'rights' && (k === 'indigPolicy' || k === 'indigPct' || k === 'modernSlavery')) { var cty = ctyOf((V.e.org || {}).country) || null;   // ⚖ what applies where the company mainly operates
       if (cty && k !== 'modernSlavery' && (SC.indigenous || []).indexOf(cty[1]) < 0) hint = 'Not usually reported in ' + cty[0] + ': it does not count towards the Social score there, for or against.';
-      if (cty && k === 'modernSlavery') hint = (SC.msLaw || []).indexOf(cty[1]) >= 0 ? 'Required by law in ' + cty[0] + '.' : 'Good practice in ' + cty[0] + ' (not required by law).'; }
+      if (k === 'modernSlavery') { var rsc = ((V.calc || {}).soc || {}).rightsScope; if (rsc && rsc.msNote) hint = rsc.msNote; } }   // the server's reading of the law: the country and the organisation's size
     if (k === 'country' && (V.lastCtyFor !== V.e.id || V.lastCtyRev !== V.e.rev && !document.activeElement.matches('#ef-org-country'))) { V.lastCtyRev = V.e.rev; V.lastCtyFor = V.e.id; V.lastCty = (ctyOf(val) || [])[0] || ''; }   // the country this report started with
     if (k === 'fset') { var grp = {}, order = []; Object.keys(SC.factorSets).forEach(function (x) { var g0 = SC.factorSets[x].group || 'Presets'; if (!grp[g0]) { grp[g0] = []; order.push(g0); } grp[g0].push(x); });
       order = ['Presets'].concat(order.filter(function (g0) { return g0 !== 'Presets'; }).sort());

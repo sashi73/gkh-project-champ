@@ -389,4 +389,5 @@ Version = product version + build number (1.0.12 = version 1.0, build 12). Times
 | 378 | 1.0.378| 2026-11-27 04:42| supplier-form| `a450ccb` | Supplier form: actions under the ESG prefix (staff logins, no Stock clash); finish a stalled acceptance; no delete mid-accept |
 | 379 | 1.0.379| 2026-11-27 04:53| supplier-form| `2406291` | Vault: a late load for a vault no longer open changes nothing; an accepting supplier request cannot be deleted |
 | 380 | 1.0.380| 2026-11-27 05:03| supplier-form| `539a5e5` | Supplier ESG data (Scope 3): SEDG-based form via private link, into the vault (#179) |
-| 381 | 1.0.381 | 2026-11-27 11:10 | rights-jurisdiction | _this commit_ | _see git log_ |
+| 381 | 1.0.381| 2026-11-27 11:10| rights-jurisdiction| `f822f77` | ESG: human rights and labour follow the main country of operation (Indigenous items only where they apply; modern slavery law flagged) |
+| 382 | 1.0.382 | 2026-11-27 11:31 | rights-jurisdiction | _this commit_ | _see git log_ |
