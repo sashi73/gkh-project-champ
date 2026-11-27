@@ -358,6 +358,15 @@ async function handle(req, context) {
         if (action === 'esgSupDelete') await A.audit(who, `Supplier ESG data: a request deleted (${key})`);
         return out(200, r);
       }
+      case 'esgNotes': case 'esgNoteAdd': case 'esgNoteSet': case 'esgNotePeople': {   // 🗒 sticky notes on an ESG report (netlify/lib/esg-notes.mjs)
+        const EN = await import('../lib/esg-notes.mjs');
+        if (action === 'esgNotePeople') { if (ctx.scope) return out(200, { people: ctx.name ? [{ name: ctx.name, role: '' }] : [] });   // a scoped login does not see the staff list
+          const L = await U.list(); return out(200, { people: L.filter((u) => u.active !== false && u.name && (u.kind || 'person') === 'person').map((u) => ({ name: u.name, role: u.role || '' })).concat(ctx.name && !L.some((u) => u.name === ctx.name) ? [{ name: ctx.name, role: ctx.role || '' }] : []).slice(0, 300) }); }
+        const r = action === 'esgNotes' ? await EN.list(body.id) : action === 'esgNoteAdd' ? await EN.add(body.id, body, by) : await EN.set(body.id, body.nid, body, ctx, by);
+        if (r.error) return bad(r.error, r.code || 400);
+        if (action === 'esgNoteAdd') await A.audit(who, `ESG: a note on ${EN.SEC_NAME[r.note.sec] || r.note.sec} for ${r.name}`).catch(() => {});
+        return out(200, r);
+      }
       case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
       case 'sampleSeed': {   // 🧪 sample programs, projects and ESG companies: the super user only
         if (!ctx.owner) return bad('Only the super user loads the sample data.', 403);

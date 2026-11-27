@@ -114,6 +114,7 @@
     $('#esgDel').onclick = function () { M.confirmBox('Delete this ESG report?', 'This deletes <b>' + esc(o.name || 'this report') + '</b>, its data, its AI narratives and its history. It cannot be undone.', 'Delete', true).then(function (ok) { if (!ok) return; api('esgDelete', { id: V.id }).then(function () { V.e = null; toast('Deleted'); location.hash = '#esg'; }).catch(fail); }); };
     var on = view().querySelector('#planTabs .tab.on'); if (on && on.scrollIntoView) try { on.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (x) {}
     body();
+    if (M.esgNotes) M.esgNotes.attach(V.id, V.tab);   // 🗒 sticky notes on the report (admin-esgnotes.js)
   }
   function body() {
     var t = V.tab, b = $('#esgBody');

@@ -6,6 +6,7 @@ import * as kv from './kv.mjs';
 import * as P from './plan.mjs';
 import { sydToday } from './ai.mjs';
 import { TAGS, tagsIn } from '../../assets/note-tags.js';
+import * as EN from './esg-notes.mjs';
 
 const norm = (s) => String(s || '').toLowerCase().replace(/\(.*?\)/g, '').replace(/[^\p{L}\p{N} ]/gu, ' ').replace(/\s+/g, ' ').trim();
 const LV = { High: 3, Medium: 2, Low: 1 };
@@ -42,6 +43,12 @@ export async function seenGet(ctx, core) {
   return { seen: (await kv.get('seen:' + core)) || {} };
 }
 export async function seenMark(ctx, body) {
+  if (body.esg) {   // 🌿 a note on an ESG report: kept as seen:esg:<id>
+    const id = String(body.esg).replace(/[^A-Z0-9]/gi, '').slice(0, 24), nid = String(body.nid || '').replace(/[^\w-]/g, '').slice(0, 20); if (!id || !nid) return { error: 'Which note?', code: 400 };
+    const who = String(ctx.name || 'Someone').slice(0, 80), at = Date.now();
+    await kv.update('seen:esg:' + id, (m) => { m['n:' + nid] = Object.assign({}, m['n:' + nid] || {}, { [who]: { at, via: body.via === 'phone' ? 'phone' : 'web' } }); const ks = Object.keys(m); if (ks.length > 1000) delete m[ks[0]]; return m; }, () => ({}));
+    return { ok: true, at };
+  }
   const core = String(body.core || ''), plan = core && (await P.get(core));
   if (!plan) return { error: 'That project is not there any more.', code: 404 };
   if (ctx.scope && !ctx.scope.includes(core)) return { error: 'This login can only see the projects it was given.', code: 403 };
@@ -97,6 +104,17 @@ export async function myDay(ctx, opts) {
       });
     }
   }
+  // 🌿 sticky notes on ESG reports that @mention you: pushed here (and to the phone app) the same way as a note on a project
+  { const names = new Set([norm(ctx.name)].filter(Boolean)), ahead = P.addWork(P.nextWork(today, false), 4, false);
+    if (names.size) { const L = await EN.forMe((text) => mentions(names, text)).catch(() => []), seenE = await kv.getMany([...new Set(L.map((x) => 'seen:esg:' + x.esg))]).catch(() => []), sk = [...new Set(L.map((x) => 'seen:esg:' + x.esg))];
+      for (const x of L) { const n = x.note, due = n.due || '';
+        if (isMe(names, n.by) && !mentions(names, n.text)) continue;
+        if (due && due > ahead) { laterNotes++; continue; }
+        const v = (seenE[sk.indexOf('seen:esg:' + x.esg)] || {})['n:' + n.id] || {}, tags = tagsIn(n.text);
+        const z = { core: '', esg: x.esg, project: x.entity + ' (ESG)', link: '#esg/' + encodeURIComponent(x.esg) + '/' + n.sec, t: n.sec, nid: n.id, task: EN.SEC_NAME[n.sec] || 'ESG report', text: n.text, tags, by: n.by || '', at: n.at || 0, due, c: n.c, urgency: NOTE[n.c] || 'Fine', mention: true,
+          rag: due && due < today ? 'red' : n.c === 'R' ? 'red' : n.c === 'A' ? 'amber' : 'green', late: !!(due && due < today), viewed: v[me] ? v[me].at : 0, seenBy: Object.entries(v).filter((e) => e[0] !== me).map((e) => ({ name: e[0], at: e[1].at, via: e[1].via })), call: null };
+        if (tags.includes('blocker')) { z.rag = 'red'; z.urgency = 'Blocker'; }
+        att.push(z); } } }
   todo.sort((a, b) => b.lv - a.lv || (a.due || '9') .localeCompare(b.due || '9'));
   const cv = { R: 3, A: 2, G: 1 };
   // #blocker first (the andon), then late, then by due date, then by colour; the other tags in their list order when the rest is equal
@@ -115,6 +133,7 @@ export async function myDay(ctx, opts) {
 
 // ✓ from the start screen: tick an item done, or resolve a note (it then leaves the list)
 export async function myDayDone(ctx, body, by) {
+  if (body.esg) { const r = await EN.markDone(body.esg, body.nid, ctx.name || by || 'Admin'); return r.error ? r : { ok: true }; }   // 🌿 a note on an ESG report
   const core = String(body.core || ''), plan = core && (await P.get(core));
   if (!plan || !Array.isArray(plan.tasks)) return { error: 'That project is not there any more.', code: 404 };
   if (ctx.scope && !ctx.scope.includes(core)) return { error: 'This login can only work on the projects it was given.', code: 403 };

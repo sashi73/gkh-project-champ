@@ -104,7 +104,7 @@
   function view(b) {
     var k = b.getAttribute('data-view'), x = k[0] === 'a' ? D.attention[+k.slice(1)] : D.todo[+k.slice(1)]; if (!x) return;
     b.disabled = true; b.textContent = '…';
-    api('planMyDaySeen', { core: x.core, t: x.t, s: x.s || '', q: x.q || '', nid: x.nid || '', via: 'phone' }).then(function (r) {
+    api('planMyDaySeen', { core: x.core, esg: x.esg || '', t: x.t, s: x.s || '', q: x.q || '', nid: x.nid || '', via: 'phone' }).then(function (r) {
       x.viewed = r.at || Date.now(); var m = document.getElementById('pm-' + k); if (m) { var h = (k[0] === 'a' ? note : task)(x, +k.slice(1)), t = document.createElement('div'); t.innerHTML = h; var nm = t.firstChild; m.replaceWith(nm); wire(nm); }
       if (navigator.vibrate) navigator.vibrate(15);
     }).catch(function (e) { b.disabled = false; b.textContent = '👁 Mark as viewed'; toast(e.message, true); });
