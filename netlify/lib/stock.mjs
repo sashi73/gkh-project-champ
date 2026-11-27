@@ -13,7 +13,7 @@ import dns from 'node:dns';
 // the search APIs: fixed hosts; the timer runs until the body is read
 async function getJson(url, opt = {}, ms = 9000) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), ms);
-  try { const r = await fetch(url, { ...opt, signal: c.signal }); return { ok: r.ok, status: r.status, j: r.ok ? await r.json() : null }; } finally { clearTimeout(t); }
+  try { const r = await fetch(url, { ...opt, headers: { 'User-Agent': 'GKH-Project-Champ/1.0 (report photos)', Accept: 'application/json', ...(opt.headers || {}) }, signal: c.signal }); return { ok: r.ok, status: r.status, j: r.ok ? await r.json() : null }; } finally { clearTimeout(t); }
 }
 // 🛡 the photos themselves come from hosts the search results name: every connection (and every redirect) must reach a public
 //   address. The check runs inside the connection's own DNS lookup, so a name cannot change its answer between check and connect.
@@ -47,11 +47,12 @@ async function search(q, tall) {
       if (r.ok) { const j = r.j; const L = (j.photos || []).map((p) => ({ src: (p.src && (p.src.large2x || p.src.large)) || '', credit: 'Photo: ' + str(p.photographer, 60) + ' on Pexels', link: str(p.url, 300) })).filter((p) => p.src); if (L.length) return L; }
     } catch { /* falls back to Openverse */ }
   }
-  const r = await getJson(OV() + '/v1/images/?license=cc0,pdm&mature=false&page_size=20&q=' + encodeURIComponent(q) + '&aspect_ratio=' + (tall ? 'tall' : 'wide'));
+  // no shape filter (it left too few photos: the page crops them to fit); a photo's own file first, then Openverse's copy of it (smaller, on its own https host)
+  const r = await getJson(OV() + '/v1/images/?license=cc0,pdm&mature=false&page_size=20&q=' + encodeURIComponent(q));
   if (!r.ok) throw new Error('The photo library did not answer (' + r.status + '). Try again in a minute.');
-  const j = r.j;
-  return (j.results || []).filter((p) => p.url && (!p.width || p.width >= 900) && !/\.(gif|svg|tiff?)(\?|$)/i.test(p.url))
-    .map((p) => ({ src: p.url, credit: (p.title ? '“' + str(p.title, 60) + '”' : 'Photo') + (p.creator ? ' by ' + str(p.creator, 50) : '') + ' (' + String(p.license || '').toUpperCase() + ', via Openverse)', link: str(p.foreign_landing_url, 300) }));
+  const j = r.j, up = (u) => (localOk() ? String(u || '') : String(u || '').replace(/^http:\/\//i, 'https://'));
+  return (j.results || []).filter((p) => p.url && (!p.width || p.width >= 640) && !/\.(gif|svg|tiff?)(\?|$)/i.test(p.url))
+    .map((p) => ({ src: up(p.url), alt: p.id && /^[\w-]{8,64}$/.test(p.id) ? OV() + '/v1/images/' + p.id + '/thumb/' : (p.thumbnail ? up(p.thumbnail) : ''), credit: (p.title ? '“' + str(p.title, 60) + '”' : 'Photo') + (p.creator ? ' by ' + str(p.creator, 50) : '') + ' (' + String(p.license || '').toUpperCase() + ', via Openverse)', link: str(p.foreign_landing_url, 300) }));
 }
 
 // body: { q: search words, i: which photo (0 = cover, 1 = part pages, 2 = bands), skip: how many to pass over (for "other photos") }
@@ -61,14 +62,17 @@ export async function photo(body) {
   let L; try { L = await search(q, i < 2); } catch (e) { return { error: e.name === 'AbortError' ? 'The photo library took too long. Try again.' : e.message, code: 502 }; }
   if (!L.length) return { error: 'No free photos found for "' + q + '". Try other words.', code: 404 };
   // spread the three photos over the results, and try the next one when a download fails or is too big
-  for (let k = 0; k < 5; k++) {
+  const why = [];
+  for (let k = 0; k < Math.min(6, L.length); k++) {
     const p = L[(skip + i * 3 + k) % L.length];
-    try {
-      const { ty, b } = await download(p.src); if (b.length < 200) continue;
-      return { url: 'data:' + ty + ';base64,' + b.toString('base64'), credit: p.credit, link: p.link };
-    } catch { /* the next result */ }
+    for (const src of [p.src, p.alt].filter(Boolean)) {   // the original, then the library's smaller copy
+      try {
+        const { ty, b } = await download(src); if (b.length < 200) { why.push('empty file'); continue; }
+        return { url: 'data:' + ty + ';base64,' + b.toString('base64'), credit: p.credit, link: p.link };
+      } catch (e) { why.push(String(e.message || e).slice(0, 40)); }
+    }
   }
-  return { error: 'Those photos could not be downloaded just now. Try again or try other words.', code: 502 };
+  return { error: 'Those photos could not be downloaded just now (' + [...new Set(why)].slice(0, 3).join(', ') + '). Try again or try other words.', code: 502 };
 }
 
 // 📰 the photo plan for a magazine-style report: the AI decides how many photos the report needs (none to 20) and what each shows,

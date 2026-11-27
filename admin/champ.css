@@ -1850,3 +1850,10 @@ html.dark .esg-in i,body.dark .esg-in i,html.dark .esg-dstate,body.dark .esg-dst
 .esn-all{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:#6B665A;cursor:pointer}
 .esn-at{color:#1D4ED8;font-weight:700}
 .esn-hl{box-shadow:0 0 0 2px #C9A227}
+/* 📸 report photos in four groups (General, E, S, G), up to 30 */
+.esg-phg{border:1px solid var(--line,#E7E1D2);border-radius:10px;padding:8px 10px;margin-top:8px;background:#FCFBF7}
+.esg-phg-h{display:flex;gap:8px;align-items:baseline;margin-bottom:6px}.esg-phg-h small{color:var(--muted,#8C8775);font-size:11.5px}
+.esg-phg[data-pg=env]{border-left:4px solid #16A34A}.esg-phg[data-pg=soc]{border-left:4px solid #EA580C}.esg-phg[data-pg=gov]{border-left:4px solid #2563EB}.esg-phg[data-pg=gen]{border-left:4px solid #C9A227}
+.esg-phg-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.esg-phadd{width:84px;height:60px;border:1.5px dashed #CFC6AE;border-radius:6px;background:#fff;font-size:22px;color:#8C8775;cursor:pointer}.esg-phadd:hover{border-color:#C9A227;color:#8A6A00;background:#FFF8E1}
+.esg-ownonly{display:flex;gap:6px;align-items:center;font-size:12.5px;margin-top:8px;font-weight:600}
