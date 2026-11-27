@@ -10,3 +10,14 @@ const OWN_ISSB = new Set(['AU', 'JP', 'GB', 'CA', 'CN', 'NZ']);
 export const countryOf = (name) => COUNTRIES.find((x) => x[0].toLowerCase() === String(name || '').trim().toLowerCase()) || null;
 export function stdFor(country) { const c = countryOf(country), own = (c && COUNTRY_STD[c[1]]) || []; return [...new Set([...own, ...(c && OWN_ISSB.has(c[1]) ? [] : ['IFRS_S1', 'IFRS_S2']), ...GLOBAL_STD])]; }
 export const OWN_ISSB_CODES = [...OWN_ISSB];
+// ⚖ human rights and labour depend on the jurisdiction (the main country of operation). Indigenous peoples' rights are reported where the
+//   law or the national framework recognises Indigenous peoples (Australia's RAPs, Canada's UNDRIP Act, New Zealand's Treaty of Waitangi,
+//   the Philippines' IPRA, Malaysia's Orang Asli and native customary rights, Japan's Ainu Act, the Nordic Sámi, Latin America's ILO 169…).
+//   Elsewhere (Singapore, China, the Gulf states…) the two Indigenous items are not asked for and do not count, for or against.
+export const INDIGENOUS = new Set(['AU', 'NZ', 'CA', 'US', 'MX', 'GT', 'HN', 'NI', 'CR', 'PA', 'CO', 'VE', 'EC', 'PE', 'BO', 'BR', 'PY', 'CL', 'AR', 'NO', 'SE', 'FI', 'DK', 'GL', 'RU', 'PH', 'MY', 'ID', 'TW', 'JP', 'IN', 'BD', 'NP', 'ZA', 'NA', 'BW', 'KE', 'CG', 'CM', 'FJ', 'PG']);
+// where a modern slavery or supply-chain due diligence law applies (a statement is required, not only good practice)
+export const MS_LAW = new Set(['AU', 'GB', 'CA', 'FR', 'DE', 'NO', 'NL', 'CH']);
+export function rightsScope(country) {
+  const c = countryOf(country), iso = c ? c[1] : '';
+  return { country: c ? c[0] : '', indigenous: !c || INDIGENOUS.has(iso), msLaw: MS_LAW.has(iso) };   // no country yet: every item counts, as before
+}
