@@ -16,7 +16,8 @@ export async function runOnce(who) {
 // 🧪 the second set (sample-esg-2.mjs: Singapore shipping, Dubai real estate, Saudi cement, with their vaults and supplier data), once, under its own flag
 export async function runOnce2(who) {
   let first = false;
-  await kv.update('sample-esg-2', (cur) => { if (cur) return cur; first = true; return { at: Date.now(), by: who, running: true }; }, () => null);
+  // the claim: set afresh on every attempt of the compare-and-set (a losing attempt ends with first = false); a claim left running for 20 minutes by a run that died is taken over
+  await kv.update('sample-esg-2', (cur) => { first = false; if (cur && !(cur.running && Date.now() - (cur.at || 0) > 20 * 60e3)) return cur; first = true; return { at: Date.now(), by: who, running: true }; }, () => null);
   if (!first) return null;
   try {
     const S2 = await import('./sample-esg-2.mjs'), made = await S2.seed2(who);

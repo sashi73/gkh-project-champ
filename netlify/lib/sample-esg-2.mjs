@@ -116,17 +116,22 @@ export async function seed2(by) {
     // 🗄 the vault: its months (only when it has none yet), its target, then the suppliers
     const key = SV.keyOf(C.name), o = await SV.open(key, C.name, by); if (o.error) throw new Error(o.error);
     const v = await SV.get(key);
-    if (!(v.records || []).length) {
-      const L = monthly(C), target = C.grade === 'average' ? { baseYear: 2024, tgtPct: 20, tgtYear: 2030, nzYear: 2060, scope: '1+2' } : undefined;
-      for (let i = 0; i < L.length; i += 500) { const r = await SV.saveData(key, { set: L.slice(i, i + 500), ...(i === 0 && target ? { target, fyStart: 1 } : { fyStart: 1 }) }, by); if (r.error) throw new Error(r.error); }
-      made.vaults.push({ key, months: new Set(L.map((x) => x.period)).size, values: L.length });
+    if (!v.sampleLoaded) {   // only the months still missing (a run that stopped half-way is finished; nothing the user changed is overwritten)
+      const have = new Set((v.records || []).map((r) => r.period + '|' + r.metric)), L = monthly(C).filter((x) => !have.has(x.period + '|' + x.metric)), target = C.grade === 'average' && !(v.target || {}).tgtPct ? { baseYear: 2024, tgtPct: 20, tgtYear: 2030, nzYear: 2060, scope: '1+2' } : undefined;
+      for (let i = 0; i < L.length; i += 500) { const r = await SV.saveData(key, { set: L.slice(i, i + 500), ...(i === 0 && target ? { target, fyStart: 1 } : {}) }, by); if (r.error) throw new Error(r.error); }
+      await kv.update('svault:' + key, (x) => { if (x) x.sampleLoaded = Date.now(); return x; }, () => null);
+      made.vaults.push({ key, months: new Set(monthly(C).map((x) => x.period)).size, values: L.length });
     }
-    const have = ((await SP.list(key)).requests || []).map((r) => r.supplier);
+    const have = (await SP.list(key)).requests || [];
     for (const [sup, country, level, accept] of SUPPLIERS[C.name] || []) {
-      if (have.includes(sup)) continue;
-      const c = await SP.create(key, { supplier: sup, country, from: '2025-01', to: '2025-12', level, currency: C.currency, email: '', note: 'Sample request: figures for calendar 2025.' }, by); if (c.error) throw new Error(c.error);
-      const f = await SP.formSave(c.token, { submit: true, confirm: true, answers: SUP[level](C), currency: C.currency, contact: { name: 'Sample contact', role: 'Sustainability lead', email: 'sample@example.com' } }); if (f.error) throw new Error(f.error);
-      if (accept) { const a = await SP.accept(key, c.request.id, by); if (a.error) throw new Error(a.error); }
+      let r = have.find((x) => x.supplier === sup), token = null;
+      if (r && (r.status === 'accepted' || (!accept && r.status === 'submitted'))) continue;   // already where it should be
+      if (!r) { const c = await SP.create(key, { supplier: sup, country, from: '2025-01', to: '2025-12', level, currency: C.currency, email: '', note: 'Sample request: figures for calendar 2025.' }, by); if (c.error) throw new Error(c.error); r = c.request; token = c.token; }
+      if (r.status === 'sent' || r.status === 'draft' || r.status === 'returned') {   // a run that stopped before the reply: a new link, then the reply
+        if (!token) { const k = await SP.relink(key, r.id); if (k.error) throw new Error(k.error); token = k.token; }
+        const f = await SP.formSave(token, { submit: true, confirm: true, answers: SUP[level](C), currency: C.currency, contact: { name: 'Sample contact', role: 'Sustainability lead', email: 'sample@example.com' } }); if (f.error) throw new Error(f.error);
+      }
+      if (accept) { const a = await SP.accept(key, r.id, by); if (a.error && !/Already accepted/.test(a.error)) throw new Error(a.error); }
       made.suppliers.push({ vault: key, supplier: sup, level, accepted: accept });
     }
   }
