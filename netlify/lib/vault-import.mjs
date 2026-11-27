@@ -77,7 +77,9 @@ function months(p, fyStart) {
   if ((x = s.match(/^FY\s*(\d{4}|\d{2})$/i))) { const y = x[1].length === 2 ? 2000 + +x[1] : +x[1]; return fyStart === 1 ? span(y, 1, 12) : span(y - 1, fyStart, 12); }   // FY2026 ends in 2026
   if ((x = s.match(/^(\d{4})$/))) return span(+x[1], 1, 12);
   if ((x = s.match(/^(\d{4})\s*[-/]\s*(\d{2}|\d{4})$/)) && fyStart > 1) return span(+x[1], fyStart, 12);   // 2025-26
-  const d = new Date(/^[A-Za-z]{3,9}[\s-]+\d{4}$/.test(s) ? '1 ' + s.replace('-', ' ') : s); if (!isNaN(d) && d.getFullYear() > 1990) return [ym(d.getFullYear(), d.getMonth() + 1)];
+  // a month written out (Mar 2026, March-2026, 1 March 2026, March 1, 2026): nothing else goes to the date parser
+  if (!/^(\d{1,2}\s+)?[A-Za-z]{3,9}\.?[\s-]+(\d{1,2},?\s+)?\d{4}$/.test(s)) return null;
+  const d = new Date(/^[A-Za-z]{3,9}\.?[\s-]+\d{4}$/.test(s) ? '1 ' + s.replace(/[.-]/g, ' ') : s); if (!isNaN(d) && d.getFullYear() > 1990) return [ym(d.getFullYear(), d.getMonth() + 1)];
   return null;
 }
 
@@ -90,11 +92,11 @@ export function normalise(rows, { map = {}, fyStart = 1 } = {}) {
     if (mid === '') return;   // the user chose to leave it out
     if (!mid || !MK.has(mid)) { if (nm) unmatched.set(k, { name: nm, n: (unmatched.get(k) || { n: 0 }).n + 1, unit: str(r.unit, 20) }); return; }
     const m = MK.get(mid), raw = typeof r.value === 'number' ? r.value : Number(String(r.value ?? '').replace(/[,\s$€£%]/g, ''));
-    if (r.value === '' || r.value == null || !Number.isFinite(raw)) { held.push({ row: i + 1, name: nm, why: 'no number' }); return; }
-    const v = convert(raw, str(r.unit, 30), m); if (v == null) { held.push({ row: i + 1, name: nm, why: 'unit "' + str(r.unit, 20) + '" cannot become ' + (m[2] || 'a count') }); return; }
-    const ms = months(r.period, fyStart); if (!ms) { held.push({ row: i + 1, name: nm, why: 'period "' + str(r.period, 20) + '" not understood' }); return; }
+    if (r.value === '' || r.value == null || !Number.isFinite(raw)) { held.push({ row: r.row || i + 1, name: nm, why: 'no number' }); return; }
+    const v = convert(raw, str(r.unit, 30), m); if (v == null) { held.push({ row: r.row || i + 1, name: nm, why: 'unit "' + str(r.unit, 20) + '" cannot become ' + (m[2] || 'a count') }); return; }
+    const ms = months(r.period, fyStart); if (!ms) { held.push({ row: r.row || i + 1, name: nm, why: 'period "' + str(r.period, 20) + '" not understood' }); return; }
     const each = m[3] === 'sum' ? v / ms.length : v;   // a quarter's or a year's total spread evenly; an average (FTE) is the same in every month
-    ms.forEach((p) => { const key = p + '|' + mid, o = out.get(key); if (o) { o.value = m[3] === 'sum' ? o.value + each : (o.value * o.n + each) / (o.n + 1); o.n++; } else out.set(key, { period: p, metric: mid, label: m[1], unit: m[2], value: each, n: 1 }); });
+    ms.forEach((p) => { const key = p + '|' + mid, o = out.get(key); if (o) { o.value += each; o.n++; } else out.set(key, { period: p, metric: mid, label: m[1], unit: m[2], value: each, n: 1 }); });
   });
   const set = [...out.values()].map((x) => ({ ...x, value: Math.round(x.value * 10000) / 10000 })).sort((a, b) => (a.period + a.metric).localeCompare(b.period + b.metric));
   return { set, unmatched: [...unmatched.entries()].map(([k, x]) => ({ key: k, ...x })).sort((a, b) => b.n - a.n).slice(0, 200), held: held.slice(0, 200), heldN: held.length };
@@ -143,6 +145,6 @@ export async function byKey(secret) {
   if (!/^cvk_[A-Za-z0-9_-]{30,40}$/.test(String(secret || ''))) return null;
   const h = hash(secret), ix = await kv.get('svapi:' + h); if (!ix) return null;
   const v = await SV.get(ix.key); const k = v && (v.apiKeys || []).find((y) => y.id === ix.id && y.h === h); if (!k) return null;
-  await kv.update('svault:' + ix.key, (x) => { if (!x) return x; const y = (x.apiKeys || []).find((z) => z.id === ix.id); if (y) y.last = Date.now(); return x; }, () => null).catch(() => {});
+  if (!k.last || Date.now() - k.last > 15 * 60e3) await kv.update('svault:' + ix.key, (x) => { if (!x) return x; const y = (x.apiKeys || []).find((z) => z.id === ix.id); if (y) y.last = Date.now(); return x; }, () => null).catch(() => {});   // "last used" to the quarter hour: not a write on every call
   return { key: ix.key, id: ix.id, label: k.label, name: v.name };
 }

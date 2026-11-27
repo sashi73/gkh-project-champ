@@ -156,10 +156,10 @@
       vc = find(/^(value|amount|quantity|qty|data value|result|total|reported value|actual)/), uc = find(/^(unit|uom|units|unit of measure)/), sc = find(/^(site|facility|location|entity|business unit|plant|meter|account)/);
     if (pc < 0) throw new Error('No column for the period found (Month, Period, Date, Year or Quarter).');
     var out = [];
-    sheet.slice(hi + 1).forEach(function (r) { r = r || []; var p = cellTxt(r[pc]); if (String(p).trim() === '') return;
-      if (nc >= 0 && vc >= 0) { out.push({ period: p, name: cellTxt(r[nc]), value: cellTxt(r[vc]), unit: uc >= 0 ? cellTxt(r[uc]) : '', site: sc >= 0 ? cellTxt(r[sc]) : '' }); return; }
+    sheet.slice(hi + 1).forEach(function (r, ri) { r = r || []; var p = cellTxt(r[pc]), row = hi + ri + 2; if (String(p).trim() === '') return;   // row: as numbered in the spreadsheet
+      if (nc >= 0 && vc >= 0) { out.push({ row: row, period: p, name: cellTxt(r[nc]), value: cellTxt(r[vc]), unit: uc >= 0 ? cellTxt(r[uc]) : '', site: sc >= 0 ? cellTxt(r[sc]) : '' }); return; }
       H.forEach(function (head, c) { if (c === pc || c === uc || c === sc || !String(head).trim()) return; var v = cellTxt(r[c]); if (String(v).trim() === '') return;
-        var um = String(head).match(/\(([^)]+)\)|\[([^\]]+)\]/); out.push({ period: p, name: head, value: v, unit: um ? (um[1] || um[2]) : '', site: sc >= 0 ? cellTxt(r[sc]) : '' }); }); });
+        var um = String(head).match(/\(([^)]+)\)|\[([^\]]+)\]/); out.push({ row: row, period: p, name: head, value: v, unit: um ? (um[1] || um[2]) : '', site: sc >= 0 ? cellTxt(r[sc]) : '' }); }); });
     return { rows: out, layout: nc >= 0 && vc >= 0 ? 'long' : 'wide' };
   }
   function importSheet() {
@@ -186,7 +186,7 @@
       }).catch(function (e) { if (my === seq) $('#siBody').innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + esc(e.message) + '</div>'; }); }
     $('#siFile').onchange = function () { var f = this.files[0]; if (!f) return; fname = f.name; $('#siName').textContent = f.name; map = {};
       (M.esgReadSheet ? M.esgReadSheet(f) : Promise.reject(new Error('Open an ESG report once to load the sheet reader, then try again.'))).then(function (sheet) { var x = rowsOf(sheet); rows = x.rows; if (!rows.length) throw new Error('No rows with a period and a value were found.'); if (rows.length > 20000) throw new Error('This file has ' + rows.length + ' rows: split it into files of up to 20,000.'); preview(); })
-        .catch(function (e) { $('#siBody').innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + esc(e.message) + '</div>'; }); };
+        .catch(function (e) { rows = []; last = null; seq++; $('#siGo').hidden = true; $('#siBody').innerHTML = '<div class="esg-gaps" style="margin:12px 0">' + esc(e.message) + '</div>'; }); };   // a file that fails leaves nothing of the one before
     $('#siGo').onclick = function () { var b = this, mode = (document.querySelector('[name="siMode"]:checked') || {}).value || 'replace'; b.disabled = true;
       api('esgVaultImport', { key: vk, rows: rows, map: map, mode: mode, file: fname, saveMap: true }).then(function (r) { var m = document.getElementById('modal'); if (M.closeModal) M.closeModal(); else if (m && m.close) m.close(); toast('Imported ' + r.saved + ' monthly values (' + r.months + ' months) from ' + fname); return V.key === vk ? load(vk) : null; }).then(function () { if (V.key === vk) draw(); }).catch(function (e) { b.disabled = false; fail(e); }); };
   }
