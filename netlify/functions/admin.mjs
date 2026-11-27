@@ -361,7 +361,7 @@ async function handle(req, context) {
       case 'esgCso': { const E = await import('../lib/esg.mjs'); return out(200, await E.cso(clean(body.year, 20))); }
       case 'sampleSeed': {   // 🧪 sample programs, projects and ESG companies: the super user only
         if (!ctx.owner) return bad('Only the super user loads the sample data.', 403);
-        if (body.auto) { const O = await import('../lib/sample-once.mjs'), m = await O.runOnce(by); return out(200, { made: m || { programs: [], projects: [], companies: [], skipped: [] } }); }   // the automatic run happens once, even with two windows open
+        if (body.auto) { const O = await import('../lib/sample-once.mjs'), m = await O.runOnce(by), m2 = await O.runOnce2(by).catch((e) => ({ error: e.message })); return out(200, { made: m || { programs: [], projects: [], companies: [], skipped: [] }, made2: m2 }); }   // the automatic run happens once, even with two windows open
         const SP = await import('../lib/sample-portfolio.mjs'); const made = await SP.seed(by, String(body.today || ''));
         await A.audit(who, 'Sample data loaded: ' + made.programs.length + ' programs, ' + made.projects.length + ' projects, ' + made.companies.length + ' ESG companies'); return out(200, { made });
       }
