@@ -321,6 +321,18 @@ async function handle(req, context) {
         const r = await (await import('../lib/stock.mjs')).photo(body); return r.error ? bad(r.error, r.code || 400) : out(200, r); }
       case 'esgAiStatus': { const id = String(body.id || '').replace(/[^a-z0-9]/gi, '').slice(0, 40), r = id.length >= 12 ? await kv.get('aiplan:' + id) : null; return out(200, r && (r.esg || r.status !== 'done') ? r : { status: 'waiting' }); }   // the ESG AI job's progress (not other AI results)
         // 🗄 the Sustainability vault: data month by month, evidence by year and month, year-on-year progress and the target path (netlify/lib/esg-vault.mjs)
+      // 📥 figures from other systems (CSV, Excel, an ESG platform's export such as Diligent) and 🔑 the vault's API keys (vault-import.mjs)
+      case 'esgVaultImport': case 'esgVaultKeys': case 'esgVaultKeyNew': case 'esgVaultKeyDel': {
+        if ((action === 'esgVaultKeyNew' || action === 'esgVaultKeyDel') && !ctx.owner && (ctx.mods || {}).projects !== 'edit') return bad('Making or removing API keys needs edit access to Projects.', 403);
+        const VI = await import('../lib/vault-import.mjs'), key = String(body.key || '').slice(0, 80);
+        const r = action === 'esgVaultImport' ? await VI.apply(key, body.rows, { map: body.map, mode: body.mode === 'add' ? 'add' : 'replace', file: String(body.file || '').slice(0, 120), dry: !!body.dry, saveMap: !!body.saveMap }, by)
+          : action === 'esgVaultKeys' ? await VI.keys(key) : action === 'esgVaultKeyNew' ? await VI.keyCreate(key, body.label, by) : await VI.keyRevoke(key, String(body.id || '').slice(0, 20));
+        if (r.error) return bad(r.error, r.code || 400);
+        if (action === 'esgVaultImport' && !body.dry && r.saved) await A.audit(who, `Sustainability vault: ${r.saved} monthly value(s) imported from ${String(body.file || 'a file').slice(0, 80)} (${key})`);
+        if (action === 'esgVaultKeyNew') await A.audit(who, `Sustainability vault: API key ${r.id} made (${key})`);
+        if (action === 'esgVaultKeyDel') await A.audit(who, `Sustainability vault: API key removed (${key})`);
+        return out(200, r);
+      }
       case 'esgVaultOrgs': case 'esgVaultOpen': case 'esgVaultGet': case 'esgVaultSave': case 'esgVaultBills': case 'esgVaultAddBill': case 'esgVaultUrl': case 'esgVaultAdd': case 'esgVaultFile': case 'esgVaultDelete': {
         const SV = await import('../lib/esg-vault.mjs'), key = String(body.key || '').slice(0, 80);
         const r = action === 'esgVaultOrgs' ? { orgs: await SV.orgs() } : action === 'esgVaultOpen' ? await SV.open(key, clean(body.name, 120), by) : action === 'esgVaultGet' ? await SV.analyse(key)
