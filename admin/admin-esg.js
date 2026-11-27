@@ -975,7 +975,7 @@
   var SDGI = null, SDGJ = {};
   // one goal's icon as a small JPEG, for a table cell (none until the icons have loaded)
   function sdgIcon(n) { if (!SDGI) return undefined; if (SDGJ[n]) return SDGJ[n]; var cv = document.createElement('canvas'); cv.width = cv.height = 128; cv.getContext('2d').drawImage(SDGI[n - 1], 0, 0, 128, 128); return (SDGJ[n] = cv.toDataURL('image/jpeg', 0.9)); }
-  function loadSdg() { if (SDGI) return Promise.resolve(SDGI); return Promise.all(Array.from({ length: 17 }, function (x, i) { return new Promise(function (res) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { res(null); }; im.src = '/assets/sdg/sdg-' + ('0' + (i + 1)).slice(-2) + '.png'; }); }))
+  function loadSdg() { if (SDGI) return Promise.resolve(SDGI); return Promise.all(Array.from({ length: 17 }, function (x, i) { return new Promise(function (res) { var im = new Image(); im.onload = function () { res(im); }; im.onerror = function () { res(null); }; im.src = '/assets/sdg/sdg-' + ('0' + (i + 1)).slice(-2) + '.png?v=2'; }); }))
     .then(function (L) { if (L.every(Boolean)) SDGI = L; return SDGI; }); }
   // the icons of the goals a chapter contributes to, in a row
   function sdgStrip(goals, title) {
